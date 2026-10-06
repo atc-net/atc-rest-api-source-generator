@@ -20,6 +20,7 @@ export class ArraysClient {
   /** Get array types model */
   async getArrayTypes(signal?: AbortSignal): Promise<GetArrayTypesResult> {
     return this.api.request<ArrayTypes>('GET', '/arrays', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetArrayTypesResult>;

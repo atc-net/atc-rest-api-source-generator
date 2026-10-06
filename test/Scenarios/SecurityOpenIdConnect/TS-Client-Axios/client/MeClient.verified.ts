@@ -30,6 +30,7 @@ export class MeClient {
   /** Get current user profile */
   async getCurrentUser(signal?: AbortSignal): Promise<GetCurrentUserResult> {
     return this.api.request<UserProfile>('GET', '/me', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetCurrentUserResult>;
@@ -38,6 +39,7 @@ export class MeClient {
   /** Get detailed user profile */
   async getCurrentUserProfile(signal?: AbortSignal): Promise<GetCurrentUserProfileResult> {
     return this.api.request<UserProfile>('GET', '/me/profile', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetCurrentUserProfileResult>;

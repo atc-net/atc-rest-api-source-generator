@@ -28,6 +28,7 @@ export class ItemsClient {
   /** List items as JSON */
   async listItems(signal?: AbortSignal): Promise<ListItemsResult> {
     return this.api.request<Item[]>('GET', '/items', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListItemsResult>;

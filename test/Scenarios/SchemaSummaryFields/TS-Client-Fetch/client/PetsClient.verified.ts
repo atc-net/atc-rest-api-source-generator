@@ -36,6 +36,7 @@ export class PetsClient {
   /** List all pets */
   async listPets(signal?: AbortSignal): Promise<ListPetsResult> {
     return this.api.request<Pet[]>('GET', '/pets', {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListPetsResult>;
@@ -45,6 +46,7 @@ export class PetsClient {
   async createPet(body: Pet, signal?: AbortSignal): Promise<CreatePetResult> {
     return this.api.request<Pet>('POST', '/pets', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreatePetResult>;
@@ -53,6 +55,7 @@ export class PetsClient {
   /** Get a pet by ID */
   async getPetById(petId: number, signal?: AbortSignal): Promise<GetPetByIdResult> {
     return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetPetByIdResult>;

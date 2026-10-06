@@ -318,9 +318,21 @@ export class ApiClient {
     const isJson = responseType ? responseType === 'json' : (!isText && (contentType.includes('application/json') || contentType.includes('+json')));
 
     if (response.ok) {
+      // A JSON operation reads JSON whatever the Content-Type says; an empty body is no data. Without a
+      // responseType the Content-Type decides, and a body without one is its text (empty: no data).
       let data: unknown;
       try {
-        data = isText ? await response.text() : isJson ? await response.json() : await response.blob();
+        if (isText) {
+          data = await response.text();
+        } else if (isJson) {
+          const text = await response.text();
+          data = text.length === 0 ? undefined : JSON.parse(text);
+        } else if (responseType === 'blob' || contentType.length > 0) {
+          data = await response.blob();
+        } else {
+          const text = await response.text();
+          data = text.length === 0 ? undefined : text;
+        }
       } catch (parseError) {
         // Only a malformed body is a parseError; a body read that is aborted or cut off rejects like the request.
         if (!(parseError instanceof SyntaxError)) {

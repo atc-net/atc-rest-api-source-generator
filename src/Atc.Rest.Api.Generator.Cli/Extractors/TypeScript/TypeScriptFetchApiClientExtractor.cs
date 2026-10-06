@@ -515,9 +515,21 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    const isJson = responseType ? responseType === 'json' : (!isText && (contentType.includes('application/json') || contentType.includes('+json')));");
         sb.AppendLine();
         sb.AppendLine("    if (response.ok) {");
+        sb.AppendLine("      // A JSON operation reads JSON whatever the Content-Type says; an empty body is no data. Without a");
+        sb.AppendLine("      // responseType the Content-Type decides, and a body without one is its text (empty: no data).");
         sb.AppendLine("      let data: unknown;");
         sb.AppendLine("      try {");
-        sb.Append("        data = isText ? await response.text() : isJson ? ").Append(parseJson).AppendLine(" : await response.blob();");
+        sb.AppendLine("        if (isText) {");
+        sb.AppendLine("          data = await response.text();");
+        sb.AppendLine("        } else if (isJson) {");
+        sb.AppendLine("          const text = await response.text();");
+        sb.AppendLine("          data = text.length === 0 ? undefined : JSON.parse(text);");
+        sb.AppendLine("        } else if (responseType === 'blob' || contentType.length > 0) {");
+        sb.AppendLine("          data = await response.blob();");
+        sb.AppendLine("        } else {");
+        sb.AppendLine("          const text = await response.text();");
+        sb.AppendLine("          data = text.length === 0 ? undefined : text;");
+        sb.AppendLine("        }");
         sb.AppendLine("      } catch (parseError) {");
         sb.AppendLine("        // Only a malformed body is a parseError; a body read that is aborted or cut off rejects like the request.");
         sb.AppendLine("        if (!(parseError instanceof SyntaxError)) {");
@@ -542,7 +554,7 @@ public static class TypeScriptFetchApiClientExtractor
             // schema can't speak to them. The `safeParse` path returns the issues without
             // throwing; strictMode escalates to an exception so dev/CI can fail fast.
             sb.AppendLine();
-            sb.AppendLine("      if (parseSchema && isJson) {");
+            sb.AppendLine("      if (parseSchema && isJson && data !== undefined) {");
             sb.AppendLine("        const parsed = parseSchema.safeParse(data);");
             sb.AppendLine("        if (!parsed.success) {");
             sb.AppendLine("          if (this.strictMode) {");

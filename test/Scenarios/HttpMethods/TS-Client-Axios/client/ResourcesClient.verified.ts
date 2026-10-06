@@ -33,6 +33,7 @@ export class ResourcesClient {
   /** List resources */
   async listResources(signal?: AbortSignal): Promise<ListResourcesResult> {
     return this.api.request<Resource[]>('GET', '/resources', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListResourcesResult>;
@@ -42,6 +43,7 @@ export class ResourcesClient {
   async queryResources(body: ResourceQuery, signal?: AbortSignal): Promise<QueryResourcesResult> {
     return this.api.request<Resource[]>('QUERY', '/resources', {
       body,
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<QueryResourcesResult>;

@@ -52,6 +52,7 @@ export class ItemsClient {
         logLevel: query?.logLevel,
         from: query?.from?.toISOString(),
       },
+      responseType: 'json',
       wire: { response: { array: 'ItemLog' } },
       arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -65,6 +66,7 @@ export class ItemsClient {
         createdAfter: query?.createdAfter?.toISOString(),
         createdBefore: query?.createdBefore?.toISOString(),
       },
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<SearchItemsResult>;

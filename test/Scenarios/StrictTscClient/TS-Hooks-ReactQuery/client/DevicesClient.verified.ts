@@ -23,6 +23,7 @@ export class DevicesClient {
   async updateDevice(id: string, body: unknown, signal?: AbortSignal): Promise<UpdateDeviceResult> {
     return this.api.request<Device>('POST', `/devices/${encodeURIComponent(id)}`, {
       body,
+      responseType: 'json',
       wire: { response: 'Device' },
       arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,

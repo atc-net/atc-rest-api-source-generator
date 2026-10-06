@@ -1679,6 +1679,58 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("form.append('since', body.since instanceof Date ? body.since.toISOString().substring(0, 10) : String(body.since));", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_JsonOperation_AsksForJson_AnOperationWithoutABodyDoesNot()
+    {
+        // A declared JSON model is read as JSON whatever the answer's Content-Type says (a 200 without a
+        // Content-Type is the model, not a Blob; an empty 201 is no data). An operation that declares no body,
+        // a file and a text download keep their own reading.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Pet' } } } } }
+                                post:
+                                  operationId: createPet
+                                  responses:
+                                    '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Pet' } } } }
+                              /pets/ping:
+                                post:
+                                  operationId: ping
+                                  responses:
+                                    '201': { description: Created }
+                              /pets/export:
+                                get:
+                                  operationId: exportPets
+                                  responses:
+                                    '200': { description: OK, content: { text/csv: { schema: { type: string } } } }
+                              /pets/photo:
+                                get:
+                                  operationId: photo
+                                  responses:
+                                    '200': { description: OK, content: { image/png: { schema: { type: string, format: binary } } } }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        // listPets and createPet ask for JSON; ping (no body), exportPets (text) and photo (blob) do not.
+        Assert.Equal(2, content.Split("responseType: 'json',").Length - 1);
+        Assert.Equal(1, content.Split("responseType: 'text',").Length - 1);
+        Assert.Equal(1, content.Split("responseType: 'blob',").Length - 1);
+    }
+
     private const string UrlEncodedFormYaml = """
         openapi: 3.0.0
         info: { title: T, version: 1.0.0 }

@@ -51,6 +51,7 @@ export class ResourcesClient {
   /** List user resources */
   async listResources(signal?: AbortSignal): Promise<ListResourcesResult> {
     return this.api.request<Resource[]>('GET', '/resources', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListResourcesResult>;
@@ -60,6 +61,7 @@ export class ResourcesClient {
   async createResource(body: CreateResourceRequest, signal?: AbortSignal): Promise<CreateResourceResult> {
     return this.api.request<Resource>('POST', '/resources', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateResourceResult>;
@@ -68,6 +70,7 @@ export class ResourcesClient {
   /** Get resource by ID */
   async getResourceById(resourceId: string, signal?: AbortSignal): Promise<GetResourceByIdResult> {
     return this.api.request<Resource>('GET', `/resources/${encodeURIComponent(resourceId)}`, {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'notFound', 'badRequest', 'forbidden', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetResourceByIdResult>;

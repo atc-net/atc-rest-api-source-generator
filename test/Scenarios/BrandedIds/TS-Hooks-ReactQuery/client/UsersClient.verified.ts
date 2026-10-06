@@ -21,6 +21,7 @@ export class UsersClient {
 
   async getUser(id: UserId, signal?: AbortSignal): Promise<GetUserResult> {
     return this.api.request<User>('GET', `/users/${encodeURIComponent(id)}`, {
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetUserResult>;

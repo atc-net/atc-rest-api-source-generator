@@ -30,6 +30,7 @@ export class UsersClient {
   /** List all users */
   async listUsers(signal?: AbortSignal): Promise<ListUsersResult> {
     return this.api.request<User[]>('GET', '/users', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListUsersResult>;
@@ -38,6 +39,7 @@ export class UsersClient {
   /** Get user by ID */
   async getUserById(userId: string, signal?: AbortSignal): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetUserByIdResult>;

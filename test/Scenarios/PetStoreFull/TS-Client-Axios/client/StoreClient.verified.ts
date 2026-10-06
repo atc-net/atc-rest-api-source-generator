@@ -67,6 +67,7 @@ export class StoreClient {
   /** Returns pet inventories by status. */
   async getInventory(signal?: AbortSignal): Promise<GetInventoryResult> {
     return this.api.request<unknown>('GET', '/store/inventory', {
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetInventoryResult>;
@@ -76,6 +77,7 @@ export class StoreClient {
   async placeOrder(body: Order, signal?: AbortSignal): Promise<PlaceOrderResult> {
     return this.api.request<Order>('POST', '/store/order', {
       body,
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<PlaceOrderResult>;

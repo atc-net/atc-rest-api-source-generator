@@ -35,6 +35,7 @@ export class ModelsClient {
   /** List all models */
   async listModels(signal?: AbortSignal): Promise<ListModelsResult> {
     return this.api.request<ComprehensiveModel[]>('GET', '/models', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListModelsResult>;
@@ -44,6 +45,7 @@ export class ModelsClient {
   async createModel(body: ComprehensiveModel, signal?: AbortSignal): Promise<CreateModelResult> {
     return this.api.request<ComprehensiveModel>('POST', '/models', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateModelResult>;
@@ -52,6 +54,7 @@ export class ModelsClient {
   /** Get a specific model */
   async getModelById(modelId: string, signal?: AbortSignal): Promise<GetModelByIdResult> {
     return this.api.request<ComprehensiveModel>('GET', `/models/${encodeURIComponent(modelId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetModelByIdResult>;

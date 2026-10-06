@@ -18,6 +18,7 @@ export class AnalyticsClient {
   /** Get analytics summary */
   async getAnalyticsSummary(signal?: AbortSignal): Promise<GetAnalyticsSummaryResult> {
     return this.api.request<unknown>('GET', '/analytics/summary', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetAnalyticsSummaryResult>;

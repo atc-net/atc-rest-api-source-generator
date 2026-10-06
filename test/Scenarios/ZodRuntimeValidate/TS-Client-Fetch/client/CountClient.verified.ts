@@ -18,6 +18,7 @@ export class CountClient {
 
   async getCount(signal?: AbortSignal): Promise<GetCountResult> {
     return this.api.request<number>('GET', '/count', {
+      responseType: 'json',
       parseSchema: z.number(),
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,

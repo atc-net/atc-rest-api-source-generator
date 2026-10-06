@@ -28,6 +28,7 @@ export class PetsClient {
 
   async getPet(petId: string, signal?: AbortSignal): Promise<GetPetResult> {
     return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
+      responseType: 'json',
       parseSchema: PetSchema,
       arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -36,6 +37,7 @@ export class PetsClient {
 
   async listPets(signal?: AbortSignal): Promise<ListPetsResult> {
     return this.api.request<Pet[]>('GET', '/pets', {
+      responseType: 'json',
       parseSchema: z.array(PetSchema),
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,

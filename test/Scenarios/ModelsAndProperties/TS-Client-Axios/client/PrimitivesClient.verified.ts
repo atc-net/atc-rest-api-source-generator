@@ -20,6 +20,7 @@ export class PrimitivesClient {
   /** Get primitive types model */
   async getPrimitiveTypes(signal?: AbortSignal): Promise<GetPrimitiveTypesResult> {
     return this.api.request<PrimitiveTypes>('GET', '/primitives', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetPrimitiveTypesResult>;

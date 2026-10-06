@@ -14,11 +14,13 @@ public class TypeScriptAxiosApiClientExtractorTests
     public void Generate_AxiosConfig_ForwardsTextResponseType()
     {
         // Axios picks the wire-level parser from its responseType config. For raw text
-        // bodies the generated config must select 'text' so axios does NOT JSON.parse.
+        // bodies the generated config must select 'text' so axios does NOT JSON.parse; a
+        // JSON operation's 'json' is forwarded, and a hand-written request without one
+        // leaves it unset (the Content-Type decides).
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
-            "responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json'",
+            "responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,",
             result,
             StringComparison.Ordinal);
     }
@@ -121,7 +123,7 @@ public class TypeScriptAxiosApiClientExtractorTests
 
         Assert.Contains("import type { ZodTypeAny } from 'zod';", result, StringComparison.Ordinal);
         Assert.Contains("parseSchema?: ZodTypeAny;", result, StringComparison.Ordinal);
-        Assert.Contains("if (parseSchema && expectsJson) {", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && expectsJson && response.data !== undefined) {", result, StringComparison.Ordinal);
         Assert.Contains("parseSchema.safeParse(response.data);", result, StringComparison.Ordinal);
         Assert.Contains("return { status: 'schemaMismatch', issues: parsed.error.issues, data: response.data, response };", result, StringComparison.Ordinal);
         Assert.Contains("setStrictMode(enabled: boolean): void {", result, StringComparison.Ordinal);
@@ -254,5 +256,19 @@ public class TypeScriptAxiosApiClientExtractorTests
         Assert.Contains("await reader.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
         Assert.Equal(3, result.Split("await releaseReader(reader, finished);").Length - 1);
         Assert.DoesNotContain("    reader.releaseLock();\n    }", result.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_SuccessBody_JsonOperationReadsJson_EmptyBodyIsNoData()
+    {
+        // responseType 'json' (every generated JSON operation) parses the body whatever the Content-Type says; a
+        // hand-written request without one is parsed by Content-Type; an empty body is undefined (a text
+        // operation keeps ''); a schema check only sees a body that is there.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, zodRuntimeValidate: true);
+
+        Assert.Contains("if (this.responseType !== 'json' && !contentType.includes('application/json') && !contentType.includes('+json')) return data;", result, StringComparison.Ordinal);
+        Assert.Contains("responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,", result, StringComparison.Ordinal);
+        Assert.Contains("if ((response.data as unknown) === '' && response.config?.responseType !== 'text') {", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && expectsJson && response.data !== undefined) {", result, StringComparison.Ordinal);
     }
 }

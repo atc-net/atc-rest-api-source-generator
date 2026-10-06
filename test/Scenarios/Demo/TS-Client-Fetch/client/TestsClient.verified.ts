@@ -46,6 +46,7 @@ export class TestsClient {
   async createTestItemWithModel(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemWithModelResult> {
     return this.api.request<TestItem>('POST', '/tests/create/create-model', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateTestItemWithModelResult>;
@@ -64,6 +65,7 @@ export class TestsClient {
   async createTestItemWithLocationInBody(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemWithLocationInBodyResult> {
     return this.api.request<string>('POST', '/tests/create/create-location-body', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateTestItemWithLocationInBodyResult>;

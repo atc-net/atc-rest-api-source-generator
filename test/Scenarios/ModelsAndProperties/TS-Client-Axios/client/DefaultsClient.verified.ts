@@ -20,6 +20,7 @@ export class DefaultsClient {
   /** Get default values model */
   async getDefaults(signal?: AbortSignal): Promise<GetDefaultsResult> {
     return this.api.request<DefaultValues>('GET', '/defaults', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetDefaultsResult>;

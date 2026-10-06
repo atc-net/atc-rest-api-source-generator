@@ -114,7 +114,7 @@ export class ApiClient {
         if (typeof data !== 'string' || data.length === 0) return data;
         if (this.responseType === 'text') return data;
         const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '').toLowerCase();
-        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;
+        if (this.responseType !== 'json' && !contentType.includes('application/json') && !contentType.includes('+json')) return data;
         try { return JSON.parse(data); } catch { return new UnparseableBody(data); }
       }],
     });
@@ -182,7 +182,7 @@ export class ApiClient {
       params: options?.query,
       headers,
       signal: options?.signal,
-      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',
+      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType,
     });
 
     if (Object.prototype.toString.call(response.data) === '[object ArrayBuffer]' || ArrayBuffer.isView(response.data)) {
@@ -199,7 +199,7 @@ export class ApiClient {
       if (/^(application\/json|application\/xml|text\/xml)$|\+(json|xml)$/.test((modelContentType.split(';')[0] ?? '').trim())) {
         let body: unknown = await response.data.text();
         for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {
-          body = transform.call({ responseType: 'json' }, body, response.headers);
+          body = transform.call({}, body, response.headers);
         }
 
         (response as { data: unknown }).data = body;
@@ -390,6 +390,11 @@ export class ApiClient {
           error: new Error('Response body could not be parsed as JSON'),
           response,
         };
+      }
+
+      // An empty body is no data (a text operation keeps its empty string).
+      if ((response.data as unknown) === '' && response.config?.responseType !== 'text') {
+        (response as { data: unknown }).data = undefined;
       }
       const status = response.status === 201
         ? 'created' as const

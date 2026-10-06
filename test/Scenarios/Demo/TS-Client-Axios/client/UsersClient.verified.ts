@@ -61,6 +61,7 @@ export class UsersClient {
         isActive: query?.isActive,
         limit: query?.limit,
       },
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListUsersResult>;
@@ -70,6 +71,7 @@ export class UsersClient {
   async createUser(body: CreateUserRequest, signal?: AbortSignal): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/users', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateUserResult>;
@@ -78,6 +80,7 @@ export class UsersClient {
   /** Get a specific user */
   async getUserById(userId: string, signal?: AbortSignal): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetUserByIdResult>;
@@ -87,6 +90,7 @@ export class UsersClient {
   async updateUserById(userId: string, body: UpdateUserRequest, signal?: AbortSignal): Promise<UpdateUserByIdResult> {
     return this.api.request<User>('PUT', `/users/${encodeURIComponent(userId)}`, {
       body,
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'notFound', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateUserByIdResult>;

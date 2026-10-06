@@ -21,6 +21,7 @@ export class ReportsClient {
   /** List reports (sliding window) */
   async listReports(signal?: AbortSignal): Promise<ListReportsResult> {
     return this.api.request<Report[]>('GET', '/reports', {
+      responseType: 'json',
       arms: ['ok', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListReportsResult>;

@@ -19,6 +19,7 @@ export class StringFormatsClient {
   /** Get string format types */
   async getStringFormats(signal?: AbortSignal): Promise<GetStringFormatsResult> {
     return this.api.request<StringFormats>('GET', '/string-formats', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetStringFormatsResult>;

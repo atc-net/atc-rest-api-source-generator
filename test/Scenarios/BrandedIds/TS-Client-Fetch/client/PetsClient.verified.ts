@@ -21,6 +21,7 @@ export class PetsClient {
 
   async getPet(petId: PetId, signal?: AbortSignal): Promise<GetPetResult> {
     return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetPetResult>;

@@ -200,6 +200,7 @@ export class PetClient {
       query: {
         additionalMetadata: query?.additionalMetadata,
       },
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UploadFileResult>;

@@ -46,6 +46,7 @@ export class ItemsClient {
         'x-continuation': headers?.['x-continuation'],
         'x-correlation-id': headers?.['x-correlation-id'],
       },
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListItemsResult>;
@@ -57,6 +58,7 @@ export class ItemsClient {
       headers: {
         'X-Request-Id': headers?.['X-Request-Id'],
       },
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetItemByIdResult>;

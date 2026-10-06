@@ -19,6 +19,7 @@ export class HealthClient {
   /** Health check (global retry policy) */
   async getHealth(signal?: AbortSignal): Promise<GetHealthResult> {
     return this.api.request<HealthStatus>('GET', '/health', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetHealthResult>;

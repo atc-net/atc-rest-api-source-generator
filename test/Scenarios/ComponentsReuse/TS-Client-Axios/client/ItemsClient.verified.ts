@@ -28,6 +28,7 @@ export class ItemsClient {
   /** List items */
   async listItems(signal?: AbortSignal): Promise<ListItemsResult> {
     return this.api.request<Item[]>('GET', '/items', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListItemsResult>;
@@ -36,6 +37,7 @@ export class ItemsClient {
   /** Get item by ID */
   async getItemById(id: string, signal?: AbortSignal): Promise<GetItemByIdResult> {
     return this.api.request<Item>('GET', `/items/${encodeURIComponent(id)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetItemByIdResult>;

@@ -30,6 +30,7 @@ export class ProductsClient {
   /** List products */
   async listProducts(signal?: AbortSignal): Promise<ListProductsResult> {
     return this.api.request<Product[]>('GET', '/products', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListProductsResult>;
@@ -38,6 +39,7 @@ export class ProductsClient {
   /** Get product by ID */
   async getProductById(productId: string, signal?: AbortSignal): Promise<GetProductByIdResult> {
     return this.api.request<Product>('GET', `/products/${encodeURIComponent(productId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetProductByIdResult>;

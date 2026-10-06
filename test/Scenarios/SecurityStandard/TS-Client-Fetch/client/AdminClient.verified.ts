@@ -29,6 +29,7 @@ export class AdminClient {
   /** Get admin settings */
   async getAdminSettings(signal?: AbortSignal): Promise<GetAdminSettingsResult> {
     return this.api.request<AdminSettings>('GET', '/admin/settings', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetAdminSettingsResult>;
@@ -38,6 +39,7 @@ export class AdminClient {
   async updateAdminSettings(body: AdminSettings, signal?: AbortSignal): Promise<UpdateAdminSettingsResult> {
     return this.api.request<AdminSettings>('PUT', '/admin/settings', {
       body,
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateAdminSettingsResult>;

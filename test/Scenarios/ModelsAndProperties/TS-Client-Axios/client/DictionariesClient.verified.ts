@@ -20,6 +20,7 @@ export class DictionariesClient {
   /** Get dictionary types model */
   async getDictionaryTypes(signal?: AbortSignal): Promise<GetDictionaryTypesResult> {
     return this.api.request<DictionaryTypes>('GET', '/dictionaries', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetDictionaryTypesResult>;

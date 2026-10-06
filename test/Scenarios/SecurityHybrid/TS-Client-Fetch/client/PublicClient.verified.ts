@@ -19,6 +19,7 @@ export class PublicClient {
   /** Health check (public) */
   async getHealth(signal?: AbortSignal): Promise<GetHealthResult> {
     return this.api.request<HealthStatus>('GET', '/public/health', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetHealthResult>;

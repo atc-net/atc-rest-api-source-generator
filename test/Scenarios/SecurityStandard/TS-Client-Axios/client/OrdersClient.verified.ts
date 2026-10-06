@@ -52,6 +52,7 @@ export class OrdersClient {
   /** List all orders */
   async listOrders(signal?: AbortSignal): Promise<ListOrdersResult> {
     return this.api.request<Order[]>('GET', '/orders', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListOrdersResult>;
@@ -61,6 +62,7 @@ export class OrdersClient {
   async createOrder(body: CreateOrderRequest, signal?: AbortSignal): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateOrderResult>;
@@ -69,6 +71,7 @@ export class OrdersClient {
   /** Get order by ID */
   async getOrderById(orderId: string, signal?: AbortSignal): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetOrderByIdResult>;

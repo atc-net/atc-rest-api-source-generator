@@ -26,6 +26,7 @@ export class CoordinatesClient {
   /** Get coordinates */
   async getCoordinates(signal?: AbortSignal): Promise<GetCoordinatesResult> {
     return this.api.request<Coordinate>('GET', '/coordinates', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetCoordinatesResult>;
@@ -34,6 +35,7 @@ export class CoordinatesClient {
   /** List all coordinates */
   async listCoordinates(signal?: AbortSignal): Promise<ListCoordinatesResult> {
     return this.api.request<Coordinate[]>('GET', '/coordinates/list', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListCoordinatesResult>;

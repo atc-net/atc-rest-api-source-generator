@@ -800,6 +800,13 @@ public static class TypeScriptClientExtractor
         {
             sb.AppendLine("      responseType: 'text',");
         }
+        else if (!string.Equals(returnType, "void", StringComparison.Ordinal) &&
+                 xmlOption?.Contains("read: ", StringComparison.Ordinal) != true)
+        {
+            // A declared JSON model: the body is read as JSON whatever the answer's Content-Type says (an empty
+            // body is no data). An operation with an XML model keeps reading by Content-Type (helpers/xml.ts).
+            sb.AppendLine("      responseType: 'json',");
+        }
 
         if (emitParseSchema)
         {

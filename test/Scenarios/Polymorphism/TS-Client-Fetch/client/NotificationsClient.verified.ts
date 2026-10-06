@@ -36,6 +36,7 @@ export class NotificationsClient {
   /** List all notifications */
   async listNotifications(signal?: AbortSignal): Promise<ListNotificationsResult> {
     return this.api.request<Notification[]>('GET', '/notifications', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListNotificationsResult>;

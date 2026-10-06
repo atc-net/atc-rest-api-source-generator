@@ -45,6 +45,7 @@ export class OrdersClient {
   /** List orders (fast retry policy) */
   async listOrders(signal?: AbortSignal): Promise<ListOrdersResult> {
     return this.api.request<Order[]>('GET', '/orders', {
+      responseType: 'json',
       retry: { policy: retryPolicies.ordersFast },
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -55,6 +56,7 @@ export class OrdersClient {
   async createOrder(body: CreateOrderRequest, signal?: AbortSignal): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
+      responseType: 'json',
       retry: { policy: retryPolicies.ordersFast, enabled: false },
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -64,6 +66,7 @@ export class OrdersClient {
   /** Get order (inherits orders-fast) */
   async getOrderById(orderId: string, signal?: AbortSignal): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`, {
+      responseType: 'json',
       retry: { policy: retryPolicies.ordersFast },
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,

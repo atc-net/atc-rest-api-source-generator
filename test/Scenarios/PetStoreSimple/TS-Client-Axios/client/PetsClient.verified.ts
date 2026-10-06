@@ -56,6 +56,7 @@ export class PetsClient {
       query: {
         limit: query?.limit,
       },
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListPetsResult>;
@@ -72,6 +73,7 @@ export class PetsClient {
   /** Info for a specific pet */
   async showPetById(petId: string, signal?: AbortSignal): Promise<ShowPetByIdResult> {
     return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ShowPetByIdResult>;

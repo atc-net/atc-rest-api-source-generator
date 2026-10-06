@@ -20,6 +20,7 @@ export class DogsClient {
   /** List dogs */
   async listDogs(signal?: AbortSignal): Promise<ListDogsResult> {
     return this.api.request<Dog[]>('GET', '/dogs', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListDogsResult>;

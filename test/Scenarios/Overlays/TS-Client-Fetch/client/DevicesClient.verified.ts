@@ -27,6 +27,7 @@ export class DevicesClient {
   /** List devices */
   async listDevices(signal?: AbortSignal): Promise<ListDevicesResult> {
     return this.api.request<Device[]>('GET', '/devices', {
+      responseType: 'json',
       arms: ['ok', 'serverError', 'clientError', 'parseError'],
       signal,
     }) as Promise<ListDevicesResult>;
@@ -35,6 +36,7 @@ export class DevicesClient {
   /** Get a device */
   async getDevice(deviceId: number, signal?: AbortSignal): Promise<GetDeviceResult> {
     return this.api.request<Device>('GET', `/devices/${encodeURIComponent(deviceId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'serverError', 'badRequest', 'clientError', 'parseError'],
       signal,
     }) as Promise<GetDeviceResult>;

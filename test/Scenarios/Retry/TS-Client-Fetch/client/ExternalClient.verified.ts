@@ -23,6 +23,7 @@ export class ExternalClient {
   async processPayment(body: PaymentRequest, signal?: AbortSignal): Promise<ProcessPaymentResult> {
     return this.api.request<PaymentResult>('POST', '/external/payment', {
       body,
+      responseType: 'json',
       retry: { policy: retryPolicies.externalService, enabled: false },
       arms: ['ok', 'serverError', 'badRequest', 'conflict', 'clientError', 'parseError'],
       signal,

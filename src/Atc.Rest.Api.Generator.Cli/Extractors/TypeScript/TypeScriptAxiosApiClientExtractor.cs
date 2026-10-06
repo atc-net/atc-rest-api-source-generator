@@ -232,19 +232,19 @@ public static class TypeScriptAxiosApiClientExtractor
 
         // transformResponse is always emitted: it is the single place
         // where a JSON parse failure is observable, so it must own the parse. It is a function (not
-        // an arrow) so `this` is the request config and responseType: 'text' can be honoured — that
-        // opt-out returns the body verbatim even for a JSON content-type. Otherwise parsing is gated
-        // on the content-type: only JSON bodies (application/json and +json suffixes such as
-        // application/problem+json) are parsed, and only they can yield the UnparseableBody sentinel.
-        // Text bodies (text/plain, application/xml, ...) are returned verbatim so they never regress
-        // into a parse error.
+        // an arrow) so `this` is the request config: responseType 'json' (a JSON operation) parses the
+        // body whatever the content-type says, and responseType 'text' returns it verbatim even for a
+        // JSON content-type. Otherwise parsing is gated on the content-type: only JSON bodies
+        // (application/json and +json suffixes such as application/problem+json) are parsed, and only
+        // they can yield the UnparseableBody sentinel. Text bodies (text/plain, application/xml, ...)
+        // are returned verbatim so they never regress into a parse error.
         const string jsonParse = "JSON.parse(data)";
 
         sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>) {");
         sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
         sb.AppendLine("        if (this.responseType === 'text') return data;");
         sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '').toLowerCase();");
-        sb.AppendLine("        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;");
+        sb.AppendLine("        if (this.responseType !== 'json' && !contentType.includes('application/json') && !contentType.includes('+json')) return data;");
         sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
         sb.AppendLine("      }],");
 
@@ -332,7 +332,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params: options?.query,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,");
             sb.AppendLine("    });");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
@@ -367,7 +367,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params: options?.query,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,");
             sb.AppendLine("    });");
         }
 
@@ -603,6 +603,11 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("          response,");
         sb.AppendLine("        };");
         sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      // An empty body is no data (a text operation keeps its empty string).");
+        sb.AppendLine("      if ((response.data as unknown) === '' && response.config?.responseType !== 'text') {");
+        sb.AppendLine("        (response as { data: unknown }).data = undefined;");
+        sb.AppendLine("      }");
 
         if (hasWireNames)
         {
@@ -621,7 +626,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine();
             sb.AppendLine("      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
             sb.AppendLine("      const expectsJson = contentType.includes('application/json') || contentType.includes('+json');");
-            sb.AppendLine("      if (parseSchema && expectsJson) {");
+            sb.AppendLine("      if (parseSchema && expectsJson && response.data !== undefined) {");
             sb.AppendLine("        const parsed = parseSchema.safeParse(response.data);");
             sb.AppendLine("        if (!parsed.success) {");
             sb.AppendLine("          if (this.strictMode) {");

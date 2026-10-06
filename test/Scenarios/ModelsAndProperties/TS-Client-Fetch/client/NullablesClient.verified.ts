@@ -19,6 +19,7 @@ export class NullablesClient {
   /** Get nullable types model */
   async getNullables(signal?: AbortSignal): Promise<GetNullablesResult> {
     return this.api.request<NullableTypes>('GET', '/nullables', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetNullablesResult>;

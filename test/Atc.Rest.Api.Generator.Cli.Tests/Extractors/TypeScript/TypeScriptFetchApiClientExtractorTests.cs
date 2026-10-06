@@ -125,7 +125,7 @@ public class TypeScriptFetchApiClientExtractorTests
             hasRetry: false,
             zodRuntimeValidate: true);
 
-        Assert.Contains("if (parseSchema && isJson) {", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && isJson && data !== undefined) {", result, StringComparison.Ordinal);
         Assert.Contains("const parsed = parseSchema.safeParse(data);", result, StringComparison.Ordinal);
         Assert.Contains("return { status: 'schemaMismatch', issues: parsed.error.issues, data, response };", result, StringComparison.Ordinal);
     }
@@ -262,5 +262,19 @@ public class TypeScriptFetchApiClientExtractorTests
         Assert.Contains("await reader.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
         Assert.Equal(3, result.Split("await releaseReader(reader, finished);").Length - 1);
         Assert.DoesNotContain("    reader.releaseLock();\n    }", result.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_SuccessBody_JsonOperationReadsJson_EmptyBodyIsNoData_NoContentTypeIsText()
+    {
+        // responseType 'json' (every generated JSON operation) parses the body whatever the Content-Type says and
+        // reads an empty body as undefined; without a responseType a body without a Content-Type is its text, not
+        // a Blob; a schema check only sees a body that is there.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, zodRuntimeValidate: true);
+
+        Assert.Contains("data = text.length === 0 ? undefined : JSON.parse(text);", result, StringComparison.Ordinal);
+        Assert.Contains("} else if (responseType === 'blob' || contentType.length > 0) {", result, StringComparison.Ordinal);
+        Assert.Contains("data = text.length === 0 ? undefined : text;", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && isJson && data !== undefined) {", result, StringComparison.Ordinal);
     }
 }

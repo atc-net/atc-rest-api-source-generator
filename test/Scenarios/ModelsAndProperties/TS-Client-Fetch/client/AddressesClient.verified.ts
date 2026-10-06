@@ -27,6 +27,7 @@ export class AddressesClient {
   /** List addresses */
   async listAddresses(signal?: AbortSignal): Promise<ListAddressesResult> {
     return this.api.request<Address[]>('GET', '/addresses', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListAddressesResult>;
@@ -36,6 +37,7 @@ export class AddressesClient {
   async createAddress(body: Address, signal?: AbortSignal): Promise<CreateAddressResult> {
     return this.api.request<Address>('POST', '/addresses', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateAddressResult>;

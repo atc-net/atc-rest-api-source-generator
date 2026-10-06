@@ -20,6 +20,7 @@ export class CountriesClient {
   /** List countries */
   async listCountries(signal?: AbortSignal): Promise<ListCountriesResult> {
     return this.api.request<Country[]>('GET', '/countries', {
+      responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListCountriesResult>;

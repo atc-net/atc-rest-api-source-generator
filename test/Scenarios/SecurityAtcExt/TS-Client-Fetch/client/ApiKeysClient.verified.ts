@@ -20,6 +20,7 @@ export class ApiKeysClient {
   /** List API keys (Bearer OR ApiKey scheme) */
   async listApiKeys(signal?: AbortSignal): Promise<ListApiKeysResult> {
     return this.api.request<ApiKey[]>('GET', '/api-keys', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListApiKeysResult>;
