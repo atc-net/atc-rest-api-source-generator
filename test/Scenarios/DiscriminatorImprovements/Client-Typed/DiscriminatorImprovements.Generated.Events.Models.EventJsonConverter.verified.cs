@@ -20,10 +20,16 @@ public sealed class EventJsonConverter : JsonConverter<Event>
     public override Event? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException($"Unable to deserialize {nameof(Event)}: expected an object, got {document.RootElement.ValueKind}.");
+        }
+
         var rawText = document.RootElement.GetRawText();
 
+        // A discriminator that is no string is no known value
         string? discriminatorValue = null;
-        if (document.RootElement.TryGetProperty("eventType", out var discriminatorElement))
+        if (document.RootElement.TryGetProperty("eventType", out var discriminatorElement) && discriminatorElement.ValueKind == JsonValueKind.String)
         {
             discriminatorValue = discriminatorElement.GetString();
         }

@@ -131,11 +131,23 @@ public static class TypeScriptZodModelExtractor
             var schemas = string.Join(", ", leaves.Select(l => l + "Schema"));
             sb.AppendLine();
             sb.Append("export const ").Append(schemaName).Append("Schema = ");
-            sb.Append(leaves.Count == 1
-                ? leaves[0] + "Schema"
-                : discriminator is not null && leaves.TrueForAll(l => IsDiscriminatedObject(openApiDoc, l, discriminator, cycleMembers))
-                    ? "z.discriminatedUnion('" + discriminator + "', [" + schemas + "])"
-                    : "z.union([" + schemas + "])");
+            if (leaves.Count == 1)
+            {
+                sb.Append(leaves[0]).Append("Schema");
+            }
+            else if (discriminator is not null && leaves.TrueForAll(l => IsDiscriminatedObject(openApiDoc, l, discriminator, cycleMembers)))
+            {
+                sb.Append("z.discriminatedUnion('").Append(discriminator).Append("', [").Append(schemas).Append("])");
+            }
+            else
+            {
+                // A plain union takes the first variant that parses, and an object schema strips the keys it does not
+                // know - {x, y} against [A{x}, B{x, y}] came back as {x}. The object members pass unknown keys through,
+                // so the data stays what the server sent (a cyclic member is a ZodType, which has no passthrough).
+                var members = string.Join(", ", leaves.Select(l => l + "Schema" + (IsPlainObject(openApiDoc, l, cycleMembers) ? ".passthrough()" : string.Empty)));
+                sb.Append("z.union([").Append(members).Append("])");
+            }
+
             sb.AppendLine(";");
 
             results.Add((schemaName, sb.ToString()));
@@ -540,6 +552,32 @@ public static class TypeScriptZodModelExtractor
                    string.Equals(p.Key, discriminator, StringComparison.Ordinal) &&
                    p.Value is OpenApiSchema { Enum: null or { Count: 0 } } plain &&
                    plain.Type?.HasFlag(JsonSchemaType.String) == true);
+    }
+
+    /// <summary>
+    /// Whether a union member is emitted as a <c>z.object(...)</c> (an object schema, composed or not, outside every
+    /// cycle): the one kind of member that has <c>passthrough()</c>.
+    /// </summary>
+    private static bool IsPlainObject(
+        OpenApiDocument openApiDoc,
+        string schemaName,
+        Dictionary<string, HashSet<string>> cycleMembers)
+    {
+        if (cycleMembers.ContainsKey(schemaName) ||
+            openApiDoc.Components?.Schemas is null ||
+            !openApiDoc.Components.Schemas.TryGetValue(schemaName, out var member) ||
+            member is not OpenApiSchema schema)
+        {
+            return false;
+        }
+
+        return schema.Enum is not { Count: > 0 } &&
+               schema.OneOf is not { Count: > 0 } &&
+               schema.AnyOf is not { Count: > 0 } &&
+               !schema.IsOfType(JsonSchemaType.Array) &&
+               !TypeScriptModelExtractor.IsScalarAliasSchema(schema) &&
+               !TypeScriptModelExtractor.IsRecordAliasSchema(schema) &&
+               (schema.Properties is { Count: > 0 } || schema.AllOf is { Count: > 0 } || schema.IsOfType(JsonSchemaType.Object));
     }
 
     private static string? GenerateZodObject(

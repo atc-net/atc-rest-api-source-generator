@@ -168,10 +168,16 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");
         sb.AppendLine("    {");
         sb.AppendLine("        using var document = JsonDocument.ParseValue(ref reader);");
+        sb.AppendLine("        if (document.RootElement.ValueKind != JsonValueKind.Object)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            throw new JsonException($\"Unable to deserialize {{nameof({config.BaseTypeName})}}: expected an object, got {{document.RootElement.ValueKind}}.\");");
+        sb.AppendLine("        }");
+        sb.AppendLine();
         sb.AppendLine("        var rawText = document.RootElement.GetRawText();");
         sb.AppendLine();
+        sb.AppendLine("        // A discriminator that is no string is no known value");
         sb.AppendLine("        string? discriminatorValue = null;");
-        sb.AppendLine($"        if (document.RootElement.TryGetProperty(\"{config.DiscriminatorPropertyName}\", out var discriminatorElement))");
+        sb.AppendLine($"        if (document.RootElement.TryGetProperty(\"{config.DiscriminatorPropertyName}\", out var discriminatorElement) && discriminatorElement.ValueKind == JsonValueKind.String)");
         sb.AppendLine("        {");
         sb.AppendLine("            discriminatorValue = discriminatorElement.GetString();");
         sb.AppendLine("        }");
@@ -441,43 +447,67 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine();
 
         sb.AppendLine("/// <summary>");
-        sb.AppendLine($"/// Try-parse JSON converter for the <see cref=\"{config.BaseTypeName}\"/> union type.");
-        sb.AppendLine("/// Attempts deserialization of each variant in order until one succeeds.");
+        sb.AppendLine($"/// JSON converter for the <see cref=\"{config.BaseTypeName}\"/> union type: the variant the body fits - every required");
+        sb.AppendLine("/// member present, no member the variant does not have. A body that fits no variant, or more than one, is a");
+        sb.AppendLine("/// <see cref=\"JsonException\"/> (a 400 on the server).");
         sb.AppendLine("/// </summary>");
 
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine($"public sealed class {config.BaseTypeName}JsonConverter : JsonConverter<{config.BaseTypeName}>");
         sb.AppendLine("{");
+        sb.AppendLine("    // The host's options, made strict once per options instance: a missing required member or an unknown member");
+        sb.AppendLine("    // fails the variant instead of becoming a default value");
+        sb.AppendLine("    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();");
+        sb.AppendLine();
 
         sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");
         sb.AppendLine("    {");
         sb.AppendLine("        using var document = JsonDocument.ParseValue(ref reader);");
         sb.AppendLine("        var rawText = document.RootElement.GetRawText();");
+        sb.AppendLine("        var strict = Strict(options);");
         sb.AppendLine();
+        sb.AppendLine($"        {config.BaseTypeName}? match = null;");
+        sb.AppendLine("        string? matchedVariant = null;");
         sb.AppendLine("        JsonException? lastException = null;");
 
         foreach (var variant in config.Variants)
         {
+            var local = char.ToLowerInvariant(variant.TypeName[0]) + variant.TypeName.Substring(1) + "Value";
             sb.AppendLine();
+            sb.AppendLine($"        {variant.TypeName}? {local} = null;");
             sb.AppendLine("        try");
             sb.AppendLine("        {");
-            sb.AppendLine($"            var result = JsonSerializer.Deserialize<{variant.TypeName}>(rawText, options);");
-            sb.AppendLine("            if (result is not null)");
-            sb.AppendLine("            {");
-            sb.AppendLine($"                return new {config.BaseTypeName}(result);");
-            sb.AppendLine("            }");
+            sb.AppendLine($"            {local} = JsonSerializer.Deserialize<{variant.TypeName}>(rawText, strict);");
             sb.AppendLine("        }");
             sb.AppendLine("        catch (JsonException ex)");
             sb.AppendLine("        {");
             sb.AppendLine("            lastException = ex;");
             sb.AppendLine("        }");
+            sb.AppendLine();
+            sb.AppendLine($"        if ({local} is not null)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (match is not null)");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                throw new JsonException($\"Ambiguous {{nameof({config.BaseTypeName})}}: the body fits {{matchedVariant}} and {variant.TypeName}.\");");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+            sb.AppendLine($"            match = new {config.BaseTypeName}({local});");
+            sb.AppendLine($"            matchedVariant = \"{variant.TypeName}\";");
+            sb.AppendLine("        }");
         }
 
         sb.AppendLine();
-        sb.AppendLine("        throw new JsonException(");
-        sb.AppendLine($"            $\"Unable to deserialize {{nameof({config.BaseTypeName})}}: no matching variant found.\",");
+        sb.AppendLine("        return match ?? throw new JsonException(");
+        sb.AppendLine($"            $\"Unable to deserialize {{nameof({config.BaseTypeName})}}: the body fits no variant.\",");
         sb.AppendLine("            lastException);");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    private static JsonSerializerOptions Strict(JsonSerializerOptions options)");
+        sb.AppendLine("        => StrictOptions.GetValue(options, static o => new JsonSerializerOptions(o)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            RespectRequiredConstructorParameters = true,");
+        sb.AppendLine("            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,");
+        sb.AppendLine("        });");
 
         sb.AppendLine();
         sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");

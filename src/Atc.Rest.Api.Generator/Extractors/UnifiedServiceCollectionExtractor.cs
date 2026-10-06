@@ -210,6 +210,11 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine(12, "services.AddProblemDetails();");
         builder.AppendLine(8, "}");
 
+        // System.Text.Json reads a type discriminator only when it is the first property, unless told otherwise
+        builder.AppendLine();
+        builder.AppendLine(8, "// A polymorphic body's discriminator may stand anywhere in the object, not only first");
+        builder.AppendLine(8, "services.ConfigureHttpJsonOptions(o => o.SerializerOptions.AllowOutOfOrderMetadataProperties = true);");
+
         // Optional: rate limiting
         if (hasRateLimiting)
         {

@@ -18,6 +18,7 @@ public sealed class ReadOnlyWriteOnlyClient : IReadOnlyWriteOnlyClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
+        AllowOutOfOrderMetadataProperties = true,
         Converters = { new JsonStringEnumConverter() },
     };
 

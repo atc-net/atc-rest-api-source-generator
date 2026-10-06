@@ -46,6 +46,9 @@ public static class UnifiedServiceCollectionExtensions
             services.AddProblemDetails();
         }
 
+        // A polymorphic body's discriminator may stand anywhere in the object, not only first
+        services.ConfigureHttpJsonOptions(o => o.SerializerOptions.AllowOutOfOrderMetadataProperties = true);
+
         // Register security policies from OpenAPI security schemes
         if (options.UseSecurity)
         {

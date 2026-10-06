@@ -10,49 +10,80 @@ using System.Text.Json.Serialization;
 namespace AnyOfNoDiscriminator.Generated.Notifications.Models;
 
 /// <summary>
-/// Try-parse JSON converter for the <see cref="Notification"/> union type.
-/// Attempts deserialization of each variant in order until one succeeds.
+/// JSON converter for the <see cref="Notification"/> union type: the variant the body fits - every required
+/// member present, no member the variant does not have. A body that fits no variant, or more than one, is a
+/// <see cref="JsonException"/> (a 400 on the server).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class NotificationJsonConverter : JsonConverter<Notification>
 {
+    // The host's options, made strict once per options instance: a missing required member or an unknown member
+    // fails the variant instead of becoming a default value
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();
+
     public override Notification? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
         var rawText = document.RootElement.GetRawText();
+        var strict = Strict(options);
 
+        Notification? match = null;
+        string? matchedVariant = null;
         JsonException? lastException = null;
 
+        EmailNotification? emailNotificationValue = null;
         try
         {
-            var result = JsonSerializer.Deserialize<EmailNotification>(rawText, options);
-            if (result is not null)
-            {
-                return new Notification(result);
-            }
+            emailNotificationValue = JsonSerializer.Deserialize<EmailNotification>(rawText, strict);
         }
         catch (JsonException ex)
         {
             lastException = ex;
         }
 
+        if (emailNotificationValue is not null)
+        {
+            if (match is not null)
+            {
+                throw new JsonException($"Ambiguous {nameof(Notification)}: the body fits {matchedVariant} and EmailNotification.");
+            }
+
+            match = new Notification(emailNotificationValue);
+            matchedVariant = "EmailNotification";
+        }
+
+        SmsNotification? smsNotificationValue = null;
         try
         {
-            var result = JsonSerializer.Deserialize<SmsNotification>(rawText, options);
-            if (result is not null)
-            {
-                return new Notification(result);
-            }
+            smsNotificationValue = JsonSerializer.Deserialize<SmsNotification>(rawText, strict);
         }
         catch (JsonException ex)
         {
             lastException = ex;
         }
 
-        throw new JsonException(
-            $"Unable to deserialize {nameof(Notification)}: no matching variant found.",
+        if (smsNotificationValue is not null)
+        {
+            if (match is not null)
+            {
+                throw new JsonException($"Ambiguous {nameof(Notification)}: the body fits {matchedVariant} and SmsNotification.");
+            }
+
+            match = new Notification(smsNotificationValue);
+            matchedVariant = "SmsNotification";
+        }
+
+        return match ?? throw new JsonException(
+            $"Unable to deserialize {nameof(Notification)}: the body fits no variant.",
             lastException);
     }
+
+    private static JsonSerializerOptions Strict(JsonSerializerOptions options)
+        => StrictOptions.GetValue(options, static o => new JsonSerializerOptions(o)
+        {
+            RespectRequiredConstructorParameters = true,
+            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        });
 
     public override void Write(Utf8JsonWriter writer, Notification value, JsonSerializerOptions options)
     {

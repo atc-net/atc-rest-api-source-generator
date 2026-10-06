@@ -207,7 +207,7 @@ public class TypeScriptZodExtractorTests
 
         Assert.Equal("Payment", name);
         Assert.Contains("import { CardSchema } from './Card.zod';", content, StringComparison.Ordinal);
-        Assert.Contains("export const PaymentSchema = z.union([CardSchema, WalletSchema]);", content, StringComparison.Ordinal);
+        Assert.Contains("export const PaymentSchema = z.union([CardSchema.passthrough(), WalletSchema.passthrough()]);", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -454,6 +454,45 @@ public class TypeScriptZodExtractorTests
 
         Assert.Contains("export const NodeSchema: z.ZodType<Node>", content, StringComparison.Ordinal);
         Assert.Contains("z.lazy(", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A union without a discriminator takes the first variant that parses, and a plain object schema strips the keys
+    /// it does not know: <c>{x, y}</c> parsed against <c>[A{x}, B{x, y}]</c> came back as <c>{x}</c>. The members of
+    /// such a union pass unknown keys through, so the data stays what the server sent; a discriminated union and a
+    /// cyclic member (a <c>ZodType</c>, which has no <c>passthrough</c>) are unchanged.
+    /// </summary>
+    [Fact]
+    public void ZodUnion_WithoutDiscriminator_KeepsTheKeysOfEveryVariant()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Shape:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/Circle'
+                                    - $ref: '#/components/schemas/Square'
+                                Circle:
+                                  type: object
+                                  required: [radius]
+                                  properties:
+                                    radius: { type: number }
+                                Square:
+                                  type: object
+                                  required: [radius, side]
+                                  properties:
+                                    radius: { type: number }
+                                    side: { type: number }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.ExtractUnionTypeAliases(doc, new TypeScriptClientConfig()));
+
+        Assert.Contains("z.union([CircleSchema.passthrough(), SquareSchema.passthrough()])", content, StringComparison.Ordinal);
     }
 
     [Fact]
