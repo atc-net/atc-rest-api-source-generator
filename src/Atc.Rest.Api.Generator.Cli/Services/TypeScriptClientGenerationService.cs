@@ -178,7 +178,7 @@ public static class TypeScriptClientGenerationService
         var scaffoldGenerated = false;
         if (config.Scaffold)
         {
-            scaffoldGenerated = WritePackageScaffold(openApiDoc, outputPath, config, segmentClientNames, dryRun);
+            scaffoldGenerated = WritePackageScaffold(openApiDoc, outputPath, config, segmentClientNames, hubsEmitted, dryRun);
         }
 
         // Step 8: Generate root barrel export
@@ -915,6 +915,7 @@ public static class TypeScriptClientGenerationService
         string outputPath,
         TypeScriptClientConfig config,
         IReadOnlyList<string> segmentClientNames,
+        bool hasSignalRHubs,
         bool dryRun)
     {
         var packageName = config.PackageName
@@ -926,7 +927,8 @@ public static class TypeScriptClientGenerationService
             packageName,
             config.PackageVersion,
             description,
-            config);
+            config,
+            hasSignalRHubs);
         WriteJsonFile(Path.Combine(outputPath, "package.json"), packageJsonContent, dryRun);
 
         var tsConfigContent = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();

@@ -12,12 +12,14 @@ public static class TypeScriptPackageScaffoldExtractor
     /// <param name="packageVersion">The npm package version.</param>
     /// <param name="description">Optional package description (from OpenAPI info.description).</param>
     /// <param name="config">TypeScript client generation configuration.</param>
+    /// <param name="hasSignalRHubs">Whether hub hooks were emitted (the document declares <c>x-signalr-hubs</c>): they import <c>@microsoft/signalr</c> and <c>react</c>.</param>
     /// <returns>The formatted package.json content.</returns>
     public static string GeneratePackageJson(
         string packageName,
         string packageVersion,
         string? description,
-        TypeScriptClientConfig config)
+        TypeScriptClientConfig config,
+        bool hasSignalRHubs = false)
     {
         ArgumentNullException.ThrowIfNull(config);
 
@@ -64,7 +66,8 @@ public static class TypeScriptPackageScaffoldExtractor
             ["clean"] = "rm -rf dist",
         };
 
-        // Conditional runtime dependencies
+        // The dependencies are the packages the generated files import (tsconfig includes every .ts file, so a
+        // scaffold missing one does not build): the HTTP client, Zod schemas, the hub hooks' SignalR client.
         var dependencies = new JsonObject();
         if (config.HttpClient == TypeScriptHttpClient.Axios)
         {
@@ -76,32 +79,55 @@ public static class TypeScriptPackageScaffoldExtractor
             dependencies["zod"] = "^3.0.0";
         }
 
+        if (hasSignalRHubs)
+        {
+            dependencies["@microsoft/signalr"] = "^8.0.0";
+        }
+
         if (dependencies.Count > 0)
         {
             root["dependencies"] = dependencies;
         }
 
-        // Conditional peer dependencies (React Query hooks)
+        // Peer dependencies: the hooks' framework (React Query or SWR) and React, which the hooks, the
+        // ApiProvider and the hub hooks import.
+        var needsReact = config.HooksStyle is TypeScriptHooksStyle.ReactQuery or TypeScriptHooksStyle.Swr || hasSignalRHubs;
+        var peerDependencies = new JsonObject();
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery)
         {
-            root["peerDependencies"] = new JsonObject
-            {
-                // >= 5.81: mutation lifecycle callbacks gained a 4th parameter
-                // (onMutateResult); the generated composed onSuccess forwards all four.
-                ["@tanstack/react-query"] = "^5.81.0",
-                ["react"] = "^18.0.0",
-            };
+            // >= 5.81: mutation lifecycle callbacks gained a 4th parameter
+            // (onMutateResult); the generated composed onSuccess forwards all four.
+            peerDependencies["@tanstack/react-query"] = "^5.81.0";
+        }
+        else if (config.HooksStyle == TypeScriptHooksStyle.Swr)
+        {
+            peerDependencies["swr"] = "^2.2.0";
         }
 
-        // Dev dependencies
+        if (needsReact)
+        {
+            peerDependencies["react"] = "^18.0.0";
+        }
+
+        if (peerDependencies.Count > 0)
+        {
+            root["peerDependencies"] = peerDependencies;
+        }
+
+        // Dev dependencies: the compiler, React's types, and MSW for the mock handlers.
         var devDependencies = new JsonObject
         {
             ["typescript"] = "^5.0.0",
         };
 
-        if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery)
+        if (needsReact)
         {
             devDependencies["@types/react"] = "^18.0.0";
+        }
+
+        if (config.GenerateMswHandlers)
+        {
+            devDependencies["msw"] = "^2.7.0";
         }
 
         root["devDependencies"] = devDependencies;
@@ -289,7 +315,7 @@ public static class TypeScriptPackageScaffoldExtractor
 
             sb.Append(" } from '").Append(packageName).AppendLine("';");
             sb.AppendLine();
-            sb.AppendLine("const api = new ApiClient({ baseUrl: 'https://api.example.com' });");
+            sb.AppendLine("const api = new ApiClient('https://api.example.com');");
             if (segmentNames.Count > 0)
             {
                 var firstSegment = segmentNames[0];
@@ -304,12 +330,13 @@ public static class TypeScriptPackageScaffoldExtractor
 
         sb.AppendLine("## Authentication");
         sb.AppendLine();
-        sb.AppendLine("Attach a bearer token (or other credential) by passing headers through `ApiClient`:");
+        sb.AppendLine("A bearer token comes from `getAccessToken` (called for every request and sent as `Authorization: Bearer ...`);");
+        sb.AppendLine("any other credential or header goes in `defaultHeaders`:");
         sb.AppendLine();
         sb.AppendLine("```ts");
-        sb.AppendLine("const api = new ApiClient({");
-        sb.AppendLine("  baseUrl: 'https://api.example.com',");
-        sb.AppendLine("  defaultHeaders: () => ({ Authorization: `Bearer ${getToken()}` }),");
+        sb.AppendLine("const api = new ApiClient('https://api.example.com', {");
+        sb.AppendLine("  getAccessToken: () => getToken(),");
+        sb.AppendLine("  defaultHeaders: { 'X-Api-Key': apiKey },");
         sb.AppendLine("});");
         sb.AppendLine("```");
         sb.AppendLine();
