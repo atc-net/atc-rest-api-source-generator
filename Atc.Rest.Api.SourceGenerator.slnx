@@ -15,10 +15,10 @@
   <Folder Name="/sample/MultipartDemo/">
     <File Path="sample/MultipartDemo/MultipartDemo.yaml" />
     <File Path="sample/MultipartDemo/MultipartDemo_Accounts.yaml" />
-    <File Path="sample/MultipartDemo/MultipartDemo_Common.yaml" />
     <File Path="sample/MultipartDemo/MultipartDemo_Files.yaml" />
     <File Path="sample/MultipartDemo/MultipartDemo_Notifications.yaml" />
     <File Path="sample/MultipartDemo/MultipartDemo_Tasks.yaml" />
+    <File Path="sample/MultipartDemo/MultipartDemo_Testing.yaml" />
     <File Path="sample/MultipartDemo/MultipartDemo_Users.yaml" />
     <Project Path="sample/MultipartDemo/MultipartDemo.Api.Contracts/MultipartDemo.Api.Contracts.csproj" />
     <Project Path="sample/MultipartDemo/MultipartDemo.Api.Domain/MultipartDemo.Api.Domain.csproj" />
