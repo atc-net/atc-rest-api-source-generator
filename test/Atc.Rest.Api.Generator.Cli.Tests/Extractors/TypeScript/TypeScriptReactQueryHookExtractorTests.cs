@@ -774,7 +774,7 @@ public class TypeScriptReactQueryHookExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
-        Assert.Contains("api.items._1stPage(", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.op1stPage(", content, StringComparison.Ordinal);
     }
 
     [Fact]

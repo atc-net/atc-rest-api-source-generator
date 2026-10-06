@@ -627,9 +627,9 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
-    public void Extract_OperationIdStartsWithDigit_PrefixesMethodWithUnderscore()
+    public void Extract_OperationIdStartsWithDigit_PrefixesTheMethodAsTheCSharpGeneratorsDo()
     {
-        // `1stPage` would camelCase to `1stPage` — invalid TS identifier (leading digit).
+        // `1stPage` would camelCase to `1stPage` - no identifier (leading digit): the shared GetOperationId prefixes `Op`, as the C# generators do.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: T, version: 1.0.0 }
@@ -645,7 +645,7 @@ public class TypeScriptClientExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
-        Assert.Contains("async _1stPage(", content, StringComparison.Ordinal);
+        Assert.Contains("async op1stPage(", content, StringComparison.Ordinal);
     }
 
     [Fact]

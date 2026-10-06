@@ -50,7 +50,8 @@ public class RuleCoverageTests
         ["ATC_API_OPR029"] = "QueryOperationWithMutationResponse - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
 
         // ========== Schema Rules (SCH) ==========
- = "SchemaWithoutRequiredProperties - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaWithoutRequiredValidationTests", = "OperationIdCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.OperationIdCollisionValidatorTests",
+        ["ATC_API_SCH022"] = "SchemaWithoutRequiredProperties - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaWithoutRequiredValidationTests",
+        ["ATC_API_OPR032"] = "OperationIdCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.OperationIdCollisionValidatorTests",
 
         // ========== Client Rules (CLT) ==========
         ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",
