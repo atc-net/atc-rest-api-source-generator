@@ -250,4 +250,17 @@ public class TypeScriptFetchApiClientExtractorTests
         Assert.Contains("async function* parseEventStream<T>(", result, StringComparison.Ordinal);
         Assert.Contains("yield* parseEventStream<T>(reader, decoder);", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_RequestStream_CancelsABodyTheConsumerStoppedReading()
+    {
+        // A consumer that breaks out of `for await` runs the generator's finally: the body must be cancelled
+        // (not only unlocked) so the server sees the disconnect instead of sending until the process ends.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains("async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {", result, StringComparison.Ordinal);
+        Assert.Contains("await reader.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
+        Assert.Equal(3, result.Split("await releaseReader(reader, finished);").Length - 1);
+        Assert.DoesNotContain("    reader.releaseLock();\n    }", result.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+    }
 }

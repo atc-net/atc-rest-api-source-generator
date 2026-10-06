@@ -1108,12 +1108,22 @@ public static class TypeScriptOperationHelper
     /// </summary>
     internal static void AppendParseEventStreamHelper(StringBuilder sb)
     {
+        sb.AppendLine("/** Releases a body reader; a stream that was not read to its end is cancelled first, so the connection is closed. */");
+        sb.AppendLine("async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {");
+        sb.AppendLine("  if (!finished) {");
+        sb.AppendLine("    await reader.cancel().catch(() => undefined);");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+        sb.AppendLine("  reader.releaseLock();");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {");
         sb.AppendLine("  let buffer = '';");
+        sb.AppendLine("  let finished = false;");
         sb.AppendLine("  try {");
         sb.AppendLine("    while (true) {");
         sb.AppendLine("      const { done, value } = await reader.read();");
-        sb.AppendLine("      if (done) break;");
+        sb.AppendLine("      if (done) { finished = true; break; }");
         sb.AppendLine("      buffer += decoder.decode(value, { stream: true }).replace(/\\r/g, '');");
         sb.AppendLine("      let sep: number;");
         sb.AppendLine("      while ((sep = buffer.indexOf('\\n\\n')) !== -1) {");
@@ -1130,7 +1140,7 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine("  } finally {");
-        sb.AppendLine("    reader.releaseLock();");
+        sb.AppendLine("    await releaseReader(reader, finished);");
         sb.AppendLine("  }");
         sb.AppendLine("}");
         sb.AppendLine();

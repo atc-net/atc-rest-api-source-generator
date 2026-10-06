@@ -35,12 +35,22 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
+/** Releases a body reader; a stream that was not read to its end is cancelled first, so the connection is closed. */
+async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {
+  if (!finished) {
+    await reader.cancel().catch(() => undefined);
+  }
+
+  reader.releaseLock();
+}
+
 async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
   let buffer = '';
+  let finished = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) { finished = true; break; }
       buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
       let sep: number;
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
@@ -57,7 +67,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
       }
     }
   } finally {
-    reader.releaseLock();
+    await releaseReader(reader, finished);
   }
 }
 
@@ -266,10 +276,11 @@ export class ApiClient {
       const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
       const delimiter = '--' + (m ? m[2] : '');
       let buf = '';
+      let finished = false;
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) { finished = true; break; }
           buf += decoder.decode(value, { stream: true });
           // Discard preamble (everything before the first delimiter boundary).
           const first = buf.indexOf(delimiter);
@@ -291,15 +302,16 @@ export class ApiClient {
           }
         }
       } finally {
-        reader.releaseLock();
+        await releaseReader(reader, finished);
       }
       return;
     }
 
+    let finished = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) { finished = true; break; }
 
         buffer += decoder.decode(value, { stream: true });
 
@@ -330,7 +342,7 @@ export class ApiClient {
         }
       }
     } finally {
-      reader.releaseLock();
+      await releaseReader(reader, finished);
     }
   }
 
