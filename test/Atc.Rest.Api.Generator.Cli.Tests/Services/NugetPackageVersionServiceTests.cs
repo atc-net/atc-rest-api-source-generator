@@ -1,8 +1,14 @@
 namespace Atc.Rest.Api.Generator.Cli.Tests.Services;
 
+/// <summary>
+/// The version lookup runs before every command, so a bad answer from the network must never
+/// throw or stall (HARD-51), and a prerelease is never offered to a scaffold.
+/// </summary>
 [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The HttpClient owns the stub handler; both live for the test only.")]
 public sealed class NugetPackageVersionServiceTests
 {
+    private static readonly TimeSpan Budget = TimeSpan.FromSeconds(2);
+
     [Fact]
     public async Task GetLatestVersionAsync_NewestIsAPrerelease_ReturnsTheNewestStableVersion()
     {
@@ -41,16 +47,95 @@ public sealed class NugetPackageVersionServiceTests
         Assert.Equal(new Version(cli.Major, cli.Minor, cli.Build), Atc.Rest.Api.Generator.Cli.Defaults.PackageVersionDefaults.SourceGeneratorFallback);
     }
 
-    private static NugetPackageVersionService CreateService(string content)
-        => new(new HttpClient(new StubHandler(content)));
+    [Fact]
+    public async Task GetLatestVersionAsync_WithHtmlOk_ReturnsNullWithoutThrowing()
+    {
+        // A captive portal answers 200 with a login page.
+        var service = CreateService("<html><body>Sign in</body></html>", "text/html");
 
-    private sealed class StubHandler(string? content) : HttpMessageHandler
+        var version = await service.GetLatestVersionAsync("Contoso.Package.CaptivePortal", TestContext.Current.CancellationToken);
+
+        Assert.Null(version);
+    }
+
+    [Fact]
+    public async Task GetLatestVersionAsync_WithNonStringVersionEntry_ReturnsNullWithoutThrowing()
+    {
+        var service = CreateService("""{ "versions": [ 1, 2 ] }""");
+
+        var version = await service.GetLatestVersionAsync("Contoso.Package.Numbers", TestContext.Current.CancellationToken);
+
+        Assert.Null(version);
+    }
+
+    [Fact]
+    public async Task GetLatestVersionAsync_WithServerError_ReturnsNullWithoutThrowing()
+    {
+        var service = new NugetPackageVersionService(new HttpClient(new StubHandler("boom", "text/plain", HttpStatusCode.InternalServerError)));
+
+        var version = await service.GetLatestVersionAsync("Contoso.Package.ServerError", TestContext.Current.CancellationToken);
+
+        Assert.Null(version);
+    }
+
+    [Fact]
+    public async Task GetLatestVersionAsync_WithHandlerThatThrows_ReturnsNullWithoutThrowing()
+    {
+        var service = new NugetPackageVersionService(new HttpClient(new ThrowingHandler()));
+
+        var version = await service.GetLatestVersionAsync("Contoso.Package.Throws", TestContext.Current.CancellationToken);
+
+        Assert.Null(version);
+    }
+
+    [Fact]
+    public async Task GetLatestVersionAsync_WithResponseThatNeverCompletes_ReturnsNullWithinBudget()
+    {
+        var service = new NugetPackageVersionService(new HttpClient(new HangingHandler()));
+        using var cts = new CancellationTokenSource(Budget);
+        var stopwatch = Stopwatch.StartNew();
+
+        var version = await service.GetLatestVersionAsync("Contoso.Package.Hangs", cts.Token);
+
+        stopwatch.Stop();
+        Assert.Null(version);
+        Assert.True(stopwatch.Elapsed < Budget + TimeSpan.FromSeconds(3), $"Took {stopwatch.Elapsed}.");
+    }
+
+    private static NugetPackageVersionService CreateService(
+        string content,
+        string mediaType = "application/json")
+        => new(new HttpClient(new StubHandler(content, mediaType)));
+
+    private sealed class StubHandler(
+        string? content,
+        string mediaType = "application/json",
+        HttpStatusCode statusCode = HttpStatusCode.OK) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
             => content is null
                 ? throw new HttpRequestException("offline")
-                : Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(content) });
+                : Task.FromResult(new HttpResponseMessage(statusCode) { Content = new StringContent(content, Encoding.UTF8, mediaType) });
+    }
+
+    private sealed class ThrowingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+            => throw new InvalidOperationException("DNS is lying today.");
+    }
+
+    private sealed class HangingHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
     }
 }

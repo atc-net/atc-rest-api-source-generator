@@ -59,16 +59,102 @@ public class CliVersionHelperTests
         Assert.Equal(expected, CliVersionHelper.IsUpdateCheckDisabled(name => environment.GetValueOrDefault(name)));
     }
 
-    private sealed class StubNugetPackageVersionService(Version? latestVersion) : INugetPackageVersionService
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    [InlineData("--version")]
+    [InlineData("-v")]
+    [InlineData("spec validate --help")]
+    [InlineData("spec validate -s api.yaml -h")]
+    [InlineData("")]
+    public void ShouldCheckForUpdates_ReturnsFalse_ForHelpVersionAndNoArguments(
+        string commandLine)
+    {
+        var args = commandLine.Length == 0 ? [] : commandLine.Split(' ');
+
+        Assert.False(CliVersionHelper.ShouldCheckForUpdates(args));
+    }
+
+    [Theory]
+    [InlineData("spec validate -s api.yaml")]
+    [InlineData("generate server -s api.yaml -o out -n Demo")]
+    public void ShouldCheckForUpdates_ReturnsTrue_ForCommands(
+        string commandLine)
+        => Assert.True(CliVersionHelper.ShouldCheckForUpdates(commandLine.Split(' ')));
+
+    [Fact]
+    public async Task TryGetNewerVersionAsync_NewerVersionOnTheFeed_ReturnsIt()
+    {
+        var service = new StubNugetPackageVersionService(new Version(9, 9, 9));
+
+        var version = await CliVersionHelper.TryGetNewerVersionAsync(service, new Version(1, 2, 3), Budget);
+
+        Assert.Equal(new Version(9, 9, 9), version);
+    }
+
+    [Theory]
+    [InlineData("1.2.3")]
+    [InlineData("0.0.1")]
+    [InlineData(null)]
+    public async Task TryGetNewerVersionAsync_CurrentIsLatestOrLookupFails_ReturnsNull(
+        string? published)
+    {
+        var service = new StubNugetPackageVersionService(published is null ? null : Version.Parse(published));
+
+        var version = await CliVersionHelper.TryGetNewerVersionAsync(service, new Version(1, 2, 3), Budget);
+
+        Assert.Null(version);
+    }
+
+    [Fact]
+    public async Task TryGetNewerVersionAsync_LookupThrows_ReturnsNull()
+    {
+        var service = new StubNugetPackageVersionService(new Version(9, 9, 9), throwOnLookup: true);
+
+        var version = await CliVersionHelper.TryGetNewerVersionAsync(service, new Version(1, 2, 3), Budget);
+
+        Assert.Null(version);
+    }
+
+    [Fact]
+    public async Task TryGetNewerVersionAsync_LookupNeverCompletes_ReturnsNullWithinBudget()
+    {
+        var service = new StubNugetPackageVersionService(new Version(9, 9, 9), delay: TimeSpan.FromSeconds(30));
+        var stopwatch = Stopwatch.StartNew();
+
+        var version = await CliVersionHelper.TryGetNewerVersionAsync(service, new Version(1, 2, 3), Budget);
+
+        stopwatch.Stop();
+        Assert.Null(version);
+        Assert.True(stopwatch.Elapsed < Budget + TimeSpan.FromSeconds(3), $"Took {stopwatch.Elapsed}.");
+    }
+
+    private static readonly TimeSpan Budget = TimeSpan.FromSeconds(2);
+
+    private sealed class StubNugetPackageVersionService(
+        Version? latestVersion,
+        bool throwOnLookup = false,
+        TimeSpan? delay = null) : INugetPackageVersionService
     {
         public string? RequestedPackageId { get; private set; }
 
-        public Task<Version?> GetLatestVersionAsync(
+        public async Task<Version?> GetLatestVersionAsync(
             string packageId,
             CancellationToken cancellationToken = default)
         {
             RequestedPackageId = packageId;
-            return Task.FromResult(latestVersion);
+            if (throwOnLookup)
+            {
+                throw new InvalidOperationException("The feed answered nonsense.");
+            }
+
+            if (delay is { } wait)
+            {
+                // Ignores the token on purpose: the budget must hold even when the lookup does not cooperate.
+                await Task.Delay(wait, CancellationToken.None);
+            }
+
+            return latestVersion;
         }
 
         public async Task<Version> GetLatestVersionOrFallbackAsync(
