@@ -65,6 +65,7 @@ export class DocumentsClient {
   /** List the uploaded documents */
   async listDocuments(signal?: AbortSignal): Promise<ListDocumentsResult> {
     return this.api.request<Document[]>('GET', '/documents', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListDocumentsResult>;
@@ -78,6 +79,7 @@ export class DocumentsClient {
       query: {
         fileName: query?.fileName,
       },
+      responseType: 'json',
       arms: ['created', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UploadDocumentResult>;

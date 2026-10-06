@@ -76,6 +76,7 @@ export class AccountsClient {
       query: {
         limit: query?.limit,
       },
+      responseType: 'json',
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -86,6 +87,7 @@ export class AccountsClient {
   async createAccount(body: Account, signal?: AbortSignal): Promise<CreateAccountResult> {
     return this.api.request<Account>('POST', '/accounts', {
       body,
+      responseType: 'json',
       retry: { policy: retryPolicies.accountsFast, enabled: false },
       arms: ['created', 'conflict', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -95,6 +97,7 @@ export class AccountsClient {
   /** Get a specific account */
   async getAccountById(accountId: string, signal?: AbortSignal): Promise<GetAccountByIdResult> {
     return this.api.request<Account>('GET', `/accounts/${encodeURIComponent(accountId)}`, {
+      responseType: 'json',
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -114,6 +117,7 @@ export class AccountsClient {
   async updateAccountById(accountId: string, body: Account, signal?: AbortSignal): Promise<UpdateAccountByIdResult> {
     return this.api.request<Account>('PUT', `/accounts/${encodeURIComponent(accountId)}`, {
       body,
+      responseType: 'json',
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -129,6 +133,7 @@ export class AccountsClient {
         queryString: query?.queryString,
         continuation: query?.continuation,
       },
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListPaginatedAccountsResult>;

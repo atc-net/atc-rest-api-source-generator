@@ -94,6 +94,7 @@ export class UsersClient {
         isActive: query?.isActive,
         limit: query?.limit,
       },
+      responseType: 'json',
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -104,6 +105,7 @@ export class UsersClient {
   async queryUsers(body: UserQuery, signal?: AbortSignal): Promise<QueryUsersResult> {
     return this.api.request<Users>('QUERY', '/users', {
       body,
+      responseType: 'json',
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -114,6 +116,7 @@ export class UsersClient {
   async createUser(body: CreateUserRequest, signal?: AbortSignal): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/users', {
       body,
+      responseType: 'json',
       retry: { policy: retryPolicies.users, enabled: false },
       arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
@@ -124,6 +127,7 @@ export class UsersClient {
   async importUsers(body: CreateUserRequest[], signal?: AbortSignal): Promise<ImportUsersResult> {
     return this.api.request<Users>('POST', '/users/import', {
       body,
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ImportUsersResult>;
@@ -143,6 +147,7 @@ export class UsersClient {
   async updateUserById(userId: string, body: UpdateUserRequest, signal?: AbortSignal): Promise<UpdateUserByIdResult> {
     return this.api.request<User>('PUT', `/users/${encodeURIComponent(userId)}`, {
       body,
+      responseType: 'json',
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'notFound', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,

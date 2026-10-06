@@ -66,6 +66,7 @@ export class TasksClient {
       query: {
         limit: query?.limit,
       },
+      responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListTasksResult>;
@@ -75,6 +76,7 @@ export class TasksClient {
   async createTask(body: Task, signal?: AbortSignal): Promise<CreateTaskResult> {
     return this.api.request<Task>('POST', '/tasks', {
       body,
+      responseType: 'json',
       arms: ['created', 'conflict', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateTaskResult>;
@@ -83,6 +85,7 @@ export class TasksClient {
   /** Get a specific task */
   async getTaskById(taskId: string, signal?: AbortSignal): Promise<GetTaskByIdResult> {
     return this.api.request<Task>('GET', `/tasks/${encodeURIComponent(taskId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetTaskByIdResult>;
@@ -100,6 +103,7 @@ export class TasksClient {
   async updateTaskById(taskId: string, body: Task, signal?: AbortSignal): Promise<UpdateTaskByIdResult> {
     return this.api.request<Task>('PUT', `/tasks/${encodeURIComponent(taskId)}`, {
       body,
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateTaskByIdResult>;

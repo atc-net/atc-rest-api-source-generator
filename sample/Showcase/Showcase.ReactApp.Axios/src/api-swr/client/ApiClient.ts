@@ -45,12 +45,22 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
+/** Releases a body reader; a stream that was not read to its end is cancelled first, so the connection is closed. */
+async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {
+  if (!finished) {
+    await reader.cancel().catch(() => undefined);
+  }
+
+  reader.releaseLock();
+}
+
 async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
   let buffer = '';
+  let finished = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) { finished = true; break; }
       buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
       let sep: number;
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
@@ -67,7 +77,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
       }
     }
   } finally {
-    reader.releaseLock();
+    await releaseReader(reader, finished);
   }
 }
 
@@ -116,7 +126,7 @@ export class ApiClient {
         if (typeof data !== 'string' || data.length === 0) return data;
         if (this.responseType === 'text') return data;
         const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '').toLowerCase();
-        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;
+        if (this.responseType !== 'json' && !contentType.includes('application/json') && !contentType.includes('+json')) return data;
         try { return JSON.parse(data); } catch { return new UnparseableBody(data); }
       }],
     });
@@ -193,7 +203,7 @@ export class ApiClient {
       params: options?.query,
       headers,
       signal: attemptSignal ?? options?.signal,
-      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',
+      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType,
     });
 
     let response: AxiosResponse<T> | undefined;
@@ -233,7 +243,7 @@ export class ApiClient {
       if (/^(application\/json|application\/xml|text\/xml)$|\+(json|xml)$/.test((modelContentType.split(';')[0] ?? '').trim())) {
         let body: unknown = await response.data.text();
         for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {
-          body = transform.call({ responseType: 'json' }, body, response.headers);
+          body = transform.call({}, body, response.headers);
         }
 
         (response as { data: unknown }).data = body;
@@ -329,10 +339,11 @@ export class ApiClient {
       const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
       const delimiter = '--' + (m ? m[2] : '');
       let buf = '';
+      let finished = false;
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) { finished = true; break; }
           buf += decoder.decode(value, { stream: true });
           // Discard preamble (everything before the first delimiter boundary).
           const first = buf.indexOf(delimiter);
@@ -354,15 +365,16 @@ export class ApiClient {
           }
         }
       } finally {
-        reader.releaseLock();
+        await releaseReader(reader, finished);
       }
       return;
     }
 
+    let finished = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) { finished = true; break; }
 
         buffer += decoder.decode(value, { stream: true });
 
@@ -393,7 +405,7 @@ export class ApiClient {
         }
       }
     } finally {
-      reader.releaseLock();
+      await releaseReader(reader, finished);
     }
   }
 
@@ -441,6 +453,11 @@ export class ApiClient {
           error: new Error('Response body could not be parsed as JSON'),
           response,
         };
+      }
+
+      // An empty body is no data (a text operation keeps its empty string).
+      if ((response.data as unknown) === '' && response.config?.responseType !== 'text') {
+        (response as { data: unknown }).data = undefined;
       }
       const status = response.status === 201
         ? 'created' as const

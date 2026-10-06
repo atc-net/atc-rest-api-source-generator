@@ -42,6 +42,7 @@ export class TestingClient {
   /** Test exception handling */
   async getExceptionTest(code: number, signal?: AbortSignal): Promise<GetExceptionTestResult> {
     return this.api.request<ExceptionTestResponse>('GET', `/testing/exception/${encodeURIComponent(code)}`, {
+      responseType: 'json',
       retry: { enabled: false },
       arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,

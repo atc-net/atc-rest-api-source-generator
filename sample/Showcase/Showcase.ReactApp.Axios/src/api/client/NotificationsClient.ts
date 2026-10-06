@@ -52,6 +52,7 @@ export class NotificationsClient {
   /** List all notification subscriptions */
   async listSubscriptions(signal?: AbortSignal): Promise<ListSubscriptionsResult> {
     return this.api.request<Subscriptions>('GET', '/notifications/subscriptions', {
+      responseType: 'json',
       arms: ['ok', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListSubscriptionsResult>;
@@ -61,6 +62,7 @@ export class NotificationsClient {
   async createSubscription(body: CreateSubscriptionRequest, signal?: AbortSignal): Promise<CreateSubscriptionResult> {
     return this.api.request<Subscription>('POST', '/notifications/subscriptions', {
       body,
+      responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateSubscriptionResult>;
@@ -69,6 +71,7 @@ export class NotificationsClient {
   /** Get subscription details */
   async getSubscriptionById(subscriptionId: string, signal?: AbortSignal): Promise<GetSubscriptionByIdResult> {
     return this.api.request<Subscription>('GET', `/notifications/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetSubscriptionByIdResult>;

@@ -39,12 +39,22 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
+/** Releases a body reader; a stream that was not read to its end is cancelled first, so the connection is closed. */
+async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {
+  if (!finished) {
+    await reader.cancel().catch(() => undefined);
+  }
+
+  reader.releaseLock();
+}
+
 async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
   let buffer = '';
+  let finished = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) { finished = true; break; }
       buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
       let sep: number;
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
@@ -61,7 +71,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
       }
     }
   } finally {
-    reader.releaseLock();
+    await releaseReader(reader, finished);
   }
 }
 
@@ -140,20 +150,22 @@ export class ApiClient {
       init = await interceptor(url, init);
     }
 
-    let response: Response;
     const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);
     if (retryPolicy) {
-      // Wire the per-attempt signal through so policy.timeoutMs actually cancels the
-      // in-flight fetch and parent aborts propagate to every retry attempt.
-      response = await retryWithBackoff(
+      // Each attempt gets its own signal, so policy.timeoutMs cancels the in-flight fetch and a parent abort
+      // reaches every attempt; the body is read inside the attempt, so both cover the body read too.
+      return retryWithBackoff(
         (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),
         retryPolicy,
         options?.signal,
+        (response) => this.readResponse<T>(response, options),
       );
-    } else {
-      response = await fetch(url, init);
     }
 
+    return this.readResponse<T>(await fetch(url, init), options);
+  }
+
+  private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {
     for (const interceptor of this.options.responseInterceptors ?? []) {
       response = await interceptor(response);
     }
@@ -234,10 +246,11 @@ export class ApiClient {
       const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
       const delimiter = '--' + (m ? m[2] : '');
       let buf = '';
+      let finished = false;
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) { finished = true; break; }
           buf += decoder.decode(value, { stream: true });
           // Discard preamble (everything before the first delimiter boundary).
           const first = buf.indexOf(delimiter);
@@ -259,15 +272,16 @@ export class ApiClient {
           }
         }
       } finally {
-        reader.releaseLock();
+        await releaseReader(reader, finished);
       }
       return;
     }
 
+    let finished = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) { finished = true; break; }
 
         buffer += decoder.decode(value, { stream: true });
 
@@ -298,7 +312,7 @@ export class ApiClient {
         }
       }
     } finally {
-      reader.releaseLock();
+      await releaseReader(reader, finished);
     }
   }
 
@@ -359,11 +373,28 @@ export class ApiClient {
     const isJson = responseType ? responseType === 'json' : (!isText && (contentType.includes('application/json') || contentType.includes('+json')));
 
     if (response.ok) {
+      // A JSON operation reads JSON whatever the Content-Type says; an empty body is no data. Without a
+      // responseType the Content-Type decides, and a body without one is its text (empty: no data).
       let data: unknown;
       try {
-        data = isText ? await response.text() : isJson ? await response.json() : await response.blob();
+        if (isText) {
+          data = await response.text();
+        } else if (isJson) {
+          const text = await response.text();
+          data = text.length === 0 ? undefined : JSON.parse(text);
+        } else if (responseType === 'blob' || contentType.length > 0) {
+          data = await response.blob();
+        } else {
+          const text = await response.text();
+          data = text.length === 0 ? undefined : text;
+        }
       } catch (parseError) {
-        return { status: 'parseError', error: parseError as Error, response };
+        // Only a malformed body is a parseError; a body read that is aborted or cut off rejects like the request.
+        if (!(parseError instanceof SyntaxError)) {
+          throw parseError;
+        }
+
+        return { status: 'parseError', error: parseError, response };
       }
       const status = response.status === 201
         ? 'created' as const

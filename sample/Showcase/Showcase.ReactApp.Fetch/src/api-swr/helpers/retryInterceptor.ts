@@ -100,22 +100,27 @@ function isRetryableStatus(status: number, handle429: boolean): boolean {
  *   timeout fires; pass it to fetch so the in-flight request is actually cancelled.
  * @param policy - The retry policy to apply.
  * @param signal - Optional parent AbortSignal for caller-initiated cancellation.
- * @returns The Response from the first successful attempt or the last failed attempt.
+ * @param read - Reads the response that is not retried (the first success, or the last attempt). It runs
+ *   while the per-attempt signal and timeout are still live, so a body that stalls or an abort during the
+ *   body read is cancelled like the request itself. Without it the Response is returned unread.
+ * @returns What `read` returns: the Response from the first successful attempt or the last failed attempt.
  *
  * @example
  * ```typescript
- * const response = await retryWithBackoff(
+ * const data = await retryWithBackoff(
  *   (signal) => fetch('/api/data', { signal }),
- *   { maxAttempts: 3, delayMs: 1000, backoff: 'exponential', useJitter: true, handle429: true }
+ *   { maxAttempts: 3, delayMs: 1000, backoff: 'exponential', useJitter: true, handle429: true },
+ *   undefined,
+ *   (response) => response.json(),
  * );
  * ```
  */
-export async function retryWithBackoff(
+export async function retryWithBackoff<T = Response>(
   fetchFn: (signal: AbortSignal) => Promise<Response>,
   policy: RetryPolicy,
   signal?: AbortSignal,
-): Promise<Response> {
-  let lastResponse: Response | undefined;
+  read: (response: Response) => Promise<T> = (response) => Promise.resolve(response as unknown as T),
+): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= policy.maxAttempts; attempt++) {
@@ -146,16 +151,14 @@ export async function retryWithBackoff(
 
       const response = await fetchFn(controller.signal);
 
-      lastResponse = response;
-
-      // Success — no retry needed
+      // Success — no retry needed; the body is read while this attempt's signal and timeout are still live.
       if (!isRetryableStatus(response.status, policy.handle429)) {
-        return response;
+        return await read(response);
       }
 
-      // Last attempt — return as-is
+      // Last attempt — read as-is
       if (attempt === policy.maxAttempts) {
-        return response;
+        return await read(response);
       }
 
       // Handle 429 with Retry-After header
@@ -164,13 +167,16 @@ export async function retryWithBackoff(
         const retryAfterMs = parseRetryAfter(response.headers.get('Retry-After'));
         // A 429 asking for a longer wait than the policy allows goes back to the caller.
         if (retryAfterMs !== undefined && retryAfterMs > (policy.timeoutMs ?? MAX_RETRY_AFTER_MS)) {
-          return response;
+          return await read(response);
         }
 
         delay = retryAfterMs ?? computeDelay(attempt, policy);
       } else {
         delay = computeDelay(attempt, policy);
       }
+
+      // The attempt is retried: its body is not read, so release the connection.
+      void response.body?.cancel().catch(() => undefined);
 
       await sleep(delay, signal);
     } catch (error) {
@@ -197,7 +203,6 @@ export async function retryWithBackoff(
     }
   }
 
-  // Should not reach here, but satisfy TypeScript
-  if (lastResponse) return lastResponse;
+  // Should not reach here (the last attempt returns or throws), but satisfy TypeScript
   throw lastError;
 }
