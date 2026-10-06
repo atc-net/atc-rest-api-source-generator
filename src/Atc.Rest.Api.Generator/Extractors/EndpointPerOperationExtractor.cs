@@ -255,12 +255,7 @@ public static class EndpointPerOperationExtractor
         bool useServersBasePath = true,
         bool preferXml = false)
     {
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var operationName = operationId.ToPascalCaseForDotNet();
         var description = operation.Summary ?? operation.Description ?? $"{operationName} operation";
 
@@ -1051,6 +1046,8 @@ public static class EndpointPerOperationExtractor
         var templatePath = serverBasePath is not null ? $"{serverBasePath}{path}" : path;
         sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{templatePath}\");");
 
+        var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
+
         // Add path parameters
         var allParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
         if (pathLevelParameters is not null)
@@ -1077,16 +1074,16 @@ public static class EndpointPerOperationExtractor
             }
         }
 
-        foreach (var (param, _) in allParams.Where(p => p.Param.In == ParameterLocation.Path))
+        foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Path))
         {
-            var propName = param.Name!.ToPascalCaseForDotNet();
+            var propName = propertyNames.Get(param, referenceId);
             sb.AppendLine($"requestBuilder.WithPathParameter(\"{param.Name}\", {WireValue(param, propName)});");
         }
 
         // Add query parameters
-        foreach (var (param, _) in allParams.Where(p => p.Param.In == ParameterLocation.Query))
+        foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Query))
         {
-            var propName = param.Name!.ToPascalCaseForDotNet();
+            var propName = propertyNames.Get(param, referenceId);
             if (param.Required)
             {
                 sb.AppendLine($"requestBuilder.WithQueryParameter(\"{param.Name}\", {WireValue(param, propName)});");
@@ -1103,11 +1100,7 @@ public static class EndpointPerOperationExtractor
         // Add header parameters
         foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Header))
         {
-            // For header parameters, use reference ID as property name if available,
-            // otherwise strip x- prefix from header name
-            var propName = !string.IsNullOrEmpty(referenceId)
-                ? referenceId!.ToPascalCaseForDotNet()
-                : param.Name!.ToHeaderPropertyName();
+            var propName = propertyNames.Get(param, referenceId);
             var headerName = param.Name!;
 
             if (param.Required)
@@ -1128,9 +1121,9 @@ public static class EndpointPerOperationExtractor
         if (cookieParams.Count > 0)
         {
             sb.AppendLine("var cookieParts = new List<string>();");
-            foreach (var (param, _) in cookieParams)
+            foreach (var (param, referenceId) in cookieParams)
             {
-                var propName = param.Name!.ToPascalCaseForDotNet();
+                var propName = propertyNames.Get(param, referenceId);
                 var isBoolean = (param.Schema is OpenApiSchemaReference { Target: { } target } ? target : param.Schema)?.IsOfType(JsonSchemaType.Boolean) == true;
                 var text = isBoolean
                     ? $"(parameters.{propName} == true ? \"true\" : \"false\")"

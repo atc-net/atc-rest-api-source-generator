@@ -30,6 +30,12 @@ public static class OpenApiSchemaExtensions
             return schemaName;
         }
 
+        // A keyword cannot name a type: its first letter is capitalised (class -> Class)
+        if (CSharpKeywords.IsKeyword(schemaName))
+        {
+            return char.ToUpperInvariant(schemaName[0]) + schemaName.Substring(1);
+        }
+
         var needsChange = char.IsDigit(schemaName[0]);
         foreach (var c in schemaName)
         {

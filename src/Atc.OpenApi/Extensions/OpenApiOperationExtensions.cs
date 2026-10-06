@@ -37,7 +37,10 @@ public static class OpenApiOperationExtensions
     extension(OpenApiOperation operation)
     {
         /// <summary>
-        /// Gets the operation ID or generates a default one from path and HTTP method.
+        /// Gets the operation ID, or generates one from the HTTP method and the path when it is missing or empty -
+        /// in both cases as an identifier: a character that is none becomes an underscore (<c>repos/get</c> is
+        /// <c>repos_get</c>) and an id that starts with a digit is prefixed (<c>1stThing</c> is <c>Op1stThing</c>),
+        /// so that no generator derives a name that breaks the consumer's build.
         /// </summary>
         /// <param name="path">The API path.</param>
         /// <param name="httpMethod">The HTTP method (GET, POST, etc.).</param>
@@ -56,17 +59,28 @@ public static class OpenApiOperationExtensions
                 throw new ArgumentNullException(nameof(path));
             }
 
-            if (!string.IsNullOrEmpty(operation.OperationId))
+            var operationId = operation.OperationId;
+            if (string.IsNullOrWhiteSpace(operationId))
             {
-                return operation.OperationId!;
+                // Generate default: HttpMethodPathWithoutSlashesAndBraces
+                operationId = httpMethod + path
+                    .Replace("/", "_")
+                    .Replace("{", string.Empty)
+                    .Replace("}", string.Empty);
             }
 
-            // Generate default: HttpMethodPathWithoutSlashesAndBraces
-            var sanitizedPath = path
-                .Replace("/", "_")
-                .Replace("{", string.Empty)
-                .Replace("}", string.Empty);
-            return $"{httpMethod}{sanitizedPath}";
+            var sb = new System.Text.StringBuilder(operationId!.Length + 2);
+            foreach (var c in operationId)
+            {
+                sb.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
+            }
+
+            if (sb.Length > 0 && char.IsDigit(sb[0]))
+            {
+                sb.Insert(0, "Op");
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>

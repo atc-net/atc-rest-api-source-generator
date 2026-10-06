@@ -44,7 +44,7 @@ public class NamespaceResolverChainTests
             yamlPath: YamlPath);
 
         // Assert
-        Assert.Equal("api-1", result);
+        Assert.Equal("Api1", result); // the file name made a namespace: "api-1" is none
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class NamespaceResolverChainTests
             yamlPath: YamlPath);
 
         // Assert
-        Assert.Equal("api-1", result);
+        Assert.Equal("Api1", result); // the file name made a namespace: "api-1" is none
     }
 
     /// <summary>

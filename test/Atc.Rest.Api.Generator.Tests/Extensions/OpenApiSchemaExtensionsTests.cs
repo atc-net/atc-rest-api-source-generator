@@ -355,6 +355,11 @@ public class OpenApiSchemaExtensionsTests
     [InlineData("Simple", "Simple")]
     [InlineData("A.B", "A_B")]
     [InlineData("", "")]
+    [InlineData("3DModel", "_3DModel")]
+    [InlineData("Page«User»", "Page_User_")]
+    [InlineData("class", "Class")] // a C# keyword cannot be a type name: the first letter is capitalised
+    [InlineData("object", "Object")]
+    [InlineData("string", "String")]
     public void SanitizeSchemaName_ReturnsExpected(
         string input,
         string expected)

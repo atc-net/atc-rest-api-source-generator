@@ -946,12 +946,7 @@ using Microsoft.AspNetCore.Builder;
         TypeConflictRegistry? registry = null,
         bool useValidationFilter = false)
     {
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
 
         // Calculate relative path from original prefix (without server base path)
@@ -1041,7 +1036,7 @@ using Microsoft.AspNetCore.Builder;
             // validation, as a file upload does; an undeclared media type is a 415
             var (formSchemaName, _, _) = operation.GetFormBodySchemaInfo();
             builder.AppendLine();
-            builder.Append($"    .Accepts<{formSchemaName?.ToPascalCaseForDotNet() ?? "object"}>({string.Join(", ", formMediaTypes.Select(m => $"\"{m}\""))})");
+            builder.Append($"    .Accepts<{(formSchemaName is null ? "object" : OpenApiSchemaExtensions.SanitizeSchemaName(formSchemaName))}>({string.Join(", ", formMediaTypes.Select(m => $"\"{m}\""))})");
             builder.AppendLine();
             builder.Append("    .DisableAntiforgery()");
         }
@@ -1586,12 +1581,7 @@ using Microsoft.AspNetCore.Builder;
         IList<IOpenApiParameter>? pathParameters,
         SystemTypeConflictResolver systemTypeResolver)
     {
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
         var resultClassName = $"{methodName}Result";
 
@@ -1718,13 +1708,14 @@ using Microsoft.AspNetCore.Builder;
                     var opParamName = opParam.GetName();
                     if (!string.IsNullOrEmpty(opParamName))
                     {
-                        allNonFormParameters.RemoveAll(p => p.GetName() == opParamName);
+                        allNonFormParameters.RemoveAll(p => p.GetName() == opParamName && p.GetLocation() == opParam.GetLocation());
                     }
 
                     allNonFormParameters.Add(opParam);
                 }
             }
 
+            var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
             foreach (var paramOrRef in allNonFormParameters)
             {
                 var resolved = paramOrRef.Resolve();
@@ -1734,7 +1725,7 @@ using Microsoft.AspNetCore.Builder;
                     continue;
                 }
 
-                var propName = parameter.Name!.ToPascalCaseForDotNet();
+                var propName = propertyNames.Get(parameter, resolved.ReferenceId);
                 var paramName = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
                 var paramType = parameter.Schema!.ToCSharpType(isRequired: parameter.Required, registry: null);
                 var isNullable = paramType.EndsWith("?", StringComparison.Ordinal);
@@ -1805,7 +1796,7 @@ using Microsoft.AspNetCore.Builder;
         {
             // For form flattening, construct the request object and parameters manually
             var (schemaName, _, _) = operation.GetFormBodySchemaInfo();
-            var requestTypeName = schemaName?.ToPascalCaseForDotNet() ?? "Request";
+            var requestTypeName = schemaName is null ? "Request" : OpenApiSchemaExtensions.SanitizeSchemaName(schemaName);
             var parameterClassName = $"{methodName}Parameters";
 
             // Build constructor arguments for the request object, by name (the record lists required properties first).
@@ -1941,7 +1932,7 @@ using Microsoft.AspNetCore.Builder;
             return null;
         }
 
-        var operationId = operation.OperationId ?? "Unknown";
+        var operationId = OperationIdHelper.Effective(operation, "Unknown", string.Empty);
         var schemaType = schema.GetSchemaType();
 
         // Handle array types
@@ -1957,7 +1948,7 @@ using Microsoft.AspNetCore.Builder;
             var refName = schemaRef.Reference?.Id ?? schemaRef.Id;
             if (!string.IsNullOrEmpty(refName))
             {
-                var typeName = refName!.ToPascalCaseForDotNet();
+                var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(refName!);
                 if (registry?.IsConflicting(typeName) == true)
                 {
                     return registry.GetFullyQualifiedName(typeName);
@@ -2023,7 +2014,7 @@ using Microsoft.AspNetCore.Builder;
             var refName = itemRef.Reference?.Id ?? itemRef.Id;
             if (!string.IsNullOrEmpty(refName))
             {
-                var typeName = refName!.ToPascalCaseForDotNet();
+                var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(refName!);
                 if (registry?.IsConflicting(typeName) == true)
                 {
                     return registry.GetFullyQualifiedName(typeName);
@@ -2052,7 +2043,7 @@ using Microsoft.AspNetCore.Builder;
                     if (kvp.Value is OpenApiSchema componentSchema &&
                         string.Equals(componentSchema.Title, openApiSchema.Title, StringComparison.Ordinal))
                     {
-                        var typeName = kvp.Key.ToPascalCaseForDotNet();
+                        var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(kvp.Key);
                         if (registry?.IsConflicting(typeName) == true)
                         {
                             return registry.GetFullyQualifiedName(typeName);

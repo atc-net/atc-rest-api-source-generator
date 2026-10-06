@@ -75,6 +75,11 @@ public static class OpenApiDocumentValidator
 
         var diagnostics = new List<DiagnosticMessage>();
 
+        // Two schema names that become one C# type (User / user, Foo-Bar / Foo_Bar) break generation under every
+        // strategy - the generator fails on the duplicate file - so the collision is always an error
+        diagnostics.AddRange(ValidateSchemaNameCollisions(document, sourceFilePath));
+        diagnostics.AddRange(ValidateOperationIdCollisions(document, sourceFilePath));
+
         if (strategy == ValidateSpecificationStrategy.None)
         {
             return diagnostics; // Skip all validation
@@ -138,9 +143,6 @@ public static class OpenApiDocumentValidator
 
         // ATCAPI_SCH013: Validate schema references (fundamental error that breaks code generation)
         diagnostics.AddRange(ValidateSchemaReferences(document, sourceFilePath));
-
-        // ATC_API_SCH018: Detect schema-name sanitization collisions (also breaks code generation)
-        diagnostics.AddRange(ValidateSchemaNameCollisions(document, sourceFilePath));
 
         // ATC_API_SCH019: Warn on anonymous inline schema in components.mediaTypes
         ValidateComponentsMediaTypes(diagnostics, sourceFilePath, document);
@@ -2902,6 +2904,46 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
+    /// Validates that no two operations have operationIds that become one C# name (ATC_API_OPR032): 'getUser' and
+    /// 'get_user' or 'GetUSER' would be one handler interface, one result class and one client method.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateOperationIdCollisions(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        var byName = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var path in document.Paths ?? [])
+        {
+            foreach (var operation in path.Value?.Operations ?? [])
+            {
+                var method = operation.Key.Method.ToUpperInvariant();
+                var name = OperationIdHelper.Effective(operation.Value, method, path.Key).ToPascalCaseForDotNet();
+                if (!byName.TryGetValue(name, out var operations))
+                {
+                    operations = [];
+                    byName[name] = operations;
+                }
+
+                operations.Add($"'{operation.Value?.OperationId ?? $"{method} {path.Key}"}' ({method} {path.Key})");
+            }
+        }
+
+        foreach (var group in byName.Where(g => g.Value.Count > 1))
+        {
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.OperationIdCollision,
+                $"The operations {string.Join(" and ", group.Value)} have operationIds that become the same name '{group.Key}': they would share a handler interface, a result class and a client method.",
+                DiagnosticSeverity.Error,
+                sourceFilePath,
+                Context: $"Operation: {group.Key}",
+                Suggestions: ["Give each operation an operationId that is distinct when PascalCased"]));
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
     /// Validates that no two distinct schema names sanitize to the same C# identifier (ATC_API_SCH018).
     /// Such collisions would produce duplicate type definitions in the generated code.
     /// </summary>
@@ -2918,7 +2960,7 @@ public static class OpenApiDocumentValidator
 
         // Group the original schema names by the C# identifier they sanitize to. Use the same
         // sanitization the generator applies so detection matches real generation behavior.
-        var groupsByIdentifier = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var groupsByIdentifier = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var schemaName in document.Components.Schemas.Keys)
         {
             var sanitized = OpenApiSchemaExtensions.SanitizeSchemaName(schemaName);

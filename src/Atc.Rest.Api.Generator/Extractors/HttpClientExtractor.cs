@@ -557,11 +557,7 @@ public static class HttpClientExtractor
 
         // Check if this is an async enumerable streaming operation (x-* annotation or 3.2 itemSchema)
         var isAsyncEnumerable = operation.IsStreamingResponse();
-        var normalizedPath = path
-            .Replace('/', '_')
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet() + "Async";
         var parametersClassName = $"{operationId.ToPascalCaseForDotNet()}Parameters";
 
@@ -803,6 +799,7 @@ public static class HttpClientExtractor
         XmlReadPlan? xmlRead = null)
     {
         var builder = new StringBuilder();
+        var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
 
         // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
         var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
@@ -816,7 +813,7 @@ public static class HttpClientExtractor
             foreach (var paramInterface in pathLevelParameters)
             {
                 var resolved = paramInterface.Resolve();
-                var (param, _) = (resolved.Parameter, resolved.ReferenceId);
+                var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
                 if (param is null || string.IsNullOrEmpty(param.Name))
                 {
                     continue;
@@ -824,8 +821,8 @@ public static class HttpClientExtractor
 
                 if (param.In == ParameterLocation.Path)
                 {
-                    var propName = param.Name!.ToPascalCaseForDotNet();
-                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
+                    var propName = propertyNames.Get(param, referenceId);
+                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
                     var replacement = WireValueHelper.IsStringEnum(param.Schema)
                         ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
                         : BuildPathParameterReplacement(propName, paramType);
@@ -841,7 +838,7 @@ public static class HttpClientExtractor
             {
                 // Resolve parameter reference if needed
                 var resolved = paramInterface.Resolve();
-                var (param, _) = (resolved.Parameter, resolved.ReferenceId);
+                var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
                 if (param is null || string.IsNullOrEmpty(param.Name))
                 {
                     continue;
@@ -849,8 +846,8 @@ public static class HttpClientExtractor
 
                 if (param.In == ParameterLocation.Path)
                 {
-                    var propName = param.Name!.ToPascalCaseForDotNet();
-                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
+                    var propName = propertyNames.Get(param, referenceId);
+                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
                     var replacement = WireValueHelper.IsStringEnum(param.Schema)
                         ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
                         : BuildPathParameterReplacement(propName, paramType);
@@ -896,11 +893,11 @@ public static class HttpClientExtractor
         if (queryParams.Count > 0)
         {
             builder.AppendLine("var queryParams = new List<string>();");
-            foreach (var (param, _) in queryParams)
+            foreach (var (param, referenceId) in queryParams)
             {
-                var propName = param.Name!.ToPascalCaseForDotNet();
+                var propName = propertyNames.Get(param, referenceId);
                 var paramAccess = $"parameters.{propName}";
-                var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
+                var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
                 var isRequired = param.Required;
                 var serialization = param.GetParameterSerialization();
 
@@ -989,9 +986,9 @@ public static class HttpClientExtractor
 
         // OAS 3.2 in:querystring — raw query string appended to URL as-is (no key=value encoding).
         // Multiple querystring params on the same endpoint are unusual but handled by appending.
-        foreach (var (param, _) in querystringParams)
+        foreach (var (param, referenceId) in querystringParams)
         {
-            var propName = param.Name!.ToPascalCaseForDotNet();
+            var propName = propertyNames.Get(param, referenceId);
             var paramAccess = $"parameters.{propName}";
 
             builder.AppendLine();
@@ -1012,7 +1009,7 @@ public static class HttpClientExtractor
             // What every send has to put on its request: the header and cookie parameters, then the retry stamp
             var statements = new[]
                 {
-                    BuildHeaderAndCookieStatements(headerParams, cookieParams, requestVariable, openApiDoc, parametersClassName),
+                    BuildHeaderAndCookieStatements(headerParams, cookieParams, requestVariable, openApiDoc, parametersClassName, propertyNames),
                     ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, requestVariable),
                 }
                 .Where(s => !string.IsNullOrEmpty(s))
@@ -1583,7 +1580,8 @@ public static class HttpClientExtractor
         List<(OpenApiParameter Param, string? ReferenceId)> cookieParams,
         string requestVariable,
         OpenApiDocument openApiDoc,
-        string parametersClassName)
+        string parametersClassName,
+        ParameterPropertyNames propertyNames)
     {
         if (headerParams.Count == 0 && cookieParams.Count == 0)
         {
@@ -1593,11 +1591,9 @@ public static class HttpClientExtractor
         var sb = new StringBuilder();
         foreach (var (param, referenceId) in headerParams)
         {
-            var propName = !string.IsNullOrEmpty(referenceId)
-                ? referenceId!.ToPascalCaseForDotNet()
-                : param.Name!.ToHeaderPropertyName();
+            var propName = propertyNames.Get(param, referenceId);
             var variable = "header" + propName;
-            var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
+            var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
 
             sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
             sb.AppendLine("{");
@@ -1611,11 +1607,11 @@ public static class HttpClientExtractor
         if (cookieParams.Count > 0)
         {
             sb.AppendLine("var cookieParts = new List<string>();");
-            foreach (var (param, _) in cookieParams)
+            foreach (var (param, referenceId) in cookieParams)
             {
-                var propName = param.Name!.ToPascalCaseForDotNet();
+                var propName = propertyNames.Get(param, referenceId);
                 var variable = "cookie" + propName;
-                var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
+                var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
 
                 sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
                 sb.AppendLine("{");
@@ -1692,15 +1688,13 @@ public static class HttpClientExtractor
     private static string GetParameterTypeWithInlineEnumAwareness(
         OpenApiParameter param,
         OpenApiDocument openApiDoc,
-        string parametersClassName)
+        string parametersClassName,
+        string propName)
     {
         if (param.Schema is OpenApiSchema actualSchema &&
             InlineEnumExtractor.IsInlineEnumSchema(actualSchema) &&
             !string.IsNullOrEmpty(param.Name))
         {
-            var propName = param.In == ParameterLocation.Header
-                ? param.Name!.ToHeaderPropertyName()
-                : param.Name!.ToPascalCaseForDotNet();
             return InlineEnumExtractor.GenerateInlineEnumTypeName(parametersClassName, propName);
         }
 

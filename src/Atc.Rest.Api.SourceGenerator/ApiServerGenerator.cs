@@ -252,7 +252,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Extract project name from base file path (or use config namespace)
-        var projectName = config.Namespace ?? Path.GetFileNameWithoutExtension(baseFile.Path);
+        var projectName = NamespaceResolver.ToValidNamespace(config.Namespace ?? Path.GetFileNameWithoutExtension(baseFile.Path));
 
         GenerateApiServerFromDocument(
             context,
@@ -284,7 +284,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Extract project name from YAML file path (or use config namespace)
-        var projectName = config.Namespace ?? GetProjectNameFromPath(yamlPath);
+        var projectName = NamespaceResolver.ToValidNamespace(config.Namespace ?? GetProjectNameFromPath(yamlPath));
 
         GenerateApiServerFromDocument(
             context,

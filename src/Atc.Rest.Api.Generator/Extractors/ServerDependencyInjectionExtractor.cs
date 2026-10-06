@@ -58,13 +58,7 @@ public static class ServerDependencyInjectionExtractor
                     .ToString()
                     .ToUpperInvariant();
 
-                var normalizedPath = path
-                    .Key
-                    .Replace("/", "_")
-                    .Replace("{", string.Empty)
-                    .Replace("}", string.Empty);
-
-                var operationId = operationValue.OperationId ?? $"{httpMethod}{normalizedPath}";
+                var operationId = OperationIdHelper.Effective(operationValue, httpMethod, path.Key);
                 var handlerName = $"I{operationId.ToPascalCaseForDotNet()}Handler";
                 handlerInterfaces.Add(handlerName);
             }

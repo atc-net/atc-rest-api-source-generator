@@ -212,25 +212,15 @@ public static class OperationParameterExtractor
                     continue;
                 }
 
-                var operationId = operationValue?.OperationId;
-
-                if (string.IsNullOrEmpty(operationId))
+                if (string.IsNullOrEmpty(operationValue?.OperationId) && validateStrategy == ValidateSpecificationStrategy.Strict)
                 {
-                    if (validateStrategy == ValidateSpecificationStrategy.Strict)
-                    {
-                        // Strict mode: operation must have an explicit operationId — skip it.
-                        continue;
-                    }
-
-                    // Standard mode: mirror the synthetic-name formula used by EndpointPerOperationExtractor
-                    // so parameter records are generated even when operationId is absent.
-                    var httpMethod = operation.Key.ToString();
-                    var normalizedPath = pathKey
-                        .Replace('/', '_')
-                        .Replace("{", string.Empty)
-                        .Replace("}", string.Empty);
-                    operationId = $"{httpMethod}{normalizedPath}";
+                    // Strict mode: operation must have an explicit operationId — skip it.
+                    continue;
                 }
+
+                // The name every generator derives from: the operationId made an identifier, or one built from the
+                // method and the path when it is absent
+                var operationId = OperationIdHelper.Effective(operationValue, operation.Key.ToString(), pathKey);
 
                 // Check if operation has parameters (operation-level OR path-level) OR request body
                 var hasOperationParams = operationValue!.Parameters is { Count: > 0 };
@@ -418,13 +408,15 @@ public static class OperationParameterExtractor
                 var opParamName = opParam.GetName();
                 if (!string.IsNullOrEmpty(opParamName))
                 {
-                    // Remove any path parameter with the same name (operation overrides)
-                    allParameters.RemoveAll(p => p.GetName() == opParamName);
+                    // Remove the path parameter with the same name and location (the operation overrides it)
+                    allParameters.RemoveAll(p => p.GetName() == opParamName && p.GetLocation() == opParam.GetLocation());
                 }
 
                 allParameters.Add(opParam);
             }
         }
+
+        var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
 
         // Add query/route/header parameters if they exist
         if (allParameters.Count > 0)
@@ -444,25 +436,9 @@ public static class OperationParameterExtractor
 
                 var paramLocation = parameter.In ?? ParameterLocation.Query;
 
-                // Determine property name based on parameter type
-                string propName;
-                if (paramLocation == ParameterLocation.Header)
-                {
-                    // For headers: use reference ID if available, otherwise strip x- prefix
-                    // This allows x-continuation header to become Continuation property
-                    propName = !string.IsNullOrEmpty(referenceId)
-                        ? referenceId!.ToPascalCaseForDotNet()
-                        : parameter.Name!.ToHeaderPropertyName();
-                }
-                else
-                {
-                    propName = parameter.Name?.ToPascalCaseForDotNet()!;
-                }
-
-                if (propName is null)
-                {
-                    continue;
-                }
+                // The property name every other site uses for this parameter (a header by its component name or
+                // without its x- prefix; a name shared across locations carries the location)
+                var propName = propertyNames.Get(parameter, referenceId);
 
                 // OAS 3.2 in:querystring uses `content` (not `schema`) — the full raw query string
                 // is always typed as string. Schema is null so skip enum-detection and type-mapping.

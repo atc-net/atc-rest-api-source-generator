@@ -2,6 +2,38 @@ namespace Atc.Rest.Api.Generator.Tests.Models;
 
 public class TypeConflictRegistryTests
 {
+    /// <summary>
+    /// A schema named like a type the generated code uses unqualified (<c>Stream</c>, <c>CancellationToken</c>,
+    /// <c>HttpContext</c>, <c>IResult</c>, <c>TypedResults</c>, <c>DateTimeOffset</c>) or like one of the generated
+    /// namespaces' own segments (<c>Results</c>, <c>Generated</c>, <c>Models</c>, <c>Endpoints</c>) is ambiguous
+    /// wherever the generated code names it, so it is a conflict and gets written fully qualified.
+    /// </summary>
+    [Theory]
+    [InlineData("Stream")]
+    [InlineData("CancellationToken")]
+    [InlineData("HttpContext")]
+    [InlineData("HttpClient")]
+    [InlineData("IResult")]
+    [InlineData("TypedResults")]
+    [InlineData("JsonSerializer")]
+    [InlineData("DateTimeOffset")]
+    [InlineData("DateOnly")]
+    [InlineData("Results")]
+    [InlineData("Generated")]
+    [InlineData("Models")]
+    [InlineData("Endpoints")]
+    public void ScanForConflicts_ASchemaNamedLikeATypeTheGeneratedCodeUses_IsAConflict(string schemaName)
+    {
+        var yaml = MinimalYamlWithDeviceSchema.Replace("    Pet:", $"    {schemaName}:", StringComparison.Ordinal);
+        var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, "conflicts-" + schemaName + ".yaml");
+        Assert.NotNull(document);
+
+        var conflicts = TypeConflictRegistry.ScanForConflicts(document, "Contoso.Api");
+
+        Assert.Contains(schemaName, conflicts);
+        Assert.DoesNotContain("Device", conflicts);
+    }
+
     private const string MinimalYamlWithDeviceSchema = """
         openapi: "3.1.1"
         info:

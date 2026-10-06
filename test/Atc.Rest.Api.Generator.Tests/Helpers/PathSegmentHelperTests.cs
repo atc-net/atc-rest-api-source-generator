@@ -180,6 +180,13 @@ public class PathSegmentHelperTests
     [InlineData("/api", "Default")] // Only "api" prefix
     [InlineData("/api/v1", "Default")] // Only prefix and version
     [InlineData("/api/v1/{id}", "Default")] // Prefix, version, and path parameter only
+    [InlineData("/2010-04-01/accounts", "Accounts")] // A date-versioned path (Twilio): the date is no name
+    [InlineData("/3/movies/{id}", "Movies")] // A numeric version segment (TMDB)
+    [InlineData("/1/boards", "Boards")] // (Trello)
+    [InlineData("/2010-04-01", "Default")] // Only a date
+    [InlineData("/~", "Default")] // A segment without a letter or digit
+    [InlineData("/-/health", "Health")] // GitLab's reserved group
+    [InlineData("/3d-models", "_3dModels")] // A segment that starts with a digit but has letters is a name - made an identifier
     public void GetFirstPathSegment_ReturnsExpectedResult(
         string path,
         string expected)

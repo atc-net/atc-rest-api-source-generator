@@ -348,7 +348,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Determine the root namespace for GlobalUsings (contracts namespace)
         var rootNamespace = contractsNamespace is not null
             ? contractsNamespace
-            : (config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath))
+            : NamespaceResolver.ToValidNamespace(config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath))
                 .Replace(".Api.Domain", string.Empty)
                 .Replace(".Domain", string.Empty);
 

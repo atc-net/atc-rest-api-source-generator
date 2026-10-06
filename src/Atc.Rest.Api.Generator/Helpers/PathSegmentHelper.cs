@@ -56,14 +56,17 @@ public static class PathSegmentHelper
                 continue;
             }
 
-            // Skip version segments (v1, v2, v3, etc.)
-            if (IsVersionSegment(segment))
+            // Skip version segments (v1, v2, v3, etc.), and segments without a letter: a date (/2010-04-01/,
+            // Twilio), a number (/3/, TMDB; /1/, Trello) or punctuation (/~, /-) is no name
+            if (IsVersionSegment(segment) || !segment.Any(char.IsLetter))
             {
                 continue;
             }
 
-            // Found a meaningful segment - return in PascalCase, preserving singular/plural form
-            return NormalizeSegmentCasing(segment);
+            // Found a meaningful segment - return in PascalCase, preserving singular/plural form; a name that
+            // starts with a digit (/3d-models/) is made an identifier the way a schema name is
+            var normalized = NormalizeSegmentCasing(segment);
+            return normalized.Length > 0 && char.IsDigit(normalized[0]) ? "_" + normalized : normalized;
         }
 
         return "Default";

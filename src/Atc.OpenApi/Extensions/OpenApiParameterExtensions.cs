@@ -61,6 +61,19 @@ public static class OpenApiParameterExtensions
 
             return null;
         }
+
+        /// <summary>
+        /// Where the parameter is sent (a reference by its target). A parameter is identified by its name and its
+        /// location together: <c>id</c> in the path and <c>id</c> in the query are two parameters.
+        /// </summary>
+        /// <returns>The location, or <see langword="null"/> when the parameter cannot be resolved.</returns>
+        public ParameterLocation? GetLocation()
+            => parameterInterface switch
+            {
+                OpenApiParameter param => param.In,
+                OpenApiParameterReference { Target: OpenApiParameter target } => target.In,
+                _ => null,
+            };
     }
 
     /// <param name="parameter">The OpenAPI parameter.</param>

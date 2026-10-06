@@ -321,11 +321,7 @@ public static class EndpointRegistrationExtractor
             return;
         }
 
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var handlerName = $"I{operationId.ToPascalCaseForDotNet()}Handler";
 
         // Convert HTTP method to Pascal case (e.g., GET -> Get, POST -> Post)
@@ -404,7 +400,7 @@ public static class EndpointRegistrationExtractor
 
         if (hasOperationId)
         {
-            builder.AppendLine(4, $".WithName(\"{operation.OperationId}\")");
+            builder.AppendLine(4, $".WithName({CSharpLiteralHelper.ToStringLiteral(operation.OperationId!)})");
         }
 
         if (hasTags)

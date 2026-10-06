@@ -134,12 +134,7 @@ public static class HandlerExtractor
             return null;
         }
 
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var handlerName = $"I{operationId.ToPascalCaseForDotNet()}Handler";
         var resultClassName = $"{operationId.ToPascalCaseForDotNet()}Result";
         var summary = operation.Summary ?? $"Handler for operation: {operationId}";

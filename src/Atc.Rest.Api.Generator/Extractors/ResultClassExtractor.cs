@@ -309,13 +309,12 @@ public static class ResultClassExtractor
                     continue;
                 }
 
-                var operationId = operationValue?.OperationId;
-
-                if (string.IsNullOrEmpty(operationId))
+                if (operationValue is null)
                 {
                     continue;
                 }
 
+                var operationId = OperationIdHelper.Effective(operationValue, operation.Key.ToString(), pathKey);
                 var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
                 var classParams = ExtractResultClass(
                     openApiDoc,

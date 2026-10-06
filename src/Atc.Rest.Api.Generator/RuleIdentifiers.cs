@@ -654,6 +654,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string BodyNotGeneratedAsDeclared = "ATC_API_OPR031";
 
+    /// <summary>
+    /// ATC_API_OPR032: Two operations have operationIds that become one C# name ('getUser' and 'get_user', or
+    /// 'GetUSER'): one handler interface, one result class and one client method for both. Error, every strategy.
+    /// </summary>
+    public const string OperationIdCollision = "ATC_API_OPR032";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

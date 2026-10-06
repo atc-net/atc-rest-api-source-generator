@@ -24,7 +24,29 @@ public sealed class TypeConflictRegistry
         nameof(TimeSpan),   // System.TimeSpan
         nameof(Uri),        // System.Uri
         nameof(Version),    // System.Version
+
+        // Types the generated code names unqualified (a schema with one of these names is ambiguous there)
+        "Stream",                // System.IO.Stream
+        "CancellationToken",     // System.Threading.CancellationToken
+        "DateTimeOffset",        // System.DateTimeOffset
+        "DateOnly",              // System.DateOnly
+        "TimeOnly",              // System.TimeOnly
+        "HttpClient",            // System.Net.Http.HttpClient
+        "HttpContext",           // Microsoft.AspNetCore.Http.HttpContext
+        "HttpRequestMessage",    // System.Net.Http.HttpRequestMessage
+        "HttpResponseMessage",   // System.Net.Http.HttpResponseMessage
+        "IResult",               // Microsoft.AspNetCore.Http.IResult
+        "TypedResults",          // Microsoft.AspNetCore.Http.TypedResults
+        "JsonSerializer",        // System.Text.Json.JsonSerializer
+        "Attribute",             // System.Attribute
+        "Enum",                  // System.Enum
     };
+
+    /// <summary>
+    /// The segments every generated namespace has: a schema named like one of them is "a namespace used like a type"
+    /// wherever the generated code names it.
+    /// </summary>
+    private static readonly string[] GeneratedNamespaceSegments = ["Generated", "Models", "Endpoints", "Results", "Handlers", "Parameters", "Client", "Security"];
 
     /// <summary>
     /// Set of schema names that conflict with reserved .NET types.
@@ -84,17 +106,14 @@ public sealed class TypeConflictRegistry
             return conflicts;
         }
 
-        HashSet<string>? namespaceSegments = null;
+        var namespaceSegments = new HashSet<string>(GeneratedNamespaceSegments, StringComparer.Ordinal);
         if (!string.IsNullOrEmpty(projectNamespace))
         {
-            namespaceSegments = new HashSet<string>(
-                projectNamespace!.Split('.'),
-                StringComparer.Ordinal);
+            namespaceSegments.UnionWith(projectNamespace!.Split('.'));
         }
 
         if (pathSegmentNamespaces is not null)
         {
-            namespaceSegments ??= new HashSet<string>(StringComparer.Ordinal);
             foreach (var segment in pathSegmentNamespaces)
             {
                 if (!string.IsNullOrEmpty(segment))
@@ -109,7 +128,7 @@ public sealed class TypeConflictRegistry
             // Only a schema that becomes a type can clash with a namespace: an array or primitive alias
                 // (Accounts: array of Account) is replaced by the type it names wherever it is referenced.
             if (ReservedSystemTypes.Contains(schema.Key) ||
-                (namespaceSegments?.Contains(schema.Key) == true && IsGeneratedType(schema.Value)))
+                (namespaceSegments.Contains(schema.Key) && IsGeneratedType(schema.Value)))
             {
                 conflicts.Add(schema.Key);
             }
