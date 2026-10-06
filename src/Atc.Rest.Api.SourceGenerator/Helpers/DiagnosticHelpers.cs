@@ -184,6 +184,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN021: A project has two base specifications; nothing is generated.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleSpecifications = new(
+        RuleIdentifiers.MultipleSpecifications,
+        "More Than One Specification",
+        "The project has {0} specifications ({1}); the generator reads one specification per project, with its parts named '{2}_{{Part}}.yaml'. Nothing is generated until one is left.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATC_API_GEN014: A marker file has a setting the generator does not have, or a value a setting does not know.
     /// </summary>
     public static readonly DiagnosticDescriptor MarkerConfigUnknownSetting = new(
@@ -690,6 +701,23 @@ internal static class DiagnosticHelpers
             markerPaths.Count,
             Path.GetFileName(markerPaths[0]),
             string.Join(", ", markerPaths)));
+    }
+
+    /// <summary>
+    /// Reports that the project has more than one base specification (ATC_API_GEN021); nothing is generated.
+    /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="specificationPaths">The base specifications, the one the generator found first ahead.</param>
+    public static void ReportMultipleSpecifications(
+        SourceProductionContext context,
+        IReadOnlyList<string> specificationPaths)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            MultipleSpecifications,
+            Location.None,
+            specificationPaths.Count,
+            string.Join(", ", specificationPaths),
+            Path.GetFileNameWithoutExtension(specificationPaths[0])));
     }
 
     /// <summary>

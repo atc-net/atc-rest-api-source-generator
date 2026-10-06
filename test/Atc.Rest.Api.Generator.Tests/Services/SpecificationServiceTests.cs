@@ -1830,18 +1830,17 @@ public class SpecificationServiceTests
                           description: OK
                 """);
 
-            // Neither a part of MyApi: a different base name, and a different extension.
+            // A part may be JSON (the build reads .yaml, .yml and .json parts alike); a different base name is no part
             File.WriteAllText(Path.Combine(directory, "OtherApi_Users.yaml"), "openapi: 3.0.3\npaths: {}\n");
-            File.WriteAllText(Path.Combine(directory, "MyApi_Legacy.json"), "{}");
+            File.WriteAllText(Path.Combine(directory, "MyApi_Legacy.json"), """{ "openapi": "3.0.3", "paths": { "/legacy": { "get": { "operationId": "listLegacy", "responses": { "200": { "description": "OK" } } } } } }""");
 
             var parts = SpecificationService.DiscoverPartFiles(basePath);
 
-            Assert.Equal(["MyApi_Orders.yaml", "MyApi_Users.yaml"], parts.Select(p => p.FileName), StringComparer.Ordinal);
+            Assert.Equal(["MyApi_Legacy.json", "MyApi_Orders.yaml", "MyApi_Users.yaml"], parts.Select(p => p.FileName), StringComparer.Ordinal);
             Assert.All(parts, p => Assert.True(p.IsPartFile));
             Assert.All(parts, p => Assert.False(p.IsBaseFile));
-            Assert.Equal(["Orders", "Users"], parts.Select(p => p.PartName), StringComparer.Ordinal);
-            Assert.Equal(1, parts[0].OperationCount);
-            Assert.Equal(1, parts[1].OperationCount);
+            Assert.Equal(["Legacy", "Orders", "Users"], parts.Select(p => p.PartName), StringComparer.Ordinal);
+            Assert.All(parts, p => Assert.Equal(1, p.OperationCount));
         }
         finally
         {

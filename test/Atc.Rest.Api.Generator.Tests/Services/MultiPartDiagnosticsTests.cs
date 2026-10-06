@@ -131,6 +131,48 @@ public class MultiPartDiagnosticsTests
         Assert.DoesNotContain(SpecificationService.ValidatePartFile(SpecificationService.ReadFromContent("openapi: 3.1.1\npaths: {}\n", "Contoso_Others.yaml")), d => d.RuleId == RuleIdentifiers.PartFileInfoIgnored);
     }
 
+    /// <summary>
+    /// A part that declares another OpenAPI version than the base is read by its own version (a 3.0 <c>nullable</c>
+    /// in a 3.1 part is an unknown keyword, say); the merge says so.
+    /// </summary>
+    [Fact]
+    public void Merge_APartOfAnotherOpenApiVersion_ReportsMPT012()
+    {
+        var result = Merge(BaseYaml, """
+            openapi: 3.0.3
+            paths:
+              /others:
+                get:
+                  operationId: listOthers
+                  responses:
+                    '200':
+                      description: OK
+            """);
+
+        var warning = Assert.Single(result.Diagnostics, d => d.RuleId == RuleIdentifiers.PartFileOpenApiVersionDiffers);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Contains("Contoso_Part0.yaml", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("3.0", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("3.1", warning.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A part that contributes nothing - a <c>paths</c> that is no map, an empty map, nothing at all - is told so
+    /// instead of being merged in silence.
+    /// </summary>
+    [Theory]
+    [InlineData("paths: \"x\"")]
+    [InlineData("paths: {}")]
+    [InlineData("")]
+    public void Merge_APartThatContributesNothing_ReportsMPT013(string body)
+    {
+        var result = Merge(BaseYaml, Part(body));
+
+        var warning = Assert.Single(result.Diagnostics, d => d.RuleId == RuleIdentifiers.PartFileContributesNothing);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Contains("Contoso_Part0.yaml", warning.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ReadAndMerge_BaseFileThatDoesNotExist_ReportsMPT008()
     {

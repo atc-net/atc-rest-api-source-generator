@@ -125,6 +125,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 return;
             }
 
+            // A second base specification: the generator reads one per project
+            var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
+            if (otherBases.Count > 0)
+            {
+                DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
+                return;
+            }
+
             try
             {
                 var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);

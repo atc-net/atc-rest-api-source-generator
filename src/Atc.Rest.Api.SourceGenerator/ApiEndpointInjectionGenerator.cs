@@ -149,23 +149,33 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 return;
             }
 
-            // The specification as the project's generator reads it: with the overlays its marker lists (the generator
-            // reports their problems)
-            var content = matchingYaml.Content;
+            // The specification as the project's generator reads it: merged with its parts, with the overlays its
+            // marker lists (the generator reports their problems)
             var overlays = OverlayFileHelper.ResolveListed(markers, overlayFiles);
-            if (overlays.Count > 0)
+            var partFiles = yamlFiles
+                .Where(y => YamlFileHelper.IsPartFile(y.Path, classInfo.ProjectName))
+                .ToList();
+            OpenApiDocument? openApiDoc;
+            if (partFiles.Count > 0)
             {
-                var (effective, _) = SpecificationOverlays.Apply(content, overlays);
-                if (effective is null)
+                openApiDoc = SpecificationLoader.Merge(context, matchingYaml, partFiles, MultiPartConfigurationOf(markers), overlays);
+            }
+            else
+            {
+                var content = matchingYaml.Content;
+                if (overlays.Count > 0)
                 {
-                    return;
+                    var (effective, _) = SpecificationOverlays.Apply(content, overlays);
+                    if (effective is null)
+                    {
+                        return;
+                    }
+
+                    content = effective;
                 }
 
-                content = effective;
+                (openApiDoc, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(content, matchingYaml.Path);
             }
-
-            // Parse the OpenAPI spec
-            var (openApiDoc, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(content, matchingYaml.Path);
 
             if (openApiDoc is null)
             {
@@ -199,6 +209,30 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportEndpointInjectionGenerationError(context, classInfo.ClassName, ex);
+        }
+    }
+
+    /// <summary>
+    /// The merge configuration of the project's server marker, as the server generator reads it - the default when
+    /// there is none or it cannot be read (the server generator reports that).
+    /// </summary>
+    private static MultiPartConfiguration MultiPartConfigurationOf(
+        EquatableArray<MarkerFileInfo> markers)
+    {
+        var serverMarker = markers.Values.FirstOrDefault(m => Path.GetFileName(m.Path).StartsWith(".atc-rest-api-server", StringComparison.OrdinalIgnoreCase) &&
+                                                                 !Path.GetFileName(m.Path).StartsWith(".atc-rest-api-server-handlers", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrEmpty(serverMarker.Content))
+        {
+            return MultiPartConfiguration.Default;
+        }
+
+        try
+        {
+            return MarkerConfigInspector.Read<ServerConfig>(serverMarker.Content, out _).MultiPartConfiguration ?? MultiPartConfiguration.Default;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return MultiPartConfiguration.Default;
         }
     }
 

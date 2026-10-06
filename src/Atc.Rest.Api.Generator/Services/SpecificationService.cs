@@ -207,15 +207,17 @@ public static class SpecificationService
     {
         var directory = Path.GetDirectoryName(baseFilePath) ?? ".";
         var baseName = Path.GetFileNameWithoutExtension(baseFilePath);
-        var extension = Path.GetExtension(baseFilePath);
 
         var partFiles = new List<SpecificationFile>();
 
-        // Look for files matching the pattern {BaseName}_{PartName}.yaml
-        var pattern = $"{baseName}_*{extension}";
+        // Look for files matching the pattern {BaseName}_{PartName}.yaml - .yml and .json parts too, as the build reads them
         var matchingFiles = Directory
-            .GetFiles(directory, pattern)
-            .Where(f => !f.Equals(baseFilePath, StringComparison.OrdinalIgnoreCase))
+            .GetFiles(directory, $"{baseName}_*")
+            .Where(f => !f.Equals(baseFilePath, StringComparison.OrdinalIgnoreCase) &&
+                        Path.GetExtension(f) is { } extension &&
+                        (extension.Equals(".yaml", StringComparison.OrdinalIgnoreCase) ||
+                         extension.Equals(".yml", StringComparison.OrdinalIgnoreCase) ||
+                         extension.Equals(".json", StringComparison.OrdinalIgnoreCase)))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -334,6 +336,7 @@ public static class SpecificationService
             // Check for prohibited sections in part files
             var partDiagnostics = ValidatePartFile(partFile);
             diagnostics.AddRange(partDiagnostics);
+            diagnostics.AddRange(ValidatePartAgainstBase(partFile, baseFile));
 
             // Merge paths
             MergePaths(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
@@ -720,6 +723,61 @@ public static class SpecificationService
         }
 
         return diagnostics;
+    }
+
+    /// <summary>
+    /// What a part is next to its base: another OpenAPI version (ATC_API_MPT012 - the part is read by its own), or
+    /// nothing to contribute (ATC_API_MPT013 - a <c>paths</c> that is no map, an empty file).
+    /// </summary>
+    private static List<DiagnosticMessage> ValidatePartAgainstBase(
+        SpecificationFile partFile,
+        SpecificationFile baseFile)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        if (partFile.Document is not { } part || baseFile.Document is not { } baseDocument)
+        {
+            return diagnostics;
+        }
+
+        var partVersion = part.GetOpenApiSpecVersion();
+        var baseVersion = baseDocument.GetOpenApiSpecVersion();
+        if (partVersion is { } declared && baseVersion is { } expected && declared != expected)
+        {
+            diagnostics.Add(DiagnosticMessage.Warning(
+                RuleIdentifiers.PartFileOpenApiVersionDiffers,
+                $"Part file '{partFile.FileName}' declares OpenAPI {VersionText(partVersion)} while the base file declares {VersionText(baseVersion)}; the part is read by its own version.",
+                partFile.FilePath));
+        }
+
+        var components = part.Components;
+        var contributes = part.Paths is { Count: > 0 } ||
+                          part.Webhooks is { Count: > 0 } ||
+                          part.Tags is { Count: > 0 } ||
+                          components?.Schemas is { Count: > 0 } ||
+                          components?.Parameters is { Count: > 0 } ||
+                          components?.Responses is { Count: > 0 } ||
+                          components?.RequestBodies is { Count: > 0 } ||
+                          components?.Headers is { Count: > 0 } ||
+                          components?.SecuritySchemes is { Count: > 0 };
+        if (!contributes)
+        {
+            diagnostics.Add(DiagnosticMessage.Warning(
+                RuleIdentifiers.PartFileContributesNothing,
+                $"Part file '{partFile.FileName}' contributes nothing to the merge: no paths, no components (a 'paths' that is no map is read as none).",
+                partFile.FilePath));
+        }
+
+        return diagnostics;
+
+        static string VersionText(OpenApiSpecVersion? version)
+            => version switch
+            {
+                OpenApiSpecVersion.OpenApi3_2 => "3.2",
+                OpenApiSpecVersion.OpenApi3_1 => "3.1",
+                OpenApiSpecVersion.OpenApi3_0 => "3.0",
+                null => "no version",
+                _ => version.ToString()!,
+            };
     }
 
     private static IReadOnlyList<SpecificationFile> LoadExplicitPartFiles(
