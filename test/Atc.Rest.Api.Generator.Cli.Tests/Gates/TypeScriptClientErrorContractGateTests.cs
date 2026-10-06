@@ -311,6 +311,20 @@ public sealed class TypeScriptClientErrorContractGateTests
             check('E11 ' + status + ' keeps the HTTP status', r.error === undefined || r.error.status === status, 'error.status ' + r.error?.status);
           }
 
+          // E12: through the generated operation (a JSON operation, so the body of a success is read as JSON whatever
+          // the Content-Type says), a foreign error body - a proxy's HTML page, a gateway's XML, plain text - is kept as
+          // the text its Content-Type says it is: the model did not arrive, but the body is not lost.
+          const foreign: [number, string, string][] = [[502, 'text/html; charset=utf-8', '<html><body>Bad gateway</body></html>'], [503, 'application/xml', '<error><reason>down</reason></error>'], [503, 'text/plain; charset=utf-8', 'Service down for maintenance']];
+          for (const [status, contentType, body] of foreign) {
+            respond(body, contentType, status);
+            const r = await items.getItem(1);
+            check('E12 ' + contentType + ' arm', r.status === 'serverError', 'expected serverError, got ' + r.status);
+            check('E12 ' + contentType + ' body', r.error?.body === body, 'expected the body text, got ' + JSON.stringify(r.error?.body));
+          }
+          respond('Service down for maintenance', 'text/plain; charset=utf-8', 503);
+          const r12 = await items.getItem(1);
+          check('E12 text message', r12.error?.message === 'Service down for maintenance', 'expected the text as message, got ' + JSON.stringify(r12.error?.message));
+
           if (failures.length > 0) {
             console.error('ERROR-CONTRACT FAILURES:\n' + failures.join('\n'));
             process.exit(1);

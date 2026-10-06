@@ -266,7 +266,8 @@ public class TypeScriptAxiosApiClientExtractorTests
         // operation keeps ''); a schema check only sees a body that is there.
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, zodRuntimeValidate: true);
 
-        Assert.Contains("if (this.responseType !== 'json' && !contentType.includes('application/json') && !contentType.includes('+json')) return data;", result, StringComparison.Ordinal);
+        Assert.Contains("const successReadAsJson = this.responseType === 'json' && (status ?? 200) < 400;", result, StringComparison.Ordinal);
+        Assert.Contains("if (!successReadAsJson && !contentType.includes('application/json') && !contentType.includes('+json')) return data;", result, StringComparison.Ordinal);
         Assert.Contains("responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,", result, StringComparison.Ordinal);
         Assert.Contains("if ((response.data as unknown) === '' && response.config?.responseType !== 'text') {", result, StringComparison.Ordinal);
         Assert.Contains("if (parseSchema && expectsJson && response.data !== undefined) {", result, StringComparison.Ordinal);

@@ -233,18 +233,20 @@ public static class TypeScriptAxiosApiClientExtractor
         // transformResponse is always emitted: it is the single place
         // where a JSON parse failure is observable, so it must own the parse. It is a function (not
         // an arrow) so `this` is the request config: responseType 'json' (a JSON operation) parses the
-        // body whatever the content-type says, and responseType 'text' returns it verbatim even for a
-        // JSON content-type. Otherwise parsing is gated on the content-type: only JSON bodies
-        // (application/json and +json suffixes such as application/problem+json) are parsed, and only
-        // they can yield the UnparseableBody sentinel. Text bodies (text/plain, application/xml, ...)
-        // are returned verbatim so they never regress into a parse error.
+        // body of a success whatever the content-type says, and responseType 'text' returns it verbatim
+        // even for a JSON content-type. An error body, and every body otherwise, is gated on the
+        // content-type: only JSON bodies (application/json and +json suffixes such as
+        // application/problem+json) are parsed, and only they can yield the UnparseableBody sentinel.
+        // Text bodies (text/plain, application/xml, a proxy's text/html page) are returned verbatim so
+        // they never regress into a parse error and a foreign error body is not lost.
         const string jsonParse = "JSON.parse(data)";
 
-        sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>) {");
+        sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>, status?: number) {");
         sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
         sb.AppendLine("        if (this.responseType === 'text') return data;");
         sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '').toLowerCase();");
-        sb.AppendLine("        if (this.responseType !== 'json' && !contentType.includes('application/json') && !contentType.includes('+json')) return data;");
+        sb.AppendLine("        const successReadAsJson = this.responseType === 'json' && (status ?? 200) < 400;");
+        sb.AppendLine("        if (!successReadAsJson && !contentType.includes('application/json') && !contentType.includes('+json')) return data;");
         sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
         sb.AppendLine("      }],");
 
