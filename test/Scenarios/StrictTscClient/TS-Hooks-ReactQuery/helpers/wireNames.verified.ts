@@ -57,21 +57,36 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
-/** A declared date: a string from the wire becomes a Date; a Date is written as yyyy-MM-dd (format: date) or ISO 8601. */
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * A declared date: a string from the wire becomes a Date; a Date is written as yyyy-MM-dd (format: date) or ISO 8601.
+ * A format: date is a calendar day, not an instant: it is read as the local day (new Date(y, m, d), not UTC midnight)
+ * and written from the local year, month and day, so it is the same day in every time zone.
+ */
 function convertDate(value: unknown, kind: 'date' | 'date-time', toWire: boolean): unknown {
   if (toWire) {
     if (!(value instanceof Date)) {
       return value;
     }
 
-    return kind === 'date' ? value.toISOString().slice(0, 10) : value.toISOString();
+    if (kind !== 'date') {
+      return value.toISOString();
+    }
+
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${value.getFullYear()}-${month}-${day}`;
   }
 
   if (typeof value !== 'string') {
     return value;
   }
 
-  const parsed = new Date(value);
+  const dateOnly = DATE_ONLY.exec(value);
+  const parsed = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed;
 }
 

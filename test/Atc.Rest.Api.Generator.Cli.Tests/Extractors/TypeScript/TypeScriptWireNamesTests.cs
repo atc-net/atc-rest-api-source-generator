@@ -143,6 +143,22 @@ public class TypeScriptWireNamesTests
     }
 
     [Fact]
+    public void ConvertDates_FormatDate_IsALocalCalendarDay()
+    {
+        // A format: date is a day, not an instant: 2026-10-06 is read as local October 6 (not UTC midnight, which
+        // is October 5 west of UTC) and a Date is written from its local year, month and day (not its UTC day,
+        // which is the day before east of UTC).
+        var sut = new TypeScriptWireNames(OpenApiDocumentHelper.ParseYaml(SpecYaml), TypeScriptNamingStrategy.CamelCase, convertDates: true);
+
+        var file = sut.GenerateFile(headerContent: null)!;
+
+        Assert.Contains("const DATE_ONLY = /^(\\d{4})-(\\d{2})-(\\d{2})$/;", file, StringComparison.Ordinal);
+        Assert.Contains("? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))", file, StringComparison.Ordinal);
+        Assert.Contains("return `${value.getFullYear()}-${month}-${day}`;", file, StringComparison.Ordinal);
+        Assert.DoesNotContain("toISOString().slice(0, 10)", file, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ConvertDatesOff_OriginalStrategy_HasNoShapes()
     {
         var sut = new TypeScriptWireNames(OpenApiDocumentHelper.ParseYaml(SpecYaml), TypeScriptNamingStrategy.Original, convertDates: false);
