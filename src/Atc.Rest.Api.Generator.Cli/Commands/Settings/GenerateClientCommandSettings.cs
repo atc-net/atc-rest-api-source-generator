@@ -72,7 +72,7 @@ public sealed class GenerateClientCommandSettings : BaseGenerateCommandSettings
     public bool GenerateReport { get; init; }
 
     /// <summary>
-    /// Runs the base validation, then checks the generation mode and the client project name override.
+    /// Runs the base validation, then checks the generation mode, the client granularity and the client project name override.
     /// </summary>
     /// <returns>A success result, or an error naming the first option that is invalid.</returns>
     public override ValidationResult Validate()
@@ -88,6 +88,13 @@ public sealed class GenerateClientCommandSettings : BaseGenerateCommandSettings
             !Enum.TryParse<GenerationModeType>(GenerationMode, ignoreCase: true, out _))
         {
             return ValidationResult.Error($"Invalid generation mode: '{GenerationMode}'. Valid values: TypedClient, EndpointPerOperation.");
+        }
+
+        // Validate client granularity if provided; an unknown value used to fall back to PerArea without a word
+        if (!string.IsNullOrWhiteSpace(ClientGranularity) &&
+            !Enum.TryParse<ClientGranularityType>(ClientGranularity, ignoreCase: true, out _))
+        {
+            return ValidationResult.Error($"Invalid client granularity: '{ClientGranularity}'. Valid values: PerArea, Single.");
         }
 
         // Validate client project name override doesn't contain spaces
