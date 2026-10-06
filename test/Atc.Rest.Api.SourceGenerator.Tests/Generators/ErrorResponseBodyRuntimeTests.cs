@@ -2449,9 +2449,11 @@ public partial class ErrorResponseBodyRuntimeTests
         /// Generate without <c>Atc.Rest.MinimalApi</c> (an empty marker, no reference: no ValidationFilter, no global
         /// error handler, no unified extensions) and wire the host by hand, as the README's second path does.
         /// </param>
+        /// <param name="environment">The host environment: Production (the matrices) or Development.</param>
         public static async Task<ErrorBodyHost> StartAsync(
             bool problemDetailsWiringOff = false,
-            bool plainHost = false)
+            bool plainHost = false,
+            string environment = "Production")
         {
             var sources = plainHost
                 ? Generate(new ApiServerGenerator(), ".atc-rest-api-server", "{}", includeMinimalApi: false)
@@ -2493,7 +2495,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 middlewareOptions = ToAction(options.GetMethod("MiddlewareOptionsOff")!);
             }
 
-            var builder = WebApplication.CreateSlimBuilder();
+            var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = environment });
             builder.Logging.ClearProviders();
 
             registration.GetMethod("Register")!.Invoke(null, [builder.Services]);
@@ -2510,9 +2512,10 @@ public partial class ErrorResponseBodyRuntimeTests
             }
 
             var webApp = builder.Build();
-            if (plainHost)
+            if (plainHost && !webApp.Environment.IsDevelopment())
             {
                 // Without the global error handler an unhandled exception is the framework's: a 500 ProblemDetails
+                // outside Development; in Development the developer exception page (added by the builder) names it
                 webApp.UseExceptionHandler();
             }
 

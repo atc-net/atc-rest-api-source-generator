@@ -72,7 +72,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
 
         var webApp = builder.Build();
         webApp.Urls.Add("http://127.0.0.1:0");
-        if (plainHost)
+        if (plainHost && !webApp.Environment.IsDevelopment())
         {
             webApp.UseExceptionHandler();
         }

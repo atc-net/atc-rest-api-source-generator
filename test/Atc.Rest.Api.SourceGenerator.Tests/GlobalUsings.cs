@@ -42,6 +42,7 @@ global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.CodeAnalysis.Text;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using Microsoft.OpenApi;

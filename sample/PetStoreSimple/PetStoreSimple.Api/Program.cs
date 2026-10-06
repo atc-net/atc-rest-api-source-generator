@@ -12,8 +12,11 @@ builder.Services.AddApiHandlersFromDomain();
 
 var app = builder.Build();
 
-// An unhandled exception is a 500 ProblemDetails (no detail outside Development), not an empty 500
-app.UseExceptionHandler();
+// Outside Development an unhandled exception is a 500 ProblemDetails, not an empty 500 (Development keeps the developer exception page)
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler();
+}
 
 // A ProblemDetails body for error responses that have none (first in the pipeline)
 app.UseStatusCodePages();

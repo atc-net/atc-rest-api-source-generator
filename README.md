@@ -154,7 +154,7 @@ app.MapPetStoreApi();                          // status-code pages, auth, globa
 app.Run();
 ```
 
-> 💡 Without `Atc.Rest.MinimalApi` there is no `Add{Project}Api()` / `Map{Project}Api()`: call `app.MapEndpoints()` to map every endpoint, and add `builder.Services.AddProblemDetails()`, `app.UseExceptionHandler()` and `app.UseStatusCodePages()` yourself so every error is RFC 9457 ProblemDetails. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
+> 💡 Without `Atc.Rest.MinimalApi` there is no `Add{Project}Api()` / `Map{Project}Api()`: call `app.MapEndpoints()` to map every endpoint, and add `builder.Services.AddProblemDetails()`, `app.UseExceptionHandler()` (outside Development) and `app.UseStatusCodePages()` yourself so every error is RFC 9457 ProblemDetails. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
 
 ## 📋 Requirements
 

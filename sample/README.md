@@ -4,7 +4,7 @@ Every C# project here is generated at build time by the source generator from th
 
 Two host wiring styles appear below:
 
-- **Plain**: the generated `MapEndpoints()` only, with `AddProblemDetails()`, `UseExceptionHandler()` and `UseStatusCodePages()` for RFC 9457 error bodies, the way the CLI's `generate server` template wires a host. No extra package - and so no request validation and no exception → status mapping (the test-suite report's *MapEndpoints host* tabs show what that costs).
+- **Plain**: the generated `MapEndpoints()` only, with `AddProblemDetails()`, `UseExceptionHandler()` (outside Development) and `UseStatusCodePages()` for RFC 9457 error bodies, the way the CLI's `generate server` template wires a host. No extra package - and so no request validation and no exception → status mapping (the test-suite report's *MapEndpoints host* tabs show what that costs).
 - **Atc.Rest.MinimalApi**: the marker file sets `useMinimalApiPackage`, so the generator emits `Add{Name}Api()` / `Map{Name}Api()` that also register the validation filter, the global error handler and rate limiting from the specification.
 
 Every host that authenticates does so in **demo mode**: any bearer token (and, for PetStoreFull, any `api_key` header) is accepted and a demo identity carrying the scopes or roles the specification names answers for it. See the `ServiceCollectionExtensions.cs` of the host. None of it is for production.
