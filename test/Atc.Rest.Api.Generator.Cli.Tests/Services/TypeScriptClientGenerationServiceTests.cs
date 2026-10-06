@@ -257,6 +257,28 @@ public class TypeScriptClientGenerationServiceTests
         Assert.Contains("from './handlers'", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Generate_WithMswEnabled_HandlersMatchAnApiWithABasePath()
+    {
+        // AsyncEnumerableHooks declares `servers: - url: /api/v1`, so the client requests /api/v1/items; a handler
+        // for '/items' never matches. The handlers match any origin and base path (an MSW `*` prefix), so the mocks
+        // answer whatever base URL the ApiClient is given.
+        var document = ParseYaml(File.ReadAllText(CliTestHelper.GetScenarioYamlPath("AsyncEnumerableHooks")));
+        Assert.NotNull(document);
+
+        using var output = new TempDirectory();
+        TypeScriptClientGenerationService.Generate(
+            document,
+            output.Path,
+            new TypeScriptClientConfig { DryRun = false, GenerateMswHandlers = true });
+
+        var content = File.ReadAllText(Path.Combine(output.Path, "mocks", "items.ts"));
+
+        Assert.Contains("http.get('*/items', () => {", content, StringComparison.Ordinal);
+        Assert.Contains("http.get('*/items/:itemId/logs', () => {", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("http.get('/items'", content, StringComparison.Ordinal);
+    }
+
     private sealed class TempDirectory : IDisposable
     {
         public TempDirectory()

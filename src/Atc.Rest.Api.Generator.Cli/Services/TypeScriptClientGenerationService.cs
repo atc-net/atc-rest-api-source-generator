@@ -1099,7 +1099,10 @@ public static class TypeScriptClientGenerationService
         TypeScriptClientConfig config,
         bool dryRun)
     {
-        var baseUrl = string.Empty;
+        // The handlers match any origin and base path (`http.get('*/items')`): the client requests the spec's
+        // server path (`/api/v1/items`) or whatever base URL it is given, and a handler for '/items' alone
+        // never matches those.
+        const string baseUrl = "*";
 
         var handlers = TypeScriptMswHandlerExtractor.Extract(
             openApiDoc,

@@ -2,14 +2,14 @@
 import { http, HttpResponse } from 'msw';
 
 export const resourcesHandlers = [
-  http.get('/resources', () => {
+  http.get('*/resources', () => {
     return HttpResponse.json([{ id: '00000000-0000-0000-0000-000000000001', name: 'sample-name' }]);
   }),
-  http.all('/resources', ({ request }) => {
+  http.all('*/resources', ({ request }) => {
     if (request.method !== 'QUERY') return;
     return HttpResponse.json([{ id: '00000000-0000-0000-0000-000000000001', name: 'sample-name' }]);
   }),
-  http.all('/resources', ({ request }) => {
+  http.all('*/resources', ({ request }) => {
     if (request.method !== 'LINK') return;
     return new HttpResponse(null, { status: 204 });
   })
