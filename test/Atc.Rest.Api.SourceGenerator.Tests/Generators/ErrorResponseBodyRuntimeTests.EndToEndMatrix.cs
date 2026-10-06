@@ -146,6 +146,36 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix against the plain host - the README's second path: no <c>Atc.Rest.MinimalApi</c>,
+    /// <c>MapEndpoints()</c> with <c>AddProblemDetails</c>, <c>UseExceptionHandler</c> and <c>UseStatusCodePages</c>
+    /// written by hand. What the package adds (the ValidationFilter, the exception mapping) is a lossy wire there,
+    /// never a fail; every client still reads what that host writes.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the end-to-end matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectEndToEndMatrixAsync(plainHost: true);
+        if (Environment.GetEnvironmentVariable("ERRORBODY_E2E_PLAIN_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(), TestContext.Current.CancellationToken);
+        }
+
+        var failures = FailingCells(matrix);
+        Assert.True(failures.Count == 0, $"{failures.Count} failing cells:\n" + string.Join("\n", failures.Take(80)));
+    }
+
+    /// <summary>
     /// A custom error model named like a schema of the specification (the Monta sample's <c>ErrorResponse</c> next
     /// to the spec's own <c>ErrorResponse</c>): the spec's model keeps its type for the <c>default</c> response - the
     /// custom one used to shadow it through the root namespace - and the custom model's accessor reads a body that
@@ -432,10 +462,11 @@ public partial class ErrorResponseBodyRuntimeTests
         return failures;
     }
 
-    private static async Task<JsonObject> CollectEndToEndMatrixAsync()
+    private static async Task<JsonObject> CollectEndToEndMatrixAsync(
+        bool plainHost = false)
     {
         var started = DateTimeOffset.Now;
-        await using var host = await ErrorBodyHost.StartAsync();
+        await using var host = await ErrorBodyHost.StartAsync(plainHost: plainHost);
 
         var matrixCases = host.Cases
             .Where(c => MatrixDeclarations.Any(d => d.OperationId == c.OperationId) || c.OperationId is "getFault" or "getDefaultError" || c.OperationId.StartsWith("getStatus", StringComparison.Ordinal))
@@ -464,7 +495,7 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             var observed = wire[probeCase.Name];
             var caseStatus = observed.Status;
-            var wireVerdict = WireVerdict(probeCase, observed);
+            var wireVerdict = WireVerdict(probeCase, observed, plainHost);
             var clients = new JsonObject();
 
             // A 1xx is never a final response (RFC 9110 §15.2): the generator must write no factory for it, and there
@@ -868,7 +899,8 @@ public partial class ErrorResponseBodyRuntimeTests
     /// </summary>
     private static (string Verdict, string Why) WireVerdict(
         ProbeCase probeCase,
-        WireResult wire)
+        WireResult wire,
+        bool plainHost = false)
     {
         if (CaseGroup(probeCase) == "sweep")
         {
@@ -876,6 +908,35 @@ public partial class ErrorResponseBodyRuntimeTests
             return problem is null
                 ? (VerdictPass, "as the contract table says for this declaration")
                 : (VerdictFail, problem);
+        }
+
+        // The plain host (MapEndpoints, no Atc.Rest.MinimalApi) has neither the ValidationFilter nor the exception
+        // mapping: what it loses against the package is a lossy wire, what it must still do is checked
+        if (plainHost && probeCase.Reason == TooLongReason)
+        {
+            return wire.Status == 204
+                ? (VerdictLossy, "no validation without Atc.Rest.MinimalApi's ValidationFilter: the too-long value reached the handler, which answered 204")
+                : (VerdictFail, "expected the handler's 204: nothing validates the value without the ValidationFilter");
+        }
+
+        if (plainHost && probeCase.Mode.StartsWith("throw", StringComparison.Ordinal))
+        {
+            var isFrameworkProblem = string.Equals(wire.MediaType, "application/problem+json", StringComparison.Ordinal) &&
+                                     TryReadStatus(wire.Body, out var frameworkStatus) && frameworkStatus == wire.Status;
+            if (wire.Status != 500 || !isFrameworkProblem)
+            {
+                return (VerdictFail, "expected the framework's 500 ProblemDetails (UseExceptionHandler with AddProblemDetails)");
+            }
+
+            if (TryParseJson(wire.Body)?["detail"] is not null)
+            {
+                return (VerdictFail, "a 5xx ProblemDetails outside Development must have no detail");
+            }
+
+            var mapped = ExpectedStatus(probeCase);
+            return mapped == 500
+                ? (VerdictPass, "the framework's 500 ProblemDetails, no detail")
+                : (VerdictLossy, $"no exception mapping without Atc.Rest.MinimalApi's global error handler: the framework's 500 ProblemDetails where the package maps this exception to {mapped}");
         }
 
         var status = ExpectedStatus(probeCase);

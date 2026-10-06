@@ -2436,16 +2436,26 @@ public partial class ErrorResponseBodyRuntimeTests
         public List<ProbeCase> Cases { get; }
 
         /// <summary>
-        /// Generates, compiles and starts the server through the generated <c>Add/Map{Project}Api</c>.
+        /// Generates, compiles and starts the server through the generated <c>Add/Map{Project}Api</c> - or, for the
+        /// plain host, through <c>MapEndpoints()</c> with the host wiring the documentation tells a project without
+        /// <c>Atc.Rest.MinimalApi</c> to write itself (<c>AddProblemDetails</c>, <c>UseExceptionHandler</c>,
+        /// <c>UseStatusCodePages</c>).
         /// </summary>
         /// <param name="problemDetailsWiringOff">
         /// Turn the generated ProblemDetails host wiring off through the generated options
         /// (<c>ApiServiceOptions.UseProblemDetails</c>, <c>ApiMiddlewareOptions.UseStatusCodePages</c>).
         /// </param>
+        /// <param name="plainHost">
+        /// Generate without <c>Atc.Rest.MinimalApi</c> (an empty marker, no reference: no ValidationFilter, no global
+        /// error handler, no unified extensions) and wire the host by hand, as the README's second path does.
+        /// </param>
         public static async Task<ErrorBodyHost> StartAsync(
-            bool problemDetailsWiringOff = false)
+            bool problemDetailsWiringOff = false,
+            bool plainHost = false)
         {
-            var sources = GenerateServer();
+            var sources = plainHost
+                ? Generate(new ApiServerGenerator(), ".atc-rest-api-server", "{}", includeMinimalApi: false)
+                : GenerateServer();
             var factories = ParseFactories(sources);
             var producesMetadata = sources
                 .Where(s => s.HintName.Contains("EndpointDefinition", StringComparison.Ordinal))
@@ -2471,9 +2481,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     """));
             }
 
-            var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
-            var serviceExtensions = assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!;
-            var appExtensions = assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!;
+            var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: !plainHost);
             var registration = assembly.GetType("ErrorBodies.RuntimeTest.RuntimeTestRegistration", throwOnError: true)!;
 
             object? serviceOptions = null;
@@ -2489,11 +2497,24 @@ public partial class ErrorResponseBodyRuntimeTests
             builder.Logging.ClearProviders();
 
             registration.GetMethod("Register")!.Invoke(null, [builder.Services]);
-            serviceExtensions
-                .GetMethod("AddErrorBodiesApi")!
-                .Invoke(null, [builder.Services, serviceOptions]);
+            if (plainHost)
+            {
+                // The two lines Working with Error Responses tells a project without the package to add
+                builder.Services.AddProblemDetails();
+            }
+            else
+            {
+                assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!
+                    .GetMethod("AddErrorBodiesApi")!
+                    .Invoke(null, [builder.Services, serviceOptions]);
+            }
 
             var webApp = builder.Build();
+            if (plainHost)
+            {
+                // Without the global error handler an unhandled exception is the framework's: a 500 ProblemDetails
+                webApp.UseExceptionHandler();
+            }
 
             // Bodies the generated server never writes (any route ending in a stub mode), in front of the generated endpoints.
             webApp.Use(async (context, next) =>
@@ -2516,9 +2537,19 @@ public partial class ErrorResponseBodyRuntimeTests
             });
             webApp.Urls.Add("http://127.0.0.1:0");
 
-            appExtensions
-                .GetMethod("MapErrorBodiesApi")!
-                .Invoke(null, [webApp, middlewareOptions]);
+            if (plainHost)
+            {
+                webApp.UseStatusCodePages();
+                assembly.GetType("ErrorBodies.Generated.Endpoints.EndpointMappingExtensions", throwOnError: true)!
+                    .GetMethod("MapEndpoints")!
+                    .Invoke(null, [webApp]);
+            }
+            else
+            {
+                assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!
+                    .GetMethod("MapErrorBodiesApi")!
+                    .Invoke(null, [webApp, middlewareOptions]);
+            }
 
             await webApp.StartAsync(TestContext.Current.CancellationToken);
 

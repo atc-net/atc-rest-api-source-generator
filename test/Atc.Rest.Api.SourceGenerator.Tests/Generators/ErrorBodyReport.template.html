@@ -174,6 +174,8 @@
     <button role="tab" aria-selected="false" data-tab="matrix">Error bodies</button>
     <button role="tab" aria-selected="false" data-tab="media">Body media types</button>
     <button role="tab" aria-selected="false" data-tab="binding">Request binding</button>
+    <button role="tab" aria-selected="false" data-tab="matrixplain">Error bodies &middot; MapEndpoints host</button>
+    <button role="tab" aria-selected="false" data-tab="bindingplain">Request binding &middot; MapEndpoints host</button>
     <button role="tab" aria-selected="false" data-tab="guard">Security &amp; rate limiting</button>
     <button role="tab" aria-selected="false" data-tab="feature">Features</button>
     <button role="tab" aria-selected="false" data-tab="support">Feature support</button>
@@ -260,6 +262,16 @@
   <section id="tab-binding" role="tabpanel" hidden>
     <div class="panel" id="binding-intro"></div>
     <div id="binding"></div>
+  </section>
+
+  <section id="tab-matrixplain" role="tabpanel" hidden>
+    <div class="panel" id="matrixplain-intro"></div>
+    <div id="matrixplain"></div>
+  </section>
+
+  <section id="tab-bindingplain" role="tabpanel" hidden>
+    <div class="panel" id="bindingplain-intro"></div>
+    <div id="bindingplain"></div>
   </section>
 
   <section id="tab-guard" role="tabpanel" hidden>
@@ -659,6 +671,7 @@ if (!REPORT) {
       <li><b>C# clients.</b> The source generator generates each client (EndpointPerOperation with each <code>errorResponseFormat</code> - Custom with the Monta sample's <code>customErrorResponseModel</code> - and the TypedClient in both result styles); a probe calls every case against the host and records the status, <code>IsSuccess</code>, the typed accessor and its value (or its exception).</li>
       <li><b>TypeScript clients.</b> The CLI executable (<code>atc-rest-api-gen generate client-typescript</code>) generates the Fetch and the Axios client; a Node harness (<code>tsx</code>) calls every case over HTTP and records the result arm, the error class, <code>message</code>, <code>detail</code>, <code>body</code> and <code>errors</code>. Every client must report every case.</li>
       <li><b>Verdicts.</b> Each cell is judged by rules written from the documented contract (wiki: <i>Working with Error Responses</i>): the expected accessor, type and arm come from the specification (never from the generated client), and every typed value is compared field by field with the body on the wire. <span class="v lossy">lossy</span> is only given with the exact fields the typed value cannot hold; any other difference is a <span class="v fail">fail</span>. The same rules run as the test <code>EndToEnd_EveryClientReadsWhatTheServerWrites</code>, which fails on any fail; this page is its data. The test <code>MatrixVerdicts_FailRegressedResults</code> is a negative control: for each rule - wire (success, validation, handler value, default body, exceptions, Retry-After, stub), EndpointPerOperation (success, IsSuccess, value, JSON-text string, custom field, default accessor, undeclared <code>Content</code>, non-JSON bodies, the fields a lossy names), TypedClient Throw and Result, TypeScript (arm, generated arms, class, status, body, fields, message, validation errors, success arm) - it asserts that a correct result passes and a regressed one fails, so a pass is evidence rather than the absence of a check.</li>
+      <li><b>The <code>MapEndpoints()</code> host.</b> The error-body and request-binding matrices run a second time against a server generated without <code>Atc.Rest.MinimalApi</code> and hosted by hand (<code>AddProblemDetails</code>, <code>UseExceptionHandler</code>, <code>UseStatusCodePages</code>, <code>MapEndpoints</code>) - the README's second path and three of the samples. Their tabs say what that host loses against the package (no validation, no exception mapping) as lossy or known cells; everything else must be the same.</li>
       <li><b>Not exercised.</b> ${notExercisedHtml('errorBodies')} Secured and rate-limited operations, the requests no client can send (a value of the wrong type, 413, 415) and <code>x-retry-*</code> have tabs of their own; binary bodies, uploads and XML are the <b>Body media types</b> tab.</li>
     </ul>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only</code> writes this page (<code>docs/test-suite-report.html</code>) and its data (<code>docs/test-suite-report.json</code>).</p></div>
@@ -734,6 +747,17 @@ renderCaseMatrix('#binding-intro', '#binding', REPORT?.requestBinding, `
   <p><b>Not exercised.</b> ${notExercisedHtml('requestBinding')}</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds"</code></p></div>`);
 
+// The README's second path: MapEndpoints() without Atc.Rest.MinimalApi, the host wiring written by hand
+renderCaseMatrix('#matrixplain-intro', '#matrixplain', REPORT?.errorBodiesPlain, `
+  <h2>Error bodies &middot; the <code>MapEndpoints()</code> host</h2>
+  <p>The same specification, handlers and clients as the <b>Error bodies</b> tab, against a server generated <i>without</i> <code>Atc.Rest.MinimalApi</code> (an empty marker, no package reference) and hosted the way the README's second path and three samples do: <code>builder.Services.AddProblemDetails()</code>, <code>app.UseExceptionHandler()</code>, <code>app.UseStatusCodePages()</code>, <code>app.MapEndpoints()</code>. What the package adds is not there, and the wire says so as <span class="v lossy">lossy</span>: nothing validates a request (the ValidationFilter), so the too-long value reaches the handler; an unhandled exception is the framework's 500 ProblemDetails (no <code>detail</code> outside Development) instead of the global error handler's exception &rarr; status mapping. Everything else - the generated factories, the host wiring's ProblemDetails for an empty error, the statuses below 400, the stubs - must be the same, and every client must read it the same.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost"</code></p></div>`);
+
+renderCaseMatrix('#bindingplain-intro', '#bindingplain', REPORT?.requestBindingPlain, `
+  <h2>Request binding &middot; the <code>MapEndpoints()</code> host</h2>
+  <p>The <b>Request binding</b> matrix against the server generated without <code>Atc.Rest.MinimalApi</code> and hosted by hand (<code>AddProblemDetails</code>, <code>UseExceptionHandler</code>, <code>UseStatusCodePages</code>, <code>MapEndpoints</code>). The binding is the same generated code, so every client's values bind the same. What the server answers a request it cannot bind comes from the framework and the host wiring there: a wrong type, a malformed body, a media type the operation does not take and a body that is too large are the same problems; a missing required query parameter is a ProblemDetails that names no parameter, and a body missing a required property reaches the handler - nothing validates without the ValidationFilter (the two <span class="v known">known</span> cells; .NET 10's <code>AddValidation()</code> is the way to validate on this host).</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost"</code></p></div>`);
+
 renderCaseMatrix('#guard-intro', '#guard', REPORT?.guard, `
   <h2>Security &amp; rate limiting</h2>
   <p>The generated server with two test authentication schemes (a bearer token that spells out subject, scopes and roles; an API key) and every generated client calling its secured and rate-limited operations - without credentials, with the wrong ones, with the right ones, and past a limiter's budget. Each cell lists the statuses the client saw, call by call, against what the specification and the documented contract say; the server's own log of the cell's requests (<i>server</i>) proves what the client's retry policy did with a 429: a <code>Retry-After</code> past the cap is handed back at once, a short one is waited for and the retry succeeds, a 429 without one is retried with the policy's back-off.</p>
@@ -802,12 +826,15 @@ renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
 // The top of the Overview: the state of the run in one glance, a start for each reader, and what needs attention.
 // Everything here is computed from REPORT.summary (written by the test) and REPORT.ratchet.
 // ---------------------------------------------------------------------------------------------------------------
-const MATRIX_NAMES = { errorBodies: 'Error bodies', bodyMedia: 'Body media types', requestBinding: 'Request binding', guard: 'Security & rate limiting', feature: 'Features' };
-const MATRIX_TABS = { errorBodies: 'matrix', bodyMedia: 'media', requestBinding: 'binding', guard: 'guard', feature: 'feature' };
+const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', guard: 'Security & rate limiting', feature: 'Features' };
+const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', guard: 'guard', feature: 'feature' };
+const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix' };
 const MATRIX_TESTS = {
   errorBodies: 'EndToEnd_EveryClientReadsWhatTheServerWrites',
+  errorBodiesPlain: 'EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost',
   bodyMedia: 'EndToEnd_EveryClientReadsEveryBodyMediaType',
   requestBinding: 'EndToEnd_EveryClientSendsWhatTheServerBinds',
+  requestBindingPlain: 'EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost',
   guard: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays',
   feature: 'EndToEnd_EveryClientRunsEveryFeature',
 };
@@ -912,7 +939,7 @@ document.addEventListener('click', (e) => {
   if (!REPORT) return;
   const s = REPORT.summary ?? {};
   const summaryJson = JSON.stringify({ generatedAt: REPORT.generatedAt, commit: REPORT.provenance?.commit, uncommittedFiles: REPORT.provenance?.uncommittedFiles, ...s }, null, 2);
-  const rows = Object.entries(MATRIX_TESTS).map(([m, t]) => `<tr><td>${esc(MATRIX_NAMES[m])}</td><td class="mono">${esc(t)}</td><td><div class="cmd"><code>${esc(cmdFor(t))}</code>${copyButton(cmdFor(t))}</div></td><td class="mono">${esc(({ errorBodies: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix' })[m])}.cs</td></tr>`).join('');
+  const rows = Object.entries(MATRIX_TESTS).map(([m, t]) => `<tr><td>${esc(MATRIX_NAMES[m])}</td><td class="mono">${esc(t)}</td><td><div class="cmd"><code>${esc(cmdFor(t))}</code>${copyButton(cmdFor(t))}</div></td><td class="mono">${esc(MATRIX_FILES[m])}.cs</td></tr>`).join('');
   $('#agents').innerHTML = `
     <h2>For agents</h2>
     <p>This page is a data file with a view on top. Read the data; the prose is for people.</p>

@@ -19,7 +19,7 @@ public partial class ErrorResponseBodyRuntimeTests
     [
         "Validation exceptions thrown by handler code.",
         "The Development environment (a 5xx with its exception `detail`); the host runs as Production.",
-        "A server without Atc.Rest.MinimalApi, or with the ValidationFilter / global error handler switched off.",
+        "A server with the ValidationFilter or the global error handler switched off through the marker (the host without Atc.Rest.MinimalApi - MapEndpoints() with the wiring written by hand - has its own tabs).",
         "Network failures, timeouts and cancellation.",
         "HEAD, and 2xx statuses other than 200 and 204 on the sweep operations (every 1xx, 2xx and 3xx has its own operation under Statuses 1xx-3xx).",
         "OpenAPI 3.1 / 3.2 documents: the matrices run a 3.0.3 specification; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
@@ -93,6 +93,10 @@ public partial class ErrorResponseBodyRuntimeTests
         var matrix = await CollectEndToEndMatrixAsync();
         matrix["bodyMedia"] = await CollectBodyMediaMatrixAsync();
         matrix["requestBinding"] = await CollectRequestBindingMatrixAsync();
+
+        // The README's second path: MapEndpoints() without Atc.Rest.MinimalApi, the host wiring written by hand
+        matrix["errorBodiesPlain"] = await CollectEndToEndMatrixAsync(plainHost: true);
+        matrix["requestBindingPlain"] = await CollectRequestBindingMatrixAsync(plainHost: true);
         matrix["guard"] = await CollectGuardMatrixAsync();
         matrix["feature"] = await CollectFeatureMatrixAsync();
         matrix["notExercised"] = new JsonObject
@@ -267,26 +271,12 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// The cells each matrix expects to fail - its ratchet: a listed cell must fail, an unlisted one must pass, so a
-    /// fail on the page is either known (listed here, with the reason the matrix records) or a regression.
-    /// </summary>
-    private static JsonObject Ratchets()
-        => new()
-        {
-            ["errorBodies"] = new JsonArray(),
-            ["bodyMedia"] = new JsonArray(),
-            ["requestBinding"] = new JsonArray([.. KnownRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
-            ["guard"] = new JsonArray([.. KnownGuardFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
-            ["feature"] = new JsonArray([.. KnownFeatureFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
-        };
-
-    /// <summary>
     /// The machine-readable summary of the run: per matrix the verdict counts and the known failures; the compile
     /// gate, the diagnostics coverage and Playwright in one number each (a flaky Playwright test - failed, then passed
     /// on a retry - is counted apart, not as a failure); and the overall state - <c>green</c> (no
     /// fail), <c>known-failures</c> (every fail is in a ratchet) or <c>regressions</c> (a fail no ratchet lists).
     /// </summary>
-    private static JsonObject Summary(JsonObject matrix)
+    internal static JsonObject Summary(JsonObject matrix)
     {
         var matrices = new JsonObject();
         var unexpected = new JsonArray();
@@ -305,7 +295,15 @@ public partial class ErrorResponseBodyRuntimeTests
                     tally[(string)wireVerdict!] = tally.GetValueOrDefault((string)wireVerdict!) + 1;
                     if (string.Equals((string)wireVerdict!, "fail", StringComparison.Ordinal))
                     {
-                        unexpected.Add($"{key}|{item["id"]}|wire");
+                        // A server answer the matrix's ratchet lists (as "case [wire]") is known, like a client cell
+                        if (known.Contains($"{item["id"]} [wire]"))
+                        {
+                            knownCount++;
+                        }
+                        else
+                        {
+                            unexpected.Add($"{key}|{item["id"]}|wire");
+                        }
                     }
                 }
 
@@ -370,6 +368,22 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The cells each matrix expects to fail - its ratchet: a listed cell must fail, an unlisted one must pass, so a
+    /// fail on the page is either known (listed here, with the reason the matrix records) or a regression.
+    /// </summary>
+    private static JsonObject Ratchets()
+        => new()
+        {
+            ["errorBodies"] = new JsonArray(),
+            ["errorBodiesPlain"] = new JsonArray(),
+            ["bodyMedia"] = new JsonArray(),
+            ["requestBinding"] = new JsonArray([.. KnownRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["requestBindingPlain"] = new JsonArray([.. KnownPlainRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["guard"] = new JsonArray([.. KnownGuardFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["feature"] = new JsonArray([.. KnownFeatureFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+        };
+
+    /// <summary>
     /// One line for the history: when, which commit, the verdict totals per matrix, and every cell's verdict (so
     /// the next run can say what changed).
     /// </summary>
@@ -414,7 +428,7 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject matrix)
     {
         yield return ("errorBodies", matrix["cases"]!.AsArray().Select(c => c!.AsObject()));
-        foreach (var key in (string[])["bodyMedia", "requestBinding", "guard", "feature"])
+        foreach (var key in (string[])["errorBodiesPlain", "bodyMedia", "requestBinding", "requestBindingPlain", "guard", "feature"])
         {
             if (matrix[key]?["cases"] is JsonArray cases)
             {

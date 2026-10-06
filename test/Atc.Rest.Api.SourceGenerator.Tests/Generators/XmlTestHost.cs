@@ -27,14 +27,25 @@ internal sealed class XmlTestHost : IAsyncDisposable
     /// </summary>
     public Assembly Assembly { get; }
 
+    /// <summary>
+    /// Generates, compiles and starts the server - through the generated <c>Add/Map{Project}Api</c>, or for the plain
+    /// host (<paramref name="plainHost"/>: no <c>Atc.Rest.MinimalApi</c>) through <c>MapEndpoints()</c> with
+    /// <c>AddProblemDetails</c>, <c>UseExceptionHandler</c> and <c>UseStatusCodePages</c> written by hand.
+    /// </summary>
     public static async Task<XmlTestHost> StartAsync(
         string yaml,
         string handlerSource,
         string registrationTypeName,
         Action<WebApplication>? configure = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        bool plainHost = false)
     {
-        var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, yaml);
+        var sources = ErrorResponseBodyRuntimeTests.Generate(
+            new ApiServerGenerator(),
+            ".atc-rest-api-server",
+            plainHost ? "{}" : ErrorResponseBodyRuntimeTests.ServerMarker,
+            includeMinimalApi: !plainHost,
+            yaml);
 
         // The handlers see every generated namespace
         var usings = sources
@@ -44,17 +55,39 @@ internal sealed class XmlTestHost : IAsyncDisposable
             .Select(ns => $"global using {ns};");
         sources.Add(("XmlRequestHandlers.cs", string.Join(Environment.NewLine, usings) + Environment.NewLine + handlerSource));
 
-        var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: !plainHost);
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
         builder.Services.AddEndpointsApiExplorer();
         configureServices?.Invoke(builder.Services);
         assembly.GetType(registrationTypeName, throwOnError: true)!.GetMethod("Register")!.Invoke(null, [builder.Services]);
-        assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApi")!.Invoke(null, [builder.Services, null]);
+        if (plainHost)
+        {
+            builder.Services.AddProblemDetails();
+        }
+        else
+        {
+            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApi")!.Invoke(null, [builder.Services, null]);
+        }
+
         var webApp = builder.Build();
         webApp.Urls.Add("http://127.0.0.1:0");
+        if (plainHost)
+        {
+            webApp.UseExceptionHandler();
+        }
+
         configure?.Invoke(webApp);
-        assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, null]);
+        if (plainHost)
+        {
+            webApp.UseStatusCodePages();
+            assembly.GetType("ErrorBodies.Generated.Endpoints.EndpointMappingExtensions", throwOnError: true)!.GetMethod("MapEndpoints")!.Invoke(null, [webApp]);
+        }
+        else
+        {
+            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, null]);
+        }
+
         await webApp.StartAsync(TestContext.Current.CancellationToken);
         return new XmlTestHost(webApp, assembly);
     }

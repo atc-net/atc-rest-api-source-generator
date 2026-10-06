@@ -635,6 +635,43 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix against the plain host (<c>MapEndpoints()</c>, no <c>Atc.Rest.MinimalApi</c>): the generated
+    /// binding is the same code, so every client's values bind the same; what the server answers a request it cannot
+    /// bind comes from the framework and the host wiring there, outside <see cref="KnownPlainRequestBindingFailures"/>.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the request-binding matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectRequestBindingMatrixAsync(plainHost: true);
+        if (Environment.GetEnvironmentVariable("REQUESTBINDING_E2E_PLAIN_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownPlainRequestBindingFailures.Contains(f.Key)).ToList();
+        var fixedCells = KnownPlainRequestBindingFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownPlainRequestBindingFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
     /// The verdict is not blind: a changed value, a missing value and a value the client did not send each fail,
     /// and the echo of what was sent passes.
     /// </summary>
@@ -906,7 +943,8 @@ public partial class ErrorResponseBodyRuntimeTests
             : Cell(VerdictFail, string.Join("; ", differences), summary);
     }
 
-    private static async Task<JsonObject> CollectRequestBindingMatrixAsync()
+    private static async Task<JsonObject> CollectRequestBindingMatrixAsync(
+        bool plainHost = false)
     {
         var started = DateTimeOffset.Now;
         var cases = RequestBindingCases();
@@ -925,7 +963,8 @@ public partial class ErrorResponseBodyRuntimeTests
                 }
 
                 await next(context);
-            }));
+            }),
+            plainHost: plainHost);
 
         var casesJson = RequestBindingCasesJson(cases).ToJsonString();
         var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
@@ -1222,5 +1261,19 @@ public partial class ErrorResponseBodyRuntimeTests
     /// </summary>
     private static readonly HashSet<string> KnownRequestBindingFailures = new(StringComparer.Ordinal)
     {
+    };
+
+    /// <summary>
+    /// The cells that fail today on the plain host (<c>MapEndpoints()</c>, no <c>Atc.Rest.MinimalApi</c>), as
+    /// <c>case [client]</c>, each with the reason it is accepted.
+    /// </summary>
+    private static readonly HashSet<string> KnownPlainRequestBindingFailures = new(StringComparer.Ordinal)
+    {
+        // Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the framework's own 400 for a
+        // missing required query parameter names no parameter (a ProblemDetails from the host wiring, no `errors`),
+        // and a body missing a required property reaches the handler as null. Documented under "Without
+        // Atc.Rest.MinimalApi" in Working with Error Responses; .NET 10's AddValidation() is the way to validate there.
+        "server: query: the required parameter is missing [wire]",
+        "server: body: the required property is missing [wire]",
     };
 }
