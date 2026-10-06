@@ -588,7 +588,7 @@ public static class TypeScriptModelExtractor
 
             // Replace empty array type with generic T[] for pagination base schemas
             var tsType = isGeneric && prop.Key == genericArrayPropName
-                ? "T[]"
+                ? (isRequired ? "T[]" : "T[] | null")
                 : prop.Value.ToTypeScriptTypeForModel(isRequired, convertDates);
 
             // A discriminator is a literal on its variant, so the union narrows on it. Only a plain string

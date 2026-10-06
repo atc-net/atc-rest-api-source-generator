@@ -6,5 +6,5 @@ export interface User {
 
   readonly email: string;
 
-  readonly favoritePetId?: FavoritePetId;
+  readonly favoritePetId?: FavoritePetId | null;
 }

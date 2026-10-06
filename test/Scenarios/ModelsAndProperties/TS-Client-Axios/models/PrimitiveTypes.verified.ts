@@ -8,19 +8,19 @@ export interface PrimitiveTypes {
   readonly integerValue: number;
 
   /** Explicit int32 */
-  readonly integerInt32?: number;
+  readonly integerInt32?: number | null;
 
   /** Long integer (int64) */
-  readonly integerInt64?: number;
+  readonly integerInt64?: number | null;
 
   /** Default number (double) */
   readonly numberValue: number;
 
   /** Float number */
-  readonly numberFloat?: number;
+  readonly numberFloat?: number | null;
 
   /** Double number */
-  readonly numberDouble?: number;
+  readonly numberDouble?: number | null;
 
   /** Boolean value */
   readonly booleanValue: boolean;

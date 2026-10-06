@@ -4,7 +4,7 @@ export interface ApiKey {
 
   readonly name: string;
 
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 
-  readonly expiresAt?: string;
+  readonly expiresAt?: string | null;
 }

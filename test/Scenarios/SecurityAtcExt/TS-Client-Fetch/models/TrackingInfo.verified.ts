@@ -4,7 +4,7 @@ export interface TrackingInfo {
 
   readonly status: string;
 
-  readonly location?: string;
+  readonly location?: string | null;
 
-  readonly lastUpdated?: string;
+  readonly lastUpdated?: string | null;
 }

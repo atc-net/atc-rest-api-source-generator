@@ -7,7 +7,7 @@ export interface Pet {
    * @example
    * 10
    */
-  readonly id?: number;
+  readonly id?: number | null;
 
   /**
    * @example
@@ -15,12 +15,12 @@ export interface Pet {
    */
   readonly name: string;
 
-  readonly category?: Category;
+  readonly category?: Category | null;
 
   readonly photoUrls: string[];
 
-  readonly tags?: Tag[];
+  readonly tags?: Tag[] | null;
 
   /** pet status in the store */
-  readonly status?: string;
+  readonly status?: string | null;
 }

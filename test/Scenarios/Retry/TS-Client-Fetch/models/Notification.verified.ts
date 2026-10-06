@@ -4,5 +4,5 @@ export interface Notification {
 
   readonly message: string;
 
-  readonly priority?: string;
+  readonly priority?: string | null;
 }

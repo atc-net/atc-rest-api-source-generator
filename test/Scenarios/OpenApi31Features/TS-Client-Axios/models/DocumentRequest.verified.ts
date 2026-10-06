@@ -6,5 +6,5 @@ export interface DocumentRequest {
   /** Base64 encoded document content */
   readonly content: string;
 
-  readonly metadata?: Record<string, string>;
+  readonly metadata?: Record<string, string> | null;
 }

@@ -5,5 +5,5 @@ export interface Animal {
   readonly name: string;
 
   /** Animal age in years */
-  readonly age?: number;
+  readonly age?: number | null;
 }

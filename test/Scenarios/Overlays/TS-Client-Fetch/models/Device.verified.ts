@@ -8,7 +8,7 @@ export interface Device {
   readonly name: string;
 
   /** When the device last reported in - an RFC 3339 date-time, but the vendor left out the format. */
-  readonly lastSeen?: string;
+  readonly lastSeen?: string | null;
 
-  readonly location?: DeviceLocation;
+  readonly location?: DeviceLocation | null;
 }

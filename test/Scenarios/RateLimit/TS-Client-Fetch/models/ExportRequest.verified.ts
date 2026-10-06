@@ -2,5 +2,5 @@
 export interface ExportRequest {
   readonly format: string;
 
-  readonly filters?: Record<string, string>;
+  readonly filters?: Record<string, string> | null;
 }

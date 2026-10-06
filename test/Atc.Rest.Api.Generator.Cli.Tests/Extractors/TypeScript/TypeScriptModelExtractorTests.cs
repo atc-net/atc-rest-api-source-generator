@@ -38,7 +38,7 @@ public class TypeScriptModelExtractorTests
         // The results property should be T[]
         var resultsProp = parameters.Properties?.FirstOrDefault(p => p.Name == "results");
         Assert.NotNull(resultsProp);
-        Assert.Equal("T[]", resultsProp.TypeAnnotation);
+        Assert.Equal("T[] | null", resultsProp.TypeAnnotation);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class TypeScriptModelExtractorTests
         Assert.Equal("Catalog", name);
         Assert.Equal("Catalog", parameters.TypeName);
         var entries = Assert.Single(parameters.Properties!, p => p.Name == "entries");
-        Assert.Equal("unknown[]", entries.TypeAnnotation);
+        Assert.Equal("unknown[] | null", entries.TypeAnnotation);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public class TypeScriptModelExtractorTests
 
         var usersProp = parameters.Properties?.FirstOrDefault(p => p.Name == "users");
         Assert.NotNull(usersProp);
-        Assert.Equal("string[]", usersProp.TypeAnnotation);
+        Assert.Equal("string[] | null", usersProp.TypeAnnotation);
     }
 
     [Fact]
@@ -439,7 +439,7 @@ public class TypeScriptModelExtractorTests
         var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig { BrandedIds = true });
 
         var (_, writable) = Assert.Single(results, r => r.Name == "UserWritable");
-        Assert.Equal("UserId", writable.Properties!.Single(p => p.Name == "id").TypeAnnotation);
+        Assert.Equal("UserId | null", writable.Properties!.Single(p => p.Name == "id").TypeAnnotation);
     }
 
     [Fact]
@@ -470,9 +470,9 @@ public class TypeScriptModelExtractorTests
         var ownerIdProp = parameters.Properties.Single(p => p.Name == "ownerId");
         var nameProp = parameters.Properties.Single(p => p.Name == "name");
 
-        Assert.Equal("PetId", idProp.TypeAnnotation);
-        Assert.Equal("OwnerId", ownerIdProp.TypeAnnotation);
-        Assert.Equal("string", nameProp.TypeAnnotation);
+        Assert.Equal("PetId | null", idProp.TypeAnnotation);
+        Assert.Equal("OwnerId | null", ownerIdProp.TypeAnnotation);
+        Assert.Equal("string | null", nameProp.TypeAnnotation);
 
         var brandImport = Assert.Single(parameters.ImportStatements, s => s.Contains("BrandedIds", StringComparison.Ordinal));
         Assert.Equal("import type { OwnerId, PetId } from '../types/BrandedIds';", brandImport);
@@ -500,7 +500,7 @@ public class TypeScriptModelExtractorTests
         var (_, parameters) = Assert.Single(TypeScriptModelExtractor.Extract(document, config));
 
         var idProp = parameters.Properties.Single(p => p.Name == "id");
-        Assert.Equal("string", idProp.TypeAnnotation);
+        Assert.Equal("string | null", idProp.TypeAnnotation);
         Assert.DoesNotContain(parameters.ImportStatements ?? new List<string>(), s => s.Contains("BrandedIds", StringComparison.Ordinal));
     }
 
@@ -726,8 +726,8 @@ public class TypeScriptModelExtractorTests
         var (_, creditCard) = Assert.Single(results, r => r.Name == "CreditCard");
         var (_, bankTransfer) = Assert.Single(results, r => r.Name == "BankTransfer");
         Assert.Equal("'credit_card'", creditCard.Properties!.Single(p => p.Name == "type").TypeAnnotation);
-        Assert.Equal("string", creditCard.Properties!.Single(p => p.Name == "last4").TypeAnnotation);
-        Assert.Equal("'BankTransfer'", bankTransfer.Properties!.Single(p => p.Name == "type").TypeAnnotation);
+        Assert.Equal("string | null", creditCard.Properties!.Single(p => p.Name == "last4").TypeAnnotation);
+        Assert.Equal("'BankTransfer' | null", bankTransfer.Properties!.Single(p => p.Name == "type").TypeAnnotation);
     }
 
     [Fact]
@@ -758,7 +758,7 @@ public class TypeScriptModelExtractorTests
         var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
 
         var (_, email) = Assert.Single(results, r => r.Name == "EmailNotification");
-        Assert.Equal("string", email.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
+        Assert.Equal("string | null", email.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
     }
 
     [Fact]
@@ -805,7 +805,7 @@ public class TypeScriptModelExtractorTests
         var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
 
         var (_, circle) = Assert.Single(results, r => r.Name == "Circle");
-        Assert.Equal("'circle' | 'round'", circle.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
+        Assert.Equal("'circle' | 'round' | null", circle.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
     }
 
     [Fact]
@@ -841,7 +841,7 @@ public class TypeScriptModelExtractorTests
         var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig(), ["ShapeKind"]);
 
         var (_, circle) = Assert.Single(results, r => r.Name == "Circle");
-        Assert.Equal("ShapeKind", circle.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
+        Assert.Equal("ShapeKind | null", circle.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
     }
 
     [Fact]
@@ -964,7 +964,7 @@ public class TypeScriptModelExtractorTests
 
         var (_, model) = Assert.Single(TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig()));
 
-        Assert.Equal("number", model.Properties!.Single(p => p.Name == "value").TypeAnnotation);
+        Assert.Equal("number | null", model.Properties!.Single(p => p.Name == "value").TypeAnnotation);
     }
 
     /// <summary>

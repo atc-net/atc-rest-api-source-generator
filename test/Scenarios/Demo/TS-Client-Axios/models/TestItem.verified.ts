@@ -11,5 +11,5 @@ export interface TestItem {
   readonly description?: string | null;
 
   /** When the item was created */
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 }

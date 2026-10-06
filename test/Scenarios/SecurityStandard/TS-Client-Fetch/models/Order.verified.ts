@@ -10,8 +10,8 @@ export interface Order {
   readonly status: string;
 
   /** Total order amount */
-  readonly totalAmount?: number;
+  readonly totalAmount?: number | null;
 
   /** Order creation timestamp */
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 }

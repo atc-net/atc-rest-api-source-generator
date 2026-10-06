@@ -46,7 +46,7 @@ export interface ComprehensiveModel {
   readonly viewCount?: number | null;
 
   /** Whether the model is active */
-  readonly isActive?: boolean;
+  readonly isActive?: boolean | null;
 
   /** Whether the model is verified */
   readonly isVerified?: boolean | null;
@@ -54,18 +54,18 @@ export interface ComprehensiveModel {
   /** Phone number in E.164 format */
   readonly phoneNumber?: string | null;
 
-  readonly address?: Address;
+  readonly address?: Address | null;
 
-  readonly gender?: GenderType;
+  readonly gender?: GenderType | null;
 
-  readonly status?: StatusType;
+  readonly status?: StatusType | null;
 
   /** List of tags */
-  readonly tags?: string[];
+  readonly tags?: string[] | null;
 
   /** List of assigned roles */
-  readonly roles?: RoleType[];
+  readonly roles?: RoleType[] | null;
 
   /** Key-value metadata */
-  readonly metadata?: Record<string, string>;
+  readonly metadata?: Record<string, string> | null;
 }

@@ -4,5 +4,5 @@ export interface ReportJob {
 
   readonly status: string;
 
-  readonly estimatedCompletionTime?: string;
+  readonly estimatedCompletionTime?: string | null;
 }

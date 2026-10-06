@@ -4,7 +4,7 @@ export interface Product {
 
   readonly name: string;
 
-  readonly price?: number;
+  readonly price?: number | null;
 
-  readonly inStock?: boolean;
+  readonly inStock?: boolean | null;
 }

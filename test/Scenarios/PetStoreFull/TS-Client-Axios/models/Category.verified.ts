@@ -4,11 +4,11 @@ export interface Category {
    * @example
    * 1
    */
-  readonly id?: number;
+  readonly id?: number | null;
 
   /**
    * @example
    * "Dogs"
    */
-  readonly name?: string;
+  readonly name?: string | null;
 }

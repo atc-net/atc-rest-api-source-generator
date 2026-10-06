@@ -2,5 +2,5 @@
 export interface Device {
   readonly id: string;
 
-  readonly lastSeen?: Date;
+  readonly lastSeen?: Date | null;
 }

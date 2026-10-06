@@ -4,5 +4,5 @@ export interface ItemLog {
 
   readonly message: string;
 
-  readonly level?: string;
+  readonly level?: string | null;
 }

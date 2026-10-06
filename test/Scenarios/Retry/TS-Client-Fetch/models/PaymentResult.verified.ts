@@ -4,5 +4,5 @@ export interface PaymentResult {
 
   readonly status: string;
 
-  readonly processedAt?: string;
+  readonly processedAt?: string | null;
 }

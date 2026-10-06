@@ -7,8 +7,8 @@ export interface User {
   readonly username: string;
 
   /** Email address */
-  readonly email?: string;
+  readonly email?: string | null;
 
   /** User role */
-  readonly role?: string;
+  readonly role?: string | null;
 }

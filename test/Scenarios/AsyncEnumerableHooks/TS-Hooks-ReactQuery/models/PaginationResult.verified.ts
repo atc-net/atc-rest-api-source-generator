@@ -2,5 +2,5 @@
 export interface PaginationResult {
   readonly continuationToken?: string | null;
 
-  readonly totalCount?: number;
+  readonly totalCount?: number | null;
 }

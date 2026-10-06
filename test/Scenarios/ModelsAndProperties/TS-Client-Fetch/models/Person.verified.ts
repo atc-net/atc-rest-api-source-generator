@@ -18,13 +18,13 @@ export interface Person {
 
   readonly dateOfBirth?: string | null;
 
-  readonly gender?: GenderType;
+  readonly gender?: GenderType | null;
 
-  readonly address?: Address;
+  readonly address?: Address | null;
 
-  readonly isActive?: boolean;
+  readonly isActive?: boolean | null;
 
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 
   readonly updatedAt?: string | null;
 }

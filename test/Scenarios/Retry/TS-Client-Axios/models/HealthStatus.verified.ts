@@ -2,5 +2,5 @@
 export interface HealthStatus {
   readonly status: string;
 
-  readonly timestamp?: string;
+  readonly timestamp?: string | null;
 }

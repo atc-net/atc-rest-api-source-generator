@@ -4,9 +4,9 @@ import type { OwnerId, PetId } from '../types/BrandedIds';
 export interface Pet {
   readonly id: PetId;
 
-  readonly ownerId?: OwnerId;
+  readonly ownerId?: OwnerId | null;
 
   readonly name: string;
 
-  readonly slug?: string;
+  readonly slug?: string | null;
 }

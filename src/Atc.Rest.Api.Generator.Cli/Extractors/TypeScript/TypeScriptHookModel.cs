@@ -593,7 +593,9 @@ internal static class TypeScriptHookModel
             {
                 var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
                 var isRequired = required.Contains(prop.Key);
-                var propType = prop.Value.ToTypeScriptTypeForModel(isRequired);
+
+                // A form part is left out when it has no value, never sent as null
+                var propType = prop.Value.ToTypeScriptTypeForModelWithoutOptionalNull(isRequired);
 
                 if (prop.Value is OpenApiSchema propSchema)
                 {

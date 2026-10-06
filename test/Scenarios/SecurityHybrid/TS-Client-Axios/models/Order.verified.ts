@@ -6,5 +6,5 @@ export interface Order {
 
   readonly status: string;
 
-  readonly totalAmount?: number;
+  readonly totalAmount?: number | null;
 }

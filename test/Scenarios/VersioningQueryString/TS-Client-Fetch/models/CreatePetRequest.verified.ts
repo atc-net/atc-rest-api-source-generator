@@ -6,7 +6,7 @@ export interface CreatePetRequest {
 
   readonly breed?: string | null;
 
-  readonly age?: number;
+  readonly age?: number | null;
 
   readonly ownerId?: string | null;
 }

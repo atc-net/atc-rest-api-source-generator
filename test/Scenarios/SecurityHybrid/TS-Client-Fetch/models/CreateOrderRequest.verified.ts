@@ -2,5 +2,5 @@
 export interface CreateOrderRequest {
   readonly customerId: string;
 
-  readonly items?: string[];
+  readonly items?: string[] | null;
 }

@@ -4,5 +4,5 @@ import type { Animal } from './Animal';
 /** Cat type inheriting from Animal via allOf */
 export interface Cat extends Animal {
   /** Whether the cat is indoor-only */
-  readonly indoor?: boolean;
+  readonly indoor?: boolean | null;
 }

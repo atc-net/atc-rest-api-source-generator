@@ -4,5 +4,5 @@ export interface Report {
 
   readonly title: string;
 
-  readonly generatedAt?: string;
+  readonly generatedAt?: string | null;
 }

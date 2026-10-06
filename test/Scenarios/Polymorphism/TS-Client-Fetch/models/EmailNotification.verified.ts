@@ -13,5 +13,5 @@ export interface EmailNotification {
   readonly body: string;
 
   /** Whether body is HTML formatted */
-  readonly isHtml?: boolean;
+  readonly isHtml?: boolean | null;
 }

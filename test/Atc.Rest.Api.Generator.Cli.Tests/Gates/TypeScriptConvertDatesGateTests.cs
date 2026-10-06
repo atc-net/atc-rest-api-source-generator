@@ -48,7 +48,7 @@ public sealed class TypeScriptConvertDatesGateTests
                 });
 
             var model = File.ReadAllText(Path.Combine(output, "models", "Event.ts"));
-            Assert.Contains("readonly history?: Date[];", model, StringComparison.Ordinal);
+            Assert.Contains("readonly history?: Date[] | null;", model, StringComparison.Ordinal);
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), Harness);

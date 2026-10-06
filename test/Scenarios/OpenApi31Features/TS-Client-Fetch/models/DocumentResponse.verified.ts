@@ -4,5 +4,5 @@ export interface DocumentResponse {
 
   readonly name: string;
 
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 }

@@ -207,7 +207,7 @@ public static class TypeScriptZodModelExtractor
 
             if (isScalarAlias)
             {
-                results.Add((schemaName, GenerateZodScalarAlias(schemaName, actualSchema, headerContent, config.ConvertDates)));
+                results.Add((schemaName, GenerateZodScalarAlias(schemaName, actualSchema, headerContent, config.ConvertDates, config.ExtensibleEnums)));
                 continue;
             }
 
@@ -832,7 +832,8 @@ public static class TypeScriptZodModelExtractor
         string schemaName,
         OpenApiSchema schema,
         string? headerContent,
-        bool convertDates)
+        bool convertDates,
+        bool extensibleEnums)
     {
         var sb = new StringBuilder();
 
@@ -845,14 +846,21 @@ public static class TypeScriptZodModelExtractor
         sb.AppendLine();
         sb.Append("export const ").Append(schemaName).Append("Schema = ");
 
+        // A numeric enum is open like a string enum when enums are extensible: a value the server adds later is a number
         var literals = TypeScriptModelExtractor.GetNumericEnumLiterals(schema);
-        if (literals.Count == 1)
+        if (literals.Count == 1 && !extensibleEnums)
         {
             sb.Append("z.literal(").Append(literals[0]).Append(')');
         }
-        else if (literals.Count > 1)
+        else if (literals.Count > 0)
         {
-            sb.Append("z.union([").Append(string.Join(", ", literals.Select(l => $"z.literal({l})"))).Append("])");
+            var options = literals.Select(l => $"z.literal({l})").ToList();
+            if (extensibleEnums)
+            {
+                options.Add("z.number()");
+            }
+
+            sb.Append("z.union([").Append(string.Join(", ", options)).Append("])");
         }
         else
         {
@@ -1062,28 +1070,19 @@ public static class TypeScriptZodModelExtractor
     {
         var sb = new StringBuilder();
 
-        // Handle schema references ($ref)
+        // Handle schema references ($ref): a nullable component makes the property nullable
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "unknown";
             sb.Append(refName).Append("Schema");
-
-            if (!isRequired)
-            {
-                sb.Append(".optional()");
-            }
-
+            AppendModifiers(sb, schemaRef.Target?.IsNullable() == true, isRequired, defaultValue: null);
             return sb.ToString();
         }
 
         if (schema is not OpenApiSchema actualSchema)
         {
             sb.Append("z.unknown()");
-            if (!isRequired)
-            {
-                sb.Append(".optional()");
-            }
-
+            AppendModifiers(sb, isNullable: false, isRequired, defaultValue: null);
             return sb.ToString();
         }
 
@@ -1111,10 +1110,12 @@ public static class TypeScriptZodModelExtractor
             return sb.ToString();
         }
 
-        // Handle oneOf
+        // Handle oneOf: a branch that is only null (3.1's `oneOf: [$ref, {type: 'null'}]`) is nullability, not a member
         if (actualSchema.OneOf is { Count: > 0 })
         {
-            if (actualSchema.OneOf.Count == 1 && actualSchema.OneOf[0] is OpenApiSchemaReference oneOfRef)
+            var members = actualSchema.OneOf.Where(m => !IsNullBranch(m)).ToList();
+            isNullable = isNullable || members.Count < actualSchema.OneOf.Count;
+            if (members.Count == 1 && members[0] is OpenApiSchemaReference oneOfRef)
             {
                 var refName = oneOfRef.Reference.Id ?? oneOfRef.Id ?? "unknown";
                 sb.Append(refName).Append("Schema");
@@ -1123,7 +1124,7 @@ public static class TypeScriptZodModelExtractor
             {
                 sb.Append("z.union([");
                 var first = true;
-                foreach (var subSchema in actualSchema.OneOf)
+                foreach (var subSchema in members)
                 {
                     if (!first)
                     {
@@ -1254,7 +1255,8 @@ public static class TypeScriptZodModelExtractor
                     sb.Append(".date()");
                     break;
                 case "date-time":
-                    sb.Append(".datetime({ offset: true })");
+                    // An offset, Z, or neither: a DateTime of Kind Unspecified is written without one
+                    sb.Append(".datetime({ offset: true, local: true })");
                     break;
             }
 
@@ -1317,20 +1319,31 @@ public static class TypeScriptZodModelExtractor
         }
     }
 
+    /// <summary>
+    /// A <c>oneOf</c> / <c>anyOf</c> branch whose only contribution is nullability: <c>{type: 'null'}</c>, or the 3.0
+    /// spelling, an empty object that is nullable.
+    /// </summary>
+    private static bool IsNullBranch(IOpenApiSchema branch)
+        => branch is OpenApiSchema { Properties: null or { Count: 0 }, AllOf: null or { Count: 0 }, OneOf: null or { Count: 0 }, AnyOf: null or { Count: 0 }, Items: null, Enum: null or { Count: 0 } } plain &&
+           plain.Type is { } type &&
+           ((type & ~JsonSchemaType.Null) == JsonSchemaType.Object || (type & ~JsonSchemaType.Null) == default) &&
+           type.HasFlag(JsonSchemaType.Null);
+
     private static void AppendModifiers(
         StringBuilder sb,
         bool isNullable,
         bool isRequired,
         JsonNode? defaultValue)
     {
-        if (isNullable)
-        {
-            sb.Append(".nullable()");
-        }
-
+        // An optional property is written as null when it has no value (.NET writes nulls by default), so it is
+        // null or absent; a required nullable one is null or a value
         if (!isRequired)
         {
-            sb.Append(".optional()");
+            sb.Append(".nullish()");
+        }
+        else if (isNullable)
+        {
+            sb.Append(".nullable()");
         }
 
         if (defaultValue is not null)

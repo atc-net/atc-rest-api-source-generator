@@ -2,7 +2,7 @@
 import type { WebhookData } from './WebhookData';
 
 export interface WebhookPayload {
-  readonly event?: string;
+  readonly event?: string | null;
 
-  readonly data?: WebhookData;
+  readonly data?: WebhookData | null;
 }

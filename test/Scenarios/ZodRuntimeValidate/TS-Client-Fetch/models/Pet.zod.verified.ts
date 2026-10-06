@@ -4,5 +4,5 @@ import { z } from 'zod';
 export const PetSchema = z.object({
   id: z.string(),
   name: z.string(),
-  ownerEmail: z.string().email().optional(),
+  ownerEmail: z.string().email().nullish(),
 });

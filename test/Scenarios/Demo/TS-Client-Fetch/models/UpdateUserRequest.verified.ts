@@ -19,7 +19,7 @@ export interface UpdateUserRequest {
 
   readonly avatarUrl?: string | null;
 
-  readonly isActive?: boolean;
+  readonly isActive?: boolean | null;
 
   readonly role: UserRole;
 

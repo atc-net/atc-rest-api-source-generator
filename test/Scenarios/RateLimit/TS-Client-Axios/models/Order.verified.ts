@@ -4,9 +4,9 @@ export interface Order {
 
   readonly status: string;
 
-  readonly customerName?: string;
+  readonly customerName?: string | null;
 
-  readonly totalAmount?: number;
+  readonly totalAmount?: number | null;
 
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 }

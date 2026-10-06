@@ -3,6 +3,6 @@ export type * from './BinaryData';
 export type * from './Coordinate';
 export type * from './DocumentRequest';
 export type * from './DocumentResponse';
-export type * from './Error';
+export type * from './ErrorModel';
 export type * from './Pet';
 export type * from './RgbColor';

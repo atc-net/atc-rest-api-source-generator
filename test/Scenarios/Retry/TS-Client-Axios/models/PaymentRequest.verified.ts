@@ -4,5 +4,5 @@ export interface PaymentRequest {
 
   readonly amount: number;
 
-  readonly currency?: string;
+  readonly currency?: string | null;
 }

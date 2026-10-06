@@ -76,7 +76,8 @@ public static class TypeScriptPackageScaffoldExtractor
 
         if (config.GenerateZodSchemas)
         {
-            dependencies["zod"] = "^3.0.0";
+            // .datetime({ local: true }) and .date() need 3.23
+            dependencies["zod"] = "^3.23.0";
         }
 
         if (hasSignalRHubs)

@@ -8,44 +8,44 @@ export interface ValidationConstraints {
   readonly requiredInteger: number;
 
   /** String with minimum length 5 */
-  readonly minLengthString?: string;
+  readonly minLengthString?: string | null;
 
   /** String with maximum length 100 */
-  readonly maxLengthString?: string;
+  readonly maxLengthString?: string | null;
 
   /** String with length range 2-50 */
-  readonly lengthRangeString?: string;
+  readonly lengthRangeString?: string | null;
 
   /** String matching pattern (2-3 uppercase letters) */
-  readonly patternString?: string;
+  readonly patternString?: string | null;
 
   /** Phone number pattern (E.164) */
-  readonly phonePattern?: string;
+  readonly phonePattern?: string | null;
 
   /** Alphanumeric with underscore and hyphen */
-  readonly alphanumericPattern?: string;
+  readonly alphanumericPattern?: string | null;
 
   /** Integer with minimum 0 */
-  readonly minInteger?: number;
+  readonly minInteger?: number | null;
 
   /** Integer with maximum 100 */
-  readonly maxInteger?: number;
+  readonly maxInteger?: number | null;
 
   /** Integer with range 1-1000 */
-  readonly rangeInteger?: number;
+  readonly rangeInteger?: number | null;
 
   /** Number with minimum 0.0 */
-  readonly minNumber?: number;
+  readonly minNumber?: number | null;
 
   /** Number with maximum 99.99 */
-  readonly maxNumber?: number;
+  readonly maxNumber?: number | null;
 
   /** Number with range -180 to 180 (longitude) */
-  readonly rangeNumber?: number;
+  readonly rangeNumber?: number | null;
 
   /** Price value with typical constraints */
-  readonly priceValue?: number;
+  readonly priceValue?: number | null;
 
   /** Large long integer with range */
-  readonly largeLong?: number;
+  readonly largeLong?: number | null;
 }

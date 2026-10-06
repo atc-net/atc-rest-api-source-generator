@@ -2,7 +2,7 @@
 export interface ReportRequest {
   readonly reportType: string;
 
-  readonly dateFrom?: string;
+  readonly dateFrom?: string | null;
 
-  readonly dateTo?: string;
+  readonly dateTo?: string | null;
 }

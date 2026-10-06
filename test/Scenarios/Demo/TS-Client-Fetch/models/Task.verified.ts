@@ -4,5 +4,5 @@ export interface Task {
 
   readonly name: string;
 
-  readonly tag?: string;
+  readonly tag?: string | null;
 }

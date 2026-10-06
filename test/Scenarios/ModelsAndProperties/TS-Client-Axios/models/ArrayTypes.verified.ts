@@ -5,35 +5,35 @@ import type { StatusType } from '../enums/StatusType';
 /** Demonstrates all array type variations */
 export interface ArrayTypes {
   /** Array of strings */
-  readonly stringArray?: string[];
+  readonly stringArray?: string[] | null;
 
   /** Array of integers */
-  readonly integerArray?: number[];
+  readonly integerArray?: number[] | null;
 
   /** Array of numbers */
-  readonly numberArray?: number[];
+  readonly numberArray?: number[] | null;
 
   /** Array of booleans */
-  readonly booleanArray?: boolean[];
+  readonly booleanArray?: boolean[] | null;
 
   /** Array of UUIDs */
-  readonly uuidArray?: string[];
+  readonly uuidArray?: string[] | null;
 
   /** Array of date-times */
-  readonly dateTimeArray?: string[];
+  readonly dateTimeArray?: string[] | null;
 
   /** Array with min/max items */
-  readonly limitedArray?: string[];
+  readonly limitedArray?: string[] | null;
 
   /** Array with unique items */
-  readonly uniqueArray?: string[];
+  readonly uniqueArray?: string[] | null;
 
   /** Array of Address objects */
-  readonly addressArray?: Address[];
+  readonly addressArray?: Address[] | null;
 
   /** Array of status enum values */
-  readonly statusArray?: StatusType[];
+  readonly statusArray?: StatusType[] | null;
 
   /** Two-dimensional array of strings */
-  readonly nestedStringArray?: unknown[][];
+  readonly nestedStringArray?: unknown[][] | null;
 }

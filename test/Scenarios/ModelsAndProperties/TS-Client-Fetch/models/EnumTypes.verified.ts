@@ -7,16 +7,16 @@ import type { StatusType } from '../enums/StatusType';
 
 /** Demonstrates enum type usage */
 export interface EnumTypes {
-  readonly genderType?: GenderType;
+  readonly genderType?: GenderType | null;
 
-  readonly statusType?: StatusType;
+  readonly statusType?: StatusType | null;
 
-  readonly colorType?: ColorType;
+  readonly colorType?: ColorType | null;
 
-  readonly priorityType?: PriorityType;
+  readonly priorityType?: PriorityType | null;
 
   /** Inline enum definition */
-  readonly inlineEnum?: string;
+  readonly inlineEnum?: string | null;
 
-  readonly roleType?: RoleType;
+  readonly roleType?: RoleType | null;
 }

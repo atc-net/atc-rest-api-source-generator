@@ -4,28 +4,28 @@ export interface Order {
    * @example
    * 10
    */
-  readonly id?: number;
+  readonly id?: number | null;
 
   /**
    * @example
    * 198772
    */
-  readonly petId?: number;
+  readonly petId?: number | null;
 
   /**
    * @example
    * 7
    */
-  readonly quantity?: number;
+  readonly quantity?: number | null;
 
-  readonly shipDate?: string;
+  readonly shipDate?: string | null;
 
   /**
    * Order Status
    * @example
    * "approved"
    */
-  readonly status?: string;
+  readonly status?: string | null;
 
-  readonly complete?: boolean;
+  readonly complete?: boolean | null;
 }

@@ -4,5 +4,5 @@ export interface ExportJob {
 
   readonly status: string;
 
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 }

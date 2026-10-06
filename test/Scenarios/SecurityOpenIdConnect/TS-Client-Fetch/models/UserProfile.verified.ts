@@ -7,11 +7,11 @@ export interface UserProfile {
   readonly email: string;
 
   /** Display name */
-  readonly displayName?: string;
+  readonly displayName?: string | null;
 
   /** Profile picture URL */
-  readonly picture?: string;
+  readonly picture?: string | null;
 
   /** Whether email is verified */
-  readonly emailVerified?: boolean;
+  readonly emailVerified?: boolean | null;
 }

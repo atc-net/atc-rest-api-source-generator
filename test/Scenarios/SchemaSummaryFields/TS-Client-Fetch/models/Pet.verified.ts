@@ -9,5 +9,5 @@ export interface Pet {
   /** Pet name */
   readonly name: string;
 
-  readonly status?: PetStatus;
+  readonly status?: PetStatus | null;
 }

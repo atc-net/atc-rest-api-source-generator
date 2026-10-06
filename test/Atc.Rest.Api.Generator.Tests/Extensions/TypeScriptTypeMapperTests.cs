@@ -256,7 +256,8 @@ public class TypeScriptTypeMapperTests
         // Microsoft.OpenApi 3.7.0 honoured it here anyway; 3.10.2 correctly does not, so the
         // property is no longer nullable. The 3.1 spelling — `oneOf: [$ref, {type: "null"}]` —
         // does produce `IdValue | null`; see ToTypeScriptTypeForModel_OneOfRefPlusNullBranch.
-        Assert.Equal("IdValue", result);
+        // The property is optional, so the type takes | null from that - not from nullable
+        Assert.Equal("IdValue | null", result);
     }
 
     [Fact]
@@ -274,7 +275,8 @@ public class TypeScriptTypeMapperTests
 
         // Assert
         // See the spec note above: nullable does not reach through allOf.
-        Assert.Equal("DeviceSettings", result);
+        // The property is optional, so the type takes | null from that - not from nullable
+        Assert.Equal("DeviceSettings | null", result);
     }
 
     [Theory]

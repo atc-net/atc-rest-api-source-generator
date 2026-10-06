@@ -7,8 +7,8 @@ export interface Resource {
   readonly name: string;
 
   /** Owner user ID */
-  readonly ownerId?: string;
+  readonly ownerId?: string | null;
 
   /** Creation timestamp */
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 }

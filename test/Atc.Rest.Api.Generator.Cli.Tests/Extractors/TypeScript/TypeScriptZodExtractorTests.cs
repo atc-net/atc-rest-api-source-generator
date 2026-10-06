@@ -152,7 +152,7 @@ public class TypeScriptZodExtractorTests
         var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()), r => r.Name == "Moment");
 
         Assert.Contains("day: z.string().date()", content, StringComparison.Ordinal);
-        Assert.Contains("at: z.string().datetime({ offset: true })", content, StringComparison.Ordinal);
+        Assert.Contains("at: z.string().datetime({ offset: true, local: true })", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -493,6 +493,83 @@ public class TypeScriptZodExtractorTests
         var (_, content) = Assert.Single(TypeScriptZodModelExtractor.ExtractUnionTypeAliases(doc, new TypeScriptClientConfig()));
 
         Assert.Contains("z.union([CircleSchema.passthrough(), SquareSchema.passthrough()])", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// What .NET writes must validate: an optional property is written as <c>null</c> when it has no value, so it is
+    /// <c>nullish</c> (null or absent), not only <c>optional</c>; a required nullable one is <c>nullable</c>; a
+    /// <c>$ref</c> property follows the same rule, and a 3.1 <c>oneOf: [$ref, {type: 'null'}]</c> is the referenced
+    /// schema, nullable - not a union with <c>z.unknown()</c> that validates nothing.
+    /// </summary>
+    [Fact]
+    public void ZodModel_OptionalIsNullish_RequiredNullableIsNullable_ANullBranchIsNullable()
+    {
+        const string yaml = """
+                            openapi: 3.1.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Other:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                Thing:
+                                  type: object
+                                  required: [name, tag, must, alt, at]
+                                  properties:
+                                    name: { type: string }
+                                    note: { type: string }
+                                    tag: { type: ['string', 'null'] }
+                                    ref: { $ref: '#/components/schemas/Other' }
+                                    must: { $ref: '#/components/schemas/Other' }
+                                    alt:
+                                      oneOf:
+                                        - $ref: '#/components/schemas/Other'
+                                        - type: 'null'
+                                    at: { type: string, format: date-time }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()), r => r.Name == "Thing");
+
+        Assert.Contains("name: z.string(),", content, StringComparison.Ordinal);
+        Assert.Contains("note: z.string().nullish(),", content, StringComparison.Ordinal);
+        Assert.Contains("tag: z.string().nullable(),", content, StringComparison.Ordinal);
+        Assert.Contains("ref: OtherSchema.nullish(),", content, StringComparison.Ordinal);
+        Assert.Contains("must: OtherSchema,", content, StringComparison.Ordinal);
+        Assert.Contains("alt: OtherSchema.nullable(),", content, StringComparison.Ordinal);
+        Assert.Contains("at: z.string().datetime({ offset: true, local: true }),", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// An integer enum is open like a string enum when enums are extensible: a value the server adds later is a
+    /// number the schema accepts.
+    /// </summary>
+    [Theory]
+    [InlineData(true, "export const LevelSchema = z.union([z.literal(1), z.literal(2), z.number()]);")]
+    [InlineData(false, "export const LevelSchema = z.union([z.literal(1), z.literal(2)]);")]
+    public void ZodScalarAlias_AnIntegerEnum_IsOpen_UnlessExtensibleEnumsIsOff(
+        bool extensibleEnums,
+        string expected)
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Level:
+                                  type: integer
+                                  enum: [1, 2]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.ExtractArrayTypeAliases(doc, new TypeScriptClientConfig { ExtensibleEnums = extensibleEnums }));
+
+        Assert.Contains(expected, content, StringComparison.Ordinal);
     }
 
     [Fact]

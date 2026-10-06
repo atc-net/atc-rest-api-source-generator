@@ -65,12 +65,31 @@ public static class TypeScriptTypeMapper
     {
         /// <summary>
         /// Maps an OpenAPI schema to a TypeScript type string for model properties.
-        /// Handles $ref, allOf, arrays, nullable (T | null), Record&lt;string, T&gt;, and primitives.
+        /// Handles $ref, allOf, arrays, nullable (T | null), Record&lt;string, T&gt;, and primitives. An optional
+        /// property is <c>T | null</c> too: a .NET server writes <c>null</c> for a property without a value, so
+        /// <c>note?: string</c> alone would be a type the wire does not keep.
         /// </summary>
         /// <param name="isRequired">Whether the property is in the required array.</param>
         /// <param name="convertDates">When true, maps date/date-time formats to Date instead of string.</param>
         /// <returns>A TypeScript type string representation.</returns>
         public string ToTypeScriptTypeForModel(
+            bool isRequired,
+            bool convertDates = false)
+        {
+            var type = schema.ToTypeScriptTypeForModelWithoutOptionalNull(isRequired, convertDates);
+            return isRequired || type.EndsWith(" | null", StringComparison.Ordinal)
+                ? type
+                : type + " | null";
+        }
+
+        /// <summary>
+        /// <see cref="ToTypeScriptTypeForModel"/> without the <c>| null</c> an optional property gets: the type the
+        /// schema declares, nullable only where the schema says so.
+        /// </summary>
+        /// <param name="isRequired">Whether the property is in the required array.</param>
+        /// <param name="convertDates">When true, maps date/date-time formats to Date instead of string.</param>
+        /// <returns>A TypeScript type string representation.</returns>
+        public string ToTypeScriptTypeForModelWithoutOptionalNull(
             bool isRequired,
             bool convertDates = false)
         {

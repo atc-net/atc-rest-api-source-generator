@@ -4,5 +4,5 @@ export interface Pet {
 
   readonly name: string;
 
-  readonly ownerEmail?: string;
+  readonly ownerEmail?: string | null;
 }
