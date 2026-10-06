@@ -440,7 +440,7 @@ public static class TypeScriptReactQueryHookExtractor
         var keyArgs = new List<string>();
         foreach (var p in info.PathParams)
         {
-            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
         if (info.HasBody)
@@ -450,7 +450,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         foreach (var p in info.QuerystringParams)
         {
-            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
         if (info.QueryParams.Count > 0)
@@ -496,7 +496,7 @@ public static class TypeScriptReactQueryHookExtractor
         var keyArgs = new List<string>();
         foreach (var p in info.PathParams)
         {
-            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
         if (info.HasBody)
@@ -506,7 +506,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         foreach (var p in info.QuerystringParams)
         {
-            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
         if (queryParams.Count > 0)
@@ -647,7 +647,7 @@ public static class TypeScriptReactQueryHookExtractor
         var names = new List<string>();
         foreach (var param in info.PathParams)
         {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             declarations.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
             names.Add(name);
         }
@@ -660,7 +660,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         foreach (var param in info.QuerystringParams)
         {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             declarations.Add(name + "?: string");
             names.Add(name);
         }
@@ -697,7 +697,7 @@ public static class TypeScriptReactQueryHookExtractor
         var guards = new List<string>();
         if (info.PathParams.Count > 0)
         {
-            guards.Add("!!" + (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            guards.Add("!!" + TypeScriptOperationHelper.ParameterIdentifier(info.PathParams[0], namingStrategy));
         }
 
         if (info.HasBody)

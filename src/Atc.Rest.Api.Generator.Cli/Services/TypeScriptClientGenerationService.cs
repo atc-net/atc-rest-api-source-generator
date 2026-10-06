@@ -31,6 +31,9 @@ public static class TypeScriptClientGenerationService
         // (Note-Size, 3DModel, Company.Api.Thing) are renamed in the document first.
         openApiDoc = SchemaNameNormalizer.WithIdentifierSchemaNames(openApiDoc);
 
+        // A schema named like the client's own exports or a global the code uses (ApiError, Response) is {Name}Model
+        openApiDoc = SchemaNameNormalizer.WithSchemaNamesOutside(openApiDoc, TypeScriptReservedSchemaNames.Names, TypeScriptReservedSchemaNames.Suffix);
+
         // Every extractor looks a body up by its media type: parameters, casing and model-carrying wildcards first.
         // A response declared for a status range is read as its first status.
         MediaTypeNormalizer.WithCanonicalMediaTypes(openApiDoc);

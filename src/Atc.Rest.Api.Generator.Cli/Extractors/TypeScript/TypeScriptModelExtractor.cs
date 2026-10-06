@@ -569,9 +569,11 @@ public static class TypeScriptModelExtractor
             }
         }
 
-        // Detect generic pagination pattern: array property with empty items (items: {})
+        // Detect generic pagination pattern: array property with empty items (items: {}) under one of the pagination
+        // names (results, items, data, ...) - the same gate the C# generator has. Any other untyped array is
+        // unknown[]: a generic model would need a type argument at every reference (TS2314).
         var genericArrayPropName = DetectGenericArrayProperty(properties);
-        var isGeneric = genericArrayPropName is not null;
+        var isGeneric = genericArrayPropName is not null && Generator.Extractors.SchemaExtractor.IsPaginationBaseSchema(schema);
 
         // The Writable request variant is the entity's shape (UserId brands, User's discriminator values),
         // not the variant name's (UserWritableId, which the BrandedIds file never declares).

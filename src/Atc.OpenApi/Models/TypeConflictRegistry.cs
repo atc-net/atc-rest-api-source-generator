@@ -40,6 +40,9 @@ public sealed class TypeConflictRegistry
         "JsonSerializer",        // System.Text.Json.JsonSerializer
         "Attribute",             // System.Attribute
         "Enum",                  // System.Enum
+        "File",                  // System.IO.File (the generated code has a using for Stream)
+        "Path",                  // System.IO.Path
+        "Directory",             // System.IO.Directory
     };
 
     /// <summary>

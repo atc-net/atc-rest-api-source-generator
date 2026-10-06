@@ -263,7 +263,7 @@ public static class TypeScriptSwrHookExtractor
         var keyArgs = new List<string>();
         foreach (var param in info.PathParams)
         {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             hookParams.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
             keyArgs.Add(name);
         }
@@ -276,7 +276,7 @@ public static class TypeScriptSwrHookExtractor
 
         foreach (var param in info.QuerystringParams)
         {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             hookParams.Add(name + "?: string");
             keyArgs.Add(name);
         }
@@ -307,7 +307,7 @@ public static class TypeScriptSwrHookExtractor
         var guards = new List<string>();
         if (info.PathParams.Count > 0)
         {
-            guards.Add((info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            guards.Add(TypeScriptOperationHelper.ParameterIdentifier(info.PathParams[0], namingStrategy));
         }
 
         if (info.HasBody)
@@ -430,7 +430,7 @@ public static class TypeScriptSwrHookExtractor
         var keyArgs = new List<string>();
         foreach (var param in info.PathParams)
         {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             hookParams.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
             keyArgs.Add(name);
         }
@@ -443,7 +443,7 @@ public static class TypeScriptSwrHookExtractor
 
         foreach (var param in info.QuerystringParams)
         {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             hookParams.Add(name + "?: string");
             keyArgs.Add(name);
         }
@@ -475,7 +475,7 @@ public static class TypeScriptSwrHookExtractor
         var guards = new List<string>();
         if (info.PathParams.Count > 0)
         {
-            guards.Add("!" + (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            guards.Add("!" + TypeScriptOperationHelper.ParameterIdentifier(info.PathParams[0], namingStrategy));
         }
 
         if (info.HasBody)

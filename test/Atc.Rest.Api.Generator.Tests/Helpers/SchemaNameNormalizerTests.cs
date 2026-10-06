@@ -93,6 +93,56 @@ public class SchemaNameNormalizerTests
     }
 
     [Fact]
+    public void WithSchemaNamesOutside_RenamesAReservedNameWithTheSuffix_AndEveryReferenceToIt()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.3
+            info: { title: Names, version: 1.0.0 }
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json:
+                          schema: { $ref: '#/components/schemas/Response' }
+            components:
+              schemas:
+                Response:
+                  type: object
+                  properties:
+                    error: { $ref: '#/components/schemas/Error' }
+                Error:
+                  type: object
+                  properties:
+                    code: { type: string }
+                ErrorModel:
+                  type: object
+                  properties:
+                    taken: { type: boolean }
+                Thing:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """);
+
+        var normalized = SchemaNameNormalizer.WithSchemaNamesOutside(document, ["Response", "Error", "Promise"], "Model");
+
+        var schemas = normalized.Components!.Schemas!;
+        Assert.Equal(
+            ["ErrorModel", "ErrorModel2", "ResponseModel", "Thing"],
+            schemas.Keys.OrderBy(k => k, StringComparer.Ordinal),
+            StringComparer.Ordinal);
+        var response = (OpenApiSchema)schemas["ResponseModel"];
+        Assert.Equal("ErrorModel2", ((OpenApiSchemaReference)response.Properties!["error"]).Reference.Id);
+        var body = normalized.Paths["/things"].Operations![HttpMethod.Get].Responses!["200"].Content!["application/json"].Schema;
+        Assert.Equal("ResponseModel", ((OpenApiSchemaReference)body!).Reference.Id);
+        Assert.Same(document, SchemaNameNormalizer.WithSchemaNamesOutside(document, ["Promise"], "Model"));
+    }
+
+    [Fact]
     public void WithIdentifierSchemaNames_NothingToRename_ReturnsTheSameDocument()
     {
         var document = OpenApiDocumentHelper.ParseYaml("""

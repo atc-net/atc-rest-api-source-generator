@@ -59,6 +59,7 @@ public class CompilationVerificationTests
     [InlineData("ComponentsReuse", "ComponentsReuse.yaml")]
     [InlineData("HostileNames", "HostileNames.yaml")]
     [InlineData("HostileSchemas", "HostileSchemas.yaml")]
+    [InlineData("HostileTypeScript", "HostileTypeScript.yaml")]
     public void ClientGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -95,6 +96,7 @@ public class CompilationVerificationTests
     [InlineData("HttpMethods", "HttpMethods.yaml")]
     [InlineData("HostileNames", "HostileNames.yaml")]
     [InlineData("HostileSchemas", "HostileSchemas.yaml")]
+    [InlineData("HostileTypeScript", "HostileTypeScript.yaml")]
     public void ClientGenerator_PerOperation_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -133,6 +135,7 @@ public class CompilationVerificationTests
     [InlineData("CachingOutput", "CachingOutput.yaml")]
     [InlineData("HostileNames", "HostileNames.yaml")]
     [InlineData("HostileSchemas", "HostileSchemas.yaml")]
+    [InlineData("HostileTypeScript", "HostileTypeScript.yaml")]
     public void ServerGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)

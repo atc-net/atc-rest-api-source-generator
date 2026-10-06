@@ -719,7 +719,7 @@ public static class TypeScriptClientExtractor
             sb.Append("    const _basePath = ").Append(interpolatedPath).AppendLine(";");
             if (querystringParams.Count == 1)
             {
-                var qsName = (querystringParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                var qsName = TypeScriptOperationHelper.ParameterIdentifier(querystringParams[0], namingStrategy);
                 sb.Append("    const _url = ").Append(qsName).Append(" ? `${_basePath}?${").Append(qsName).AppendLine("}` : _basePath;");
             }
             else
@@ -727,7 +727,7 @@ public static class TypeScriptClientExtractor
                 sb.AppendLine("    const _rawParts = [");
                 foreach (var qsParam in querystringParams)
                 {
-                    var qsName = (qsParam.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                    var qsName = TypeScriptOperationHelper.ParameterIdentifier(qsParam, namingStrategy);
                     sb.Append("      ").Append(qsName).AppendLine(",");
                 }
 
@@ -863,7 +863,7 @@ public static class TypeScriptClientExtractor
 
         foreach (var param in pathParams)
         {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, path);
             paramParts.Add(paramName + ": " + paramType);
         }
@@ -959,7 +959,7 @@ public static class TypeScriptClientExtractor
         // Path parameters (required)
         foreach (var param in pathParams)
         {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, path);
             parts.Add(paramName + ": " + paramType);
         }
@@ -981,7 +981,7 @@ public static class TypeScriptClientExtractor
         // the query? object so callers can pass the raw query string without wrapping it.
         foreach (var param in querystringParams)
         {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             parts.Add(paramName + "?: string");
         }
 

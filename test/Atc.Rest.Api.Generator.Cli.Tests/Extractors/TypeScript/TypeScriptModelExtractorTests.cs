@@ -42,6 +42,39 @@ public class TypeScriptModelExtractorTests
     }
 
     [Fact]
+    public void Extract_AnUntypedArrayInAPlainObject_IsNoGenericPaginationBase()
+    {
+        // Only a pagination base is generic (Name<T>): a plain object with an untyped array - no page
+        // properties, no schema extending it - is a model whose array is unknown[], or every reference to
+        // it would need a type argument (TS2314).
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info:
+              title: Test
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Catalog:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    entries:
+                      type: array
+                      items: {}
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
+
+        var (name, parameters) = Assert.Single(results);
+        Assert.Equal("Catalog", name);
+        Assert.Equal("Catalog", parameters.TypeName);
+        var entries = Assert.Single(parameters.Properties!, p => p.Name == "entries");
+        Assert.Equal("unknown[]", entries.TypeAnnotation);
+    }
+
+    [Fact]
     public void Extract_AllOfWithoutType_ExtendsTheReferencesAndKeepsTheInlineProperties()
     {
         // Composition usually leaves `type` out; such a schema is still a model, the $ref members are

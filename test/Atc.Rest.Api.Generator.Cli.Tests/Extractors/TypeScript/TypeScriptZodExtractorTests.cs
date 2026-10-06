@@ -14,6 +14,24 @@ public class TypeScriptZodExtractorTests
         string expected)
         => Assert.Equal(expected, TypeScriptZodModelExtractor.ToRegexLiteralBody(pattern));
 
+    /// <summary>
+    /// A pattern written for .NET: the inline options <c>(?i)</c>, <c>(?m)</c>, <c>(?s)</c> are the literal's
+    /// flags (a JavaScript regex has no inline options - a syntax error), <c>\A</c> is <c>^</c> and <c>\Z</c> /
+    /// <c>\z</c> are <c>$</c> (identity escapes that would match a letter).
+    /// </summary>
+    [Theory]
+    [InlineData(@"(?i)^[a-z0-9-]+$", @"/^[a-z0-9-]+$/i")]
+    [InlineData(@"(?is)^a.b$", @"/^a.b$/is")]
+    [InlineData(@"\A[a-z]+\z", @"/^[a-z]+$/")]
+    [InlineData(@"\A[a-z]+\Z", @"/^[a-z]+$/")]
+    [InlineData(@"^\\A$", @"/^\\A$/")]
+    [InlineData(@"^\d{2}/\d{2}$", @"/^\d{2}\/\d{2}$/")]
+    [InlineData(@"^[A-Z]{3}$", @"/^[A-Z]{3}$/")]
+    public void ToRegexLiteral_IsAJavaScriptRegex(
+        string pattern,
+        string expected)
+        => Assert.Equal(expected, TypeScriptZodModelExtractor.ToRegexLiteral(pattern));
+
     [Fact]
     public void ZodEnum_NullDocument_Throws()
     {
@@ -403,6 +421,39 @@ public class TypeScriptZodExtractorTests
 
         // The recursive sub-expression itself is wrapped in z.lazy.
         Assert.Contains("z.lazy(() => z.array(NodeSchema)", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ZodModel_ACycleThroughAnArrayAlias_WrapsWithZLazy()
+    {
+        // Node refers to NodeList, an array alias whose items are Node: the cycle runs through the alias's own
+        // items, which the dependency graph used to miss - the schema loaded with a ReferenceError.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Node:
+                                  type: object
+                                  required: [name]
+                                  properties:
+                                    name:
+                                      type: string
+                                    children:
+                                      $ref: '#/components/schemas/NodeList'
+                                NodeList:
+                                  type: array
+                                  items:
+                                    $ref: '#/components/schemas/Node'
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()), r => r.Name == "Node");
+
+        Assert.Contains("export const NodeSchema: z.ZodType<Node>", content, StringComparison.Ordinal);
+        Assert.Contains("z.lazy(", content, StringComparison.Ordinal);
     }
 
     [Fact]

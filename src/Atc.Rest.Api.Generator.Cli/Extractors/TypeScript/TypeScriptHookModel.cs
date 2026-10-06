@@ -68,7 +68,7 @@ internal static class TypeScriptHookModel
         var hookParams = new List<string>();
         foreach (var param in info.PathParams)
         {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
             hookParams.Add(paramName + ": " + paramType);
         }
@@ -92,7 +92,7 @@ internal static class TypeScriptHookModel
         var clientCallParts = new List<string>();
         foreach (var p in info.PathParams)
         {
-            clientCallParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            clientCallParts.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
         if (info.QueryParams.Count > 0)
@@ -114,7 +114,7 @@ internal static class TypeScriptHookModel
         var depParts = new List<string> { "enabled" };
         foreach (var p in info.PathParams)
         {
-            depParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            depParts.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
         var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0;
@@ -277,7 +277,7 @@ internal static class TypeScriptHookModel
 
         foreach (var param in pathParams)
         {
-            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            args.Add(TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy));
         }
 
         if (hasBody)
@@ -287,7 +287,7 @@ internal static class TypeScriptHookModel
 
         foreach (var param in querystringParams)
         {
-            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            args.Add(TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy));
         }
 
         if (queryParams.Count > 0)
@@ -723,7 +723,7 @@ internal static class TypeScriptHookModel
 
         foreach (var param in info.PathParams)
         {
-            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            args.Add(TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy));
         }
 
         if (info.HasBody)
@@ -733,7 +733,7 @@ internal static class TypeScriptHookModel
 
         foreach (var param in info.QuerystringParams)
         {
-            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            args.Add(TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy));
         }
 
         var token = tokenExpression + " ?? undefined";
@@ -832,7 +832,7 @@ internal static class TypeScriptHookModel
             // Path params as hook params, body as mutation arg
             foreach (var param in info.PathParams)
             {
-                var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
                 var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
                 hookParams.Add(paramName + ": " + paramType);
             }
@@ -855,7 +855,7 @@ internal static class TypeScriptHookModel
             var pathParamNames = new List<string>();
             foreach (var param in info.PathParams)
             {
-                var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
                 var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
                 pathParamParts.Add(paramName + ": " + paramType);
                 pathParamNames.Add(paramName);
@@ -907,7 +907,7 @@ internal static class TypeScriptHookModel
             if (info.PathParams.Count == 1)
             {
                 var param = info.PathParams[0];
-                var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
                 var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
                 mutationArg = "(" + paramName + ": " + paramType + ")";
                 clientCallArgs = paramName;
@@ -917,14 +917,14 @@ internal static class TypeScriptHookModel
             {
                 var paramParts = info.PathParams.Select(p =>
                 {
-                    var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                    var pName = TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy);
                     var pType = TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path);
                     return pName + ": " + pType;
                 }).ToList();
                 mutationArg = "(params: { " + string.Join("; ", paramParts) + " })";
                 clientCallArgs = string.Join(
                     ", ",
-                    info.PathParams.Select(p => "params." + (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
+                    info.PathParams.Select(p => "params." + TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy)));
                 variablesType = "{ " + string.Join("; ", paramParts) + " }";
             }
         }
@@ -1005,7 +1005,7 @@ internal static class TypeScriptHookModel
 
         foreach (var p in info.PathParams)
         {
-            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var pName = TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy);
             keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
             keySpreadValues.Add(pName);
         }
@@ -1023,7 +1023,7 @@ internal static class TypeScriptHookModel
 
         foreach (var p in info.QuerystringParams)
         {
-            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var pName = TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy);
             keyFuncParts.Add(pName + "?: string");
             keySpreadValues.Add(pName);
         }

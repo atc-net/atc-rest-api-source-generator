@@ -909,6 +909,20 @@ public static class TypeScriptOperationHelper
         => IsIdentifier(name) ? name : "'" + name + "'";
 
     /// <summary>
+    /// The identifier a path or querystring parameter is declared and passed as - a parameter of the method, the
+    /// hook and the cache key - in the naming strategy, and never a keyword: <c>class</c>, <c>function</c>,
+    /// <c>package</c> or <c>default</c> are <c>_class</c>, <c>_function</c>, ... (TS1390, TS1212). A query, header
+    /// or cookie parameter is a property of an object and keeps its name (<see cref="PropertyKey"/>).
+    /// </summary>
+    /// <param name="parameter">The parameter.</param>
+    /// <param name="namingStrategy">The naming strategy.</param>
+    /// <returns>The identifier.</returns>
+    public static string ParameterIdentifier(
+        OpenApiParameter parameter,
+        TypeScriptNamingStrategy namingStrategy)
+        => (parameter.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy).ToTypeScriptIdentifier();
+
+    /// <summary>
     /// Optional-chained property access: <c>query?.pageSize</c>, or <c>query?.['page-token']</c> for a name that
     /// is not an identifier.
     /// </summary>
@@ -1033,7 +1047,7 @@ public static class TypeScriptOperationHelper
         var interpolated = path;
         foreach (var param in pathParams)
         {
-            var tsName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var tsName = ParameterIdentifier(param, namingStrategy);
 
             // Every value is percent-encoded: "a/b?c" must stay one path segment, not address another endpoint.
             string value;
