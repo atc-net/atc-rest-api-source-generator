@@ -52,6 +52,9 @@ internal static class SpecificationLoader
             return null;
         }
 
+        // Every extractor looks a body up by its media type: parameters, casing and model-carrying wildcards first
+        MediaTypeNormalizer.WithCanonicalMediaTypes(openApiDoc);
+
         var validationDiagnostics = OpenApiDocumentValidator.Validate(
             strategy,
             openApiDoc,
@@ -89,6 +92,8 @@ internal static class SpecificationLoader
         {
             return null;
         }
+
+        MediaTypeNormalizer.WithCanonicalMediaTypes(document);
 
         var validationDiagnostics = OpenApiDocumentValidator.Validate(
             strategy,
