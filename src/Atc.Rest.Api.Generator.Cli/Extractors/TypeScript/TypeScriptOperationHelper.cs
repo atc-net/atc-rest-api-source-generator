@@ -1158,6 +1158,120 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("  }");
         sb.AppendLine("}");
         sb.AppendLine();
+        AppendFramedStreamParsers(sb);
+    }
+
+    /// <summary>
+    /// Emits the readers of the JSON framings a streamed response comes in: a JSON array read one element at a
+    /// time (any element - an object, an array, a string, a number, a literal - split across chunks anywhere),
+    /// JSON Lines and JSON Text Sequence (RFC 7464). The buffer is consumed by an offset, not copied per item.
+    /// </summary>
+    private static void AppendFramedStreamParsers(StringBuilder sb)
+    {
+        sb.AppendLine("/** The end (exclusive) of the JSON value that starts at `start`, or -1 while the text holds only part of it. A number or a literal at the text's end is complete only when the stream is. */");
+        sb.AppendLine("function scanJsonValue(text: string, start: number, atEnd: boolean): number {");
+        sb.AppendLine("  const first = text.charAt(start);");
+        sb.AppendLine("  if (first === '{' || first === '[') {");
+        sb.AppendLine("    let depth = 0, inStr = false, esc = false;");
+        sb.AppendLine("    for (let i = start; i < text.length; i++) {");
+        sb.AppendLine("      const ch = text.charAt(i);");
+        sb.AppendLine("      if (inStr) { if (esc) esc = false; else if (ch === '\\\\') esc = true; else if (ch === '\"') inStr = false; continue; }");
+        sb.AppendLine("      if (ch === '\"') inStr = true;");
+        sb.AppendLine("      else if (ch === '{' || ch === '[') depth++;");
+        sb.AppendLine("      else if (ch === '}' || ch === ']') { depth--; if (depth === 0) return i + 1; }");
+        sb.AppendLine("    }");
+        sb.AppendLine("    return -1;");
+        sb.AppendLine("  }");
+        sb.AppendLine("  if (first === '\"') {");
+        sb.AppendLine("    let esc = false;");
+        sb.AppendLine("    for (let i = start + 1; i < text.length; i++) {");
+        sb.AppendLine("      const ch = text.charAt(i);");
+        sb.AppendLine("      if (esc) esc = false; else if (ch === '\\\\') esc = true; else if (ch === '\"') return i + 1;");
+        sb.AppendLine("    }");
+        sb.AppendLine("    return -1;");
+        sb.AppendLine("  }");
+        sb.AppendLine("  let i = start;");
+        sb.AppendLine("  while (i < text.length && !' \\t\\r\\n,]}'.includes(text.charAt(i))) i++;");
+        sb.AppendLine("  return i < text.length || atEnd ? i : -1;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** Reads a JSON array one element at a time; values that are not wrapped in an array are read one after the other. */");
+        sb.AppendLine("async function* parseJsonArrayStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {");
+        sb.AppendLine("  let buffer = '';");
+        sb.AppendLine("  let pos = 0;");
+        sb.AppendLine("  let finished = false;");
+        sb.AppendLine("  let inArray: boolean | undefined;");
+        sb.AppendLine("  try {");
+        sb.AppendLine("    while (true) {");
+        sb.AppendLine("      const { done, value } = await reader.read();");
+        sb.AppendLine("      if (done) finished = true; else buffer += decoder.decode(value, { stream: true });");
+        sb.AppendLine("      let ended = false;");
+        sb.AppendLine("      while (true) {");
+        sb.AppendLine("        while (pos < buffer.length && ' \\t\\r\\n,'.includes(buffer.charAt(pos))) pos++;");
+        sb.AppendLine("        if (pos >= buffer.length) break;");
+        sb.AppendLine("        if (inArray === undefined) { inArray = buffer.charAt(pos) === '['; if (inArray) { pos++; continue; } }");
+        sb.AppendLine("        if (inArray && buffer.charAt(pos) === ']') { ended = true; break; }");
+        sb.AppendLine("        const end = scanJsonValue(buffer, pos, done);");
+        sb.AppendLine("        if (end === -1) break;");
+        sb.AppendLine("        yield JSON.parse(buffer.substring(pos, end)) as T;");
+        sb.AppendLine("        pos = end;");
+        sb.AppendLine("      }");
+        sb.AppendLine("      if (ended || done) break;");
+        sb.AppendLine("      if (pos > 0) { buffer = buffer.substring(pos); pos = 0; }");
+        sb.AppendLine("    }");
+        sb.AppendLine("  } finally {");
+        sb.AppendLine("    await releaseReader(reader, finished);");
+        sb.AppendLine("  }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** Reads JSON Lines: one value per line, blank lines skipped, a last line without its newline included. */");
+        sb.AppendLine("async function* parseJsonLinesStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {");
+        sb.AppendLine("  let buffer = '';");
+        sb.AppendLine("  let finished = false;");
+        sb.AppendLine("  try {");
+        sb.AppendLine("    while (true) {");
+        sb.AppendLine("      const { done, value } = await reader.read();");
+        sb.AppendLine("      if (done) { finished = true; break; }");
+        sb.AppendLine("      buffer += decoder.decode(value, { stream: true });");
+        sb.AppendLine("      let nl: number;");
+        sb.AppendLine("      while ((nl = buffer.indexOf('\\n')) !== -1) {");
+        sb.AppendLine("        const line = buffer.substring(0, nl).trim();");
+        sb.AppendLine("        buffer = buffer.substring(nl + 1);");
+        sb.AppendLine("        if (line.length > 0) yield JSON.parse(line) as T;");
+        sb.AppendLine("      }");
+        sb.AppendLine("    }");
+        sb.AppendLine("    const rest = buffer.trim();");
+        sb.AppendLine("    if (rest.length > 0) yield JSON.parse(rest) as T;");
+        sb.AppendLine("  } finally {");
+        sb.AppendLine("    await releaseReader(reader, finished);");
+        sb.AppendLine("  }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** Reads a JSON Text Sequence (RFC 7464): each record is a record separator (0x1E), the JSON text and a newline. */");
+        sb.AppendLine("async function* parseJsonSeqStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {");
+        sb.AppendLine("  let buffer = '';");
+        sb.AppendLine("  let finished = false;");
+        sb.AppendLine("  const parse = (record: string): T | undefined => { const text = record.replace(/\\x1e/g, '').trim(); return text.length > 0 ? JSON.parse(text) as T : undefined; };");
+        sb.AppendLine("  try {");
+        sb.AppendLine("    while (true) {");
+        sb.AppendLine("      const { done, value } = await reader.read();");
+        sb.AppendLine("      if (done) { finished = true; break; }");
+        sb.AppendLine("      buffer += decoder.decode(value, { stream: true });");
+        sb.AppendLine("      let rs: number;");
+        sb.AppendLine("      while ((rs = buffer.indexOf('\\x1e', 1)) !== -1) {");
+        sb.AppendLine("        const item = parse(buffer.substring(0, rs));");
+        sb.AppendLine("        buffer = buffer.substring(rs);");
+        sb.AppendLine("        if (item !== undefined) yield item;");
+        sb.AppendLine("      }");
+        sb.AppendLine("      if (buffer.endsWith('\\n')) { const item = parse(buffer); buffer = ''; if (item !== undefined) yield item; }");
+        sb.AppendLine("    }");
+        sb.AppendLine("    const last = parse(buffer);");
+        sb.AppendLine("    if (last !== undefined) yield last;");
+        sb.AppendLine("  } finally {");
+        sb.AppendLine("    await releaseReader(reader, finished);");
+        sb.AppendLine("  }");
+        sb.AppendLine("}");
+        sb.AppendLine();
     }
 
     /// <summary>

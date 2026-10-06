@@ -64,7 +64,6 @@ public partial class ErrorResponseBodyRuntimeTests
     /// </summary>
     internal static readonly string[] FeatureNotExercised =
     [
-        "JSON Text Sequence and multipart/mixed stream framings.",
         "A browser runtime: the React Query and SWR hooks render with React on jsdom in Node.",
         "The hooks on a 304: a browser cache sends the condition, not a hook.",
         "Webhooks and output caching.",

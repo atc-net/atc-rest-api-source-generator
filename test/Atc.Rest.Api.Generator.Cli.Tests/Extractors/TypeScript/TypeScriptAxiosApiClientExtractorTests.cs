@@ -254,7 +254,9 @@ public class TypeScriptAxiosApiClientExtractorTests
 
         Assert.Contains("async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {", result, StringComparison.Ordinal);
         Assert.Contains("await reader.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
-        Assert.Equal(3, result.Split("await releaseReader(reader, finished);").Length - 1);
+
+        // One per reader: SSE, JSON array, JSON Lines, JSON Text Sequence, multipart
+        Assert.Equal(5, result.Split("await releaseReader(reader, finished);").Length - 1);
         Assert.DoesNotContain("    reader.releaseLock();\n    }", result.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
     }
 

@@ -19,7 +19,9 @@ public static class ResponseBodyClassifier
     {
         var type = (mediaType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
 
-        if (type is "text/event-stream" or "application/jsonl" or "application/x-ndjson" or "application/json-seq")
+        // Every framing a stream comes in (StreamingFraming): multipart/mixed too - boundary-delimited JSON parts,
+        // not a file
+        if (type is "text/event-stream" or "application/jsonl" or "application/x-ndjson" or "application/json-seq" or "multipart/mixed")
         {
             return ResponseBodyKind.Stream;
         }

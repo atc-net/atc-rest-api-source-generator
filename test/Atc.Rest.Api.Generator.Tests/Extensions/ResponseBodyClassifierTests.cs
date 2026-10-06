@@ -40,6 +40,7 @@ public class ResponseBodyClassifierTests
             { "application/jsonl", "none", ResponseBodyKind.Stream },
             { "application/x-ndjson", "object", ResponseBodyKind.Stream },
             { "application/json-seq", "none", ResponseBodyKind.Stream },
+            { "multipart/mixed", "object", ResponseBodyKind.Stream },
 
             // Binary - known file types, and any other media type (never "no body")
             { "application/octet-stream", "binary", ResponseBodyKind.Binary },

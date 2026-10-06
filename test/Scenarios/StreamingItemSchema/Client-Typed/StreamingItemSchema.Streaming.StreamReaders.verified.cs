@@ -56,6 +56,13 @@ internal static class StreamReaders
                         record.SetLength(0);
                     }
                 }
+                else if (buffer[i] == (byte)'\n' && record.Length > 0 && IsCompleteJson(Encoding.UTF8.GetString(record.GetBuffer(), 0, (int)record.Length)))
+                {
+                    // The LF that ends a record: yielded now, not at the next record's separator - a server that fails
+                    // after this record never sends one (a pretty-printed record is complete only once it is balanced)
+                    yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);
+                    record.SetLength(0);
+                }
                 else
                 {
                     record.WriteByte(buffer[i]);
@@ -117,11 +124,41 @@ internal static class StreamReaders
             }
 
             body.Append(line);
+
+            // A body that is complete JSON is yielded now, not at the next boundary - a server that fails after
+            // this part never sends one
+            if (IsCompleteJson(body.ToString()))
+            {
+                yield return JsonSerializer.Deserialize<T>(body.ToString(), options);
+                body.Clear();
+            }
         }
 
         if (inPart && body.Length > 0)
         {
             yield return JsonSerializer.Deserialize<T>(body.ToString(), options);
         }
+    }
+
+    private static bool IsCompleteJson(string text)
+    {
+        var depth = 0;
+        var inString = false;
+        var escaped = false;
+        var seen = false;
+        foreach (var ch in text)
+        {
+            if (inString)
+            {
+                if (escaped) { escaped = false; } else if (ch == '\\') { escaped = true; } else if (ch == '"') { inString = false; }
+                continue;
+            }
+
+            if (char.IsWhiteSpace(ch)) { continue; }
+            seen = true;
+            if (ch == '"') { inString = true; } else if (ch == '{' || ch == '[') { depth++; } else if (ch == '}' || ch == ']') { depth--; }
+        }
+
+        return seen && depth == 0 && !inString;
     }
 }

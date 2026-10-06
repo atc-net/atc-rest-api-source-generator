@@ -214,6 +214,13 @@ public static class StreamReadersExtractor
         sb.AppendLine("                        record.SetLength(0);");
         sb.AppendLine("                    }");
         sb.AppendLine("                }");
+        sb.AppendLine("                else if (buffer[i] == (byte)'\\n' && record.Length > 0 && IsCompleteJson(Encoding.UTF8.GetString(record.GetBuffer(), 0, (int)record.Length)))");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    // The LF that ends a record: yielded now, not at the next record's separator - a server that fails");
+        sb.AppendLine("                    // after this record never sends one (a pretty-printed record is complete only once it is balanced)");
+        sb.AppendLine($"                    yield return {deserializeRecord};");
+        sb.AppendLine("                    record.SetLength(0);");
+        sb.AppendLine("                }");
         sb.AppendLine("                else");
         sb.AppendLine("                {");
         sb.AppendLine("                    record.WriteByte(buffer[i]);");
@@ -296,12 +303,44 @@ public static class StreamReadersExtractor
         sb.AppendLine("            }");
         sb.AppendLine();
         sb.AppendLine("            body.Append(line);");
+        sb.AppendLine();
+        sb.AppendLine("            // A body that is complete JSON is yielded now, not at the next boundary - a server that fails after");
+        sb.AppendLine("            // this part never sends one");
+        sb.AppendLine("            if (IsCompleteJson(body.ToString()))");
+        sb.AppendLine("            {");
+        sb.AppendLine($"                yield return {deserializeBody};");
+        sb.AppendLine("                body.Clear();");
+        sb.AppendLine("            }");
         sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        if (inPart && body.Length > 0)");
         sb.AppendLine("        {");
         sb.AppendLine($"            yield return {deserializeBody};");
         sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // One JSON text, balanced: objects and arrays closed, no open string, something besides whitespace
+        sb.AppendLine("    private static bool IsCompleteJson(string text)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var depth = 0;");
+        sb.AppendLine("        var inString = false;");
+        sb.AppendLine("        var escaped = false;");
+        sb.AppendLine("        var seen = false;");
+        sb.AppendLine("        foreach (var ch in text)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (inString)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                if (escaped) { escaped = false; } else if (ch == '\\\\') { escaped = true; } else if (ch == '\"') { inString = false; }");
+        sb.AppendLine("                continue;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            if (char.IsWhiteSpace(ch)) { continue; }");
+        sb.AppendLine("            seen = true;");
+        sb.AppendLine("            if (ch == '\"') { inString = true; } else if (ch == '{' || ch == '[') { depth++; } else if (ch == '}' || ch == ']') { depth--; }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return seen && depth == 0 && !inString;");
         sb.AppendLine("    }");
 
         sb.AppendLine("}");

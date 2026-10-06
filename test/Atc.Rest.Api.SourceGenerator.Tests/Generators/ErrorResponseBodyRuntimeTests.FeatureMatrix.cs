@@ -5,15 +5,16 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// End-to-end feature matrix: the generated server runs on Kestrel with handlers that stream, page, echo and
 /// version, and every generated client - the C# EndpointPerOperation and typed clients, the TypeScript Fetch
 /// and Axios clients, the Fetch client with Zod runtime validation, and the React Query and SWR hooks rendered
-/// with React - runs each feature against it over HTTP: Server-Sent Events, JSON Lines and a JSON array streamed
-/// as <c>IAsyncEnumerable</c>, each to the end, with the handler failing mid-stream, and cancelled by the client
+/// with React - runs each feature against it over HTTP: Server-Sent Events, JSON Lines, a JSON array, a JSON Text
+/// Sequence and multipart/mixed streamed as <c>IAsyncEnumerable</c>, each to the end, with the handler failing
+/// mid-stream, and cancelled by the client
 /// (the server must see the cancellation); a paginated read walked by its continuation; a <c>oneOf</c> with a
 /// discriminator and a three-level <c>allOf</c> round-tripped through the client; an enum by its value and an
 /// unknown value from the server; a date and a date-time round-tripped; a conditional 304; and a read the client
 /// cancels (the server must see the cancellation).
 /// </summary>
 /// <remarks>
-/// Not exercised: JSON Text Sequence and <c>multipart/mixed</c> framings; a browser runtime (the hooks render with
+/// Not exercised: a browser runtime (the hooks render with
 /// React on jsdom in Node); the React Query and SWR hooks on a 304 (a browser cache sends the condition, not a
 /// hook); a cancelled SWR read (SWR hands its fetcher no signal); webhooks and output caching.
 /// </remarks>
@@ -52,6 +53,24 @@ public partial class ErrorResponseBodyRuntimeTests
                 - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
               responses:
                 '200': { description: Things, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Thing' } } } } }
+          /feature/stream/seq:
+            get:
+              operationId: featureSeq
+              x-return-async-enumerable: true
+              parameters:
+                - { name: count, in: query, required: true, schema: { type: integer, format: int32 } }
+                - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
+              responses:
+                '200': { description: Things, content: { application/json-seq: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/stream/mixed:
+            get:
+              operationId: featureMixed
+              x-return-async-enumerable: true
+              parameters:
+                - { name: count, in: query, required: true, schema: { type: integer, format: int32 } }
+                - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
+              responses:
+                '200': { description: Things, content: { multipart/mixed: { schema: { $ref: '#/components/schemas/Thing' } } } }
           /feature/page:
             get:
               operationId: featurePage
@@ -250,6 +269,18 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(FeatureArrayResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
         }
 
+        public sealed class FeatureSeqHandlerImpl(IHttpContextAccessor accessor) : IFeatureSeqHandler
+        {
+            public System.Threading.Tasks.Task<FeatureSeqResult> ExecuteAsync(FeatureSeqParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(FeatureSeqResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
+        }
+
+        public sealed class FeatureMixedHandlerImpl(IHttpContextAccessor accessor) : IFeatureMixedHandler
+        {
+            public System.Threading.Tasks.Task<FeatureMixedResult> ExecuteAsync(FeatureMixedParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(FeatureMixedResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
+        }
+
         // Five things in pages of pageSize (3 by default): the continuation names the next page
         public sealed class FeaturePageHandlerImpl : IFeaturePageHandler
         {
@@ -330,6 +361,8 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IFeatureSseHandler, FeatureSseHandlerImpl>();
                 services.AddScoped<IFeatureLinesHandler, FeatureLinesHandlerImpl>();
                 services.AddScoped<IFeatureArrayHandler, FeatureArrayHandlerImpl>();
+                services.AddScoped<IFeatureSeqHandler, FeatureSeqHandlerImpl>();
+                services.AddScoped<IFeatureMixedHandler, FeatureMixedHandlerImpl>();
                 services.AddScoped<IFeaturePageHandler, FeaturePageHandlerImpl>();
                 services.AddScoped<IFeatureShapeHandler, FeatureShapeHandlerImpl>();
                 services.AddScoped<IFeatureNestedHandler, FeatureNestedHandlerImpl>();
@@ -520,6 +553,8 @@ public partial class ErrorResponseBodyRuntimeTests
                             {
                                 "FeatureSse" => ct => provider.GetRequiredService<IFeatureSseEndpoint>().ExecuteAsync(new FeatureSseParameters(count, failAfter), httpClientName, ct),
                                 "FeatureLines" => ct => provider.GetRequiredService<IFeatureLinesEndpoint>().ExecuteAsync(new FeatureLinesParameters(count, failAfter), httpClientName, ct),
+                                "FeatureSeq" => ct => provider.GetRequiredService<IFeatureSeqEndpoint>().ExecuteAsync(new FeatureSeqParameters(count, failAfter), httpClientName, ct),
+                                "FeatureMixed" => ct => provider.GetRequiredService<IFeatureMixedEndpoint>().ExecuteAsync(new FeatureMixedParameters(count, failAfter), httpClientName, ct),
                                 _ => ct => provider.GetRequiredService<IFeatureArrayEndpoint>().ExecuteAsync(new FeatureArrayParameters(count, failAfter), httpClientName, ct),
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
@@ -625,6 +660,8 @@ public partial class ErrorResponseBodyRuntimeTests
                             {
                                 "FeatureSse" => ct => client.FeatureSseAsync(new FeatureSseParameters(count, failAfter), ct),
                                 "FeatureLines" => ct => client.FeatureLinesAsync(new FeatureLinesParameters(count, failAfter), ct),
+                                "FeatureSeq" => ct => client.FeatureSeqAsync(new FeatureSeqParameters(count, failAfter), ct),
+                                "FeatureMixed" => ct => client.FeatureMixedAsync(new FeatureMixedParameters(count, failAfter), ct),
                                 _ => ct => client.FeatureArrayAsync(new FeatureArrayParameters(count, failAfter), ct),
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
@@ -913,7 +950,7 @@ public partial class ErrorResponseBodyRuntimeTests
     internal static List<FeatureCase> FeatureCases()
     {
         var cases = new List<FeatureCase>();
-        foreach (var (operation, label) in ((string, string)[])[("FeatureSse", "Server-Sent Events"), ("FeatureLines", "JSON Lines"), ("FeatureArray", "a JSON array as IAsyncEnumerable")])
+        foreach (var (operation, label) in ((string, string)[])[("FeatureSse", "Server-Sent Events"), ("FeatureLines", "JSON Lines"), ("FeatureArray", "a JSON array as IAsyncEnumerable"), ("FeatureSeq", "JSON Text Sequence"), ("FeatureMixed", "multipart/mixed")])
         {
             cases.Add(new($"stream: {label}, five items", "streaming", operation, "stream", new JsonObject { ["count"] = 5 }));
             cases.Add(new($"stream: {label}, the handler fails after two items", "streaming", operation, "stream", new JsonObject { ["count"] = 5, ["failAfter"] = 2 }));

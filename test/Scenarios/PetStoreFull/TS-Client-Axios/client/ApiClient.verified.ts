@@ -72,6 +72,110 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
   }
 }
 
+/** The end (exclusive) of the JSON value that starts at `start`, or -1 while the text holds only part of it. A number or a literal at the text's end is complete only when the stream is. */
+function scanJsonValue(text: string, start: number, atEnd: boolean): number {
+  const first = text.charAt(start);
+  if (first === '{' || first === '[') {
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i++) {
+      const ch = text.charAt(i);
+      if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') inStr = true;
+      else if (ch === '{' || ch === '[') depth++;
+      else if (ch === '}' || ch === ']') { depth--; if (depth === 0) return i + 1; }
+    }
+    return -1;
+  }
+  if (first === '"') {
+    let esc = false;
+    for (let i = start + 1; i < text.length; i++) {
+      const ch = text.charAt(i);
+      if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') return i + 1;
+    }
+    return -1;
+  }
+  let i = start;
+  while (i < text.length && !' \t\r\n,]}'.includes(text.charAt(i))) i++;
+  return i < text.length || atEnd ? i : -1;
+}
+
+/** Reads a JSON array one element at a time; values that are not wrapped in an array are read one after the other. */
+async function* parseJsonArrayStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  let pos = 0;
+  let finished = false;
+  let inArray: boolean | undefined;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) finished = true; else buffer += decoder.decode(value, { stream: true });
+      let ended = false;
+      while (true) {
+        while (pos < buffer.length && ' \t\r\n,'.includes(buffer.charAt(pos))) pos++;
+        if (pos >= buffer.length) break;
+        if (inArray === undefined) { inArray = buffer.charAt(pos) === '['; if (inArray) { pos++; continue; } }
+        if (inArray && buffer.charAt(pos) === ']') { ended = true; break; }
+        const end = scanJsonValue(buffer, pos, done);
+        if (end === -1) break;
+        yield JSON.parse(buffer.substring(pos, end)) as T;
+        pos = end;
+      }
+      if (ended || done) break;
+      if (pos > 0) { buffer = buffer.substring(pos); pos = 0; }
+    }
+  } finally {
+    await releaseReader(reader, finished);
+  }
+}
+
+/** Reads JSON Lines: one value per line, blank lines skipped, a last line without its newline included. */
+async function* parseJsonLinesStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  let finished = false;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { finished = true; break; }
+      buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.substring(0, nl).trim();
+        buffer = buffer.substring(nl + 1);
+        if (line.length > 0) yield JSON.parse(line) as T;
+      }
+    }
+    const rest = buffer.trim();
+    if (rest.length > 0) yield JSON.parse(rest) as T;
+  } finally {
+    await releaseReader(reader, finished);
+  }
+}
+
+/** Reads a JSON Text Sequence (RFC 7464): each record is a record separator (0x1E), the JSON text and a newline. */
+async function* parseJsonSeqStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  let finished = false;
+  const parse = (record: string): T | undefined => { const text = record.replace(/\x1e/g, '').trim(); return text.length > 0 ? JSON.parse(text) as T : undefined; };
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { finished = true; break; }
+      buffer += decoder.decode(value, { stream: true });
+      let rs: number;
+      while ((rs = buffer.indexOf('\x1e', 1)) !== -1) {
+        const item = parse(buffer.substring(0, rs));
+        buffer = buffer.substring(rs);
+        if (item !== undefined) yield item;
+      }
+      if (buffer.endsWith('\n')) { const item = parse(buffer); buffer = ''; if (item !== undefined) yield item; }
+    }
+    const last = parse(buffer);
+    if (last !== undefined) yield last;
+  } finally {
+    await releaseReader(reader, finished);
+  }
+}
+
 const httpErrorArms: readonly string[] = ['badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError'];
 const successArms = ['ok', 'created', 'accepted', 'noContent'] as const;
 
@@ -279,7 +383,6 @@ export class ApiClient {
     }
 
     const decoder = new TextDecoder();
-    let buffer = '';
 
     if (framing === 'sse') {
       yield* parseEventStream<T>(reader, decoder);
@@ -295,17 +398,34 @@ export class ApiClient {
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) { finished = true; break; }
+          if (done) {
+            finished = true;
+            // A last part the stream ended on without its closing boundary (the server failed mid-stream): what it sent is yielded
+            if (buf.startsWith(delimiter)) {
+              const tail = buf.substring(delimiter.length).replace(/^\r\n/, '');
+              const sep = tail.indexOf('\r\n\r\n');
+              const bodyText = sep === -1 || tail.startsWith('--') ? '' : tail.substring(sep + 4).trim();
+              if (bodyText.length > 0 && scanJsonValue(bodyText, 0, true) === bodyText.length) yield JSON.parse(bodyText) as T;
+            }
+            break;
+          }
           buf += decoder.decode(value, { stream: true });
           // Discard preamble (everything before the first delimiter boundary).
           const first = buf.indexOf(delimiter);
-          if (first === -1) { buf = ''; continue; }
+          if (first === -1) { if (buf.length > delimiter.length) buf = buf.substring(buf.length - delimiter.length); continue; }
           if (first > 0) buf = buf.substring(first);
           // Yield each complete part; buf always starts at a delimiter after this loop.
           while (buf.startsWith(delimiter)) {
             const partStart = delimiter.length;
             const next = buf.indexOf(delimiter, partStart);
-            if (next === -1) break;
+            if (next === -1) {
+              // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one
+              const pending = buf.substring(partStart).replace(/^\r\n/, '');
+              const pendingSep = pending.indexOf('\r\n\r\n');
+              const pendingBody = pendingSep === -1 || pending.startsWith('--') ? '' : pending.substring(pendingSep + 4).trim();
+              if (pendingBody.length > 0 && pending.endsWith('\r\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }
+              break;
+            }
             const part = buf.substring(partStart, next);
             buf = buf.substring(next);
             const trimmed = part.replace(/^\r\n/, '');
@@ -322,42 +442,13 @@ export class ApiClient {
       return;
     }
 
-    let finished = false;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { finished = true; break; }
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Extract complete JSON objects from buffer.
-        // Handles JSON array ([{...},{...}]) and NDJSON ({...}\n{...}).
-        while (true) {
-          const objStart = buffer.indexOf('{');
-          if (objStart === -1) { buffer = ''; break; }
-
-          let depth = 0, inStr = false, esc = false, objEnd = -1;
-          for (let i = objStart; i < buffer.length; i++) {
-            const ch = buffer[i];
-            if (esc) { esc = false; continue; }
-            if (ch === '\\' && inStr) { esc = true; continue; }
-            if (ch === '"') { inStr = !inStr; continue; }
-            if (inStr) continue;
-            if (ch === '{') depth++;
-            if (ch === '}') { depth--; if (depth === 0) { objEnd = i; break; } }
-          }
-
-          if (objEnd === -1) {
-            buffer = buffer.substring(objStart);
-            break;
-          }
-
-          yield JSON.parse(buffer.substring(objStart, objEnd + 1)) as T;
-          buffer = buffer.substring(objEnd + 1);
-        }
-      }
-    } finally {
-      await releaseReader(reader, finished);
+    // JSON Lines, JSON Text Sequence, or a JSON array read one element at a time
+    if (framing === 'json-lines') {
+      yield* parseJsonLinesStream<T>(reader, decoder);
+    } else if (framing === 'json-seq') {
+      yield* parseJsonSeqStream<T>(reader, decoder);
+    } else {
+      yield* parseJsonArrayStream<T>(reader, decoder);
     }
   }
 
