@@ -73,13 +73,22 @@ public sealed class TypeConflictRegistry
         ISet<string> conflictingSchemaNames,
         string projectName,
         string? pathSegment,
-        ISet<string>? sharedSchemaNames = null)
+        ISet<string>? sharedSchemaNames = null,
+        bool extensibleEnums = false)
     {
         this.conflictingSchemaNames = conflictingSchemaNames;
         this.projectName = projectName;
         this.pathSegment = pathSegment;
         this.sharedSchemaNames = sharedSchemaNames;
+        ExtensibleEnums = extensibleEnums;
     }
+
+    /// <summary>
+    /// Whether the string enums are generated as extensible enums (a client): a <c>readonly record struct</c> whose
+    /// members are no compile-time constants, so an enum default cannot be a parameter default or a
+    /// <c>[DefaultValue]</c>. Integer enums are C# enums either way.
+    /// </summary>
+    public bool ExtensibleEnums { get; }
 
     /// <summary>
     /// Scans an OpenAPI document once and returns the set of schema names that conflict with reserved .NET types
@@ -170,13 +179,15 @@ public sealed class TypeConflictRegistry
     /// <param name="projectName">The project name for namespace construction.</param>
     /// <param name="pathSegment">Optional path segment for segmented namespaces.</param>
     /// <param name="sharedSchemaNames">Optional names of the schemas generated into the shared models namespace.</param>
+    /// <param name="extensibleEnums">Whether the string enums are extensible enums (a generated client); see <see cref="ExtensibleEnums"/>.</param>
     /// <returns>A registry configured for the specified path segment.</returns>
     public static TypeConflictRegistry ForSegment(
         ISet<string> conflicts,
         string projectName,
         string? pathSegment = null,
-        ISet<string>? sharedSchemaNames = null)
-        => new(conflicts, projectName, pathSegment, sharedSchemaNames);
+        ISet<string>? sharedSchemaNames = null,
+        bool extensibleEnums = false)
+        => new(conflicts, projectName, pathSegment, sharedSchemaNames, extensibleEnums);
 
     /// <summary>
     /// Builds a conflict registry by scanning OpenAPI document schemas.

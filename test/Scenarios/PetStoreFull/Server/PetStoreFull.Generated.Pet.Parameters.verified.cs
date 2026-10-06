@@ -37,7 +37,7 @@ public sealed record AddPetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FindPetsByStatusParameters(
-    [property: FromQuery(Name = "status"), Required] FindPetsByStatusParametersStatus Status);
+    [property: FromQuery(Name = "status"), Required, DefaultValue(FindPetsByStatusParametersStatus.Available)] FindPetsByStatusParametersStatus Status = FindPetsByStatusParametersStatus.Available);
 
 /// <summary>
 /// Parameters for operation request.

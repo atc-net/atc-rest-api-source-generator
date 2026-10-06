@@ -2,6 +2,103 @@ namespace Atc.Rest.Api.Generator.Tests.Extractors;
 
 public class EnumExtractorTests
 {
+    private const string HostileEnumsYaml = """
+        openapi: 3.0.0
+        info: { title: Test API, version: 1.0.0 }
+        paths:
+          /tickets:
+            get:
+              operationId: listTickets
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema: { $ref: '#/components/schemas/Ticket' }
+        components:
+          schemas:
+            Status:
+              enum: [active, archived]
+            Ratio:
+              type: number
+              enum: [0.5, 1.5]
+            Flag:
+              type: boolean
+              enum: [true]
+            Level:
+              type: integer
+              enum: [1, 2, 2, 3]
+              x-enum-varnames: [Low, Medium, MediumAgain, High]
+            Mark:
+              type: string
+              enum: ['', 'a', '2nd']
+            Ticket:
+              type: object
+              properties:
+                status: { $ref: '#/components/schemas/Status' }
+                ratio: { $ref: '#/components/schemas/Ratio' }
+                flag: { $ref: '#/components/schemas/Flag' }
+                level: { $ref: '#/components/schemas/Level' }
+                mark: { $ref: '#/components/schemas/Mark' }
+        """;
+
+    /// <summary>
+    /// An enum without a <c>type</c> (JSON Schema needs none) is the enum its members say: strings make a string enum.
+    /// </summary>
+    [Fact]
+    public void Extract_AnEnumWithoutAType_IsAStringEnum()
+    {
+        var result = EnumExtractor.Extract(ParseYaml(HostileEnumsYaml)!, "TestProject", "Tickets");
+
+        var status = Assert.Single(result!, e => e.EnumTypeName == "Status");
+        Assert.Equal(["Active", "Archived"], status.Values.Select(v => v.Name), StringComparer.Ordinal);
+        Assert.Equal(["active", "archived"], status.Values.Select(v => v.EnumMemberValue), StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A number or boolean enum is no C# enum (nothing holds a double): it is not extracted, and a property that
+    /// references it is the primitive.
+    /// </summary>
+    [Fact]
+    public void Extract_ANumberOrBooleanEnum_IsItsPrimitive_NotAnEnum()
+    {
+        var document = ParseYaml(HostileEnumsYaml)!;
+
+        var result = EnumExtractor.Extract(document, "TestProject", "Tickets");
+        var ticket = (OpenApiSchema)document.Components!.Schemas!["Ticket"];
+
+        Assert.DoesNotContain(result!, e => e.EnumTypeName is "Ratio" or "Flag");
+        Assert.Equal("double?", ticket.Properties!["ratio"].ToCSharpTypeForModel(isRequired: false));
+        Assert.Equal("bool?", ticket.Properties["flag"].ToCSharpTypeForModel(isRequired: false));
+        Assert.Equal("Status?", ticket.Properties["status"].ToCSharpTypeForModel(isRequired: false));
+    }
+
+    /// <summary>
+    /// <c>x-enum-varnames</c> names the members by position, and a value listed twice is one member.
+    /// </summary>
+    [Fact]
+    public void Extract_AnIntegerEnumWithVarnamesAndADuplicate_NamesTheMembers_Once()
+    {
+        var result = EnumExtractor.Extract(ParseYaml(HostileEnumsYaml)!, "TestProject", "Tickets");
+
+        var level = Assert.Single(result!, e => e.EnumTypeName == "Level");
+        Assert.Equal([("Low", 1L), ("Medium", 2L), ("High", 3L)], level.Values.Select(v => (v.Name, v.Value!.Value)));
+    }
+
+    /// <summary>
+    /// The empty string is a value a specification may list: the member <c>Empty</c> carries it on the wire.
+    /// </summary>
+    [Fact]
+    public void Extract_AnEmptyStringMember_IsTheMemberEmpty()
+    {
+        var result = EnumExtractor.Extract(ParseYaml(HostileEnumsYaml)!, "TestProject", "Tickets");
+
+        var mark = Assert.Single(result!, e => e.EnumTypeName == "Mark");
+        var empty = Assert.Single(mark.Values, v => v.Name == "Empty");
+        Assert.Equal(string.Empty, empty.EnumMemberValue);
+        Assert.Equal(3, mark.Values.Count);
+    }
+
     [Fact]
     public void Extract_WithStringEnum_ReturnsEnumParameters()
     {

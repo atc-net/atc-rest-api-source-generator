@@ -140,7 +140,8 @@ public static class EnumExtractor
     /// <param name="enumValues">The list of enum values from an OpenAPI schema.</param>
     /// <returns>List of EnumValueParameters, or null if no valid values could be extracted.</returns>
     internal static List<EnumValueParameters>? ExtractEnumValues(
-        IList<JsonNode>? enumValues)
+        IList<JsonNode>? enumValues,
+        IList<string>? memberNames = null)
     {
         if (enumValues is null || enumValues.Count == 0)
         {
@@ -149,14 +150,22 @@ public static class EnumExtractor
 
         var result = new List<EnumValueParameters>();
         var usedNames = new HashSet<string>(StringComparer.Ordinal);
+        var usedIntegers = new HashSet<long>();
 
-        foreach (var enumValue in enumValues)
+        for (var index = 0; index < enumValues.Count; index++)
         {
+            var enumValue = enumValues[index];
+
             // `null` in the enum list (the OpenAPI 3.1 nullable enum) is no member: null is the absence of a value.
             if (enumValue is null || JsonNullSentinel.IsJsonNullSentinel(enumValue))
             {
                 continue;
             }
+
+            // x-enum-varnames gives the member its name, by position
+            var givenName = memberNames is not null && index < memberNames.Count && !string.IsNullOrWhiteSpace(memberNames[index])
+                ? memberNames[index]
+                : null;
 
             // Integer enum values: synthesise a `Value{n}` identifier (or `ValueNegN`
             // for negatives) and carry the explicit numeric value so the generated
@@ -171,13 +180,21 @@ public static class EnumExtractor
                     System.Globalization.CultureInfo.InvariantCulture,
                     out var intValue))
             {
-                var identifier = intValue >= 0
-                    ? $"Value{intValue}"
-                    : $"ValueNeg{-intValue}";
+                // A value listed twice is one member (two members with one value would not compile)
+                if (!usedIntegers.Add(intValue))
+                {
+                    continue;
+                }
+
+                var identifier = givenName is not null
+                    ? CSharpLiteralHelper.ToEnumMemberName(givenName.ToPascalCase(separators: [' ', '-', '_', ':'], removeSeparators: true))
+                    : intValue >= 0
+                        ? $"Value{intValue}"
+                        : $"ValueNeg{-intValue}";
                 result.Add(new EnumValueParameters(
                     DocumentationTags: null,
                     DescriptionAttribute: null,
-                    Name: identifier,
+                    Name: UniqueName(identifier),
                     EnumMemberValue: null,
                     Value: intValue));
                 continue;
@@ -185,18 +202,25 @@ public static class EnumExtractor
 
             // OpenAPI string enum values are stored as JsonNode
             var valueStr = enumValue.ToString();
-            if (string.IsNullOrEmpty(valueStr))
-            {
-                continue;
-            }
 
             // A string value is taken as it is (it may itself end in a quote); anything else by its text
             var originalValue = enumValue is JsonValue stringValue && stringValue.GetValueKind() == JsonValueKind.String
                 ? stringValue.GetValue<string>()
-                : valueStr!.Trim('"');
+                : (valueStr ?? string.Empty).Trim('"');
 
+            // The empty string is a value a specification may list ("", "a", "b"): the member Empty carries it
             if (string.IsNullOrEmpty(originalValue))
             {
+                if (enumValue is JsonValue emptyValue && emptyValue.GetValueKind() == JsonValueKind.String)
+                {
+                    result.Add(new EnumValueParameters(
+                        DocumentationTags: null,
+                        DescriptionAttribute: null,
+                        Name: UniqueName(givenName ?? "Empty"),
+                        EnumMemberValue: string.Empty,
+                        Value: null));
+                }
+
                 continue;
             }
 
@@ -206,7 +230,13 @@ public static class EnumExtractor
             string name;
             string? enumMemberValue;
 
-            if (needsTransformation)
+            if (givenName is not null)
+            {
+                // x-enum-varnames names the member; the value stays on the wire
+                name = givenName.ToPascalCase(separators: [' ', '-', '_', ':'], removeSeparators: true);
+                enumMemberValue = originalValue;
+            }
+            else if (needsTransformation)
             {
                 // Transform to valid C# identifier
                 name = originalValue.ToPascalCase(separators: [' ', '-', '_', ':'], removeSeparators: true);
@@ -227,7 +257,19 @@ public static class EnumExtractor
                 enumMemberValue = originalValue;
             }
 
-            // Two values that give the same name ("in-progress", "in_progress") stay two members
+            result.Add(new EnumValueParameters(
+                DocumentationTags: null,
+                DescriptionAttribute: null,
+                Name: UniqueName(name),
+                EnumMemberValue: enumMemberValue,
+                Value: null));
+        }
+
+        return result.Count > 0 ? result : null;
+
+        // Two values that give the same name ("in-progress", "in_progress") stay two members
+        string UniqueName(string name)
+        {
             var uniqueName = name;
             var suffix = 1;
             while (!usedNames.Add(uniqueName))
@@ -236,18 +278,19 @@ public static class EnumExtractor
                 uniqueName = name + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
 
-            name = uniqueName;
-
-            result.Add(new EnumValueParameters(
-                DocumentationTags: null,
-                DescriptionAttribute: null,
-                Name: name,
-                EnumMemberValue: enumMemberValue,
-                Value: null));
+            return uniqueName;
         }
-
-        return result.Count > 0 ? result : null;
     }
+
+    /// <summary>
+    /// The member names an <c>x-enum-varnames</c> extension gives, by position; <see langword="null"/> without one.
+    /// </summary>
+    internal static List<string>? MemberNamesOf(IOpenApiSchema schema)
+        => schema.Extensions is { } extensions &&
+           extensions.TryGetValue("x-enum-varnames", out var extension) &&
+           extension is JsonNodeExtension { Node: JsonArray names }
+            ? names.Select(n => n is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : string.Empty).ToList()
+            : null;
 
     /// <summary>
     /// Core extraction logic for enum definitions.
@@ -297,7 +340,9 @@ public static class EnumExtractor
     }
 
     /// <summary>
-    /// Checks if a schema represents an enum (string type with enum values).
+    /// Checks if a schema represents an enum the generator writes as a C# enum: string or integer members - the
+    /// type as written, or as the members say when the schema has no <c>type</c>. A number or boolean enum is its
+    /// primitive (no C# enum holds a double).
     /// </summary>
     private static bool IsEnumSchema(OpenApiSchema schema)
     {
@@ -321,7 +366,7 @@ public static class EnumExtractor
         OpenApiSchema schema,
         string ns)
     {
-        var enumValues = ExtractEnumValues(schema.Enum);
+        var enumValues = ExtractEnumValues(schema.Enum, MemberNamesOf(schema));
         if (enumValues is null)
         {
             return null;

@@ -516,6 +516,27 @@ public class OpenApiSchemaExtensionsTests
     }
 
     /// <summary>
+    /// An integer whose bounds do not fit an <c>int</c> (a Unix timestamp in milliseconds, an unsigned 32-bit id) is
+    /// a <c>long</c>, for a model, a parameter and a type name.
+    /// </summary>
+    [Theory]
+    [InlineData("4294967295", null, "long")]
+    [InlineData(null, "-2147483649", "long")]
+    [InlineData("2147483647", "-2147483648", "int")]
+    [InlineData("100", null, "int")]
+    public void AnIntegerWithBoundsPastInt32_IsALong(
+        string? maximum,
+        string? minimum,
+        string expected)
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.Integer, Maximum = maximum, Minimum = minimum };
+
+        Assert.Equal(expected, schema.GetCSharpTypeName());
+        Assert.Equal(expected, schema.ToCSharpType(isRequired: true));
+        Assert.Equal(expected, schema.ToCSharpTypeForModel(isRequired: true));
+    }
+
+    /// <summary>
     /// A <c>const</c> without a <c>type</c> (JSON Schema 2020-12 needs none) is the type of its value: the reader
     /// keeps a const as text, so it is a string - not <c>object</c>, which no client could pass the value to.
     /// </summary>

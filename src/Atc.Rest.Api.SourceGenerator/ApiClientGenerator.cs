@@ -349,7 +349,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         if (sharedSchemas.Count > 0)
         {
             // Create conflict registry for shared types (no segment)
-            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
+            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, extensibleEnums: config.ExtensibleEnums);
 
             GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
             GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, config.ExtensibleEnums);
@@ -374,7 +374,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
 
             // Create conflict registry for this path segment (lightweight: O(1))
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas);
+            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, config.ExtensibleEnums);
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
@@ -918,7 +918,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Empty segment => everything is emitted directly under "{projectName}.Generated[.Models]".
         const string NoSegment = "";
 
-        var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, NoSegment);
+        var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, NoSegment, extensibleEnums: config.ExtensibleEnums);
 
         var allSchemas = openApiDoc.Components?.Schemas?.Keys is { } keys
             ? new HashSet<string>(keys, StringComparer.Ordinal)

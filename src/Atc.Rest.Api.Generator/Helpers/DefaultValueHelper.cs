@@ -25,10 +25,12 @@ public static class DefaultValueHelper
     /// </summary>
     /// <param name="schemaInterface">The OpenAPI schema interface.</param>
     /// <param name="csharpTypeName">The C# type name for the property/parameter.</param>
+    /// <param name="registry">The registry of the generation: a client's extensible string enum has no constant member to be a default.</param>
     /// <returns>The formatted default value, or null if no default is specified.</returns>
     public static string? ExtractSchemaDefault(
         IOpenApiSchema? schemaInterface,
-        string csharpTypeName)
+        string csharpTypeName,
+        TypeConflictRegistry? registry = null)
     {
         if (schemaInterface is not OpenApiSchema schema)
         {
@@ -45,6 +47,15 @@ public static class DefaultValueHelper
         if (string.IsNullOrEmpty(rawValue))
         {
             return null;
+        }
+
+        // An enum's default is its member: `Color Color = Color.Red`, `Priority Priority = Priority.Value2`
+        var enumSchema = schema.Enum is { Count: > 0 } ? schema : schema.WrappedEnum();
+        if (enumSchema is not null)
+        {
+            return schema.HasConstantDefault(registry)
+                ? EnumMemberFor(enumSchema, rawValue, csharpTypeName)
+                : null;
         }
 
         return FormatDefaultValue(rawValue, csharpTypeName);
@@ -129,6 +140,20 @@ public static class DefaultValueHelper
     /// <summary>
     /// Strips surrounding quotes from a string value if present.
     /// </summary>
+    private static string? EnumMemberFor(
+        OpenApiSchema enumSchema,
+        string rawValue,
+        string csharpTypeName)
+    {
+        var members = Extractors.EnumExtractor.ExtractEnumValues(enumSchema.Enum, Extractors.EnumExtractor.MemberNamesOf(enumSchema));
+        var wire = rawValue.Trim('"');
+        var member = members?.FirstOrDefault(m =>
+            string.Equals(m.EnumMemberValue ?? m.Name, wire, StringComparison.Ordinal) ||
+            (m.Value is { } number && long.TryParse(wire, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var asNumber) && number == asNumber));
+
+        return member is null ? null : $"{csharpTypeName.TrimEnd('?')}.{member.Name}";
+    }
+
     private static string StripQuotes(string value)
     {
         if (value.StartsWith("\"", StringComparison.Ordinal) &&

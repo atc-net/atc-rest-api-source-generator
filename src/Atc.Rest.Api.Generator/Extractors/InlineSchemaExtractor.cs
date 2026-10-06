@@ -107,7 +107,7 @@ public static class InlineSchemaExtractor
             IList<AttributeParameters>? attributes = BuildAttributes(prop.Key, propName, validationAttributes);
 
             // Extract default value (null for an optional property: it may be absent)
-            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName), isRequired, isNullableType);
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,
@@ -213,7 +213,7 @@ public static class InlineSchemaExtractor
 
             IList<AttributeParameters>? attributes = BuildAttributes(prop.Key, propName, validationAttributes);
 
-            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName), isRequired, isNullableType);
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,

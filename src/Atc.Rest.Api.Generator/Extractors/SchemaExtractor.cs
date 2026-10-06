@@ -842,7 +842,7 @@ public static class SchemaExtractor
                 : null;
 
             // Extract default value from schema (null for an optional property: it may be absent)
-            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName), isRequired, isNullableType);
+            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
             var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
@@ -1020,8 +1020,9 @@ public static class SchemaExtractor
     /// </summary>
     private static string? ExtractSchemaDefault(
         IOpenApiSchema? schemaInterface,
-        string typeName)
-        => DefaultValueHelper.ExtractSchemaDefault(schemaInterface, typeName);
+        string typeName,
+        TypeConflictRegistry? registry)
+        => DefaultValueHelper.ExtractSchemaDefault(schemaInterface, typeName, registry);
 
     /// <summary>
     /// Extracts a single record definition from an OpenAPI schema, with inline enum support.
@@ -1081,8 +1082,8 @@ public static class SchemaExtractor
                 var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey);
                 csharpType = enumTypeName ?? "string";
 
-                // Handle nullable for inline enums
-                if (!isRequired || actualSchema.IsNullable())
+                // Handle nullable for inline enums: optional without a default, or nullable by the schema
+                if ((!isRequired && !actualSchema.HasConstantDefault(registry)) || actualSchema.IsNullable())
                 {
                     csharpType += "?";
                 }
@@ -1158,7 +1159,7 @@ public static class SchemaExtractor
                 : null;
 
             // Extract default value from schema (null for an optional property: it may be absent)
-            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName), isRequired, isNullableType);
+            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
             var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;

@@ -57,6 +57,8 @@ public class CompilationVerificationTests
     [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
     [InlineData("ParameterSerialization", "ParameterSerialization.yaml")]
     [InlineData("ComponentsReuse", "ComponentsReuse.yaml")]
+    [InlineData("HostileNames", "HostileNames.yaml")]
+    [InlineData("HostileSchemas", "HostileSchemas.yaml")]
     public void ClientGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -91,6 +93,8 @@ public class CompilationVerificationTests
     // the static HttpMethod.Query property rather than new HttpMethod("QUERY"). Compiling it
     // here is what proves that property actually exists on the targeted framework.
     [InlineData("HttpMethods", "HttpMethods.yaml")]
+    [InlineData("HostileNames", "HostileNames.yaml")]
+    [InlineData("HostileSchemas", "HostileSchemas.yaml")]
     public void ClientGenerator_PerOperation_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -127,6 +131,8 @@ public class CompilationVerificationTests
     [InlineData("ComponentsReuse", "ComponentsReuse.yaml")]
     [InlineData("RateLimit", "RateLimit.yaml")]
     [InlineData("CachingOutput", "CachingOutput.yaml")]
+    [InlineData("HostileNames", "HostileNames.yaml")]
+    [InlineData("HostileSchemas", "HostileSchemas.yaml")]
     public void ServerGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
