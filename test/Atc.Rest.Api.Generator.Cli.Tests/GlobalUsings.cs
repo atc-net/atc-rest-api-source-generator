@@ -40,4 +40,4 @@ global using Microsoft.OpenApi;
 global using Spectre.Console;
 global using Spectre.Console.Cli;
 
-global using Xunit;
+global using Xunit;global using Atc.Rest.Api.Tests.Node;

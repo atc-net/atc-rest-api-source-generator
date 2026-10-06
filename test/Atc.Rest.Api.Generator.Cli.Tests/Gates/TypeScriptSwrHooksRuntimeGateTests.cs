@@ -394,13 +394,7 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
             // ESM hoists the transport's imports, so the pieces concatenate as they are.
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), Prelude + transport + Cases);
 
-            var install = NodeToolchain.RunNpm(
-                "install --no-audit --no-fund --loglevel=error",
-                workDir,
-                TimeSpan.FromMinutes(5));
-            Assert.True(
-                install.ExitCode == 0,
-                $"npm install failed (exit {install.ExitCode}):\n{install.Output}");
+            NodeWorkspace.Link(workDir);
 
             var run = NodeToolchain.RunNpx(
                 "tsx harness.mts",

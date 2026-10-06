@@ -81,7 +81,7 @@
   .v { display: inline-block; font: 500 11px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
   .v.pass { background: var(--pass-soft); color: var(--pass); } .v.lossy { background: var(--lossy-soft); color: var(--lossy); }
   .v.fail { background: var(--fail-soft); color: var(--fail); } .v.platform { background: var(--platform-soft); color: var(--platform); }
-  .v.na { background: var(--na-soft); color: var(--na); } .v.known { background: var(--design-soft); color: var(--design); }
+  .v.na { background: var(--na-soft); color: var(--na); } .v.known { background: var(--design-soft); color: var(--design); } .v.harness { background: var(--fail-soft); color: var(--fail); outline: 1px dashed var(--fail); }
   .lk { display: inline-block; font: 500 10.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 1px 6px; margin-left: 4px; border-radius: 4px; border: 1px solid var(--lossy); color: var(--lossy); white-space: nowrap; vertical-align: 1px; }
   .lk.good { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
   .lk.by-design { border-color: var(--design); color: var(--design); background: var(--design-soft); }
@@ -113,7 +113,7 @@
   .pivot td { white-space: nowrap; }
   .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; min-width: 90px; background: var(--na-soft); }
   .bar i { display: block; height: 100%; }
-  .bar .pass { background: var(--pass); } .bar .lossy { background: var(--lossy); } .bar .fail { background: var(--fail); } .bar .platform { background: var(--platform); }
+  .bar .pass { background: var(--pass); } .bar .lossy { background: var(--lossy); } .bar .fail { background: var(--fail); } .bar .platform { background: var(--platform); } .bar .harness { background: var(--fail); }
   .counts { font: 11px/1.4 "IBM Plex Mono", ui-monospace, monospace; color: var(--muted); }
   .filters { display: grid; gap: 12px; }
   .filters .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
@@ -198,6 +198,7 @@
           <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400. The badge next to it says what was lost; its colour is our <i>suggested</i> assessment (see <b>Design review</b> below): <span class="lvl good">good</span> <span class="lvl by-design">by design</span> <span class="lvl improve">design iteration</span> <span class="lvl fix">fix</span>.</span></div>
           <div class="loss-legend" id="loss-legend"></div>
           <div><span class="v fail">fail</span><span>The contract is broken: a wrong status, accessor, type, arm or field value, or an exception. A fail that a matrix's ratchet lists is <span class="v known">known</span> - expected, with a recorded reason; any other fail is a regression and fails the test.</span></div>
+          <div><span class="v harness">harness</span><span>Not judged: the client's test harness did not run (a non-zero exit, no results) - the cell carries the tail of its output. One column, never the whole matrix; it is never a known failure, so the run is not green.</span></div>
           <div><span class="v platform">platform</span><span>Outside the generated code: the runtime itself refuses the response (reproduced with a plain call).</span></div>
           <div><span class="v na">na</span><span>Not applicable: a 1xx status is never a final response (RFC 9110 §15.2), so no factory, accessor or arm exists - the server row checks that none is generated.</span></div>
         </div>
@@ -306,7 +307,7 @@
 const REPORT = /*__REPORT_DATA__*/null;
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const VERDICTS = ['pass', 'lossy', 'fail', 'platform'];
+const VERDICTS = ['pass', 'lossy', 'fail', 'harness', 'platform'];
 // What a lossy cell lost (cell.loss, set by the test's verdict code from the run): the badge next to "lossy".
 const LOSS_KINDS = {
   'fields': {
@@ -588,7 +589,7 @@ if (!REPORT) {
         }
         switch (state.verdict) {
           case 'nonpass': return cells.some((v) => v !== 'pass') || c.wire.verdict !== 'pass';
-          case 'fail': return cells.includes('fail') || c.wire.verdict === 'fail';
+          case 'fail': return cells.includes('fail') || cells.includes('harness') || c.wire.verdict === 'fail';
           case 'lossy': return cells.includes('lossy');
           case 'formatsdiffer': return formatsDiffer(c);
           default: return true;

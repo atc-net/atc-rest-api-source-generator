@@ -48,6 +48,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The one npm workspace every runtime matrix installs from (test/NodeWorkspace), shared with the CLI tests as source -->
+    <Compile Include="..\NodeWorkspace\NodeWorkspace.cs" Link="Generators\NodeWorkspace.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Direct reference to Generator for testing its types (CasingHelper, OpenApiDocumentValidator, etc.) -->
     <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator\Atc.Rest.Api.Generator.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>

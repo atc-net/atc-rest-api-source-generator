@@ -868,12 +868,13 @@ public partial class ErrorResponseBodyRuntimeTests
             var clients = new JsonObject();
             foreach (var client in GuardClients)
             {
+                var tsRecord = client.Id.StartsWith("ts-", StringComparison.Ordinal) ? typeScript[client.Id].GetValueOrDefault(guardCase.Name) : null;
                 var observed = client.Id.StartsWith("ts-", StringComparison.Ordinal)
-                    ? typeScript[client.Id].GetValueOrDefault(guardCase.Name)?["calls"]?.AsArray()
+                    ? tsRecord?["calls"]?.AsArray()
                     : rows[client.Id].GetValueOrDefault(guardCase.Name) is { } row ? JsonNode.Parse(row)!["calls"]!.AsArray() : null;
                 var probe = client.Id + "|" + guardCase.Name;
                 var entries = log.Where(e => e.Probe == probe).Select(e => e.Entry).ToList();
-                var cell = GuardVerdict(guardCase, client, observed, entries);
+                var cell = HarnessCell(tsRecord) ?? GuardVerdict(guardCase, client, observed, entries);
                 cell["server"] = string.Join(", ", entries.Select(e => $"{e.Status}{(e.RetryAfter is null ? string.Empty : " RA=" + e.RetryAfter)}"));
                 clients[client.Id] = cell;
             }
@@ -935,19 +936,16 @@ public partial class ErrorResponseBodyRuntimeTests
             File.WriteAllText(Path.Combine(work, "tsconfig.json"), E2ETsConfig);
             File.WriteAllText(Path.Combine(work, "harness.mts"), GuardHarness);
 
-            var install = RunTool("npm", "install --no-audit --no-fund --loglevel=error", work, TimeSpan.FromMinutes(5));
-            Assert.True(install.ExitCode == 0, $"npm install failed:\n{install.Output}");
+            NodeWorkspace.Link(work);
 
             var result = new Dictionary<string, Dictionary<string, JsonObject>>(StringComparer.Ordinal);
             foreach (var client in (string[])["fetch", "axios"])
             {
                 File.WriteAllText(Path.Combine(work, "cases.json"), new JsonObject { ["baseUrl"] = baseAddress.ToString().TrimEnd('/'), ["cases"] = GuardCasesJson(cases, "ts-" + client) }.ToJsonString());
                 var run = RunTool("npx", $"tsx harness.mts {client}", work, TimeSpan.FromMinutes(5));
-                Assert.True(run.ExitCode == 0, $"TypeScript {client} harness failed:\n{run.Output}");
 
-                result["ts-" + client] = JsonNode.Parse(File.ReadAllText(Path.Combine(work, $"results-{client}.json")))!.AsArray()
-                    .Select(n => n!.AsObject())
-                    .ToDictionary(o => (string)o["name"]!, o => o, StringComparer.Ordinal);
+                // A harness that did not run is one red column, not the end of the matrix
+                result["ts-" + client] = ReadHarnessResults(work, client, run.ExitCode, run.Output, cases.Select(c => c.Name));
             }
 
             return result;

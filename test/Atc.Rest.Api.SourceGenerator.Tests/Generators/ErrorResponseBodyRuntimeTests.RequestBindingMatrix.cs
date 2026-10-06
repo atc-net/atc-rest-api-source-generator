@@ -956,9 +956,9 @@ public partial class ErrorResponseBodyRuntimeTests
                 var observed = client.Id.StartsWith("ts-", StringComparison.Ordinal)
                     ? typeScript[client.Id].GetValueOrDefault(bindingCase.Name)
                     : rows[client.Id].GetValueOrDefault(bindingCase.Name) is { } row ? JsonNode.Parse(row)!.AsObject() : null;
-                clients[client.Id] = observed is null
+                clients[client.Id] = HarnessCell(observed) ?? (observed is null
                     ? Cell(VerdictFail, "no result recorded for the case", "-")
-                    : RequestBindingVerdict(bindingCase.Expected!, observed);
+                    : RequestBindingVerdict(bindingCase.Expected!, observed));
             }
 
             casesArray.Add(new JsonObject
@@ -1129,18 +1129,15 @@ public partial class ErrorResponseBodyRuntimeTests
             File.WriteAllText(Path.Combine(work, "harness.mts"), RequestBindingHarness);
             File.WriteAllText(Path.Combine(work, "cases.json"), new JsonObject { ["baseUrl"] = baseAddress.ToString().TrimEnd('/'), ["cases"] = JsonNode.Parse(casesJson) }.ToJsonString());
 
-            var install = RunTool("npm", "install --no-audit --no-fund --loglevel=error", work, TimeSpan.FromMinutes(5));
-            Assert.True(install.ExitCode == 0, $"npm install failed:\n{install.Output}");
+            NodeWorkspace.Link(work);
 
             var result = new Dictionary<string, Dictionary<string, JsonObject>>(StringComparer.Ordinal);
             foreach (var client in (string[])["fetch", "axios", "axios-fetch"])
             {
                 var run = RunTool("npx", $"tsx harness.mts {client}", work, TimeSpan.FromMinutes(5));
-                Assert.True(run.ExitCode == 0, $"TypeScript {client} harness failed:\n{run.Output}");
 
-                result["ts-" + client] = JsonNode.Parse(File.ReadAllText(Path.Combine(work, $"results-{client}.json")))!.AsArray()
-                    .Select(n => n!.AsObject())
-                    .ToDictionary(o => (string)o["name"]!, o => o, StringComparer.Ordinal);
+                // A harness that did not run is one red column, not the end of the matrix
+                result["ts-" + client] = ReadHarnessResults(work, client, run.ExitCode, run.Output, JsonNode.Parse(casesJson)!.AsArray().Select(c => (string)c!["name"]!));
             }
 
             return result;

@@ -69,13 +69,7 @@ public sealed class TypeScriptClientRetryGateTests
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), harness + Cases);
 
-            var install = NodeToolchain.RunNpm(
-                "install --no-audit --no-fund --loglevel=error",
-                workDir,
-                TimeSpan.FromMinutes(5));
-            Assert.True(
-                install.ExitCode == 0,
-                $"npm install failed (exit {install.ExitCode}):\n{install.Output}");
+            NodeWorkspace.Link(workDir);
 
             var tsc = NodeToolchain.RunNpx(
                 "tsc -p .",

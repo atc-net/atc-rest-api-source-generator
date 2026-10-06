@@ -76,8 +76,7 @@ public sealed class TypeScriptWireNamesGateTests
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), harness + Cases);
 
-            var install = NodeToolchain.RunNpm("install --no-audit --no-fund --loglevel=error", workDir, TimeSpan.FromMinutes(5));
-            Assert.True(install.ExitCode == 0, $"npm install failed (exit {install.ExitCode}):\n{install.Output}");
+            NodeWorkspace.Link(workDir);
 
             var typeCheck = NodeToolchain.RunNpx("tsc --noEmit -p tsconfig.json", workDir, TimeSpan.FromMinutes(3));
             Assert.True(typeCheck.ExitCode == 0, $"The generated {httpClient} client does not type-check:\n{typeCheck.Output}");
@@ -89,7 +88,7 @@ public sealed class TypeScriptWireNamesGateTests
         {
             try
             {
-                Directory.Delete(workDir, recursive: true);
+                NodeWorkspace.Delete(workDir);
             }
             catch (IOException)
             {

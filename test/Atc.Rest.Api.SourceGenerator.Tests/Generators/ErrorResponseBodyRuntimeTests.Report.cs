@@ -314,7 +314,9 @@ public partial class ErrorResponseBodyRuntimeTests
                     clients.Add(cell.Key);
                     var verdict = (string)cell.Value!["verdict"]!;
                     tally[verdict] = tally.GetValueOrDefault(verdict) + 1;
-                    if (!string.Equals(verdict, "fail", StringComparison.Ordinal))
+
+                    // A harness that did not run is never a known failure: the column was not judged at all
+                    if (verdict is not ("fail" or VerdictHarness))
                     {
                         continue;
                     }

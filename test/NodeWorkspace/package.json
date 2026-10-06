@@ -1,0 +1,27 @@
+{
+  "name": "atc-rest-api-gates",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The one npm workspace every TypeScript gate and runtime matrix of the test suite installs - once per machine, from the lockfile - so that no test run depends on the registry's newest versions or on concurrent installs.",
+  "type": "module",
+  "dependencies": {
+    "@tanstack/react-query": "5.104.1",
+    "@xmldom/xmldom": "0.9.12",
+    "axios": "1.20.0",
+    "msw": "2.15.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "swr": "2.5.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "22.20.5",
+    "@types/react": "18.3.31",
+    "global-jsdom": "25.0.0",
+    "jsdom": "25.0.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

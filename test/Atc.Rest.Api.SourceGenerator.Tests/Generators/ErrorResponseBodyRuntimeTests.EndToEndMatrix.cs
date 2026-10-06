@@ -1366,6 +1366,11 @@ public partial class ErrorResponseBodyRuntimeTests
         WireResult wire,
         JsonObject? result)
     {
+        if (HarnessCell(result) is { } harness)
+        {
+            return harness;
+        }
+
         if (result is null)
         {
             return Cell(VerdictFail, "the client produced no result", "(missing)");
@@ -1505,6 +1510,11 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject? result,
         string[] arms)
     {
+        if (HarnessCell(result) is { } harness)
+        {
+            return harness;
+        }
+
         if (result is null)
         {
             return Cell(VerdictFail, "the client produced no result", "(missing)");
@@ -1802,21 +1812,18 @@ public partial class ErrorResponseBodyRuntimeTests
             ]);
             File.WriteAllText(Path.Combine(work, "cases.json"), new JsonObject { ["baseUrl"] = baseAddress.ToString().TrimEnd('/'), ["cases"] = caseList }.ToJsonString());
 
-            var install = RunTool("npm", "install --no-audit --no-fund --loglevel=error", work, TimeSpan.FromMinutes(5));
-            Assert.True(install.ExitCode == 0, $"npm install failed:\n{install.Output}");
+            NodeWorkspace.Link(work);
 
             var result = new Dictionary<string, (Dictionary<string, JsonObject>, Dictionary<string, string[]>)>(StringComparer.Ordinal);
             foreach (var client in (string[])["fetch", "axios"])
             {
                 var run = RunTool("npx", $"tsx harness.mts {client}", work, TimeSpan.FromMinutes(5));
-                Assert.True(run.ExitCode == 0, $"TypeScript {client} harness failed:\n{run.Output}");
 
-                var records = JsonNode.Parse(File.ReadAllText(Path.Combine(work, $"results-{client}.json")))!.AsArray()
-                    .Select(n => n!.AsObject())
-                    .ToDictionary(o => (string)o["name"]!, StringComparer.Ordinal);
+                // A harness that did not run is one red column, not the end of the matrix
+                var records = ReadHarnessResults(work, client, run.ExitCode, run.Output, cases.Select(c => c.Name));
                 Assert.True(records.Count == cases.Count, $"TypeScript {client}: {records.Count} results for {cases.Count} cases");
 
-                result["ts-" + client] = (records, ReadArms(Path.Combine(work, client, "client")));
+                result["ts-" + client] = (records, run.ExitCode == 0 ? ReadArms(Path.Combine(work, client, "client")) : new Dictionary<string, string[]>(StringComparer.Ordinal));
             }
 
             return result;

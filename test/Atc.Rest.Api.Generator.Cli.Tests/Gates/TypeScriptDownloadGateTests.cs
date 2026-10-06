@@ -48,8 +48,7 @@ public sealed class TypeScriptDownloadGateTests
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), Harness);
 
-            var install = NodeToolchain.RunNpm("install --no-audit --no-fund --loglevel=error", workDir, TimeSpan.FromMinutes(5));
-            Assert.True(install.ExitCode == 0, $"npm install failed (exit {install.ExitCode}):\n{install.Output}");
+            NodeWorkspace.Link(workDir);
 
             var run = NodeToolchain.RunNpx("tsx harness.mts", workDir, TimeSpan.FromMinutes(3));
             Assert.True(run.ExitCode == 0, $"Download gate failed (exit {run.ExitCode}):\n{run.Output}");
@@ -58,7 +57,7 @@ public sealed class TypeScriptDownloadGateTests
         {
             try
             {
-                Directory.Delete(workDir, recursive: true);
+                NodeWorkspace.Delete(workDir);
             }
             catch (IOException)
             {

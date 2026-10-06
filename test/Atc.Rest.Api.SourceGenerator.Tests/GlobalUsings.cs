@@ -44,4 +44,4 @@ global using Microsoft.OpenApi;
 
 global using VerifyXunit;
 
-global using Xunit;
+global using Xunit;global using Atc.Rest.Api.Tests.Node;

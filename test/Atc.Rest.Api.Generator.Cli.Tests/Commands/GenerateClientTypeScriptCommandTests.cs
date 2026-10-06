@@ -493,13 +493,8 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
             tsconfigContent,
             TestContext.Current.CancellationToken);
 
-        var (npmSuccess, npmOutput) = await RunCommand(
-            "npm",
-            "install --save-dev typescript",
-            outputPath,
-            TestContext.Current.CancellationToken);
-
-        Assert.True(npmSuccess, $"npm install typescript should succeed. Output:\n{npmOutput}");
+        // The shared, pinned workspace gives the output directory its TypeScript
+        NodeWorkspace.Link(outputPath);
 
         var (_, tscOutput) = await RunCommand(
             "npx",
@@ -565,14 +560,8 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
             tsconfigContent,
             TestContext.Current.CancellationToken);
 
-        // Install TypeScript locally in the output directory
-        var (npmSuccess, npmOutput) = await RunCommand(
-            "npm",
-            "install --save-dev typescript",
-            outputPath,
-            TestContext.Current.CancellationToken);
-
-        Assert.True(npmSuccess, $"npm install typescript should succeed. Output:\n{npmOutput}");
+        // The shared, pinned workspace gives the output directory its TypeScript
+        NodeWorkspace.Link(outputPath);
 
         // Act — run tsc via npx
         var (tscSuccess, tscOutput) = await RunCommand(

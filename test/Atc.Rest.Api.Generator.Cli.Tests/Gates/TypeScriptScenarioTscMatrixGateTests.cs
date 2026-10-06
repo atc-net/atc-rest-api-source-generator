@@ -144,13 +144,7 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
 
-            var install = NodeToolchain.RunNpm(
-                "install --no-audit --no-fund --loglevel=error",
-                workDir,
-                TimeSpan.FromMinutes(5));
-            Assert.True(
-                install.ExitCode == 0,
-                $"npm install failed (exit {install.ExitCode}):\n{install.Output}");
+            NodeWorkspace.Link(workDir);
 
             var tsc = NodeToolchain.RunNpx(
                 "tsc --noEmit --pretty false -p tsconfig.json",
