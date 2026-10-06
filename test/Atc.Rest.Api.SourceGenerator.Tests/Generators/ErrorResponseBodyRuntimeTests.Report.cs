@@ -18,11 +18,11 @@ public partial class ErrorResponseBodyRuntimeTests
     internal static readonly string[] EndToEndNotExercised =
     [
         "Validation exceptions thrown by handler code.",
-        "The Development environment (a 5xx with its exception `detail`); the host runs as Production.",
+        "The Development environment beyond one exception per host: the matrices run as Production, and Production_A5xxFromAnException_CarriesNothingOfIt_AndDevelopmentNamesIt checks that a Production 5xx carries nothing of the exception on either host and that Development names it.",
         "A server with the ValidationFilter or the global error handler switched off through the marker (the host without Atc.Rest.MinimalApi - MapEndpoints() with the wiring written by hand - has its own tabs).",
         "Network failures, timeouts and cancellation.",
         "HEAD, and 2xx statuses other than 200 and 204 on the sweep operations (every 1xx, 2xx and 3xx has its own operation under Statuses 1xx-3xx).",
-        "OpenAPI 3.1 / 3.2 documents: the matrices run a 3.0.3 specification; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
+        "OpenAPI 3.1 / 3.2 documents beyond the request-binding matrix's 3.1 twin (type arrays, null on the wire, a const, a tuple): the other matrices run a 3.0.3 specification; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
         "The React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies: the error path is the same `ApiError`.",
         "A browser runtime: the TypeScript clients run on Node, so CORS and header exposure are not observed.",
         "Text bodies in a charset other than UTF-8 in the TypeScript clients.",
@@ -97,6 +97,9 @@ public partial class ErrorResponseBodyRuntimeTests
         // The README's second path: MapEndpoints() without Atc.Rest.MinimalApi, the host wiring written by hand
         matrix["errorBodiesPlain"] = await CollectEndToEndMatrixAsync(plainHost: true);
         matrix["requestBindingPlain"] = await CollectRequestBindingMatrixAsync(plainHost: true);
+
+        // The request-binding specification as an OpenAPI 3.1 document, with a 3.1 body
+        matrix["requestBinding31"] = await CollectRequestBindingMatrixAsync(openApi31: true);
         matrix["guard"] = await CollectGuardMatrixAsync();
         matrix["feature"] = await CollectFeatureMatrixAsync();
         matrix["notExercised"] = new JsonObject
@@ -379,6 +382,7 @@ public partial class ErrorResponseBodyRuntimeTests
             ["bodyMedia"] = new JsonArray(),
             ["requestBinding"] = new JsonArray([.. KnownRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["requestBindingPlain"] = new JsonArray([.. KnownPlainRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["requestBinding31"] = new JsonArray([.. KnownRequestBinding31Failures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["guard"] = new JsonArray([.. KnownGuardFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["feature"] = new JsonArray([.. KnownFeatureFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
         };
@@ -428,7 +432,7 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject matrix)
     {
         yield return ("errorBodies", matrix["cases"]!.AsArray().Select(c => c!.AsObject()));
-        foreach (var key in (string[])["errorBodiesPlain", "bodyMedia", "requestBinding", "requestBindingPlain", "guard", "feature"])
+        foreach (var key in (string[])["errorBodiesPlain", "bodyMedia", "requestBinding", "requestBindingPlain", "requestBinding31", "guard", "feature"])
         {
             if (matrix[key]?["cases"] is JsonArray cases)
             {

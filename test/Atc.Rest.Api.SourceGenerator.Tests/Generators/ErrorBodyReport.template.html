@@ -176,6 +176,7 @@
     <button role="tab" aria-selected="false" data-tab="binding">Request binding</button>
     <button role="tab" aria-selected="false" data-tab="matrixplain">Error bodies &middot; MapEndpoints host</button>
     <button role="tab" aria-selected="false" data-tab="bindingplain">Request binding &middot; MapEndpoints host</button>
+    <button role="tab" aria-selected="false" data-tab="binding31">Request binding &middot; OpenAPI 3.1</button>
     <button role="tab" aria-selected="false" data-tab="guard">Security &amp; rate limiting</button>
     <button role="tab" aria-selected="false" data-tab="feature">Features</button>
     <button role="tab" aria-selected="false" data-tab="support">Feature support</button>
@@ -272,6 +273,11 @@
   <section id="tab-bindingplain" role="tabpanel" hidden>
     <div class="panel" id="bindingplain-intro"></div>
     <div id="bindingplain"></div>
+  </section>
+
+  <section id="tab-binding31" role="tabpanel" hidden>
+    <div class="panel" id="binding31-intro"></div>
+    <div id="binding31"></div>
   </section>
 
   <section id="tab-guard" role="tabpanel" hidden>
@@ -758,6 +764,11 @@ renderCaseMatrix('#bindingplain-intro', '#bindingplain', REPORT?.requestBindingP
   <p>The <b>Request binding</b> matrix against the server generated without <code>Atc.Rest.MinimalApi</code> and hosted by hand (<code>AddProblemDetails</code>, <code>UseExceptionHandler</code>, <code>UseStatusCodePages</code>, <code>MapEndpoints</code>). The binding is the same generated code, so every client's values bind the same. What the server answers a request it cannot bind comes from the framework and the host wiring there: a wrong type, a malformed body, a media type the operation does not take and a body that is too large are the same problems; a missing required query parameter is a ProblemDetails that names no parameter, and a body missing a required property reaches the handler - nothing validates without the ValidationFilter (the two <span class="v known">known</span> cells; .NET 10's <code>AddValidation()</code> is the way to validate on this host).</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost"</code></p></div>`);
 
+renderCaseMatrix('#binding31-intro', '#binding31', REPORT?.requestBinding31, `
+  <h2>Request binding &middot; an OpenAPI 3.1 document</h2>
+  <p>The <b>Request binding</b> specification as an OpenAPI 3.1 document (<code>openapi: 3.1.0</code>), with one more body operation that uses what 3.1 adds: a nullable member and a nullable array as type arrays (<code>type: [string, 'null']</code>), a <code>const</code>, a tuple (<code>prefixItems</code>, generated as a record read and written as the JSON array) and the <code>examples</code> keyword. Every 3.0 case binds the same from the 3.1 document; the 3.1 body is sent with every member, with the nullable members <code>null</code> on the wire, and with them absent - the server must bind <code>null</code> for both.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_WithAnOpenApi31Document"</code></p></div>`);
+
 renderCaseMatrix('#guard-intro', '#guard', REPORT?.guard, `
   <h2>Security &amp; rate limiting</h2>
   <p>The generated server with two test authentication schemes (a bearer token that spells out subject, scopes and roles; an API key) and every generated client calling its secured and rate-limited operations - without credentials, with the wrong ones, with the right ones, and past a limiter's budget. Each cell lists the statuses the client saw, call by call, against what the specification and the documented contract say; the server's own log of the cell's requests (<i>server</i>) proves what the client's retry policy did with a 429: a <code>Retry-After</code> past the cap is handed back at once, a short one is waited for and the retry succeeds, a 429 without one is retried with the policy's back-off.</p>
@@ -826,15 +837,16 @@ renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
 // The top of the Overview: the state of the run in one glance, a start for each reader, and what needs attention.
 // Everything here is computed from REPORT.summary (written by the test) and REPORT.ratchet.
 // ---------------------------------------------------------------------------------------------------------------
-const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', guard: 'Security & rate limiting', feature: 'Features' };
-const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', guard: 'guard', feature: 'feature' };
-const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix' };
+const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features' };
+const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBinding31: 'binding31', guard: 'guard', feature: 'feature' };
+const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix' };
 const MATRIX_TESTS = {
   errorBodies: 'EndToEnd_EveryClientReadsWhatTheServerWrites',
   errorBodiesPlain: 'EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost',
   bodyMedia: 'EndToEnd_EveryClientReadsEveryBodyMediaType',
   requestBinding: 'EndToEnd_EveryClientSendsWhatTheServerBinds',
   requestBindingPlain: 'EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost',
+  requestBinding31: 'EndToEnd_EveryClientSendsWhatTheServerBinds_WithAnOpenApi31Document',
   guard: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays',
   feature: 'EndToEnd_EveryClientRunsEveryFeature',
 };

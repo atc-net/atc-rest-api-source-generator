@@ -163,6 +163,86 @@ public partial class ErrorResponseBodyRuntimeTests
         """;
 
     /// <summary>
+    /// The same specification as an OpenAPI 3.1 document, with one more body operation that uses what 3.1 adds: a
+    /// nullable member and a nullable array as type arrays (<c>type: [string, 'null']</c>), a <c>const</c>, a tuple
+    /// (<c>prefixItems</c>) and the <c>examples</c> keyword. The 3.0 operations and cases run unchanged against it.
+    /// </summary>
+    private static string RequestBindingYaml31 { get; } = Spliced(
+        Spliced(
+            RequestBindingYaml.Replace("openapi: 3.0.3", "openapi: 3.1.0", StringComparison.Ordinal),
+            "  /bind/body/form:",
+            """
+              /bind/body/json31:
+                post:
+                  operationId: bindJson31
+                  requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Thing31' } } } }
+                  responses:
+                    '200': { description: What the server bound, content: { application/json: { schema: { $ref: '#/components/schemas/Echo' } } } }
+            """),
+        "    Form:",
+        """
+                Thing31:
+                  type: object
+                  required: [name, kind, pair]
+                  properties:
+                    name: { type: string }
+                    note: { type: [string, 'null'] }
+                    tags: { type: [array, 'null'], items: { type: string } }
+                    kind: { const: fixed }
+                    pair: { $ref: '#/components/schemas/Pair' }
+                    count: { type: integer, format: int32, examples: [3] }
+                Pair:
+                  type: array
+                  prefixItems:
+                    - { type: string, description: Label }
+                    - { type: integer, format: int32, description: Weight }
+            """);
+
+    /// <summary>
+    /// The handlers of <see cref="RequestBindingYaml31"/>: the 3.0 ones and one for the 3.1 body, which also says
+    /// when a nullable member arrived as <c>null</c> (the echo leaves an absent value out).
+    /// </summary>
+    private static string RequestBindingHandlerSource31 { get; } = Spliced(
+        Spliced(
+            RequestBindingHandlerSource,
+            "public static class RequestBindingRegistration",
+            """
+            public sealed class BindJson31HandlerImpl(IHttpContextAccessor accessor) : IBindJson31Handler
+            {
+                public System.Threading.Tasks.Task<BindJson31Result> ExecuteAsync(BindJson31Parameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                {
+                    var echo = BindEcho.Of(parameters, accessor);
+                    if (parameters.Request.Note is null)
+                    {
+                        echo.Values["Note"] = "null";
+                    }
+
+                    if (parameters.Request.Tags is null)
+                    {
+                        echo.Values["Tags"] = "null";
+                    }
+
+                    return System.Threading.Tasks.Task.FromResult(BindJson31Result.Ok(echo));
+                }
+            }
+
+            """),
+        "        services.AddScoped<IBindFormHandler, BindFormHandlerImpl>();",
+        "        services.AddScoped<IBindJson31Handler, BindJson31HandlerImpl>();");
+
+    /// <summary>
+    /// The text with a block inserted before the anchor line - and a complaint, not a silent no-op, when the anchor
+    /// is not there (a raw string literal strips the closing quotes' indentation, so an anchor is easy to get wrong).
+    /// </summary>
+    private static string Spliced(
+        string text,
+        string anchor,
+        string block)
+        => text.Contains(anchor, StringComparison.Ordinal)
+            ? text.Replace(anchor, block + Environment.NewLine + anchor, StringComparison.Ordinal)
+            : throw new InvalidOperationException($"The anchor '{anchor}' is not in the text to splice into.");
+
+    /// <summary>
     /// Every handler answers with what it was given: each bound value in one canonical text form (a number and a
     /// date in the invariant culture, a date-time as its UTC instant, an enum as its member name, a list joined
     /// with <c>|</c>, a file as its length and hash), keyed by the property name.
@@ -463,6 +543,18 @@ public partial class ErrorResponseBodyRuntimeTests
                     return (string)node!;
                 }
 
+                // An untyped member (object): the wire value as it is
+                if (target == typeof(object) && node is JsonValue scalar)
+                {
+                    return scalar.GetValueKind() switch
+                    {
+                        JsonValueKind.String => scalar.GetValue<string>(),
+                        JsonValueKind.True => true,
+                        JsonValueKind.False => false,
+                        _ => scalar.TryGetValue<int>(out var whole) ? whole : scalar.GetValue<double>(),
+                    };
+                }
+
                 if (target == typeof(int))
                 {
                     return (int)node!;
@@ -526,8 +618,14 @@ public partial class ErrorResponseBodyRuntimeTests
                     return list;
                 }
 
-                // A record: its constructor parameters by name (a header "X-Text" is the parameter "Text")
+                // A record: its constructor parameters by name (a header "X-Text" is the parameter "Text"); a tuple
+                // record (prefixItems) from the JSON array, by position
                 var constructor = target.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();
+                if (node is JsonArray tuple)
+                {
+                    return constructor.Invoke([.. constructor.GetParameters().Select((p, i) => Build(tuple[i], p.ParameterType))]);
+                }
+
                 var source = node.AsObject();
                 return constructor.Invoke([.. constructor.GetParameters().Select(p => Build(Find(source, p.Name!), p.ParameterType))]);
             }
@@ -635,6 +733,44 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix from an OpenAPI 3.1 document (<see cref="RequestBindingYaml31"/>): every 3.0 case binds the
+    /// same, and the 3.1 body proves a nullable member and a nullable array as type arrays, <c>null</c> on the wire, a
+    /// <c>const</c> and a tuple (<c>prefixItems</c>) through every client - outside
+    /// <see cref="KnownRequestBinding31Failures"/>.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientSendsWhatTheServerBinds_WithAnOpenApi31Document()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the request-binding matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectRequestBindingMatrixAsync(openApi31: true);
+        if (Environment.GetEnvironmentVariable("REQUESTBINDING_E2E_31_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownRequestBinding31Failures.Contains(f.Key)).ToList();
+        var fixedCells = KnownRequestBinding31Failures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownRequestBinding31Failures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
     /// The same matrix against the plain host (<c>MapEndpoints()</c>, no <c>Atc.Rest.MinimalApi</c>): the generated
     /// binding is the same code, so every client's values bind the same; what the server answers a request it cannot
     /// bind comes from the framework and the host wiring there, outside <see cref="KnownPlainRequestBindingFailures"/>.
@@ -708,6 +844,36 @@ public partial class ErrorResponseBodyRuntimeTests
         (string Name, string Value)[]? Headers = null,
         string? ContentType = null,
         string? Body = null);
+
+    /// <summary>
+    /// The cases of the 3.1 body (<see cref="RequestBindingYaml31"/>): every member with a value - the tuple as a JSON
+    /// array, the const, the nullable array - and the nullable members as <c>null</c> on the wire.
+    /// </summary>
+    internal static List<RequestBindingCase> RequestBindingCases31()
+    {
+        var pair = new JsonArray("p é", 7);
+        return
+        [
+            new RequestBindingCase(
+                "body 3.1: every member with a value (a tuple, a const, a nullable array)",
+                "body (OpenAPI 3.1)",
+                "BindJson31",
+                Body: new JsonObject { ["name"] = "n", ["note"] = "a note", ["tags"] = new JsonArray("a", "b"), ["kind"] = "fixed", ["pair"] = pair, ["count"] = 3 },
+                Expected: Expect(("Name", "n"), ("Note", "a note"), ("Tags", "a|b"), ("Kind", "fixed"), ("Label", "p é"), ("Weight", "7"), ("Count", "3"), ("@contentType", "application/json"))),
+            new RequestBindingCase(
+                "body 3.1: the nullable members null on the wire",
+                "body (OpenAPI 3.1)",
+                "BindJson31",
+                Body: new JsonObject { ["name"] = "n", ["note"] = null, ["tags"] = null, ["kind"] = "fixed", ["pair"] = pair.DeepClone() },
+                Expected: Expect(("Name", "n"), ("Note", "null"), ("Tags", "null"), ("Kind", "fixed"), ("Label", "p é"), ("Weight", "7"), ("@contentType", "application/json"))),
+            new RequestBindingCase(
+                "body 3.1: the nullable members absent",
+                "body (OpenAPI 3.1)",
+                "BindJson31",
+                Body: new JsonObject { ["name"] = "n", ["kind"] = "fixed", ["pair"] = pair.DeepClone() },
+                Expected: Expect(("Name", "n"), ("Note", "null"), ("Tags", "null"), ("Kind", "fixed"), ("Label", "p é"), ("Weight", "7"), ("@contentType", "application/json"))),
+        ];
+    }
 
     /// <summary>
     /// The cases. The values are picked to break a careless encoder: a string with every character that means
@@ -839,15 +1005,15 @@ public partial class ErrorResponseBodyRuntimeTests
                 _ => "an enum (inline)",
             };
 
-        static Dictionary<string, string> Expect(
-            params (string Key, string Value)[] values)
-            => values.ToDictionary(v => v.Key, v => v.Value, StringComparer.Ordinal);
-
         static Dictionary<string, string> With(
             Dictionary<string, string> source,
             (string Key, string Value) extra)
             => new(source, StringComparer.Ordinal) { [extra.Key] = extra.Value };
     }
+
+    internal static Dictionary<string, string> Expect(
+        params (string Key, string Value)[] values)
+        => values.ToDictionary(v => v.Key, v => v.Value, StringComparer.Ordinal);
 
     /// <summary>
     /// The uploaded file: every byte value.
@@ -944,15 +1110,21 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     private static async Task<JsonObject> CollectRequestBindingMatrixAsync(
-        bool plainHost = false)
+        bool plainHost = false,
+        bool openApi31 = false)
     {
         var started = DateTimeOffset.Now;
+        var yaml = openApi31 ? RequestBindingYaml31 : RequestBindingYaml;
         var cases = RequestBindingCases();
+        if (openApi31)
+        {
+            cases.AddRange(RequestBindingCases31());
+        }
 
         // A request that carries X-Test-Body-Limit gets that body limit, so a "too large" body stays small
         await using var host = await XmlTestHost.StartAsync(
-            RequestBindingYaml,
-            RequestBindingHandlerSource,
+            yaml,
+            openApi31 ? RequestBindingHandlerSource31 : RequestBindingHandlerSource,
             "ErrorBodies.RuntimeTest.RequestBindingRegistration",
             app => app.Use(async (context, next) =>
             {
@@ -970,7 +1142,7 @@ public partial class ErrorResponseBodyRuntimeTests
         var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var client in RequestBindingClients.Where(c => c.Marker.Length > 0))
         {
-            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, RequestBindingYaml);
+            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, yaml);
             var usings = sources
                 .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
                 .Where(ns => ns.Length > 0)
@@ -984,7 +1156,7 @@ public partial class ErrorResponseBodyRuntimeTests
             rows[client.Id] = await run;
         }
 
-        var typeScript = RunRequestBindingTypeScriptClients(host.BaseAddress, casesJson);
+        var typeScript = RunRequestBindingTypeScriptClients(host.BaseAddress, casesJson, yaml);
 
         var casesArray = new JsonArray();
         foreach (var bindingCase in cases)
@@ -1146,14 +1318,15 @@ public partial class ErrorResponseBodyRuntimeTests
 
     private static Dictionary<string, Dictionary<string, JsonObject>> RunRequestBindingTypeScriptClients(
         Uri baseAddress,
-        string casesJson)
+        string casesJson,
+        string yaml)
     {
         var work = Path.Combine(Path.GetTempPath(), "atc-requestbinding-e2e", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(work);
         try
         {
             var yamlPath = Path.Combine(work, "ErrorBodies.yaml");
-            File.WriteAllText(yamlPath, RequestBindingYaml);
+            File.WriteAllText(yamlPath, yaml);
 
             var cli = FindCliExecutable();
             foreach (var client in (string[])["Fetch", "Axios"])
@@ -1267,6 +1440,14 @@ public partial class ErrorResponseBodyRuntimeTests
     /// The cells that fail today on the plain host (<c>MapEndpoints()</c>, no <c>Atc.Rest.MinimalApi</c>), as
     /// <c>case [client]</c>, each with the reason it is accepted.
     /// </summary>
+    /// <summary>
+    /// The cells that fail today from the OpenAPI 3.1 document, as <c>case [client]</c>, each with the reason it is
+    /// accepted.
+    /// </summary>
+    private static readonly HashSet<string> KnownRequestBinding31Failures = new(StringComparer.Ordinal)
+    {
+    };
+
     private static readonly HashSet<string> KnownPlainRequestBindingFailures = new(StringComparer.Ordinal)
     {
         // Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the framework's own 400 for a
