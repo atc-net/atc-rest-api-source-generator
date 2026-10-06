@@ -11,10 +11,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 {
     private static readonly Regex WhitespaceNormalizerRegex = new(@"\s+", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
+    // The parameter list runs to its own closing parenthesis (balanced): a default value or an attribute argument
+    // with parentheses of its own is part of it, not its end
     private static readonly Regex ExecuteAsyncSignatureRegex = new(
-        @"public\s+(?:async\s+)?(?:System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\(\s*[\s\S]*?\)",
+        @"public\s+(?:async\s+)?(?:System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\((?:[^()]|(?<open>\()|(?<-open>\)))*(?(open)(?!))\)",
         RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
+
+    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     /// <summary>
     /// Registers the pipeline: the <c>.atc-rest-api-server-handlers</c> marker file and the specifications as additional texts, the handler interfaces the compilation already implements, and the scaffolds of the missing handlers as the output.
@@ -110,31 +114,35 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 return;
             }
 
-            // Identify base file and part files for multi-part spec support
-            // Overlay files are no specifications: the ones the marker lists are applied to it
-            var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
-            var overlays = OverlayFileHelper.Resolve(productionContext, markerInfo.Path, config.Overlays, overlayFiles);
-            if (overlays is null)
-            {
-                return;
-            }
-
-            var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
-            if (baseFile is null)
-            {
-                return;
-            }
-
-            // A second base specification: the generator reads one per project
-            var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
-            if (otherBases.Count > 0)
-            {
-                DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
-                return;
-            }
-
+            // Everything from here runs under the catch: a failure before the base file is known is reported on the marker
+            var filePath = markerInfo.Path;
             try
             {
+                // Identify base file and part files for multi-part spec support
+                // Overlay files are no specifications: the ones the marker lists are applied to it
+                var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
+                var overlays = OverlayFileHelper.Resolve(productionContext, markerInfo.Path, config.Overlays, overlayFiles);
+                if (overlays is null)
+                {
+                    return;
+                }
+
+                var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
+                if (baseFile is null)
+                {
+                    return;
+                }
+
+                filePath = baseFile.Value.Path;
+
+                // A second base specification: the generator reads one per project
+                var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
+                if (otherBases.Count > 0)
+                {
+                    DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
+                    return;
+                }
+
                 var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
                 var partFiles = specificationFiles
                     .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
@@ -176,9 +184,76 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, baseFile.Value.Path, ex);
+                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, filePath, ex);
             }
         });
+    }
+
+    /// <summary>
+    /// Updates the ExecuteAsync method signature in an existing handler file if it doesn't match the expected signature.
+    /// Preserves the method body and all other code.
+    /// </summary>
+    internal static void UpdateHandlerSignatureIfNeeded(
+        string filePath,
+        string expectedSignature)
+    {
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var hadBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+            var content = Encoding.UTF8.GetString(bytes, hadBom ? 3 : 0, bytes.Length - (hadBom ? 3 : 0));
+
+            // Pattern matches:
+            // - public (optional async) Task<XxxResult> ExecuteAsync(...)
+            // - Also handles fully qualified System.Threading.Tasks.Task<...>
+            // - Multi-line parameter lists (ATC201/ATC202 compliant), up to and including the closing parenthesis
+            var match = ExecuteAsyncSignatureRegex.Match(content);
+            if (!match.Success)
+            {
+                // Can't find ExecuteAsync method, skip update
+                return;
+            }
+
+            var currentSignature = match.Value;
+
+            // Check if async modifier is present in current signature
+            var hasAsync = currentSignature.Contains("async ");
+
+            // Check if fully qualified Task name is used
+            var hasFullyQualifiedTask = currentSignature.Contains("System.Threading.Tasks.Task<");
+
+            // Build the replacement signature, preserving async and fully qualified Task if present
+            var replacementSignature = expectedSignature;
+            if (hasAsync)
+            {
+                replacementSignature = replacementSignature.Replace("public Task<", "public async Task<");
+            }
+
+            if (hasFullyQualifiedTask)
+            {
+                replacementSignature = replacementSignature.Replace("Task<", "System.Threading.Tasks.Task<");
+            }
+
+            // Compare normalized signatures
+            if (NormalizeSignature(currentSignature) == NormalizeSignature(replacementSignature))
+            {
+                // Signatures match, no update needed
+                return;
+            }
+
+            // Replace that one signature while preserving everything else, and write the file back as it was read:
+            // without a BOM unless it had one
+            var updatedContent = ExecuteAsyncSignatureRegex.Replace(content, replacementSignature, 1);
+            File.WriteAllText(filePath, updatedContent, hadBom ? Encoding.UTF8 : Utf8NoBom);
+        }
+        catch (IOException)
+        {
+            // File may be read-only or locked, skip update
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // Regex took too long, skip update
+        }
     }
 
     /// <summary>
@@ -920,71 +995,4 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// </summary>
     private static string NormalizeSignature(string signature)
         => WhitespaceNormalizerRegex.Replace(signature.Trim(), " ");
-
-    /// <summary>
-    /// Updates the ExecuteAsync method signature in an existing handler file if it doesn't match the expected signature.
-    /// Preserves the method body and all other code.
-    /// </summary>
-    private static void UpdateHandlerSignatureIfNeeded(
-        string filePath,
-        string expectedSignature)
-    {
-        try
-        {
-            var content = File.ReadAllText(filePath);
-
-            // Pattern matches:
-            // - public (optional async) Task<XxxResult> ExecuteAsync(...)
-            // - Also handles fully qualified System.Threading.Tasks.Task<...>
-            // - Uses [\s\S]*? to match multi-line parameter lists (ATC201/ATC202 compliant)
-            // - Captures everything up to and including the closing parenthesis
-            var match = ExecuteAsyncSignatureRegex.Match(content);
-            if (!match.Success)
-            {
-                // Can't find ExecuteAsync method, skip update
-                return;
-            }
-
-            var currentSignature = match.Value;
-
-            // Check if async modifier is present in current signature
-            var hasAsync = currentSignature.Contains("async ");
-
-            // Check if fully qualified Task name is used
-            var hasFullyQualifiedTask = currentSignature.Contains("System.Threading.Tasks.Task<");
-
-            // Build the replacement signature, preserving async and fully qualified Task if present
-            var replacementSignature = expectedSignature;
-            if (hasAsync)
-            {
-                replacementSignature = replacementSignature.Replace("public Task<", "public async Task<");
-            }
-
-            if (hasFullyQualifiedTask)
-            {
-                replacementSignature = replacementSignature.Replace("Task<", "System.Threading.Tasks.Task<");
-            }
-
-            // Compare normalized signatures
-            if (NormalizeSignature(currentSignature) == NormalizeSignature(replacementSignature))
-            {
-                // Signatures match, no update needed
-                return;
-            }
-
-            // Replace the signature while preserving everything else
-            var updatedContent = ExecuteAsyncSignatureRegex.Replace(content, replacementSignature);
-
-            // Write the updated content back to the file
-            File.WriteAllText(filePath, updatedContent, Encoding.UTF8);
-        }
-        catch (IOException)
-        {
-            // File may be read-only or locked, skip update
-        }
-        catch (RegexMatchTimeoutException)
-        {
-            // Regex took too long, skip update
-        }
-    }
 }

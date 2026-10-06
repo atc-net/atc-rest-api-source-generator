@@ -49,6 +49,10 @@ public sealed class ListNotesEndpoint : IListNotesEndpoint
         {
             requestBuilder.WithQueryParameter("filter", parameters.Filter);
         }
+        if (parameters.OddNameHere is not null)
+        {
+            requestBuilder.WithQueryParameter("odd \"name\" \\ here", parameters.OddNameHere);
+        }
         if (parameters.Discount is not null)
         {
             requestBuilder.WithQueryParameter("discount", ((global::System.IFormattable?)parameters.Discount)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));

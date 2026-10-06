@@ -716,6 +716,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ResponseStatusRange = "ATC_API_OPR034";
 
+    /// <summary>
+    /// ATC_API_OPR035: A response declares 'links' (OpenAPI runtime expressions naming the operations a client may
+    /// call next). Nothing is generated from them; a client follows them by hand. Information, every strategy.
+    /// </summary>
+    public const string ResponseLinksDropped = "ATC_API_OPR035";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

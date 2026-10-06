@@ -1649,7 +1649,7 @@ using Microsoft.AspNetCore.Builder;
                         // File property - IFormFile, bound by the field name the specification gives it (upload_file),
                         // not by the C# parameter name derived from it; a collection takes the files of that field
                         typeName = isCollection ? "IFormFileCollection" : "IFormFile";
-                        attributes = [new("FromForm", $"Name = \"{propName}\"")];
+                        attributes = [new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}")];
 
                         // Make nullable since file is often optional
                         typeName += "?";
@@ -1678,7 +1678,7 @@ using Microsoft.AspNetCore.Builder;
 
                         attributes = new List<AttributeParameters>
                         {
-                            new("FromForm", $"Name = \"{propName}\""),
+                            new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}"),
                         };
                     }
 
@@ -1750,7 +1750,7 @@ using Microsoft.AspNetCore.Builder;
 
                 var attributes = new List<AttributeParameters>
                 {
-                    new(bindingAttrName, $"Name = \"{parameter.Name}\""),
+                    new(bindingAttrName, $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"),
                 };
 
                 methodParameters.Add(new ParameterBaseParameters(

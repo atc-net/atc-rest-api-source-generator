@@ -53,6 +53,11 @@ public sealed class HostileSpecClient : IHostileSpecClient
             queryParams.Add($"filter={Uri.EscapeDataString(parameters.Filter)}");
         }
 
+        if (!string.IsNullOrEmpty(parameters.OddNameHere))
+        {
+            queryParams.Add($"odd \"name\" \\ here={Uri.EscapeDataString(parameters.OddNameHere)}");
+        }
+
         if (parameters.Discount.HasValue)
         {
             queryParams.Add($"discount={Uri.EscapeDataString(((global::System.IFormattable?)parameters.Discount)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}");

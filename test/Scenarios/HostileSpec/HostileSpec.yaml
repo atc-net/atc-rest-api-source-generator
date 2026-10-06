@@ -26,6 +26,11 @@ paths:
           schema:
             type: string
             default: 'say "hi" \ bye'
+        - name: 'odd "name" \ here'
+          in: query
+          description: A parameter whose wire name holds quotes and a backslash.
+          schema:
+            type: string
         - name: discount
           in: query
           description: A decimal query parameter with a default.

@@ -19,6 +19,7 @@ namespace HostileSpec.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListNotesParameters(
+    [property: FromQuery(Name = "odd \"name\" \\ here")] string? OddNameHere,
     [property: FromQuery(Name = "kind")] NoteKind? Kind,
     [property: FromQuery(Name = "filter"), DefaultValue("say \"hi\" \\ bye")] string? Filter = "say \"hi\" \\ bye",
     [property: FromQuery(Name = "discount"), DefaultValue(0.25)] double? Discount = 0.25,

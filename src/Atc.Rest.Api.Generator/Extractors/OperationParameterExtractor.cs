@@ -513,24 +513,24 @@ public static class OperationParameterExtractor
                         case ParameterLocation.Query:
                             attributes.Add(new AttributeParameters(
                                 "FromQuery",
-                                $"Name = \"{parameter.Name}\""));
+                                $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"));
                             break;
                         case ParameterLocation.Path:
                             attributes.Add(new AttributeParameters(
                                 "FromRoute",
-                                $"Name = \"{parameter.Name}\""));
+                                $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"));
                             break;
                         case ParameterLocation.Header:
                             attributes.Add(new AttributeParameters(
                                 "FromHeader",
-                                $"Name = \"{parameter.Name}\""));
+                                $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"));
                             break;
                         case ParameterLocation.Cookie:
                             // ASP.NET Core has no cookie binding source: the property is bound from a request header
                             // that the endpoint's WithWireBinding step fills from the cookie
                             attributes.Add(new AttributeParameters(
                                 "FromHeader",
-                                $"Name = \"{WireBindingHelper.CookieHeaderPrefix}{parameter.Name}\""));
+                                $"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.CookieHeaderPrefix + parameter.Name)}"));
                             break;
                     }
                 }

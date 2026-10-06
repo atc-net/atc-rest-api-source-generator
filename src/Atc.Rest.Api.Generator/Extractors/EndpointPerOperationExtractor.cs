@@ -1077,7 +1077,7 @@ public static class EndpointPerOperationExtractor
         foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Path))
         {
             var propName = propertyNames.Get(param, referenceId);
-            sb.AppendLine($"requestBuilder.WithPathParameter(\"{param.Name}\", {WireValue(param, propName)});");
+            sb.AppendLine($"requestBuilder.WithPathParameter({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {WireValue(param, propName)});");
         }
 
         // Add query parameters
@@ -1086,13 +1086,13 @@ public static class EndpointPerOperationExtractor
             var propName = propertyNames.Get(param, referenceId);
             if (param.Required)
             {
-                sb.AppendLine($"requestBuilder.WithQueryParameter(\"{param.Name}\", {WireValue(param, propName)});");
+                sb.AppendLine($"requestBuilder.WithQueryParameter({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {WireValue(param, propName)});");
             }
             else
             {
                 sb.AppendLine($"if (parameters.{propName} is not null)");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithQueryParameter(\"{param.Name}\", {WireValue(param, propName)});");
+                sb.AppendLine(4, $"requestBuilder.WithQueryParameter({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {WireValue(param, propName)});");
                 sb.AppendLine("}");
             }
         }
@@ -2236,8 +2236,8 @@ public static class EndpointPerOperationExtractor
             schema,
             "parameters.Request",
             new MultipartPartWriter(
-                File: (b, indent, name, file) => b.AppendLine(indent, $"requestBuilder.WithFile({file}.OpenReadStream(), \"{name}\", {file}.FileName, {file}.ContentType);"),
-                Text: (b, indent, name, text) => b.AppendLine(indent, $"requestBuilder.WithFormField(\"{name}\", {text});")));
+                File: (b, indent, name, file) => b.AppendLine(indent, $"requestBuilder.WithFile({file}.OpenReadStream(), {CSharpLiteralHelper.ToStringLiteral(name)}, {file}.FileName, {file}.ContentType);"),
+                Text: (b, indent, name, text) => b.AppendLine(indent, $"requestBuilder.WithFormField({CSharpLiteralHelper.ToStringLiteral(name)}, {text});")));
     }
 
     /// <summary>

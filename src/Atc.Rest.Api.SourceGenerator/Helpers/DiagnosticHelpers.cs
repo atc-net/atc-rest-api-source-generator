@@ -461,7 +461,7 @@ internal static class DiagnosticHelpers
             ServerGenerationError,
             Location.None,
             filePath,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -489,7 +489,7 @@ internal static class DiagnosticHelpers
             ClientGenerationError,
             Location.None,
             filePath,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -517,7 +517,7 @@ internal static class DiagnosticHelpers
             HandlerScaffoldGenerationError,
             Location.None,
             filePath,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -592,7 +592,7 @@ internal static class DiagnosticHelpers
             EndpointInjectionGenerationError,
             Location.None,
             className,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -1338,81 +1338,33 @@ internal static class DiagnosticHelpers
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    // ========== Unsupported Feature Diagnostics ==========
+    // ========== Dropped Feature Diagnostics ==========
 
     /// <summary>
-    /// ATCAPI_FEAT001: OpenAPI spec uses readOnly/writeOnly properties which are silently ignored.
+    /// ATC_API_OPR035: A response declares links, which nothing is generated from.
     /// </summary>
-    public static readonly DiagnosticDescriptor ReadOnlyWriteOnlyIgnored = new(
-        "ATCAPI_FEAT001",
-        "readOnly/writeOnly Properties Ignored",
-        "OpenAPI specification uses readOnly or writeOnly properties which are not yet differentiated in generated code",
-        "Atc.Rest.Api.SourceGenerator",
+    public static readonly DiagnosticDescriptor ResponseLinksDropped = new(
+        RuleIdentifiers.ResponseLinksDropped,
+        "Operation Validation",
+        "Response links are declared on {0}: nothing is generated from them, a client follows them by hand",
+        RuleIdentifiers.Category,
         DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_FEAT002: OpenAPI spec uses callbacks which are not supported.
-    /// </summary>
-    public static readonly DiagnosticDescriptor CallbacksNotSupported = new(
-        "ATCAPI_FEAT002",
-        "Callbacks Not Supported",
-        "OpenAPI specification contains callbacks which are not supported by the generator",
-        "Atc.Rest.Api.SourceGenerator",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// ATCAPI_FEAT003: OpenAPI spec uses links which are not supported.
-    /// </summary>
-    public static readonly DiagnosticDescriptor LinksNotSupported = new(
-        "ATCAPI_FEAT003",
-        "Response Links Not Supported",
-        "OpenAPI specification contains response links which are not included in generated code",
-        "Atc.Rest.Api.SourceGenerator",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// ATCAPI_FEAT004: OpenAPI spec defines multiple servers entries.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MultipleServersIgnored = new(
-        "ATCAPI_FEAT004",
-        "Multiple Servers Entries",
-        "OpenAPI specification defines {0} server entries but only the first is used for base path resolution",
-        "Atc.Rest.Api.SourceGenerator",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// Reports unsupported OpenAPI feature diagnostics based on spec analysis.
+    /// Reports the OpenAPI features of the document that the generators drop without a trace: response links, one
+    /// information naming the operations that declare them. (readOnly/writeOnly, callbacks and several servers are
+    /// supported and report nothing.)
     /// </summary>
     public static List<Diagnostic> DetectUnsupportedFeatures(
         OpenApiDocument openApiDoc)
     {
         var diagnostics = new List<Diagnostic>();
 
-        if (HasReadOnlyOrWriteOnlyProperties(openApiDoc))
+        var operationsWithLinks = OperationsWithResponseLinks(openApiDoc);
+        if (operationsWithLinks.Count > 0)
         {
-            diagnostics.Add(Diagnostic.Create(ReadOnlyWriteOnlyIgnored, Location.None));
-        }
-
-        if (HasCallbacks(openApiDoc))
-        {
-            diagnostics.Add(Diagnostic.Create(CallbacksNotSupported, Location.None));
-        }
-
-        if (HasResponseLinks(openApiDoc))
-        {
-            diagnostics.Add(Diagnostic.Create(LinksNotSupported, Location.None));
-        }
-
-        if (openApiDoc.Servers is not null && openApiDoc.Servers.Count > 1)
-        {
-            diagnostics.Add(Diagnostic.Create(
-                MultipleServersIgnored,
-                Location.None,
-                openApiDoc.Servers.Count));
+            diagnostics.Add(Diagnostic.Create(ResponseLinksDropped, Location.None, string.Join(", ", operationsWithLinks)));
         }
 
         return diagnostics;
@@ -1461,34 +1413,93 @@ internal static class DiagnosticHelpers
         IEnumerable<GeneratorDiagnosticMessage> messages)
         => messages.Any(m => m.Severity == GeneratorDiagnosticSeverity.Error);
 
-    private static bool HasReadOnlyOrWriteOnlyProperties(
+    /// <summary>
+    /// Gets a human-readable title from a rule ID: the name of its category (the letters between <c>ATC_API_</c>
+    /// and the number), e.g. <c>ATC_API_NAM001</c> is "Naming Convention" and <c>ATC_API_CACHE001</c> "Caching".
+    /// The categories are the ones the wiki's Analyzer Rules page lists.
+    /// </summary>
+    internal static string GetTitleFromRuleId(string ruleId)
+    {
+        const string prefix = "ATC_API_";
+        if (!ruleId.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return ruleId;
+        }
+
+        var end = prefix.Length;
+        while (end < ruleId.Length && char.IsLetter(ruleId[end]))
+        {
+            end++;
+        }
+
+        return ruleId.Substring(prefix.Length, end - prefix.Length) switch
+        {
+            "GEN" => "Generation Error",
+            "DEP" => "Dependency Error",
+            "VAL" => "Validation Error",
+            "NAM" => "Naming Convention",
+            "SEC" => "Security",
+            "SRV" => "Server Configuration",
+            "SCH" => "Schema Validation",
+            "PTH" => "Path Validation",
+            "OPR" => "Operation Validation",
+            "MPT" => "Multi-Part Specification",
+            "RL" => "Rate Limiting",
+            "CACHE" => "Caching",
+            "CLT" => "Client Configuration",
+            "STREAM" => "Streaming",
+            "VER" => "Specification Version",
+            "WBH" => "Webhook",
+            _ => ruleId,
+        };
+    }
+
+    /// <summary>
+    /// Describes a failure for a generation-error diagnostic: the exception type and message, the first frames of
+    /// its stack (where it was thrown) and the inner exception - on one line, as the error list shows it.
+    /// </summary>
+    /// <param name="exception">The exception a generator caught.</param>
+    /// <returns>For example <c>NullReferenceException: Object reference … (at SchemaExtractor.Extract &lt;- …)</c>.</returns>
+    internal static string DescribeException(Exception exception)
+    {
+        var sb = new StringBuilder();
+        sb.Append(exception.GetType().Name).Append(": ").Append(OneLine(exception.Message));
+
+        var frames = (exception.StackTrace ?? string.Empty)
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("at ", StringComparison.Ordinal))
+            .Select(line =>
+            {
+                var frame = line.Substring(3);
+                var parameters = frame.IndexOf('(');
+                return parameters > 0 ? frame.Substring(0, parameters) : frame;
+            })
+            .Take(3)
+            .ToList();
+        if (frames.Count > 0)
+        {
+            sb.Append(" (at ").Append(string.Join(" <- ", frames)).Append(')');
+        }
+
+        if (exception.InnerException is { } inner)
+        {
+            sb.Append(" -> ").Append(inner.GetType().Name).Append(": ").Append(OneLine(inner.Message));
+        }
+
+        return sb.ToString();
+
+        static string OneLine(string text)
+            => text.Replace("\r", string.Empty).Replace('\n', ' ');
+    }
+
+    /// <summary>
+    /// The operations (by operationId, or method and path without one) with a response that declares links.
+    /// </summary>
+    private static List<string> OperationsWithResponseLinks(
         OpenApiDocument openApiDoc)
     {
-        if (openApiDoc.Components?.Schemas is null)
-        {
-            return false;
-        }
-
-        foreach (var schema in openApiDoc.Components.Schemas.Values)
-        {
-            if (schema is OpenApiSchema { Properties: not null } actualSchema)
-            {
-                foreach (var prop in actualSchema.Properties.Values)
-                {
-                    if (prop is OpenApiSchema propSchema &&
-                        (propSchema.ReadOnly || propSchema.WriteOnly))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasCallbacks(OpenApiDocument openApiDoc)
-    {
+        var operations = new List<string>();
         foreach (var path in openApiDoc.Paths)
         {
             if (path.Value?.Operations is null)
@@ -1496,45 +1507,18 @@ internal static class DiagnosticHelpers
                 continue;
             }
 
-            foreach (var operation in path.Value.Operations.Values)
+            foreach (var entry in path.Value.Operations)
             {
-                if (operation.Callbacks is { Count: > 0 })
+                var operation = entry.Value;
+                if (operation.Responses is not null &&
+                    operation.Responses.Values.Any(response => response is { Links.Count: > 0 }))
                 {
-                    return true;
+                    operations.Add(operation.OperationId ?? $"{entry.Key.ToString().ToUpperInvariant()} {path.Key}");
                 }
             }
         }
 
-        return false;
-    }
-
-    private static bool HasResponseLinks(OpenApiDocument openApiDoc)
-    {
-        foreach (var path in openApiDoc.Paths)
-        {
-            if (path.Value?.Operations is null)
-            {
-                continue;
-            }
-
-            foreach (var operation in path.Value.Operations.Values)
-            {
-                if (operation.Responses is null)
-                {
-                    continue;
-                }
-
-                foreach (var response in operation.Responses.Values)
-                {
-                    if (response is { Links.Count: > 0 })
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+        return operations;
     }
 
     /// <summary>
@@ -1586,33 +1570,5 @@ internal static class DiagnosticHelpers
         }
 
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// Gets a human-readable title from a rule ID.
-    /// </summary>
-    private static string GetTitleFromRuleId(string ruleId)
-    {
-        // Extract category and convert to readable format
-        // e.g., "ATC_API_NAM001" -> "Naming Convention"
-        if (ruleId.StartsWith("ATC_API_", StringComparison.Ordinal) && ruleId.Length >= 11)
-        {
-            var category = ruleId.Substring(8, 3);
-            return category switch
-            {
-                "GEN" => "Generation Error",
-                "DEP" => "Dependency Error",
-                "VAL" => "Validation Error",
-                "NAM" => "Naming Convention",
-                "SEC" => "Security",
-                "SRV" => "Server Configuration",
-                "SCH" => "Schema Validation",
-                "PTH" => "Path Validation",
-                "OPR" => "Operation Validation",
-                _ => ruleId
-            };
-        }
-
-        return ruleId;
     }
 }

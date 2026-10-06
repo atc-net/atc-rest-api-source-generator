@@ -273,42 +273,24 @@ public static class WebhookEndpointExtractor
         {
             var statusCode = response.Key;
 
-            // Handle "default" response
-            if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
+            // Error responses (4xx, 5xx, default): the same metadata the endpoint definitions emit
+            if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
             {
-                producesLines.Add("    .ProducesValidationProblem()");
+                var shape = ErrorResponseShapeResolver.Resolve(response.Value);
+                var modelTypeName = shape is { Kind: ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject, Schema: not null }
+                    ? shape.Schema.ToCSharpType(true)
+                    : null;
+                producesLines.Add("    " + ErrorResponseShapeResolver.ToProducesCall(statusCode, shape, modelTypeName));
                 continue;
             }
 
-            // Parse status code
-            if (!int.TryParse(statusCode, out var code))
+            if (!int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code))
             {
                 continue;
             }
 
-            var statusConstant = code switch
-            {
-                200 => "Status200OK",
-                201 => "Status201Created",
-                202 => "Status202Accepted",
-                204 => "Status204NoContent",
-                400 => "Status400BadRequest",
-                401 => "Status401Unauthorized",
-                403 => "Status403Forbidden",
-                404 => "Status404NotFound",
-                500 => "Status500InternalServerError",
-                _ => $"Status{code}",
-            };
-
-            // 4xx and 5xx use ProducesProblem
-            if (code >= 400)
-            {
-                producesLines.Add($"    .ProducesProblem(StatusCodes.{statusConstant})");
-            }
-            else
-            {
-                producesLines.Add($"    .Produces(StatusCodes.{statusConstant})");
-            }
+            // The StatusCodes constant, or the numeric literal for codes without one
+            producesLines.Add($"    .Produces({HttpStatusCodeHelper.ToStatusCodesExpression(code)})");
         }
 
         // Output all lines

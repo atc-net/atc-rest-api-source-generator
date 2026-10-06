@@ -51,7 +51,7 @@ public static class WebhookEndpointExtensions
             .WithSummary("A new pet was added")
             .WithName("onNewPet")
             .Produces(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .ProducesValidationProblem();
 
         webhooksGroup
             .MapPost(

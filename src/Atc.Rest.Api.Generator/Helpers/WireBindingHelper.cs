@@ -134,7 +134,7 @@ public static class WireBindingHelper
 
             if (delimiter is not null)
             {
-                arguments.Add($"(\"{name}\", {delimiter})");
+                arguments.Add($"({CSharpLiteralHelper.ToStringLiteral(name)}, {delimiter})");
             }
         }
 

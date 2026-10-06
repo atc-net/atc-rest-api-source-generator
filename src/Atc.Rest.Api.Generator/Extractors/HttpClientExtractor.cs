@@ -918,7 +918,7 @@ public static class HttpClientExtractor
                 {
                     if (isRequired)
                     {
-                        builder.AppendLine($"queryParams.Add($\"{param.Name}={{{paramAccess}}}\");");
+                        builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{paramAccess}}}\");");
                     }
                     else
                     {
@@ -927,7 +927,7 @@ public static class HttpClientExtractor
                         builder.AppendLine();
                         builder.AppendLine($"if ({nullCheck})");
                         builder.AppendLine("{");
-                        builder.AppendLine(4, $"queryParams.Add($\"{param.Name}={{{paramAccess}}}\");");
+                        builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{paramAccess}}}\");");
                         builder.AppendLine("}");
                     }
 
@@ -940,14 +940,14 @@ public static class HttpClientExtractor
                     var wireValue = $"Uri.EscapeDataString({paramAccess}.ToWireValue()!)";
                     if (isRequired)
                     {
-                        builder.AppendLine($"queryParams.Add($\"{param.Name}={{{wireValue}}}\");");
+                        builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{wireValue}}}\");");
                     }
                     else
                     {
                         builder.AppendLine();
                         builder.AppendLine($"if ({paramAccess} is not null)");
                         builder.AppendLine("{");
-                        builder.AppendLine(4, $"queryParams.Add($\"{param.Name}={{{wireValue}}}\");");
+                        builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{wireValue}}}\");");
                         builder.AppendLine("}");
                     }
 
@@ -958,7 +958,7 @@ public static class HttpClientExtractor
                 if (isRequired)
                 {
                     var valueExpression = BuildEncodedExpression(paramAccess, paramType);
-                    builder.AppendLine($"queryParams.Add($\"{param.Name}={{{valueExpression}}}\");");
+                    builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{valueExpression}}}\");");
                 }
                 else
                 {
@@ -974,7 +974,7 @@ public static class HttpClientExtractor
                     builder.AppendLine();
                     builder.AppendLine($"if ({nullCheck})");
                     builder.AppendLine("{");
-                    builder.AppendLine(4, $"queryParams.Add($\"{param.Name}={{{valueExpression}}}\");");
+                    builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{valueExpression}}}\");");
                     builder.AppendLine("}");
                 }
             }
@@ -1600,7 +1600,7 @@ public static class HttpClientExtractor
 
             sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
             sb.AppendLine("{");
-            sb.AppendLine(4, $"{requestVariable}.Headers.Add(\"{param.Name}\", {BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema))});");
+            sb.AppendLine(4, $"{requestVariable}.Headers.Add({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema))});");
             sb.AppendLine("}");
             sb.AppendLine();
         }
@@ -1619,7 +1619,7 @@ public static class HttpClientExtractor
                 sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
                 sb.AppendLine("{");
                 var text = BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema));
-                sb.AppendLine(4, $"cookieParts.Add(\"{param.Name}=\" + {(param.Style == ParameterStyle.Cookie ? text : $"Uri.EscapeDataString({text})")});");
+                sb.AppendLine(4, $"cookieParts.Add(\"{CSharpLiteralHelper.EscapeString(param.Name!)}=\" + {(param.Style == ParameterStyle.Cookie ? text : $"Uri.EscapeDataString({text})")});");
                 sb.AppendLine("}");
                 sb.AppendLine();
             }
@@ -1856,6 +1856,12 @@ public static class HttpClientExtractor
     /// For optional parameters, wraps the foreach in a null guard.
     /// Each element is encoded using <see cref="BuildEncodedExpression"/> (or raw when allowReserved).
     /// </summary>
+    /// <summary>
+    /// A wire name for the inside of a generated interpolated string literal: escaped as text, braces doubled.
+    /// </summary>
+    private static string InterpolatedName(string name)
+        => CSharpLiteralHelper.EscapeString(name).Replace("{", "{{").Replace("}", "}}");
+
     private static void AppendQueryArrayForeach(
         StringBuilder builder,
         string paramName,
@@ -1892,7 +1898,7 @@ public static class HttpClientExtractor
         {
             builder.AppendLine($"foreach (var item in {paramAccess})");
             builder.AppendLine("{");
-            builder.AppendLine(4, $"queryParams.Add($\"{paramName}={{{encodedItem}}}\");");
+            builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(paramName)}={{{encodedItem}}}\");");
             builder.AppendLine("}");
         }
         else
@@ -1902,7 +1908,7 @@ public static class HttpClientExtractor
             builder.AppendLine("{");
             builder.AppendLine(4, $"foreach (var item in {paramAccess})");
             builder.AppendLine(4, "{");
-            builder.AppendLine(8, $"queryParams.Add($\"{paramName}={{{encodedItem}}}\");");
+            builder.AppendLine(8, $"queryParams.Add($\"{InterpolatedName(paramName)}={{{encodedItem}}}\");");
             builder.AppendLine(4, "}");
             builder.AppendLine("}");
         }
@@ -2088,9 +2094,9 @@ public static class HttpClientExtractor
                     sb.AppendLine(indent + 4, $"fileContent.Headers.ContentType = new MediaTypeHeaderValue({file}.ContentType);");
                     sb.AppendLine(indent, "}");
                     sb.AppendLine();
-                    sb.AppendLine(indent, $"content.Add(fileContent, \"{name}\", {file}.FileName);");
+                    sb.AppendLine(indent, $"content.Add(fileContent, {CSharpLiteralHelper.ToStringLiteral(name)}, {file}.FileName);");
                 },
-                Text: (sb, indent, name, text) => sb.AppendLine(indent, $"content.Add(new StringContent({text}), \"{name}\");")));
+                Text: (sb, indent, name, text) => sb.AppendLine(indent, $"content.Add(new StringContent({text}), {CSharpLiteralHelper.ToStringLiteral(name)});")));
     }
 
     /// <summary>

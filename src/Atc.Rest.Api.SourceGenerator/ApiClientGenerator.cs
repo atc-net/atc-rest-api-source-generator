@@ -113,31 +113,35 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
-        // Identify the base file (non-part file or the first file that is not a part file)
-        // Overlay files are no specifications: the ones the marker lists are applied to it
-        var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
-        var overlays = OverlayFileHelper.Resolve(productionContext, marker.Path, config.Overlays, overlayFiles);
-        if (overlays is null)
-        {
-            return;
-        }
-
-        var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
-        if (baseFile is null)
-        {
-            return;
-        }
-
-        // A second base specification: the generator reads one per project
-        var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
-        if (otherBases.Count > 0)
-        {
-            DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
-            return;
-        }
-
+        // Everything from here runs under the catch: a failure before the base file is known is reported on the marker
+        var filePath = marker.Path;
         try
         {
+            // Identify the base file (non-part file or the first file that is not a part file)
+            // Overlay files are no specifications: the ones the marker lists are applied to it
+            var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
+            var overlays = OverlayFileHelper.Resolve(productionContext, marker.Path, config.Overlays, overlayFiles);
+            if (overlays is null)
+            {
+                return;
+            }
+
+            var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
+            if (baseFile is null)
+            {
+                return;
+            }
+
+            filePath = baseFile.Value.Path;
+
+            // A second base specification: the generator reads one per project
+            var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
+            if (otherBases.Count > 0)
+            {
+                DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
+                return;
+            }
+
             // Check if multi-parts specification
             var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
             var partFiles = specificationFiles
@@ -157,7 +161,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DiagnosticHelpers.ReportClientGenerationError(productionContext, baseFile.Value.Path, ex);
+            DiagnosticHelpers.ReportClientGenerationError(productionContext, filePath, ex);
         }
     }
 
