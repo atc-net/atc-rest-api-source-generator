@@ -40,7 +40,9 @@ public sealed class SerialRunner
             idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
-        _ = Task.Run(RunLoop);
+        // A regeneration is long-running CPU work: a thread of its own, not a pool thread it would hold (and wait for,
+        // under a starved pool) for the whole run
+        _ = Task.Factory.StartNew(RunLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 
     /// <summary>
