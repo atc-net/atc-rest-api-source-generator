@@ -27,6 +27,30 @@ public static class DiagnosticBuilder
             DocumentationUrl: GetDocUrl(RuleIdentifiers.InvalidSchemaReference));
 
     /// <summary>
+    /// Creates a reference error diagnostic for a component that is not a schema (a parameter, response, request
+    /// body, header or path item).
+    /// </summary>
+    public static DiagnosticMessage ComponentReferenceError(
+        string kind,
+        string section,
+        string referenceId,
+        string jsonPath,
+        string filePath)
+        => new(
+            RuleId: RuleIdentifiers.InvalidSchemaReference,
+            Message: $"{kind} reference '{referenceId}' does not exist in components.{section}",
+            Severity: DiagnosticSeverity.Error,
+            FilePath: filePath,
+            Context: jsonPath,
+            Suggestions:
+            [
+                $"Add the missing {kind.ToLowerInvariant()} '{referenceId}' to components.{section}",
+                "Check for typos in the $ref path",
+                "Ensure the name matches exactly (case-sensitive)"
+            ],
+            DocumentationUrl: GetDocUrl(RuleIdentifiers.InvalidSchemaReference));
+
+    /// <summary>
     /// Creates a naming convention warning diagnostic.
     /// </summary>
     public static DiagnosticMessage NamingConventionWarning(

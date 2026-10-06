@@ -688,16 +688,23 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateWebApplicationExtensions(generatedContext, projectName, useGlobalErrorHandler);
         }
 
+        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
+
         // Generate simplified API surface (only if global error handler is enabled, which implies MinimalApi package)
         if (useGlobalErrorHandler)
         {
             GenerateApiOptions(generatedContext, openApiDoc, projectName, config);
-            GenerateUnifiedServiceCollection(generatedContext, openApiDoc, projectName, config, effectiveSegments);
-            GenerateUnifiedWebApplicationExtensions(generatedContext, openApiDoc, projectName, config);
+
+            // The unified extensions register the handlers and map the endpoints: with no operations there are
+            // none of either (ATC_API_PTH002 says so), and the extensions would name namespaces that do not exist
+            if (operationCount > 0)
+            {
+                GenerateUnifiedServiceCollection(generatedContext, openApiDoc, projectName, config, effectiveSegments);
+                GenerateUnifiedWebApplicationExtensions(generatedContext, openApiDoc, projectName, config);
+            }
         }
 
         // Report generation summary
-        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
         var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
 
         ReportServerGenerationSummary(

@@ -81,6 +81,13 @@ public static class OpenApiDocumentValidator
         diagnostics.AddRange(ValidateOperationIdCollisions(document, sourceFilePath));
         diagnostics.AddRange(ValidateSecuritySchemeReferences(document, sourceFilePath));
 
+        // What the generated code would name and not find: a $ref to a component that is not there, a parameter
+        // with no type, a schema with no type but null; and a document with nothing to generate from
+        diagnostics.AddRange(DanglingReferenceValidator.Validate(document, sourceFilePath));
+        diagnostics.AddRange(ValidateParameterSchemas(document, sourceFilePath));
+        diagnostics.AddRange(ValidateNullOnlyTypes(document, sourceFilePath));
+        diagnostics.AddRange(ValidateNoOperations(document, sourceFilePath));
+
         if (strategy == ValidateSpecificationStrategy.None)
         {
             return diagnostics; // Skip all validation
@@ -141,9 +148,6 @@ public static class OpenApiDocumentValidator
                     sourceFilePath));
             }
         }
-
-        // ATCAPI_SCH013: Validate schema references (fundamental error that breaks code generation)
-        diagnostics.AddRange(ValidateSchemaReferences(document, sourceFilePath));
 
         // ATC_API_SCH019: Warn on anonymous inline schema in components.mediaTypes
         ValidateComponentsMediaTypes(diagnostics, sourceFilePath, document);
@@ -2954,14 +2958,15 @@ public static class OpenApiDocumentValidator
 
     /// <summary>
     /// Validates that no two operations have operationIds that become one C# name (ATC_API_OPR032): 'getUser' and
-    /// 'get_user' or 'GetUSER' would be one handler interface, one result class and one client method.
+    /// 'get_user' or 'GetUSER' would be one handler interface, one result class and one client method. Names that
+    /// differ by case only ('GETUSER' becomes 'Getuser') collide too: one hint name, and one file on a Windows disk.
     /// </summary>
     private static List<DiagnosticMessage> ValidateOperationIdCollisions(
         OpenApiDocument document,
         string sourceFilePath)
     {
         var diagnostics = new List<DiagnosticMessage>();
-        var byName = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var byName = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in document.Paths ?? [])
         {
             foreach (var operation in path.Value?.Operations ?? [])
@@ -2990,6 +2995,110 @@ public static class OpenApiDocumentValidator
         }
 
         return diagnostics;
+    }
+
+    /// <summary>
+    /// Validates that every parameter has a type (ATC_API_OPR033): a 'schema' or a 'content' map. One with neither
+    /// would be an 'object' in the clients, passed where a string belongs. A parameter that is a dangling reference
+    /// is reported by the reference check instead.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateParameterSchemas(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        foreach (var path in document.Paths ?? [])
+        {
+            foreach (var parameter in path.Value?.Parameters ?? [])
+            {
+                Check(parameter, $"path '{path.Key}'", path.Key);
+            }
+
+            foreach (var operation in path.Value?.Operations ?? [])
+            {
+                var name = operation.Value?.OperationId ?? $"{operation.Key.Method.ToUpperInvariant()} {path.Key}";
+                foreach (var parameter in operation.Value?.Parameters ?? [])
+                {
+                    Check(parameter, $"operation '{name}'", name);
+                }
+            }
+        }
+
+        return diagnostics;
+
+        void Check(
+            IOpenApiParameter? parameter,
+            string owner,
+            string context)
+        {
+            if (parameter is OpenApiParameterReference { Target: null } || parameter is null)
+            {
+                return;
+            }
+
+            if (parameter.Schema is null && (parameter.Content is null || parameter.Content.Count == 0))
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.ParameterWithoutSchema,
+                    $"Parameter '{parameter.Name}' of {owner} has neither a 'schema' nor a 'content' map, so it has no type.",
+                    DiagnosticSeverity.Error,
+                    sourceFilePath,
+                    Context: context,
+                    Suggestions: ["Give the parameter a schema (schema: { type: string })", "Or describe it with a content map when it is serialized as JSON"]));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates that no component schema is typed only 'null' (ATC_API_SCH024): it has no values and no C# type,
+    /// so nothing is generated for it while every reference to it names a type that does not exist.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateNullOnlyTypes(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        foreach (var schema in document.Components?.Schemas ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            if (schema.Value is OpenApiSchema { Type: JsonSchemaType.Null })
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.SchemaTypeOnlyNull,
+                    $"Schema '{schema.Key}' has the type 'null' and no other: it has no values and no C# type, so nothing is generated for it.",
+                    DiagnosticSeverity.Error,
+                    sourceFilePath,
+                    Context: $"Schema: {schema.Key}",
+                    Suggestions: ["Give the schema a type (type: [string, 'null'] for a nullable string)", "Or remove the schema and the references to it"]));
+            }
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// Validates that the document has something to generate from (ATC_API_PTH002): with no operations there are
+    /// no endpoints, handlers or client methods - a models-only document, a multi-part base file whose parts are
+    /// missing, an overlay that removed 'paths'. A document with webhooks has operations of its own kind.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateNoOperations(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var operations = document.Paths?.Sum(p => p.Value?.Operations?.Count ?? 0) ?? 0;
+        if (operations > 0 || document.Webhooks is { Count: > 0 })
+        {
+            return [];
+        }
+
+        return
+        [
+            new DiagnosticMessage(
+                RuleIdentifiers.NoOperations,
+                "The specification has no operations: no endpoints, handlers or client methods are generated.",
+                DiagnosticSeverity.Warning,
+                sourceFilePath,
+                Suggestions: ["Add the operations under 'paths'", "For a multi-part specification, check that the part files are next to the base file"]),
+        ];
     }
 
     /// <summary>
@@ -4100,181 +4209,6 @@ public static class OpenApiDocumentValidator
                     }
                 }
             }
-        }
-    }
-
-    /// <summary>
-    /// Validates schema references point to existing schemas (ATCAPI_SCH013).
-    /// </summary>
-    private static List<DiagnosticMessage> ValidateSchemaReferences(
-        OpenApiDocument document,
-        string sourceFilePath)
-    {
-        var diagnostics = new List<DiagnosticMessage>();
-
-        if (document.Paths is null)
-        {
-            return diagnostics;
-        }
-
-        // Check operation response schemas, request body schemas, and parameter schemas
-        foreach (var pathEntry in document.Paths)
-        {
-            var pathKey = pathEntry.Key;
-            var pathItem = pathEntry.Value;
-
-            if (pathItem.Operations is null)
-            {
-                continue;
-            }
-
-            foreach (var operationEntry in pathItem.Operations)
-            {
-                var operationType = operationEntry
-                    .Key
-                    .ToString()
-                    .ToLowerInvariant();
-
-                var operation = operationEntry.Value;
-
-                // Check response schemas
-                if (operation.Responses is not null)
-                {
-                    foreach (var responseEntry in operation.Responses)
-                    {
-                        var statusCode = responseEntry.Key;
-                        var response = responseEntry.Value;
-
-                        if (response.Content is null)
-                        {
-                            continue;
-                        }
-
-                        foreach (var contentEntry in response.Content)
-                        {
-                            var contentType = contentEntry.Key;
-                            var mediaType = contentEntry.Value;
-
-                            ValidateSingleSchemaReference(
-                                mediaType.Schema,
-                                diagnostics,
-                                sourceFilePath,
-                                $"{pathKey}/{operationType}/responses/{statusCode}/content/{contentType}/schema");
-                        }
-                    }
-                }
-
-                // Check request body schemas
-                if (operation.RequestBody?.Content is not null)
-                {
-                    foreach (var contentEntry in operation.RequestBody.Content)
-                    {
-                        var contentType = contentEntry.Key;
-                        var mediaType = contentEntry.Value;
-
-                        ValidateSingleSchemaReference(
-                            mediaType.Schema,
-                            diagnostics,
-                            sourceFilePath,
-                            $"{pathKey}/{operationType}/requestBody/content/{contentType}/schema");
-                    }
-                }
-
-                // Check parameter schemas
-                if (operation.Parameters is not null)
-                {
-                    foreach (var parameter in operation.Parameters)
-                    {
-                        ValidateSingleSchemaReference(
-                            parameter.Schema,
-                            diagnostics,
-                            sourceFilePath,
-                            $"{pathKey}/{operationType}/parameters/{parameter.Name}/schema");
-                    }
-                }
-            }
-        }
-
-        // Check component schema properties for invalid references
-        if (document.Components?.Schemas is not null)
-        {
-            foreach (var schemaEntry in document.Components.Schemas)
-            {
-                var schemaName = schemaEntry.Key;
-                var schema = schemaEntry.Value;
-
-                ValidateSchemaPropertiesReferences(
-                    schema,
-                    diagnostics,
-                    sourceFilePath,
-                    $"components/schemas/{schemaName}");
-            }
-        }
-
-        return diagnostics;
-    }
-
-    /// <summary>
-    /// Validates a single schema reference points to an existing schema.
-    /// </summary>
-    private static void ValidateSingleSchemaReference(
-        IOpenApiSchema? schema,
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string path)
-    {
-        if (schema is null)
-        {
-            return;
-        }
-
-        if (schema is OpenApiSchemaReference { Target: null } schemaRef)
-        {
-            var referenceId = schemaRef.Reference.Id ?? "unknown";
-            diagnostics.Add(DiagnosticBuilder.SchemaReferenceError(
-                referenceId,
-                path,
-                sourceFilePath));
-        }
-        else if (schema is OpenApiSchema { Items: OpenApiSchemaReference { Target: null } itemRef })
-        {
-            // Check array items
-            var referenceId = itemRef.Reference.Id ?? "unknown";
-            diagnostics.Add(DiagnosticBuilder.SchemaReferenceError(
-                referenceId,
-                $"{path}/items",
-                sourceFilePath));
-        }
-    }
-
-    /// <summary>
-    /// Validates schema properties recursively for invalid references.
-    /// </summary>
-    private static void ValidateSchemaPropertiesReferences(
-        IOpenApiSchema schema,
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string path)
-    {
-        var actualSchema = schema is OpenApiSchemaReference { Target: not null } schemaRef
-            ? schemaRef.Target
-            : schema as OpenApiSchema;
-
-        if (actualSchema?.Properties is null)
-        {
-            return;
-        }
-
-        foreach (var propertyEntry in actualSchema.Properties)
-        {
-            var propName = propertyEntry.Key;
-            var propSchema = propertyEntry.Value;
-
-            ValidateSingleSchemaReference(
-                propSchema,
-                diagnostics,
-                sourceFilePath,
-                $"{path}/properties/{propName}");
         }
     }
 }

@@ -490,12 +490,26 @@ public static class RuleIdentifiers
     /// </summary>
     public const string SchemaCycle = "ATC_API_SCH023";
 
+    /// <summary>
+    /// ATC_API_SCH024: A component schema's type is only 'null' ('type: [null]' in OpenAPI 3.1): it has no values
+    /// and no C# type, so nothing is generated for it while every reference to it names a type that does not exist.
+    /// Error, every strategy.
+    /// </summary>
+    public const string SchemaTypeOnlyNull = "ATC_API_SCH024";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>
     /// ATC_API_PTH001: Path parameters not well-formatted (unbalanced braces).
     /// </summary>
     public const string PathParametersNotWellFormatted = "ATC_API_PTH001";
+
+    /// <summary>
+    /// ATC_API_PTH002: The specification has no operations (a models-only document, a multi-part base file whose
+    /// parts are missing, an overlay that removed 'paths'): no endpoints, handlers or client methods are generated.
+    /// Warning, every strategy.
+    /// </summary>
+    public const string NoOperations = "ATC_API_PTH002";
 
     // ========== Operation Rules (OPR) ==========
 
@@ -666,6 +680,12 @@ public static class RuleIdentifiers
     /// 'GetUSER'): one handler interface, one result class and one client method for both. Error, every strategy.
     /// </summary>
     public const string OperationIdCollision = "ATC_API_OPR032";
+
+    /// <summary>
+    /// ATC_API_OPR033: A parameter has neither a 'schema' nor a 'content' map: it has no type, and a client would
+    /// pass an 'object' where a string belongs. Error, every strategy.
+    /// </summary>
+    public const string ParameterWithoutSchema = "ATC_API_OPR033";
 
     // ========== Webhook Rules (WBH) ==========
 

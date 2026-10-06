@@ -2,8 +2,9 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 
 /// <summary>
 /// Two operations whose operationIds become one C# name (<c>getUser</c> and <c>get_user</c>, <c>GetUSER</c>) would
-/// be one handler interface, one result class and one client method: an error (<c>ATC_API_OPR032</c>) under every
-/// strategy, naming both operations. Distinct names, and the same name on different paths that stay distinct, pass.
+/// be one handler interface, one result class and one client method, and two that differ by case only
+/// (<c>GETUSER</c>) one generated file: an error (<c>ATC_API_OPR032</c>) under every strategy, naming both
+/// operations. Distinct names, and the same name on different paths that stay distinct, pass.
 /// </summary>
 public class OperationIdCollisionValidatorTests
 {
@@ -22,6 +23,10 @@ public class OperationIdCollisionValidatorTests
             { "getUser", "get_user" },
             { "getUser", "GetUSER" },
             { "getUser", "get-user" },
+
+            // Different PascalCase names (GetUser / Getuser), but one hint name and one file on a Windows disk
+            { "getUser", "GETUSER" },
+            { "getUser", "getuser" },
         };
 
     [Theory]
