@@ -300,22 +300,15 @@ public sealed class ProjectScaffoldingService
         {
             AnsiConsole.MarkupLine("[dim]Running atc-coding-rules-updater...[/]");
 
-            // Build arguments for the tool
-            var arguments = $"run -p \"{repoPath}\" --optionsPath \"{optionsPath}\" --verbose";
-
-            // Add organizationName and repositoryName only if Directory.Build.props doesn't exist
-            var propsPath = Path.Combine(repoPath, "Directory.Build.props");
-            if (!File.Exists(propsPath) &&
-                !string.IsNullOrWhiteSpace(organizationName) &&
-                !string.IsNullOrWhiteSpace(repositoryName))
-            {
-                arguments += $" --organizationName \"{organizationName}\" --repositoryName \"{repositoryName}\"";
-            }
+            // organizationName and repositoryName are for the initial setup only: a Directory.Build.props is kept
+            var includeNames = !File.Exists(Path.Combine(repoPath, "Directory.Build.props")) &&
+                               !string.IsNullOrWhiteSpace(organizationName) &&
+                               !string.IsNullOrWhiteSpace(repositoryName);
 
             var startInfo = new ProcessStartInfo
             {
                 FileName = ExecutableResolver.Resolve("atc-coding-rules-updater"),
-                Arguments = arguments,
+                Arguments = BuildCodingRulesUpdaterArguments(repoPath, optionsPath, includeNames, organizationName, repositoryName),
                 WorkingDirectory = repoPath,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -325,11 +318,17 @@ public sealed class ProjectScaffoldingService
 
             using var process = new Process();
             process.StartInfo = startInfo;
-            process.Start();
 
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
+            // Both streams are drained as they come: a tool that fills the stderr pipe before stdout ends would
+            // otherwise block on a full pipe while this side blocks on stdout
+            var errorLines = new StringBuilder();
+            process.OutputDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, e) => errorLines.AppendLine(e.Data);
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             process.WaitForExit();
+            var error = errorLines.ToString();
 
             if (process.ExitCode != 0)
             {
@@ -351,6 +350,32 @@ public sealed class ProjectScaffoldingService
             AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
             return true; // Don't fail the whole process, just warn
         }
+    }
+
+    /// <summary>
+    /// Builds the command line for atc-coding-rules-updater.
+    /// </summary>
+    /// <param name="repoPath">Root path for the repository.</param>
+    /// <param name="optionsPath">The path of atc-coding-rules-updater.json.</param>
+    /// <param name="includeNames">Whether to pass the organization and repository names (initial setup).</param>
+    /// <param name="organizationName">Organization name for initial setup.</param>
+    /// <param name="repositoryName">Repository name for initial setup.</param>
+    /// <returns>The arguments.</returns>
+    public static string BuildCodingRulesUpdaterArguments(
+        string repoPath,
+        string optionsPath,
+        bool includeNames,
+        string? organizationName,
+        string? repositoryName)
+    {
+        // A path ending in a backslash would escape the closing quote of its argument
+        var arguments = $"run -p \"{repoPath.TrimEnd('\\', '/')}\" --optionsPath \"{optionsPath.TrimEnd('\\', '/')}\" --verbose";
+        if (includeNames)
+        {
+            arguments += $" --organizationName \"{organizationName}\" --repositoryName \"{repositoryName}\"";
+        }
+
+        return arguments;
     }
 
     /// <summary>

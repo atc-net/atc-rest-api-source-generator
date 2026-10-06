@@ -19,4 +19,10 @@ public record TypeScriptGenerationResult(
     /// emitter intentionally skips). Empty when generation found nothing worth flagging.
     /// </summary>
     public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// The files (relative to the output path) the generator would have written but left as they are, because the
+    /// file there has no generated header: somebody's own file.
+    /// </summary>
+    public IReadOnlyList<string> KeptFiles { get; init; } = Array.Empty<string>();
 }

@@ -59,6 +59,32 @@ public sealed class GenerateServerCommandTests : IDisposable
         Assert.Contains("\"namespace\": \"PizzaPlanet\"", markerContent, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The marker file is the user's after the first run: a second run with other options leaves a marker file
+    /// the user edited as it is and says so, instead of rewriting it from the options.
+    /// </summary>
+    [Fact]
+    public async Task GenerateServer_ASecondRun_KeepsAMarkerFileTheUserEdited()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "PizzaPlanet");
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n \"PizzaPlanet\"";
+        var (firstOk, firstOutput) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(firstOk, CliTestHelper.StripAnsiCodes(firstOutput));
+
+        var markerFilePath = Path.Combine(repoRoot, "src", "PizzaPlanet.Api.Contracts", ".atc-rest-api-server");
+        var edited = (await File.ReadAllTextAsync(markerFilePath, TestContext.Current.CancellationToken))
+            .Replace("\"namespace\": \"PizzaPlanet\"", "\"namespace\": \"Contoso.Edited\"", StringComparison.Ordinal);
+        await File.WriteAllTextAsync(markerFilePath, edited, TestContext.Current.CancellationToken);
+
+        var (secondOk, secondOutput) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        var cleanOutput = CliTestHelper.StripAnsiCodes(secondOutput);
+        Assert.True(secondOk, cleanOutput);
+        Assert.Contains("\"namespace\": \"Contoso.Edited\"", await File.ReadAllTextAsync(markerFilePath, TestContext.Current.CancellationToken), StringComparison.Ordinal);
+        Assert.Contains("kept", cleanOutput, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GenerateServer_WithProjectNameWithSuffix_WritesStrippedNamespaceToMarkerFile()
     {

@@ -442,8 +442,8 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                     return true;
                 }
 
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated marker file: {Constants.MarkerFile.Client}");
+                // The marker file is the user's once it exists: an edit in it is not rewritten from the options
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Marker file kept as it is (it differs from the options given): {Constants.MarkerFile.Client}");
             }
             else
             {

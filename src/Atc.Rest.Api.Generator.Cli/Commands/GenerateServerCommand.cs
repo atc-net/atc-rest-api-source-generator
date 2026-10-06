@@ -1026,8 +1026,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     return true;
                 }
 
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated marker file: {Constants.MarkerFile.Server}");
+                // The marker file is the user's once it exists: an edit in it is not rewritten from the options
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Marker file kept as it is (it differs from the options given): {Constants.MarkerFile.Server}");
             }
             else
             {
@@ -1065,8 +1065,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     return true;
                 }
 
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated marker file: {Constants.MarkerFile.ServerHandlers}");
+                // The marker file is the user's once it exists: an edit in it is not rewritten from the options
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Marker file kept as it is (it differs from the options given): {Constants.MarkerFile.ServerHandlers}");
             }
             else
             {

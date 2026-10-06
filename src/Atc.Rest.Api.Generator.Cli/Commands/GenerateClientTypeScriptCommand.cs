@@ -55,18 +55,15 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.WriteLine();
 
         var result = RunGeneration(specPath, outputPath, config, stopwatch);
-        if (result != 0)
-        {
-            return result;
-        }
 
-        // Watch mode: re-run generation when the spec file changes
+        // Watch mode: re-run generation when the spec file changes - also after a first run that failed, since the
+        // next save is what fixes a specification that does not validate
         if (settings.Watch)
         {
             return RunWatchLoop(specPath, outputPath, config);
         }
 
-        return 0;
+        return result;
     }
 
     private static int RunGeneration(
@@ -181,6 +178,17 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             AnsiConsole.WriteLine();
         }
 
+        if (generationResult.KeptFiles.Count > 0)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] {generationResult.KeptFiles.Count} file(s) kept as they are - no generated header, so they are somebody's own:");
+            foreach (var file in generationResult.KeptFiles)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]{file}[/]");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
         if (dryRun)
         {
             AnsiConsole.MarkupLine("[dim]Dry run - no files were written.[/]");
@@ -191,7 +199,6 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         }
     }
 
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Timer is disposed in the finally block.")]
     private static int RunWatchLoop(
         string specPath,
         string outputPath,
@@ -199,17 +206,6 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
     {
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[blue]Watching for changes...[/] Press Ctrl+C to stop.");
-
-        var specDirectory = Path.GetDirectoryName(specPath)!;
-        var specFileName = Path.GetFileName(specPath);
-
-        // The base file and its multi-part files ({Base}_{Part}.yaml) - a change to a part regenerates too.
-        using var watcher = new FileSystemWatcher(specDirectory, specFileName)
-        {
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
-        };
-        watcher.Filters.Add(Path.GetFileNameWithoutExtension(specPath) + "_*" + Path.GetExtension(specPath));
-        watcher.EnableRaisingEvents = true;
 
         using var exitEvent = new ManualResetEventSlim(false);
 
@@ -232,10 +228,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[blue]Watching for changes...[/] Press Ctrl+C to stop.");
         });
-        using var debounceTimer = new System.Threading.Timer(_ => regeneration.Trigger());
-
-        watcher.Changed += (_, _) => debounceTimer.Change(300, Timeout.Infinite);
-        watcher.Created += (_, _) => debounceTimer.Change(300, Timeout.Infinite);
+        using var watcher = new SpecificationWatcher(specPath, regeneration.Trigger);
 
         System.Console.CancelKeyPress += (_, e) =>
         {

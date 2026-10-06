@@ -770,6 +770,54 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(outputPath, "tsconfig.json")), "tsconfig.json should exist");
     }
 
+    /// <summary>
+    /// The scaffold files (package.json, the tsconfigs, README.md) are the user's after the first run: a second run
+    /// leaves an edited one as it is.
+    /// </summary>
+    [Fact]
+    public async Task Scaffold_ASecondRun_KeepsTheScaffoldFilesTheUserEdited()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsScaffoldTwice");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --scaffold";
+        var (firstOk, firstOutput) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(firstOk, CliTestHelper.StripAnsiCodes(firstOutput));
+
+        var packageJsonPath = Path.Combine(outputPath, "package.json");
+        var edited = (await File.ReadAllTextAsync(packageJsonPath, TestContext.Current.CancellationToken))
+            .Replace("\"private\": true", "\"private\": true,\n  \"description\": \"edited by hand\"", StringComparison.Ordinal);
+        Assert.Contains("edited by hand", edited, StringComparison.Ordinal);
+        await File.WriteAllTextAsync(packageJsonPath, edited, TestContext.Current.CancellationToken);
+
+        var (secondOk, secondOutput) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(secondOk, CliTestHelper.StripAnsiCodes(secondOutput));
+        Assert.Contains("edited by hand", await File.ReadAllTextAsync(packageJsonPath, TestContext.Current.CancellationToken), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A file the generator would write that exists without the generated header is somebody's own file: it is kept,
+    /// and the run says so.
+    /// </summary>
+    [Fact]
+    public async Task AFileWithoutTheGeneratedHeader_IsKept()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsOwnFile");
+        var ownFile = Path.Combine(outputPath, "client", "ApiClient.ts");
+        Directory.CreateDirectory(Path.GetDirectoryName(ownFile)!);
+        await File.WriteAllTextAsync(ownFile, "// mine\nexport class ApiClient {}\n", TestContext.Current.CancellationToken);
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\"";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, cleanOutput);
+        Assert.Equal("// mine\nexport class ApiClient {}\n", await File.ReadAllTextAsync(ownFile, TestContext.Current.CancellationToken));
+        Assert.Contains("ApiClient.ts", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("kept", cleanOutput, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task ConvertDates_ConvertsTheDeclaredDatesThroughTheWireShapes()
     {

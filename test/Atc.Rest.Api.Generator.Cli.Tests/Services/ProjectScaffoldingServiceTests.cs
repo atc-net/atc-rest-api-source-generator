@@ -18,6 +18,26 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// A repository path that ends in a separator would escape the closing quote of the argument (<c>-p "C:\repo\"</c>
+    /// reads to the next quote); the arguments carry the path without it.
+    /// </summary>
+    [Theory]
+    [InlineData("C:\\repo\\", "C:\\repo")]
+    [InlineData("C:\\repo", "C:\\repo")]
+    [InlineData("/home/user/repo/", "/home/user/repo")]
+    public void BuildCodingRulesUpdaterArguments_TrimsATrailingSeparator(
+        string repoPath,
+        string expectedPath)
+    {
+        var arguments = ProjectScaffoldingService.BuildCodingRulesUpdaterArguments(repoPath, Path.Combine(expectedPath, "atc-coding-rules-updater.json"), includeNames: false, "Contoso", "Repo");
+
+        Assert.StartsWith($"run -p \"{expectedPath}\" --optionsPath \"", arguments, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\\"", arguments, StringComparison.Ordinal);
+        Assert.DoesNotContain("--organizationName", arguments, StringComparison.Ordinal);
+        Assert.Contains("--organizationName \"Contoso\" --repositoryName \"Repo\"", ProjectScaffoldingService.BuildCodingRulesUpdaterArguments(repoPath, "o.json", includeNames: true, "Contoso", "Repo"), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(HostUiType.Scalar)]
     [InlineData(HostUiType.Swagger)]
