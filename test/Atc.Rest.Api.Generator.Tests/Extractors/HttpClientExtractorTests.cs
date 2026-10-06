@@ -1026,7 +1026,7 @@ public class HttpClientExtractorTests
         Assert.DoesNotContain(clientClass.Methods, m => m.Name == "ListUsersAsync");
 
         // useServersBasePath: false leaves the servers[0] path off the URL.
-        Assert.Contains("var url = \"/pets\";", listPets.Content, StringComparison.Ordinal);
+        Assert.Contains("var url = \"pets\";", listPets.Content, StringComparison.Ordinal);
         Assert.Equal("Task", listPets.ReturnGenericTypeName);
         Assert.Equal("List<Pet>", listPets.ReturnTypeName);
     }
@@ -1050,7 +1050,7 @@ public class HttpClientExtractorTests
         Assert.NotNull(clientClass);
         Assert.Equal("UsersClient", clientClass.ClassTypeName);
         var listUsers = Assert.Single(clientClass.Methods!, m => m.Name == "ListUsersAsync");
-        Assert.Contains("var url = \"/api/v1/users\";", listUsers.Content, StringComparison.Ordinal);
+        Assert.Contains("var url = \"api/v1/users\";", listUsers.Content, StringComparison.Ordinal);
         Assert.Equal("EndpointResponse<List<User>>", listUsers.ReturnTypeName);
     }
 

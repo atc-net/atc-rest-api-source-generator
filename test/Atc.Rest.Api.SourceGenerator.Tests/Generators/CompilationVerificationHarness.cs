@@ -203,16 +203,7 @@ internal static class CompilationVerificationHarness
     /// </summary>
     public static List<MetadataReference> GetFullFrameworkReferences(
         bool includeMinimalApi = false)
-    {
-        var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES");
-        return tpa
-            .Split(Path.PathSeparator)
-            .Where(p => p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .Where(p => includeMinimalApi ||
-                        !string.Equals(Path.GetFileName(p), MinimalApiAssemblyFileName, StringComparison.OrdinalIgnoreCase))
-            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
-            .ToList();
-    }
+        => [.. FullFrameworkReferences.Value.Where(r => includeMinimalApi || !IsMinimalApiAssembly(r))];
 
     /// <summary>
     /// Whether a scenario stands for a project that references <c>Atc.Rest.MinimalApi</c>, which
@@ -245,6 +236,19 @@ internal static class CompilationVerificationHarness
     }
 
     private const string MinimalApiAssemblyFileName = "Atc.Rest.MinimalApi.dll";
+
+    // One reference per assembly for the whole run: a reference carries its parsed metadata, so every compilation
+    // after the first reuses it instead of reading two hundred assemblies again
+    private static readonly Lazy<List<MetadataReference>> FullFrameworkReferences = new(
+        () => ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))
+            .Split(Path.PathSeparator)
+            .Where(p => p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
+            .ToList(),
+        LazyThreadSafetyMode.ExecutionAndPublication);
+
+    private static bool IsMinimalApiAssembly(MetadataReference reference)
+        => string.Equals(Path.GetFileName(reference.Display), MinimalApiAssemblyFileName, StringComparison.OrdinalIgnoreCase);
 
     private static readonly string[] MinimalApiModeProperties =
     [

@@ -6,6 +6,7 @@ global using System.Globalization;
 global using System.Linq;
 global using System.Net;
 global using System.Reflection;
+global using System.Security.Cryptography;
 global using System.Text;
 global using System.Text.Json;
 global using System.Text.Json.Nodes;
@@ -31,6 +32,7 @@ global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Helpers;
 global using Atc.Rest.Api.Generator.JsonConverters;
 global using Atc.Rest.Api.Generator.Models;
+global using Atc.Rest.Api.Tests.Node;
 global using Atc.Serialization;
 
 global using Json.Schema;
@@ -40,4 +42,4 @@ global using Microsoft.OpenApi;
 global using Spectre.Console;
 global using Spectre.Console.Cli;
 
-global using Xunit;global using Atc.Rest.Api.Tests.Node;
+global using Xunit;

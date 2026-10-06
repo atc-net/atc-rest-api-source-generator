@@ -64,7 +64,8 @@ public class ParameterPropertyNamesTests
     public void Local_AReferencedHeader_IsNamedAfterItsComponent()
         => Assert.Equal("Continuation", ParameterPropertyNames.Local("x-continuation", ParameterLocation.Header, "Continuation"));
 
-    private static OpenApiOperation Operation(params IOpenApiParameter[] parameters)
+    private static OpenApiOperation Operation(
+        params IOpenApiParameter[] parameters)
         => new() { Parameters = [.. parameters] };
 
     private static OpenApiParameter Parameter(

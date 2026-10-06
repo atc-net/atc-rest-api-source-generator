@@ -1,6 +1,7 @@
 global using System;
 global using System.Collections.Concurrent;
 global using System.Collections.Immutable;
+global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
 global using System.IO;
@@ -10,6 +11,7 @@ global using System.Net.Http.Json;
 global using System.Reflection;
 global using System.Runtime.CompilerServices;
 global using System.Security.Claims;
+global using System.Security.Cryptography;
 global using System.Text;
 global using System.Text.Encodings.Web;
 global using System.Text.Json;
@@ -22,12 +24,14 @@ global using System.Xml.Linq;
 
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator;
+global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
 global using Atc.Rest.Api.Generator.Validators;
 global using Atc.Rest.Api.SourceGenerator.Helpers;
 global using Atc.Rest.Api.SourceGenerator.Tests.Helpers;
+global using Atc.Rest.Api.Tests.Node;
 
 global using Microsoft.AspNetCore.Authentication;
 global using Microsoft.AspNetCore.Builder;
@@ -44,4 +48,4 @@ global using Microsoft.OpenApi;
 
 global using VerifyXunit;
 
-global using Xunit;global using Atc.Rest.Api.Tests.Node;
+global using Xunit;

@@ -22,7 +22,8 @@ public class TypeConflictRegistryTests
     [InlineData("Generated")]
     [InlineData("Models")]
     [InlineData("Endpoints")]
-    public void ScanForConflicts_ASchemaNamedLikeATypeTheGeneratedCodeUses_IsAConflict(string schemaName)
+    public void ScanForConflicts_ASchemaNamedLikeATypeTheGeneratedCodeUses_IsAConflict(
+        string schemaName)
     {
         var yaml = MinimalYamlWithDeviceSchema.Replace("    Pet:", $"    {schemaName}:", StringComparison.Ordinal);
         var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, "conflicts-" + schemaName + ".yaml");
