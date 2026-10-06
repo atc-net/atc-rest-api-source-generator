@@ -35,6 +35,11 @@ public static class OverlayDocumentReader
         {
             throw new FormatException(ex.Message, ex);
         }
+        catch (OpenApiReaderException ex)
+        {
+            // The YAML-to-JSON conversion refuses a document too: aliases expanded past its node limit
+            throw new FormatException(ex.Message, ex);
+        }
     }
 
     /// <summary>
@@ -50,11 +55,18 @@ public static class OverlayDocumentReader
             return false;
         }
 
-        // A cheap look at the top-level keys first: most files are specifications
-        var hasOverlayKey = Regex.IsMatch(content, @"^\s*[""']?overlay[""']?\s*:", RegexOptions.Multiline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
-        if (!hasOverlayKey)
+        // A cheap look at the top-level keys first: most files are specifications. Blanks within the line only
+        // (\s would run across blank lines, quadratically); a timeout all the same is answered by reading the file.
+        try
         {
-            return false;
+            if (!Regex.IsMatch(content, @"^[ \t]*[""']?overlay[""']?[ \t]*:", RegexOptions.Multiline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)))
+            {
+                return false;
+            }
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // Read it instead
         }
 
         try

@@ -9,8 +9,11 @@ internal sealed class JsonPathParser
     // I-JSON integer range (RFC 9535 section 2.1)
     private const long MaxSafeInteger = 9007199254740991;
 
+    private const int MaxNesting = 32;
+
     private readonly string text;
     private int position;
+    private int depth;
 
     public JsonPathParser(string text)
     {
@@ -192,7 +195,10 @@ internal sealed class JsonPathParser
             case '?':
                 position++;
                 SkipBlanks();
-                return new FilterSelector(ParseOr(allowBare: false));
+                Nest();
+                var filter = new FilterSelector(ParseOr(allowBare: false));
+                depth--;
+                return filter;
         }
 
         // An index or a slice
@@ -371,7 +377,9 @@ internal sealed class JsonPathParser
         // '('
         position++;
         SkipBlanks();
+        Nest();
         var inner = ToLogical(ParseOr(allowBare: false));
+        depth--;
         SkipBlanks();
         if (AtEnd || Current != ')')
         {
@@ -380,6 +388,16 @@ internal sealed class JsonPathParser
 
         position++;
         return inner;
+    }
+
+    // A recursive-descent parser has the call stack for a stack: a query nested past any reason (two thousand
+    // parentheses) is refused before it overflows it
+    private void Nest()
+    {
+        if (++depth > MaxNesting)
+        {
+            throw Error($"the query is nested deeper than {MaxNesting} levels");
+        }
     }
 
     private string? ReadComparisonOperator()
@@ -603,7 +621,13 @@ internal sealed class JsonPathParser
         }
 
         var literal = text.Substring(start, position - start);
-        return JsonValue.Create(double.Parse(literal, NumberStyles.Float, CultureInfo.InvariantCulture));
+        var number = double.Parse(literal, NumberStyles.Float, CultureInfo.InvariantCulture);
+        if (double.IsInfinity(number) || double.IsNaN(number))
+        {
+            throw Error($"the number {literal} is too large for a double");
+        }
+
+        return JsonValue.Create(number);
     }
 
     private void RequireDigits()

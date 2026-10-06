@@ -287,7 +287,17 @@ public static class OverlayApplier
         OverlayAction action,
         List<OverlayProblem> problems)
     {
-        var targets = Distinct(action.Target.Select(document));
+        List<JsonPathMatch> targets;
+        try
+        {
+            targets = Distinct(action.Target.Select(document));
+        }
+        catch (JsonPathException ex)
+        {
+            problems.Add(Error(action.Index, $"'target' {action.Target.Text} could not be evaluated: {ex.Message}"));
+            return document;
+        }
+
         if (targets.Count == 0)
         {
             problems.Add(new OverlayProblem(
@@ -326,14 +336,25 @@ public static class OverlayApplier
         string source;
         if (action.Copy is not null)
         {
-            var sources = action.Copy.Select(document);
+            IReadOnlyList<JsonPathMatch> sources;
+            try
+            {
+                sources = action.Copy.Select(document);
+            }
+            catch (JsonPathException ex)
+            {
+                problems.Add(Error(action.Index, $"'copy' {action.Copy.Text} could not be evaluated: {ex.Message}"));
+                return document;
+            }
+
             if (sources.Count != 1)
             {
                 problems.Add(Error(action.Index, $"'copy' must select exactly one node, but {action.Copy.Text} selects {sources.Count}."));
                 return document;
             }
 
-            value = sources[0].Value;
+            // A copy of the node as it is now: the source may lie inside the target it is merged into
+            value = sources[0].Value?.DeepClone();
             source = "copy";
         }
         else if (action.HasUpdate)

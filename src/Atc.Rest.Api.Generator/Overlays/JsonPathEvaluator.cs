@@ -5,6 +5,8 @@ namespace Atc.Rest.Api.Generator.Overlays;
 /// </summary>
 internal static class JsonPathEvaluator
 {
+    private const int MaxCachedRegexes = 256;
+
     private static readonly Dictionary<string, Regex?> RegexCache = new(StringComparer.Ordinal);
 
     public static List<JsonPathMatch> Select(
@@ -350,9 +352,10 @@ internal static class JsonPathEvaluator
         {
             return regex.IsMatch(subjectValue.GetValue<string>());
         }
-        catch (RegexMatchTimeoutException)
+        catch (RegexMatchTimeoutException ex)
         {
-            return false;
+            // A silent false would select the wrong nodes: the overlay is wrong, and says so
+            throw new JsonPathException($"{function.Name}(): the regular expression '{patternValue.GetValue<string>()}' timed out after a second on a value of {subjectValue.GetValue<string>().Length} characters.", ex);
         }
     }
 
@@ -379,6 +382,12 @@ internal static class JsonPathEvaluator
             catch (ArgumentException)
             {
                 regex = null;
+            }
+
+            // A build sees a few dozen patterns; an IDE session lives long
+            if (RegexCache.Count >= MaxCachedRegexes)
+            {
+                RegexCache.Clear();
             }
 
             RegexCache[key] = regex;
