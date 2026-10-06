@@ -1398,6 +1398,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine();
         sb.AppendLine("var app = builder.Build();");
         sb.AppendLine();
+        sb.AppendLine("// An unhandled exception is a 500 ProblemDetails (no detail outside Development), not an empty 500");
+        sb.AppendLine("app.UseExceptionHandler();");
+        sb.AppendLine();
         sb.AppendLine("// A ProblemDetails body for error responses that have none (first in the pipeline)");
         sb.AppendLine("app.UseStatusCodePages();");
         sb.AppendLine();

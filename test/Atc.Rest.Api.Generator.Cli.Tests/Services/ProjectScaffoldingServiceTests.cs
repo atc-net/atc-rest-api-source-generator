@@ -61,8 +61,10 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
         Assert.True(result);
         var program = File.ReadAllText(Path.Combine(tempSrcPath, "Demo.Api", "Program.cs"));
         Assert.Contains("builder.Services.AddProblemDetails();", program, StringComparison.Ordinal);
+        var exceptionHandler = program.IndexOf("app.UseExceptionHandler();", StringComparison.Ordinal);
         var statusCodePages = program.IndexOf("app.UseStatusCodePages();", StringComparison.Ordinal);
-        Assert.True(statusCodePages > program.IndexOf("var app = builder.Build();", StringComparison.Ordinal), program);
+        Assert.True(exceptionHandler > program.IndexOf("var app = builder.Build();", StringComparison.Ordinal), program);
+        Assert.True(statusCodePages > exceptionHandler, program);
         Assert.True(statusCodePages < program.IndexOf("app.MapOpenApi();", StringComparison.Ordinal), program);
     }
 

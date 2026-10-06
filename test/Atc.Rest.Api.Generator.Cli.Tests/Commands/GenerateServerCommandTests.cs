@@ -155,6 +155,7 @@ public sealed class GenerateServerCommandTests : IDisposable
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
         var program = await File.ReadAllTextAsync(Path.Combine(repoRoot, "src", "Contoso.Api", "Program.cs"), TestContext.Current.CancellationToken);
         Assert.Contains("builder.Services.AddProblemDetails();", program, StringComparison.Ordinal);
+        Assert.Contains("app.UseExceptionHandler();", program, StringComparison.Ordinal);
         Assert.Contains("app.UseStatusCodePages();", program, StringComparison.Ordinal);
     }
 
