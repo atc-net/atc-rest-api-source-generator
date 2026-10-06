@@ -205,7 +205,7 @@ public static class OpenApiSchemaExtensions
             {
                 OpenApiSchemaReference schemaRef => SanitizeSchemaName(schemaRef.Reference.Id ?? "object"),
                 OpenApiSchema actualSchema when actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true => actualSchema.GetArrayTypeName(),
-                OpenApiSchema actualSchema => actualSchema.Type.ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object",
+                OpenApiSchema actualSchema => TypeOrConstType(actualSchema).ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object",
                 _ => "object",
             };
 
@@ -757,6 +757,14 @@ public static class OpenApiSchemaExtensions
         /// <summary>
         /// Parses a tuple item from a JSON schema object.
         /// </summary>
+        /// <summary>
+        /// The schema's type - or, for a <c>const</c> without a <c>type</c> (JSON Schema 2020-12 needs none), the type
+        /// of its value: the reader keeps a const as text, so it is a string, not an <c>object</c> no client could pass
+        /// the value to.
+        /// </summary>
+        private static JsonSchemaType? TypeOrConstType(OpenApiSchema actual)
+            => actual.Type ?? (string.IsNullOrEmpty(actual.Const) ? null : JsonSchemaType.String);
+
         private static TupleItemInfo ParseTupleItemFromJson(
             JsonObject schemaObj,
             int index,
@@ -1073,7 +1081,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)
-            var baseType = schema1.Type.ToCSharpTypeName(schema1.Format, includeIFormFile: true);
+            var baseType = TypeOrConstType(schema1).ToCSharpTypeName(schema1.Format, includeIFormFile: true);
 
             // For parameters: optional value types and strings should be nullable
             if (!isRequired && (CSharpTypeHelper.IsExtendedValueType(baseType) || baseType == "string"))
@@ -1187,7 +1195,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)
-            var baseType = schema1.Type.ToCSharpTypeName(schema1.Format, includeIFormFile: true);
+            var baseType = TypeOrConstType(schema1).ToCSharpTypeName(schema1.Format, includeIFormFile: true);
 
             return isNullable
                 ? $"{baseType}?"

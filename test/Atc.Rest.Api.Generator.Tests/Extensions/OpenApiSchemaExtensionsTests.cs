@@ -515,6 +515,21 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal("string", schema.GetCSharpTypeName());
     }
 
+    /// <summary>
+    /// A <c>const</c> without a <c>type</c> (JSON Schema 2020-12 needs none) is the type of its value: the reader
+    /// keeps a const as text, so it is a string - not <c>object</c>, which no client could pass the value to.
+    /// </summary>
+    [Fact]
+    public void AConstWithoutAType_IsAString_ForAModelAParameterAndAName()
+    {
+        var schema = new OpenApiSchema { Const = "fixed" };
+
+        Assert.Equal("string", schema.GetCSharpTypeName());
+        Assert.Equal("string", schema.ToCSharpType(isRequired: true));
+        Assert.Equal("string?", schema.ToCSharpType(isRequired: false));
+        Assert.Equal("string", schema.ToCSharpTypeForModel(isRequired: true));
+    }
+
     [Fact]
     public void GetCSharpTypeName_BooleanSchema_ReturnsBool()
     {
