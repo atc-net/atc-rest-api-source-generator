@@ -79,6 +79,7 @@ public static class OpenApiDocumentValidator
         // strategy - the generator fails on the duplicate file - so the collision is always an error
         diagnostics.AddRange(ValidateSchemaNameCollisions(document, sourceFilePath));
         diagnostics.AddRange(ValidateOperationIdCollisions(document, sourceFilePath));
+        diagnostics.AddRange(ValidateSecuritySchemeReferences(document, sourceFilePath));
 
         if (strategy == ValidateSpecificationStrategy.None)
         {
@@ -2897,6 +2898,54 @@ public static class OpenApiDocumentValidator
                         $"Add a requestBody to the {method} operation in webhook '{webhookName}'",
                         "Define the schema for the data your API will receive"
                     ]));
+            }
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// Validates that every 'security' requirement, the document's and the operations', names a scheme that
+    /// 'components/securitySchemes' declares (ATC_API_SEC012): the generated endpoint requires an authentication
+    /// scheme by that name, which no host registers for a typo, so every request on it would fail at run time.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateSecuritySchemeReferences(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        var declared = document.Components?.SecuritySchemes?.Keys.ToList() ?? [];
+        var declaredText = declared.Count == 0 ? "none" : string.Join(", ", declared.Select(n => $"'{n}'"));
+
+        void Check(
+            IList<OpenApiSecurityRequirement>? requirements,
+            string where)
+        {
+            foreach (var requirement in requirements ?? [])
+            {
+                foreach (var scheme in requirement.Keys)
+                {
+                    var name = scheme.Reference?.Id ?? scheme.Name ?? string.Empty;
+                    if (!declared.Contains(name, StringComparer.Ordinal))
+                    {
+                        diagnostics.Add(new DiagnosticMessage(
+                            RuleIdentifiers.SecuritySchemeNotDeclared,
+                            $"The security requirement of {where} names the scheme '{name}', which components/securitySchemes does not declare (declared: {declaredText}). The endpoint would require an authentication scheme no host registers.",
+                            DiagnosticSeverity.Error,
+                            sourceFilePath,
+                            Context: $"Security: {name}",
+                            Suggestions: ["Name a declared securityScheme, or declare the scheme under components/securitySchemes"]));
+                    }
+                }
+            }
+        }
+
+        Check(document.Security, "the document");
+        foreach (var path in document.Paths ?? [])
+        {
+            foreach (var operation in path.Value?.Operations ?? [])
+            {
+                Check(operation.Value?.Security, $"operation '{operation.Value?.OperationId ?? $"{operation.Key.Method.ToUpperInvariant()} {path.Key}"}'");
             }
         }
 

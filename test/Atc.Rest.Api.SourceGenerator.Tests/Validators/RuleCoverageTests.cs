@@ -52,6 +52,7 @@ public class RuleCoverageTests
         // ========== Schema Rules (SCH) ==========
         ["ATC_API_SCH022"] = "SchemaWithoutRequiredProperties - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaWithoutRequiredValidationTests",
         ["ATC_API_OPR032"] = "OperationIdCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.OperationIdCollisionValidatorTests",
+        ["ATC_API_SEC012"] = "SecuritySchemeNotDeclared - Tested in Atc.Rest.Api.Generator.Tests.Validators.SecuritySchemeReferenceValidatorTests",
 
         // ========== Client Rules (CLT) ==========
         ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",

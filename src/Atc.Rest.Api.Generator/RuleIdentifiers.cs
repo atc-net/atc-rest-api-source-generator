@@ -267,6 +267,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MutualTlsSchemeNoCertInjection = "ATC_API_SEC011";
 
+    /// <summary>
+    /// ATC_API_SEC012: A 'security' requirement names a scheme that 'components/securitySchemes' does not declare
+    /// (a typo such as 'petsstore_auth'). The generated endpoint would require an authentication scheme no host
+    /// registers, so every request on it fails at run time. Error, every strategy.
+    /// </summary>
+    public const string SecuritySchemeNotDeclared = "ATC_API_SEC012";
+
     // ========== Streaming Rules (STREAM) ==========
 
     /// <summary>
