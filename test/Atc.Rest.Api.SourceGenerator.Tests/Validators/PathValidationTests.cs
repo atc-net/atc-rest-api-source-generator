@@ -193,24 +193,24 @@ public class PathValidationTests
         Assert.Contains("whitespace", pth001.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public void Validate_StandardMode_SkipsPathValidation()
+    [Theory]
+    [InlineData(ValidateSpecificationStrategy.None)]
+    [InlineData(ValidateSpecificationStrategy.Standard)]
+    public void Validate_EveryStrategy_ReportsPTH001(
+        ValidateSpecificationStrategy strategy)
     {
-        // Arrange
+        // A path the route and the generated code cannot carry is an error whatever the strategy: the code would
+        // not compile (a client) or the route would not map (a server)
         var document = ParseYaml(CreatePathYaml("/pets/{petId"));
         Assert.NotNull(document);
 
-        // Act
         var diagnostics = OpenApiDocumentValidator.Validate(
-            ValidateSpecificationStrategy.Standard,
+            strategy,
             document,
             [],
             TestFilePath);
 
-        // Assert - Standard mode should not run strict validation
-        var pth001 = diagnostics.FirstOrDefault(d =>
-            d.RuleId == Generator.RuleIdentifiers.PathParametersNotWellFormatted);
-        Assert.Null(pth001);
+        Assert.Contains(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.PathParametersNotWellFormatted);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

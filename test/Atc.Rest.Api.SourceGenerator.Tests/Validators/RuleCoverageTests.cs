@@ -35,6 +35,8 @@ public class RuleCoverageTests
         ["ATC_API_MPT009"] = "DuplicateParameterInPart - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
         ["ATC_API_MPT010"] = "NonIdenticalMergeConflict - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
         ["ATC_API_MPT011"] = "SplitPathSpansGroups - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
+        ["ATC_API_MPT012"] = "PartFileOpenApiVersionDiffers - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
+        ["ATC_API_MPT013"] = "PartFileContributesNothing - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
 
         // ========== Rules tested in Atc.Rest.Api.Generator.Tests ==========
         // These rules have tests but in a separate test project
@@ -55,6 +57,7 @@ public class RuleCoverageTests
         ["ATC_API_SEC012"] = "SecuritySchemeNotDeclared - Tested in Atc.Rest.Api.Generator.Tests.Validators.SecuritySchemeReferenceValidatorTests",
         ["ATC_API_SCH024"] = "SchemaTypeOnlyNull - Tested in Atc.Rest.Api.Generator.Tests.Validators.NullOnlyTypeValidatorTests",
         ["ATC_API_OPR033"] = "ParameterWithoutSchema - Tested in Atc.Rest.Api.Generator.Tests.Validators.ParameterSchemaValidatorTests",
+        ["ATC_API_OPR034"] = "ResponseStatusRange - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseRangeValidatorTests",
         ["ATC_API_SCH025"] = "SchemaConstraintNotGeneratable - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
 
         // ========== Client Rules (CLT) ==========

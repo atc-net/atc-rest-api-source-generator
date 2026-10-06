@@ -125,6 +125,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MultipleMarkerFiles = "ATC_API_GEN020";
 
+    /// <summary>
+    /// ATC_API_GEN021: A project has two base specifications (two files that are no part of each other, 'Api.yaml' and
+    /// 'Legacy.yaml'): the generator reads one specification per project. Nothing is generated.
+    /// </summary>
+    public const string MultipleSpecifications = "ATC_API_GEN021";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>
@@ -703,6 +709,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ParameterWithoutSchema = "ATC_API_OPR033";
 
+    /// <summary>
+    /// ATC_API_OPR034: An operation declares a response for a status range ('2XX', '4XX', '5XX'), which names no
+    /// status a server could answer or a client could read with. The range is generated as its first status (200)
+    /// unless the operation declares that status itself, in which case the range is not generated.
+    /// </summary>
+    public const string ResponseStatusRange = "ATC_API_OPR034";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>
@@ -771,6 +784,18 @@ public static class RuleIdentifiers
     /// ATC_API_MPT011: A path's operations belong to more than one split group; the path is kept whole in one part.
     /// </summary>
     public const string SplitPathSpansGroups = "ATC_API_MPT011";
+
+    /// <summary>
+    /// ATC_API_MPT012: A part file declares another OpenAPI version than the base file; the part is read by its own
+    /// version (a 3.0 'nullable' in a 3.1 part is an unknown keyword, say).
+    /// </summary>
+    public const string PartFileOpenApiVersionDiffers = "ATC_API_MPT012";
+
+    /// <summary>
+    /// ATC_API_MPT013: A part file contributes nothing to the merge - no paths, no components (a 'paths' that is no
+    /// map, an empty file).
+    /// </summary>
+    public const string PartFileContributesNothing = "ATC_API_MPT013";
 
     // ========== Client Rules (CLT) ==========
 

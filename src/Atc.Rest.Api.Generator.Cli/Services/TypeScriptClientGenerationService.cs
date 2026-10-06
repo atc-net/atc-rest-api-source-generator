@@ -31,8 +31,10 @@ public static class TypeScriptClientGenerationService
         // (Note-Size, 3DModel, Company.Api.Thing) are renamed in the document first.
         openApiDoc = SchemaNameNormalizer.WithIdentifierSchemaNames(openApiDoc);
 
-        // Every extractor looks a body up by its media type: parameters, casing and model-carrying wildcards first
+        // Every extractor looks a body up by its media type: parameters, casing and model-carrying wildcards first.
+        // A response declared for a status range is read as its first status.
         MediaTypeNormalizer.WithCanonicalMediaTypes(openApiDoc);
+        ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc);
 
         // Without includeDeprecated the deprecated operations go with the deprecated schemas they may return
         if (!config.IncludeDeprecated)

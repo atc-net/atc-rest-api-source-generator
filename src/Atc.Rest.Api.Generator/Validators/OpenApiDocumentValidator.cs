@@ -89,6 +89,11 @@ public static class OpenApiDocumentValidator
         diagnostics.AddRange(SchemaConstraintValidator.Validate(document, sourceFilePath));
         diagnostics.AddRange(ValidateNoOperations(document, sourceFilePath));
 
+        // A path template the route or the generated code could not carry, a placeholder no parameter declares, and
+        // a response for a status range (generated as its first status)
+        diagnostics.AddRange(ValidatePaths(document, sourceFilePath));
+        diagnostics.AddRange(ValidateResponseRanges(document, sourceFilePath));
+
         if (strategy == ValidateSpecificationStrategy.None)
         {
             return diagnostics; // Skip all validation
@@ -272,9 +277,6 @@ public static class OpenApiDocumentValidator
 
         // Schema validations
         diagnostics.AddRange(ValidateSchemas(document, sourceFilePath));
-
-        // Path validations
-        diagnostics.AddRange(ValidatePaths(document, sourceFilePath));
 
         // Operation validations
         diagnostics.AddRange(ValidateOperations(document, sourceFilePath));
@@ -1519,6 +1521,119 @@ public static class OpenApiDocumentValidator
                         "Path parameters should be formatted as {parameterName}",
                         "Parameter names should be valid identifiers (letters, digits, underscores)"
                     ]));
+                continue;
+            }
+
+            // What the route or the generated code could not carry
+            if (TemplateProblem(pathKey) is { } problem)
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.PathParametersNotWellFormatted,
+                    $"Path '{pathKey}' {problem}.",
+                    DiagnosticSeverity.Error,
+                    sourceFilePath,
+                    LineNumber: null,
+                    ColumnNumber: null,
+                    Context: pathKey,
+                    Suggestions: ["A path starts with '/', has no empty segment, names each placeholder once, and holds no quote, backslash, whitespace, '?' or '#'"]));
+                continue;
+            }
+
+            // ATC_API_OPR012: a placeholder no parameter declares - the generated code would name a variable that
+            // does not exist (a client), or bind nothing (a server)
+            var placeholders = GetParametersFromPath(pathKey);
+            if (placeholders.Count == 0 || pathEntry.Value?.Operations is null)
+            {
+                continue;
+            }
+
+            var pathLevel = pathEntry.Value.Parameters?.Where(p => p.In == ParameterLocation.Path).Select(p => p.Name) ?? [];
+            foreach (var operationEntry in pathEntry.Value.Operations)
+            {
+                var operationLevel = operationEntry.Value?.Parameters?.Where(p => p.In == ParameterLocation.Path).Select(p => p.Name) ?? [];
+                var declared = new HashSet<string>(pathLevel.Concat(operationLevel).Where(n => n is not null)!, StringComparer.OrdinalIgnoreCase);
+                var operationId = operationEntry.Value?.OperationId ?? $"{operationEntry.Key.ToString().ToUpperInvariant()} {pathKey}";
+                foreach (var placeholder in placeholders.Where(p => !declared.Contains(p)))
+                {
+                    diagnostics.Add(new DiagnosticMessage(
+                        RuleIdentifiers.OperationMissingPathParameter,
+                        $"Operation '{operationId}' in path '{pathKey}' does not define a parameter named '{placeholder}'.",
+                        DiagnosticSeverity.Error,
+                        sourceFilePath));
+                }
+            }
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// What a path template has that the route or the generated code could not carry, or <see langword="null"/>.
+    /// </summary>
+    private static string? TemplateProblem(string pathKey)
+    {
+        if (!pathKey.StartsWith("/", StringComparison.Ordinal))
+        {
+            return "does not start with '/'";
+        }
+
+        if (pathKey.IndexOf("//", StringComparison.Ordinal) >= 0)
+        {
+            return "has an empty segment ('//')";
+        }
+
+        var bad = pathKey.FirstOrDefault(c => c is '"' or '\\' or '?' or '#' || char.IsWhiteSpace(c) || char.IsControl(c));
+        if (bad != default)
+        {
+            var shown = char.IsControl(bad) ? $"U+{(int)bad:X4}" : bad.ToString();
+            return $"contains '{shown}', which the route and the generated code cannot carry";
+        }
+
+        var twice = GetParametersFromPath(pathKey)
+            .GroupBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(g => g.Count() > 1);
+        return twice is null ? null : $"has the placeholder '{{{twice.Key}}}' more than once";
+    }
+
+    /// <summary>
+    /// Validates that no operation declares a response for a status range (ATC_API_OPR034): <c>2XX</c> names no
+    /// status, so it is generated as its first status (200) - unless the operation declares that status, in which
+    /// case the range is not generated. The normalizer rewrites the document accordingly after validation.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateResponseRanges(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        var pathItems = (document.Paths ?? []).Select(p => (p.Key, p.Value))
+            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, w.Value)));
+        foreach (var (pathKey, pathItem) in pathItems)
+        {
+            foreach (var operationEntry in pathItem?.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
+            {
+                var operation = operationEntry.Value;
+                if (operation?.Responses is null)
+                {
+                    continue;
+                }
+
+                var operationId = operation.OperationId ?? $"{operationEntry.Key.ToString().ToUpperInvariant()} {pathKey}";
+                foreach (var key in operation.Responses.Keys)
+                {
+                    if (ResponseRangeNormalizer.FirstStatusOf(key) is not { } status)
+                    {
+                        continue;
+                    }
+
+                    var outcome = operation.Responses.ContainsKey(status)
+                        ? $"{status} is declared, so the range is not generated"
+                        : $"it is generated as {status}";
+                    diagnostics.Add(new DiagnosticMessage(
+                        RuleIdentifiers.ResponseStatusRange,
+                        $"Operation '{operationId}' declares the status range '{key}', which names no status a server could answer or a client could read with: {outcome}. Declare each status the operation returns.",
+                        DiagnosticSeverity.Warning,
+                        sourceFilePath));
+                }
             }
         }
 
@@ -1571,6 +1686,13 @@ public static class OpenApiDocumentValidator
             if (paramName.Any(char.IsWhiteSpace))
             {
                 errorMessage = $"Parameter '{paramName}' contains whitespace";
+                return false;
+            }
+
+            // A placeholder is a parameter name: ASP.NET route syntax ({*rest}, {id:int}, {id?}) is not OpenAPI
+            if (!paramName.All(c => char.IsLetterOrDigit(c) || c is '_' or '-' or '.'))
+            {
+                errorMessage = $"Parameter '{paramName}' is no parameter name (letters, digits, '_', '-' and '.'); ASP.NET route syntax such as '*', ':' or '?' is not OpenAPI";
                 return false;
             }
 
@@ -1718,26 +1840,7 @@ public static class OpenApiDocumentValidator
         // ATCAPI_OPR025: TooManyRequests without rate limiting
         ValidateTooManyRequestsResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
 
-        // ATCAPI_OPR012: Operation missing path parameter defined in route
-        if (globalPathParameters.Count == 0 && pathParametersFromRoute.Count > 0)
-        {
-            var operationPathParams = operation.Parameters?
-                .Where(p => p.In == ParameterLocation.Path)
-                .Select(p => p.Name)
-                .ToList() ?? [];
-
-            foreach (var routeParam in pathParametersFromRoute)
-            {
-                if (!operationPathParams.Any(p => string.Equals(p, routeParam, StringComparison.OrdinalIgnoreCase)))
-                {
-                    diagnostics.Add(new DiagnosticMessage(
-                        RuleIdentifiers.OperationMissingPathParameter,
-                        $"Operation '{operationId}' in path '{pathKey}' does not define a parameter named '{routeParam}'.",
-                        DiagnosticSeverity.Error,
-                        sourceFilePath));
-                }
-            }
-        }
+        // ATCAPI_OPR012 (a placeholder no parameter declares) is checked under every strategy, with the paths
 
         // ATCAPI_OPR013: Operation path parameter not present in route
         var opPathParams = operation.Parameters?

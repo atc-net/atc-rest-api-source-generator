@@ -62,7 +62,8 @@ internal static class SpecificationLoader
             yamlPath,
             yamlContent);
 
-        return ReportAndContinue(context, validationDiagnostics) ? openApiDoc : null;
+        // A status range (2XX) is its first status for every generator (the validator has warned about it)
+        return ReportAndContinue(context, validationDiagnostics) ? ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc) : null;
     }
 
     /// <summary>
@@ -101,7 +102,7 @@ internal static class SpecificationLoader
             Array.Empty<OpenApiError>(),
             baseFile.Path);
 
-        return ReportAndContinue(context, validationDiagnostics) ? document : null;
+        return ReportAndContinue(context, validationDiagnostics) ? ResponseRangeNormalizer.WithExplicitStatuses(document) : null;
     }
 
     /// <summary>
