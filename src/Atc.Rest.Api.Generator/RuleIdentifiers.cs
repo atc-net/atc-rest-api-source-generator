@@ -475,6 +475,14 @@ public static class RuleIdentifiers
     /// </summary>
     public const string SchemaWithoutRequiredProperties = "ATC_API_SCH022";
 
+    /// <summary>
+    /// ATC_API_SCH023: A component schema contains itself - through 'allOf' (it inherits itself), a bare '$ref'
+    /// (it aliases itself) or the 'items' of an array alias (it lists itself). The generators inline those three,
+    /// so the schema cannot be generated; a schema that refers to itself from a property is fine. Error, every
+    /// strategy.
+    /// </summary>
+    public const string SchemaCycle = "ATC_API_SCH023";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>

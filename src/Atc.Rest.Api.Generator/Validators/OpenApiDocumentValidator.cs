@@ -65,6 +65,14 @@ public static class OpenApiDocumentValidator
             return structure;
         }
 
+        // A schema that contains itself (allOf, a bare $ref, an array alias's items): an error under every strategy,
+        // and nothing else is checked - the later checks and the extractors inline the cycle without end
+        var cycles = SchemaCycleValidator.Validate(document, sourceFilePath);
+        if (cycles.Count > 0)
+        {
+            return cycles;
+        }
+
         var diagnostics = new List<DiagnosticMessage>();
 
         if (strategy == ValidateSpecificationStrategy.None)

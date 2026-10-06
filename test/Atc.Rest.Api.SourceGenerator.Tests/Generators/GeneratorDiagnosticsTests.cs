@@ -333,6 +333,57 @@ public class GeneratorDiagnosticsTests
     }
 
     /// <summary>
+    /// A schema that inherits itself is reported as the cycle it is (<c>ATC_API_SCH023</c>) by every generator, and
+    /// generation stops there: the extractors would inline the cycle without end, which no catch can report.
+    /// </summary>
+    [Theory]
+    [InlineData("server", ".atc-rest-api-server")]
+    [InlineData("client", ".atc-rest-api-client")]
+    [InlineData("handlers", ".atc-rest-api-server-handlers")]
+    public void SchemaCycle_ReportsSCH023_NeverACrash(
+        string kind,
+        string marker)
+    {
+        const string cycle = """
+            openapi: 3.0.3
+            info:
+              title: Contoso
+              version: 1.0.0
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Thing'
+            components:
+              schemas:
+                Thing:
+                  allOf:
+                    - $ref: '#/components/schemas/Thing'
+                    - type: object
+                      properties:
+                        name: { type: string }
+            """;
+
+        IIncrementalGenerator generator = kind switch
+        {
+            "server" => new ApiServerGenerator(),
+            "client" => new ApiClientGenerator(),
+            _ => new ApiServerDomainGenerator(),
+        };
+
+        var ids = Run(generator, [Spec(cycle), Marker(marker, "{}")], Full(includeMinimalApi: true));
+
+        Assert.Contains("ATC_API_SCH023", ids);
+        Assert.DoesNotContain(ids, id => id is "ATC_API_GEN001" or "ATC_API_GEN003" or "ATC_API_GEN005");
+    }
+
+    /// <summary>
     /// A document the OpenAPI parser reads but rejects (a <c>$ref</c> to nothing) is reported with the parser's
     /// own message, not as a generation error.
     /// </summary>
