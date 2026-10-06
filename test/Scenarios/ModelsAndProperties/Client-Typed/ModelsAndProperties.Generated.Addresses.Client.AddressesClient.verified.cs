@@ -20,7 +20,7 @@ public sealed class AddressesClient : IAddressesClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new global::ModelsAndProperties.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

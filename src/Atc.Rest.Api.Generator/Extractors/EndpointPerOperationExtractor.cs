@@ -1101,17 +1101,17 @@ public static class EndpointPerOperationExtractor
         foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Header))
         {
             var propName = propertyNames.Get(param, referenceId);
-            var headerName = param.Name!;
+            var headerName = CSharpLiteralHelper.ToStringLiteral(param.Name!);
 
             if (param.Required)
             {
-                sb.AppendLine($"requestBuilder.WithHeaderParameter(\"{headerName}\", {WireValue(param, propName)});");
+                sb.AppendLine($"requestBuilder.WithHeaderParameter({headerName}, {WireValue(param, propName)});");
             }
             else
             {
                 sb.AppendLine($"if (parameters.{propName} is not null)");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithHeaderParameter(\"{headerName}\", {WireValue(param, propName)});");
+                sb.AppendLine(4, $"requestBuilder.WithHeaderParameter({headerName}, {WireValue(param, propName)});");
                 sb.AppendLine("}");
             }
         }

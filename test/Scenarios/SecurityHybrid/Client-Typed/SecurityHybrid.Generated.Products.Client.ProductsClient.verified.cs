@@ -20,7 +20,7 @@ public sealed class ProductsClient : IProductsClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new global::SecurityHybrid.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

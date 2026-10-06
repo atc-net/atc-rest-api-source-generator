@@ -89,15 +89,25 @@ public class WireValueHelperTests
     [InlineData("Name")]
     [InlineData("Count")]
     [InlineData("Color")]
-    [InlineData("Level")]
-    public void TryBuildWireExpression_Schema_StringsIntegersAndEnums_ReturnNull(
+    public void TryBuildWireExpression_Schema_StringsIntegersAndStringEnums_ReturnNull(
         string schemaName)
     {
-        // A string is sent as is, an integer has no culture and an enum is written with ToWireValue()
+        // A string is sent as is, an integer has no culture and a string enum is written with ToWireValue()
         var document = OpenApiDocumentHelper.ParseYaml(Yaml);
         var schema = document.Components!.Schemas![schemaName];
 
         Assert.Null(WireValueHelper.TryBuildWireExpression("parameters.Value", schema));
+    }
+
+    [Fact]
+    public void TryBuildWireExpression_Schema_IntegerEnum_IsItsNumber()
+    {
+        // The member's name is a C# name; the specification's value is the number
+        var document = OpenApiDocumentHelper.ParseYaml(Yaml);
+        var schema = document.Components!.Schemas!["Level"];
+
+        Assert.True(WireValueHelper.IsIntegerEnum(schema));
+        Assert.Equal($"((global::System.IFormattable?)parameters.Value)?.ToString(\"D\", {Invariant})", WireValueHelper.TryBuildWireExpression("parameters.Value", schema));
     }
 
     [Fact]

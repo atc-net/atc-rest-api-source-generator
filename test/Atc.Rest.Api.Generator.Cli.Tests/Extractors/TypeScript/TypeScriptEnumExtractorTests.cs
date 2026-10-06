@@ -54,6 +54,37 @@ public class TypeScriptEnumExtractorTests
         Assert.DoesNotContain("enum Status", content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A value listed twice is one member; two values that differ in case only are two members, each with its value.
+    /// </summary>
+    [Theory]
+    [InlineData(TypeScriptEnumStyle.Enum)]
+    [InlineData(TypeScriptEnumStyle.Union)]
+    public void Extract_StringEnum_DuplicateValueIsOneMember_CaseVariantsKeepTheirValues(TypeScriptEnumStyle style)
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                State:
+                                  type: string
+                                  enum: [active, Active, archived, archived]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { EnumStyle = style }));
+
+        Assert.Equal(1, Regex.Matches(content, "'archived'").Count);
+        Assert.Equal(1, Regex.Matches(content, "'active'").Count);
+        Assert.Equal(1, Regex.Matches(content, "'Active'").Count);
+        Assert.DoesNotContain("Archived2", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_StringEnum_UnionStyle_IsOpen_SoAValueTheServerAddsLaterStillTypeChecks()
     {

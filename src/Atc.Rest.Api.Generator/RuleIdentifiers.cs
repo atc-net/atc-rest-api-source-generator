@@ -519,6 +519,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string SchemaConstraintNotGeneratable = "ATC_API_SCH025";
 
+    /// <summary>
+    /// ATC_API_SCH026: An enum lists a value twice (JSON Schema: the values SHOULD be unique). The value is generated
+    /// once - two members with one wire value could not both be read back. Warning, every strategy.
+    /// </summary>
+    public const string EnumValueListedTwice = "ATC_API_SCH026";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>

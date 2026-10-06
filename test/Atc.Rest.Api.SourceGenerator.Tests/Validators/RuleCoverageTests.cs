@@ -59,6 +59,7 @@ public class RuleCoverageTests
         ["ATC_API_OPR033"] = "ParameterWithoutSchema - Tested in Atc.Rest.Api.Generator.Tests.Validators.ParameterSchemaValidatorTests",
         ["ATC_API_OPR034"] = "ResponseStatusRange - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseRangeValidatorTests",
         ["ATC_API_SCH025"] = "SchemaConstraintNotGeneratable - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
+        ["ATC_API_SCH026"] = "EnumValueListedTwice - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
 
         // ========== Client Rules (CLT) ==========
         ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",

@@ -334,6 +334,14 @@ public class ApiClientGenerator : IIncrementalGenerator
             ReportAndRemoveShadowedErrorContracts(context, openApiDoc, sharedSchemas, yamlPath);
         }
 
+        // The converter both client modes put first in their JSON options, when there is an enum to write
+        if (EnumWireConverterExtractor.HasEnums(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
+                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Single-client mode: emit one client covering every operation, with all models flattened
         // into "{projectName}.Generated.Models". Handled before the per-area loop because the two
         // layouts are mutually exclusive.
@@ -1243,7 +1251,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate DI extension method
         if (endpointNames.Count > 0)
         {
-            var diExtensionContent = GenerateEndpointDiExtension(projectName, namespaceSegment, endpointNames);
+            var diExtensionContent = GenerateEndpointDiExtension(projectName, namespaceSegment, endpointNames, EnumWireConverterExtractor.HasEnums(openApiDoc));
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(NamespaceBuilder.ForEndpoints(projectName, namespaceSegment), "DependencyInjection"),
                 SourceText.From(diExtensionContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -1256,7 +1264,8 @@ public class ApiClientGenerator : IIncrementalGenerator
     private static string GenerateEndpointDiExtension(
         string projectName,
         string? pathSegment,
-        List<string> endpointNames)
+        List<string> endpointNames,
+        bool hasEnums)
     {
         // When the path segment resolves away, the registration lives directly under
         // "{projectName}.Generated" and is named after the project instead of the segment.
@@ -1296,7 +1305,24 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, $"public static IServiceCollection Add{registrationName}Endpoints(this IServiceCollection services)");
         sb.AppendLine(4, "{");
         sb.AppendLine(8, "// Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)");
-        sb.AppendLine(8, "services.AddAtcRestClientCore();");
+        if (hasEnums)
+        {
+            // Atc.Rest.Client's default serializer options, with every generated enum as the specification writes it
+            // ahead of its JsonStringEnumConverter (which would write an integer enum's member name)
+            sb.AppendLine(8, "// - its default serializer, with every generated enum on the wire as the specification writes it");
+            sb.AppendLine(8, "services.AddAtcRestClientCore(new global::Atc.Rest.Client.Serialization.DefaultJsonContractSerializer(new global::System.Text.Json.JsonSerializerOptions");
+            sb.AppendLine(8, "{");
+            sb.AppendLine(12, "PropertyNamingPolicy = global::System.Text.Json.JsonNamingPolicy.CamelCase,");
+            sb.AppendLine(12, "DefaultIgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,");
+            sb.AppendLine(12, "WriteIndented = true,");
+            sb.AppendLine(12, $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}(), new global::System.Text.Json.Serialization.JsonStringEnumConverter() }},");
+            sb.AppendLine(8, "}));");
+        }
+        else
+        {
+            sb.AppendLine(8, "services.AddAtcRestClientCore();");
+        }
+
         sb.AppendLine();
 
         foreach (var endpointName in endpointNames)

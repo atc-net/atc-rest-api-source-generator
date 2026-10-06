@@ -21,7 +21,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new global::TypedClientResultStyle.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

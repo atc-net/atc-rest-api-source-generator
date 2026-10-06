@@ -20,7 +20,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new global::HostileSpec.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

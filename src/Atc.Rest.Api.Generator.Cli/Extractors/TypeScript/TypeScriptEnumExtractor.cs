@@ -217,9 +217,12 @@ public static class TypeScriptEnumExtractor
                 continue;
             }
 
-            // Clean up the value - remove quotes if present
+            // Clean up the value - remove quotes if present; a value listed twice is one member
             var cleanValue = valueStr.Trim('"');
-            result.Add(cleanValue);
+            if (!result.Contains(cleanValue, StringComparer.Ordinal))
+            {
+                result.Add(cleanValue);
+            }
         }
 
         return result.Count > 0 ? result : null;

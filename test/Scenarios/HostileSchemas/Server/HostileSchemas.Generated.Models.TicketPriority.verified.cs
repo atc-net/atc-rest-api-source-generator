@@ -3,10 +3,12 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Text.Json.Serialization;
 
 namespace HostileSchemas.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+[JsonConverter(typeof(JsonNumberEnumConverter<TicketPriority>))]
 public enum TicketPriority
 {
     Value1 = 1,

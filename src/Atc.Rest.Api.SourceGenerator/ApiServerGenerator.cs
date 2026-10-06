@@ -1812,6 +1812,14 @@ public class ApiServerGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             $"{projectName}.UnifiedServiceCollectionExtensions.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+
+        // The converter the Add…Api() above puts first in the JSON options, when there is an enum to write
+        if (EnumWireConverterExtractor.HasEnums(openApiDoc))
+        {
+            context.AddGeneratedSource(
+                $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
+                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
     }
 
     /// <summary>

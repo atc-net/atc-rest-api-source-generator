@@ -22,7 +22,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new global::AsyncEnumerableHooks.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

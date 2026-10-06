@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Text.Json.Serialization;
 
 namespace HostileSchemas.Generated.Models;
 
@@ -10,6 +11,7 @@ namespace HostileSchemas.Generated.Models;
 /// An integer enum with a duplicate value and x-enum-varnames.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+[JsonConverter(typeof(JsonNumberEnumConverter<Level>))]
 public enum Level
 {
     Low = 1,

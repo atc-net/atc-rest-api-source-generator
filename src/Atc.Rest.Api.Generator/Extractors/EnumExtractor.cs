@@ -76,6 +76,21 @@ public static class EnumExtractor
             return ExtensibleEnumContentGenerator.Generate(parameters);
         }
 
+        // An integer enum is its number on the wire: its own converter says so (a JsonStringEnumConverter the host or a
+        // client registers would write the member's name; the generated EnumWireConverterFactory lets this one decide)
+        if (!parameters.UseFlags &&
+            parameters.Values.Count > 0 &&
+            parameters.Values.All(v => v.Value is not null && v.EnumMemberValue is null))
+        {
+            parameters = parameters with
+            {
+                HeaderContent = HeaderBuilder.WithUsings(
+                    NamespaceConstants.SystemCodeDomCompiler,
+                    NamespaceConstants.SystemTextJsonSerialization),
+                Attributes = [.. parameters.Attributes ?? [], new AttributeParameters("JsonConverter", $"typeof(JsonNumberEnumConverter<{parameters.EnumTypeName}>)")],
+            };
+        }
+
         if (stringOnTheWire &&
             ExtensibleEnumContentGenerator.AppliesTo(parameters) &&
             parameters.Values.All(v => v.EnumMemberValue is null))
@@ -151,6 +166,7 @@ public static class EnumExtractor
         var result = new List<EnumValueParameters>();
         var usedNames = new HashSet<string>(StringComparer.Ordinal);
         var usedIntegers = new HashSet<long>();
+        var usedStrings = new HashSet<string>(StringComparer.Ordinal);
 
         for (var index = 0; index < enumValues.Count; index++)
         {
@@ -249,6 +265,12 @@ public static class EnumExtractor
                 enumMemberValue = null;
             }
 
+            // A value listed twice is one member (two members with one wire value cannot both be read back)
+            if (!usedStrings.Add(originalValue))
+            {
+                continue;
+            }
+
             // Whatever the value holds (quotes, slashes, a leading digit, a keyword), the member name
             // is a valid identifier and the value itself goes on the wire through [EnumMember].
             if (!CSharpLiteralHelper.IsValidIdentifier(name))
@@ -257,10 +279,17 @@ public static class EnumExtractor
                 enumMemberValue = originalValue;
             }
 
+            // A member renamed to stay unique ("active" and "Active": Active and Active2) keeps its value on the wire
+            var uniqueName = UniqueName(name);
+            if (!string.Equals(uniqueName, name, StringComparison.Ordinal))
+            {
+                enumMemberValue = originalValue;
+            }
+
             result.Add(new EnumValueParameters(
                 DocumentationTags: null,
                 DescriptionAttribute: null,
-                Name: UniqueName(name),
+                Name: uniqueName,
                 EnumMemberValue: enumMemberValue,
                 Value: null));
         }

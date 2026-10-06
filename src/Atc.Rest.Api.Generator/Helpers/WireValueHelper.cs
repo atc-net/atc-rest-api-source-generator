@@ -32,6 +32,28 @@ public static class WireValueHelper
     }
 
     /// <summary>
+    /// Whether a parameter's schema is an integer enum (a component or an inline one). Such a value is its number on
+    /// the wire - the member's name is a C# name the specification does not know.
+    /// </summary>
+    /// <param name="schema">The parameter's schema.</param>
+    /// <returns><see langword="true"/> for an integer enum.</returns>
+    public static bool IsIntegerEnum(IOpenApiSchema? schema)
+    {
+        var actual = schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        return actual is not null &&
+               actual.Enum is { Count: > 0 } &&
+               actual.IsOfType(JsonSchemaType.Integer);
+    }
+
+    /// <summary>
+    /// A C# expression of type <c>string?</c> that writes an enum value as its number (<c>2</c>, not <c>Medium</c>).
+    /// </summary>
+    /// <param name="accessExpression">The expression that reads the value, nullable or not.</param>
+    /// <returns>The expression.</returns>
+    public static string IntegerEnumWireExpression(string accessExpression)
+        => $"((global::System.IFormattable?){accessExpression})?.ToString(\"D\", {Invariant})";
+
+    /// <summary>
     /// Returns a C# expression that formats a parameter value for the wire from its schema, or
     /// <see langword="null"/> when the schema needs no culture-independent formatting. The expression
     /// works for a nullable and a non-nullable property alike and is of type <c>string?</c>.
@@ -43,6 +65,11 @@ public static class WireValueHelper
         string accessExpression,
         IOpenApiSchema? schema)
     {
+        if (IsIntegerEnum(schema))
+        {
+            return IntegerEnumWireExpression(accessExpression);
+        }
+
         var actualSchema = schema is OpenApiSchemaReference reference ? reference.Target : schema;
         if (actualSchema is null || actualSchema.Enum is { Count: > 0 })
         {

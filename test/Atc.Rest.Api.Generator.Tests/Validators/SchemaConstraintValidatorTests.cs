@@ -23,6 +23,51 @@ public class SchemaConstraintValidatorTests
             { "an enum with no member but null", "tone: { type: string, nullable: true, enum: [null] }", "enum" },
         };
 
+    /// <summary>
+    /// An enum that lists a value twice (JSON Schema: the values SHOULD be unique) is generated with the value once;
+    /// <c>ATC_API_SCH026</c> says so, naming the value. Values that differ in case only are no duplicates.
+    /// </summary>
+    [Theory]
+    [InlineData("state: { type: string, enum: [active, archived, archived] }", "archived")]
+    [InlineData("level: { type: integer, enum: [1, 2, 2] }", "2")]
+    public void Validate_AnEnumListingAValueTwice_IsAWarningNamingIt(
+        string property,
+        string value)
+    {
+        var document = Parse($"""
+                Thing:
+                  type: object
+                  properties:
+                    {property}
+            """);
+
+        foreach (var strategy in (ValidateSpecificationStrategy[])[ValidateSpecificationStrategy.None, ValidateSpecificationStrategy.Standard, ValidateSpecificationStrategy.Strict])
+        {
+            var diagnostics = OpenApiDocumentValidator.Validate(strategy, document, [], TestFilePath);
+
+            var warning = Assert.Single(diagnostics, d => d.RuleId == RuleIdentifiers.EnumValueListedTwice);
+            Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+            Assert.Contains("Thing", warning.Message, StringComparison.Ordinal);
+            Assert.Contains(value, warning.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.SchemaConstraintNotGeneratable);
+        }
+    }
+
+    [Fact]
+    public void Validate_EnumValuesDifferingInCaseOnly_AreNoDuplicates()
+    {
+        var document = Parse("""
+                Thing:
+                  type: object
+                  properties:
+                    state: { type: string, enum: [active, Active] }
+            """);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath);
+
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.EnumValueListedTwice);
+    }
+
     [Theory]
     [MemberData(nameof(BadConstraints))]
     public void Validate_AConstraintTheCodeCannotCarry_IsAnErrorNamingIt_UnderEveryStrategy(

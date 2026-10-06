@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Text.Json.Serialization;
 
 namespace HostileSpec.Generated.Models;
 
@@ -10,6 +11,7 @@ namespace HostileSpec.Generated.Models;
 /// An enum whose values need 64 bits.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+[JsonConverter(typeof(JsonNumberEnumConverter<Quota>))]
 public enum Quota : long
 {
     Value1 = 1,

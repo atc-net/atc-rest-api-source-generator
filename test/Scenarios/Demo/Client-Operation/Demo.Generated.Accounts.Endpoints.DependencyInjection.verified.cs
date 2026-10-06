@@ -25,7 +25,14 @@ public static class EndpointsServiceCollectionExtensions
     public static IServiceCollection AddAccountsEndpoints(this IServiceCollection services)
     {
         // Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)
-        services.AddAtcRestClientCore();
+        // - its default serializer, with every generated enum on the wire as the specification writes it
+        services.AddAtcRestClientCore(new global::Atc.Rest.Client.Serialization.DefaultJsonContractSerializer(new global::System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = global::System.Text.Json.JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            WriteIndented = true,
+            Converters = { new global::Demo.Generated.EnumWireConverterFactory(), new global::System.Text.Json.Serialization.JsonStringEnumConverter() },
+        }));
 
         services.AddTransient<IListAccountsEndpoint, ListAccountsEndpoint>();
         services.AddTransient<ICreateAccountEndpoint, CreateAccountEndpoint>();

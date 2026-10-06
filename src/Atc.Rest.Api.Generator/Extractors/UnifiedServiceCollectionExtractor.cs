@@ -31,8 +31,9 @@ public static class UnifiedServiceCollectionExtractor
         var hasVersioning = config.VersioningStrategy != VersioningStrategyType.None;
         var hasSecurity = openApiDoc.HasSecuritySchemes();
         var hasXml = XmlBodyReachability.Collect(openApiDoc).Count > 0;
+        var hasEnums = EnumWireConverterExtractor.HasEnums(openApiDoc);
 
-        return GenerateFileContent(projectName, pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml);
+        return GenerateFileContent(projectName, pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums);
     }
 
     /// <summary>
@@ -45,7 +46,8 @@ public static class UnifiedServiceCollectionExtractor
         bool hasValidation,
         bool hasVersioning,
         bool hasSecurity,
-        bool hasXml = false)
+        bool hasXml = false,
+        bool hasEnums = false)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -127,7 +129,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}Api method
-        GenerateAddApiMethod(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml);
+        GenerateAddApiMethod(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums);
 
         builder.AppendLine("}");
 
@@ -144,7 +146,8 @@ public static class UnifiedServiceCollectionExtractor
         bool hasValidation,
         bool hasVersioning,
         bool hasSecurity,
-        bool hasXml)
+        bool hasXml,
+        bool hasEnums)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Adds all {projectName} API services with auto-detected features.");
@@ -213,7 +216,20 @@ public static class UnifiedServiceCollectionExtractor
         // System.Text.Json reads a type discriminator only when it is the first property, unless told otherwise
         builder.AppendLine();
         builder.AppendLine(8, "// A polymorphic body's discriminator may stand anywhere in the object, not only first");
-        builder.AppendLine(8, "services.ConfigureHttpJsonOptions(o => o.SerializerOptions.AllowOutOfOrderMetadataProperties = true);");
+        if (hasEnums)
+        {
+            // Ahead of any enum converter the host registers: the specification decides how an enum is written
+            builder.AppendLine(8, "// Every generated enum on the wire as the specification writes it, whatever enum converter the host adds");
+            builder.AppendLine(8, "services.ConfigureHttpJsonOptions(o =>");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, "o.SerializerOptions.AllowOutOfOrderMetadataProperties = true;");
+            builder.AppendLine(12, $"o.SerializerOptions.Converters.Insert(0, new global::{projectName}.Generated.{EnumWireConverterExtractor.ClassName}());");
+            builder.AppendLine(8, "});");
+        }
+        else
+        {
+            builder.AppendLine(8, "services.ConfigureHttpJsonOptions(o => o.SerializerOptions.AllowOutOfOrderMetadataProperties = true);");
+        }
 
         // Optional: rate limiting
         if (hasRateLimiting)

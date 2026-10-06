@@ -297,7 +297,9 @@ public static class HttpClientExtractor
             "    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,",
             "    PropertyNameCaseInsensitive = true,",
             "    AllowOutOfOrderMetadataProperties = true,",
-            "    Converters = { new JsonStringEnumConverter() },",
+            EnumWireConverterExtractor.HasEnums(openApiDoc)
+                ? $"    Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}(), new JsonStringEnumConverter() }},"
+                : "    Converters = { new JsonStringEnumConverter() },",
             "};",
         };
 
@@ -828,7 +830,9 @@ public static class HttpClientExtractor
                     var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
                     var replacement = WireValueHelper.IsStringEnum(param.Schema)
                         ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
-                        : BuildPathParameterReplacement(propName, paramType);
+                        : WireValueHelper.IsIntegerEnum(param.Schema)
+                            ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
+                            : BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -853,7 +857,9 @@ public static class HttpClientExtractor
                     var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
                     var replacement = WireValueHelper.IsStringEnum(param.Schema)
                         ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
-                        : BuildPathParameterReplacement(propName, paramType);
+                        : WireValueHelper.IsIntegerEnum(param.Schema)
+                            ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
+                            : BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -909,7 +915,7 @@ public static class HttpClientExtractor
                 // ToString()
                 if (serialization.ValueKind == ParameterValueKind.Array)
                 {
-                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema));
+                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema), WireValueHelper.IsIntegerEnum((param.Schema is OpenApiSchemaReference r ? r.Target : param.Schema)?.Items));
                     continue;
                 }
 
@@ -934,10 +940,12 @@ public static class HttpClientExtractor
                     continue;
                 }
 
-                // An enum: the value as the specification writes it, not the member name
-                if (WireValueHelper.IsStringEnum(param.Schema))
+                // An enum: the value as the specification writes it (an integer enum's number), not the member name
+                if (WireValueHelper.IsStringEnum(param.Schema) || WireValueHelper.IsIntegerEnum(param.Schema))
                 {
-                    var wireValue = $"Uri.EscapeDataString({paramAccess}.ToWireValue()!)";
+                    var wireValue = WireValueHelper.IsIntegerEnum(param.Schema)
+                        ? WireValueHelper.IntegerEnumWireExpression(paramAccess)
+                        : $"Uri.EscapeDataString({paramAccess}.ToWireValue()!)";
                     if (isRequired)
                     {
                         builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{wireValue}}}\");");
@@ -1600,7 +1608,10 @@ public static class HttpClientExtractor
 
             sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
             sb.AppendLine("{");
-            sb.AppendLine(4, $"{requestVariable}.Headers.Add({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema))});");
+            var headerText = WireValueHelper.IsIntegerEnum(param.Schema)
+                ? WireValueHelper.IntegerEnumWireExpression(variable) + "!"
+                : BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema));
+            sb.AppendLine(4, $"{requestVariable}.Headers.Add({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {headerText});");
             sb.AppendLine("}");
             sb.AppendLine();
         }
@@ -1869,7 +1880,8 @@ public static class HttpClientExtractor
         string paramType,
         bool allowReserved,
         bool isRequired,
-        bool itemIsEnum = false)
+        bool itemIsEnum = false,
+        bool itemIsIntegerEnum = false)
     {
         // Element type comes off the shared List<T>/T[] extractor; if neither shape matches
         // (no array param should reach here that way) fall back to the param type itself.
@@ -1892,6 +1904,12 @@ public static class HttpClientExtractor
         if (itemIsEnum)
         {
             encodedItem = allowReserved ? "item.ToWireValue()" : "Uri.EscapeDataString(item.ToWireValue())";
+        }
+
+        // An integer enum item: its number
+        if (itemIsIntegerEnum)
+        {
+            encodedItem = WireValueHelper.IntegerEnumWireExpression("item");
         }
 
         if (isRequired)

@@ -48,6 +48,17 @@ internal static class SchemaConstraintValidator
                 Suggestions: ["Fix the constraint; the generated validation attribute could not carry it"]));
         }
 
+        foreach (var duplicate in DuplicateEnumValues(actual))
+        {
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.EnumValueListedTwice,
+                $"{where}: enum lists the value {duplicate} more than once; it is generated once.",
+                DiagnosticSeverity.Warning,
+                sourceFilePath,
+                Context: $"Schema: {schemaName}",
+                Suggestions: ["List each enum value once"]));
+        }
+
         foreach (var property in actual.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
         {
             Walk(property.Value, schemaName, $"Schema '{schemaName}' property '{property.Key}'", diagnostics, sourceFilePath, visited);
@@ -134,6 +145,18 @@ internal static class SchemaConstraintValidator
             }
         }
     }
+
+    /// <summary>
+    /// The enum values listed more than once, as JSON (<c>"archived"</c>, <c>2</c>); values that differ in case only
+    /// are two values.
+    /// </summary>
+    private static IEnumerable<string> DuplicateEnumValues(OpenApiSchema schema)
+        => (schema.Enum ?? [])
+            .Where(m => m is JsonValue value && value.GetValueKind() != JsonValueKind.Null && !JsonNullSentinel.IsJsonNullSentinel(value))
+            .Select(m => m!.ToJsonString())
+            .GroupBy(json => json, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key);
 
     private static bool IsRegularExpression(string pattern)
     {

@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Text.Json.Serialization;
 
 namespace NullableTypeArrays.Generated.Models;
 
@@ -10,6 +11,7 @@ namespace NullableTypeArrays.Generated.Models;
 /// The priority, or null when not set.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+[JsonConverter(typeof(JsonNumberEnumConverter<Priority>))]
 public enum Priority
 {
     Value1 = 1,
