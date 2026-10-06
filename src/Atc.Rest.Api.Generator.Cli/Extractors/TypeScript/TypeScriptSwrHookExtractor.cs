@@ -304,15 +304,13 @@ public static class TypeScriptSwrHookExtractor
 
         hookParams.Add("config?: SWRConfiguration<" + dataType + ", ApiError>");
 
-        var guards = new List<string>();
-        if (info.PathParams.Count > 0)
-        {
-            guards.Add(TypeScriptOperationHelper.ParameterIdentifier(info.PathParams[0], namingStrategy));
-        }
-
+        // Every path parameter, by presence (an id of 0 is an id)
+        var guards = info.PathParams
+            .Select(p => TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy) + " != null")
+            .ToList();
         if (info.HasBody)
         {
-            guards.Add("body");
+            guards.Add("body != null");
         }
 
         var key = segmentCamel + "Keys." + keyName + "(" + string.Join(", ", keyArgs) + ")";
@@ -472,15 +470,12 @@ public static class TypeScriptSwrHookExtractor
         hookParams.Add("config?: SWRInfiniteConfiguration<" + dataType + ", ApiError>");
 
         // No request while a path parameter or the body of a QUERY read is missing (as the query hook).
-        var guards = new List<string>();
-        if (info.PathParams.Count > 0)
-        {
-            guards.Add("!" + TypeScriptOperationHelper.ParameterIdentifier(info.PathParams[0], namingStrategy));
-        }
-
+        var guards = info.PathParams
+            .Select(p => TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy) + " == null")
+            .ToList();
         if (info.HasBody)
         {
-            guards.Add("!body");
+            guards.Add("body == null");
         }
 
         var previousToken = TokenAccess("previousPage", pagination, namingStrategy);

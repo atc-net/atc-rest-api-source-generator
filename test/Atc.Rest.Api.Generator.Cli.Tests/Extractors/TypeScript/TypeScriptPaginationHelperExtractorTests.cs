@@ -32,7 +32,7 @@ public class TypeScriptPaginationHelperExtractorTests
         var result = TypeScriptPaginationHelperExtractor.Generate(headerContent: null);
 
         Assert.Contains("if (page.continuation)", result, StringComparison.Ordinal);
-        Assert.Contains("page.pageIndex !== undefined", result, StringComparison.Ordinal);
+        Assert.Contains("page.pageIndex != null", result, StringComparison.Ordinal);
         Assert.Contains("page.pageIndex + 1", result, StringComparison.Ordinal);
     }
 
@@ -51,7 +51,7 @@ public class TypeScriptPaginationHelperExtractorTests
 
         Assert.Contains("export async function collectAll<T, P extends Record<string, unknown>>", result, StringComparison.Ordinal);
         Assert.Contains("Promise<T[]>", result, StringComparison.Ordinal);
-        Assert.Contains("for await (const item of paginateAll(fetcher, initialParams))", result, StringComparison.Ordinal);
+        Assert.Contains("for await (const item of paginateAll(fetcher, initialParams, options))", result, StringComparison.Ordinal);
     }
 
     [Fact]

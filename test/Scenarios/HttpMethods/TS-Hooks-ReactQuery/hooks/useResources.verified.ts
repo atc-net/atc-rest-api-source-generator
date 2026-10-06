@@ -76,8 +76,8 @@ export function useQueryResources(body: ResourceQuery, options?: Omit<UseQueryOp
   const api = useApiService();
   return useQuery({
     ...resourcesQueries.queryResources(api, body),
-    enabled: !!body,
     ...options,
+    enabled: body != null && (options?.enabled ?? true),
   });
 }
 
@@ -102,9 +102,9 @@ export function useLinkResource(options?: Omit<UseMutationOptions<void, ApiError
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: resourcesKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: resourcesKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }

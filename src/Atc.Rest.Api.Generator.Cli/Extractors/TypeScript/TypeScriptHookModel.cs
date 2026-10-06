@@ -111,7 +111,8 @@ internal static class TypeScriptHookModel
         // useEffect dependency list. Path params and the enabled flag are direct deps.
         // Query + headers are non-primitive bags, so we serialize them to a string for a
         // stable dependency value (avoid re-running the effect on every parent re-render).
-        var depParts = new List<string> { "enabled" };
+        // The api instance too: a new client (a new base URL, a new token) restarts the stream
+        var depParts = new List<string> { "enabled", "api" };
         foreach (var p in info.PathParams)
         {
             depParts.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));

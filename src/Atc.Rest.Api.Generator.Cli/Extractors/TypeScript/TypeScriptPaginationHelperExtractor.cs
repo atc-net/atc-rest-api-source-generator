@@ -33,6 +33,14 @@ public static class TypeScriptPaginationHelperExtractor
         sb.AppendLine("}");
         sb.AppendLine();
 
+        // The names of the paging parameters the endpoint takes
+        sb.AppendLine("/** The names of the parameters the next page is asked for with (`continuation` and `pageIndex` by default). */");
+        sb.AppendLine("export interface PaginateAllOptions {");
+        sb.AppendLine("  readonly continuationParam?: string;");
+        sb.AppendLine("  readonly pageIndexParam?: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+
         // paginateAll function
         sb.AppendLine("/**");
         sb.AppendLine(" * Auto-paginates through all pages of a paginated API endpoint.");
@@ -51,14 +59,18 @@ public static class TypeScriptPaginationHelperExtractor
         sb.AppendLine("export async function* paginateAll<T, P extends Record<string, unknown>>(");
         sb.AppendLine("  fetcher: (params: P) => Promise<ApiResult<PaginatedResponse<T>>>,");
         sb.AppendLine("  initialParams: P,");
+        sb.AppendLine("  options?: PaginateAllOptions,");
         sb.AppendLine("): AsyncGenerator<T> {");
+        sb.AppendLine("  const continuationParam = options?.continuationParam ?? 'continuation';");
+        sb.AppendLine("  const pageIndexParam = options?.pageIndexParam ?? 'pageIndex';");
         sb.AppendLine("  let params = { ...initialParams };");
         sb.AppendLine();
         sb.AppendLine("  while (true) {");
         sb.AppendLine("    const result = await fetcher(params);");
         sb.AppendLine();
+        sb.AppendLine("    // A page that failed is an error, never a shorter list");
         sb.AppendLine("    if (result.status !== 'ok' && result.status !== 'created') {");
-        sb.AppendLine("      break;");
+        sb.AppendLine("      throw 'error' in result ? result.error : new Error(`Pagination stopped on a ${result.status} response`);");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const page = result.data;");
@@ -69,7 +81,7 @@ public static class TypeScriptPaginationHelperExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    // Stop if no continuation token or empty page");
-        sb.AppendLine("    if (!page.continuation && page.pageIndex === undefined) {");
+        sb.AppendLine("    if (!page.continuation && page.pageIndex == null) {");
         sb.AppendLine("      break;");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -77,11 +89,16 @@ public static class TypeScriptPaginationHelperExtractor
         sb.AppendLine("      break;");
         sb.AppendLine("    }");
         sb.AppendLine();
+        sb.AppendLine("    // A token equal to the one this page was asked for with would page forever");
+        sb.AppendLine("    if (page.continuation && page.continuation === params[continuationParam]) {");
+        sb.AppendLine("      break;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
         sb.AppendLine("    // Advance to next page");
         sb.AppendLine("    if (page.continuation) {");
-        sb.AppendLine("      params = { ...params, continuation: page.continuation } as P;");
-        sb.AppendLine("    } else if (page.pageIndex !== undefined) {");
-        sb.AppendLine("      params = { ...params, pageIndex: (page.pageIndex + 1) } as P;");
+        sb.AppendLine("      params = { ...params, [continuationParam]: page.continuation } as P;");
+        sb.AppendLine("    } else if (page.pageIndex != null) {");
+        sb.AppendLine("      params = { ...params, [pageIndexParam]: (page.pageIndex + 1) } as P;");
         sb.AppendLine("    } else {");
         sb.AppendLine("      break;");
         sb.AppendLine("    }");
@@ -104,9 +121,10 @@ public static class TypeScriptPaginationHelperExtractor
         sb.AppendLine("export async function collectAll<T, P extends Record<string, unknown>>(");
         sb.AppendLine("  fetcher: (params: P) => Promise<ApiResult<PaginatedResponse<T>>>,");
         sb.AppendLine("  initialParams: P,");
+        sb.AppendLine("  options?: PaginateAllOptions,");
         sb.AppendLine("): Promise<T[]> {");
         sb.AppendLine("  const items: T[] = [];");
-        sb.AppendLine("  for await (const item of paginateAll(fetcher, initialParams)) {");
+        sb.AppendLine("  for await (const item of paginateAll(fetcher, initialParams, options)) {");
         sb.AppendLine("    items.push(item);");
         sb.AppendLine("  }");
         sb.AppendLine("  return items;");

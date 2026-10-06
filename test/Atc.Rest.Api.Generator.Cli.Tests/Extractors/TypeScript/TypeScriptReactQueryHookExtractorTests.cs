@@ -148,7 +148,7 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("  showPetById: (api: ApiService, petId: string) => queryOptions<string, ApiError>({", normalized, StringComparison.Ordinal);
         Assert.Contains("const result = await api.pets.showPetById(petId, signal);", normalized, StringComparison.Ordinal);
         Assert.Contains("  return useQuery({\n    ...petsQueries.listPets(api, query),\n    ...options,\n  });", normalized, StringComparison.Ordinal);
-        Assert.Contains("  return useQuery({\n    ...petsQueries.showPetById(api, petId),\n    enabled: !!petId,\n    ...options,\n  });", normalized, StringComparison.Ordinal);
+        Assert.Contains("  return useQuery({\n    ...petsQueries.showPetById(api, petId),\n    ...options,\n    enabled: petId != null && (options?.enabled ?? true),\n  });", normalized, StringComparison.Ordinal);
         Assert.Contains("const result = await api.pets.createPet(body);", normalized, StringComparison.Ordinal);
         Assert.DoesNotContain("createPet: (api", normalized, StringComparison.Ordinal);
     }
@@ -596,7 +596,7 @@ public class TypeScriptReactQueryHookExtractorTests
         // Query bag must contribute to the effect dependency list so changing the filter
         // restarts the stream instead of staying on the previous filter's data.
         Assert.Contains("const keyDep = JSON.stringify({ query });", content, StringComparison.Ordinal);
-        Assert.Contains("}, [enabled, keyDep]);", content, StringComparison.Ordinal);
+        Assert.Contains("}, [enabled, api, keyDep]);", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -873,7 +873,7 @@ public class TypeScriptReactQueryHookExtractorTests
 
         // Spread order: caller options spread FIRST, then the composed onSuccess wins.
         var spreadIdx = content.IndexOf("...options,", StringComparison.Ordinal);
-        var onSuccessIdx = content.IndexOf("onSuccess: (data, variables, onMutateResult, context)", StringComparison.Ordinal);
+        var onSuccessIdx = content.IndexOf("onSuccess: async (data, variables, onMutateResult, context)", StringComparison.Ordinal);
         Assert.True(
             spreadIdx > 0 &&
             onSuccessIdx > 0 &&
@@ -1068,7 +1068,7 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("queryKey: itemsKeys.listPaginatedInfinite(query),", content, StringComparison.Ordinal);
         Assert.Contains("listPaginatedInfinite: (query?: { pageSize?: number })", content, StringComparison.Ordinal);
         Assert.Contains("api.items.listPaginatedItems({ ...query, continuation: pageParam ?? undefined }, headers, signal)", content, StringComparison.Ordinal);
-        Assert.Contains("getNextPageParam: (lastPage) => lastPage.continuation || undefined,", content, StringComparison.Ordinal);
+        Assert.Contains("getNextPageParam: (lastPage, _allPages, lastPageParam) => { const next = lastPage.continuation || undefined; return next !== lastPageParam ? next : undefined; },", content, StringComparison.Ordinal);
         Assert.Contains("retry: false,", content, StringComparison.Ordinal);
     }
 
@@ -1277,7 +1277,7 @@ public class TypeScriptReactQueryHookExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
-        Assert.Contains("onSuccess: (data, variables, onMutateResult, context) => {", content, StringComparison.Ordinal);
+        Assert.Contains("onSuccess: async (data, variables, onMutateResult, context) => {", content, StringComparison.Ordinal);
         Assert.Contains("options?.onSuccess?.(data, variables, onMutateResult, context);", content, StringComparison.Ordinal);
         Assert.DoesNotContain("options?.onSuccess?.(data, variables, context);", content, StringComparison.Ordinal);
     }
@@ -1406,7 +1406,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("useQueryTenantResources(tenantId: string, body: ResourceQuery,", content, StringComparison.Ordinal);
-        Assert.Contains("enabled: !!tenantId && !!body,", content, StringComparison.Ordinal);
+        Assert.Contains("enabled: tenantId != null && body != null && (options?.enabled ?? true),", content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

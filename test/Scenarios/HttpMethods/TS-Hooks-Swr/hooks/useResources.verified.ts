@@ -41,7 +41,7 @@ export function useListResources(config?: SWRConfiguration<Resource[], ApiError>
 export function useQueryResources(body: ResourceQuery, config?: SWRConfiguration<Resource[], ApiError>) {
   const api = useApiService();
   return useSWR<Resource[], ApiError>(
-    body ? resourcesKeys.query(body) : null,
+    body != null ? resourcesKeys.query(body) : null,
     async () => {
       const result = await api.resources.queryResources(body);
       if (result.status === 'ok') {

@@ -336,7 +336,7 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("export function useQueryResources(body: ResourceQuery, config?: SWRConfiguration<string[], ApiError>) {", content, StringComparison.Ordinal);
         Assert.Contains("return useSWR<string[], ApiError>(", content, StringComparison.Ordinal);
         Assert.Contains("'query', body] as const,", content, StringComparison.Ordinal);
-        Assert.Contains("body ? resourcesKeys.query(body) : null,", content, StringComparison.Ordinal);
+        Assert.Contains("body != null ? resourcesKeys.query(body) : null,", content, StringComparison.Ordinal);
         Assert.Contains("api.resources.queryResources(body)", content, StringComparison.Ordinal);
         Assert.DoesNotContain("useSWRMutation", content, StringComparison.Ordinal);
     }
@@ -557,7 +557,7 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("import type { Pet } from '../models';", content, StringComparison.Ordinal);
         Assert.Contains("export function useGetPetById(petId: string, query?: { expand?: boolean }, headers?: {", content, StringComparison.Ordinal);
         Assert.Contains("config?: SWRConfiguration<Pet, ApiError>) {", content, StringComparison.Ordinal);
-        Assert.Contains("petId ? petsKeys.petById(petId, query) : null,", content, StringComparison.Ordinal);
+        Assert.Contains("petId != null ? petsKeys.petById(petId, query) : null,", content, StringComparison.Ordinal);
         Assert.Contains("const result = await api.pets.getPetById(petId, query, headers);", content, StringComparison.Ordinal);
     }
 
@@ -673,7 +673,7 @@ public class TypeScriptSwrHookExtractorTests
         var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains("export function useListShelfItemsInfinite(shelf: string, config?: SWRInfiniteConfiguration<ItemPage, ApiError>)", content, StringComparison.Ordinal);
-        Assert.Contains("if (!shelf) {", content, StringComparison.Ordinal);
+        Assert.Contains("if (shelf == null) {", content, StringComparison.Ordinal);
         Assert.Contains("if (previousPage && !previousPage.continuationToken) {", content, StringComparison.Ordinal);
         Assert.Contains("api.items.listShelfItems(shelf, { 'x-continuation': token ?? undefined })", content, StringComparison.Ordinal);
     }

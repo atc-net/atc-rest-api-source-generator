@@ -530,7 +530,10 @@ public static class TypeScriptReactQueryHookExtractor
         AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
         sb.AppendLine("    },");
         sb.AppendLine("    initialPageParam: undefined as string | undefined,");
-        sb.Append("    getNextPageParam: (lastPage) => ").Append(TokenAccess("lastPage", pagination, namingStrategy)).AppendLine(" || undefined,");
+
+        // A token equal to the one this page was fetched with ends the query (a server that repeats its token
+        // would page forever)
+        sb.Append("    getNextPageParam: (lastPage, _allPages, lastPageParam) => { const next = ").Append(TokenAccess("lastPage", pagination, namingStrategy)).AppendLine(" || undefined; return next !== lastPageParam ? next : undefined; },");
 
         // The ApiClient owns retry (x-retry-*); React Query's own retry would multiply the attempts.
         sb.AppendLine("    retry: false,");
@@ -582,14 +585,13 @@ public static class TypeScriptReactQueryHookExtractor
         // guards on its id: the caller often has nothing to send on the first render. An
         // operation with both — a QUERY nested under a path parameter — guards on both, since
         // either one being absent makes the request meaningless.
+        // Spread caller options so they override the generated defaults (retry); the guard below keeps the
+        // caller's enabled as a narrowing. The Omit on the options type still blocks queryKey/queryFn.
+        sb.AppendLine("    ...options,");
         if (!isSuspense)
         {
             AppendEnabledGuard(sb, info, namingStrategy);
         }
-
-        // Spread caller options LAST so they override the generated defaults (enabled, retry).
-        // The Omit on the options type still blocks queryKey/queryFn.
-        sb.AppendLine("    ...options,");
 
         sb.AppendLine("  });");
         sb.AppendLine("}");
@@ -625,8 +627,8 @@ public static class TypeScriptReactQueryHookExtractor
         sb.Append("    ...").Append(segmentCamel).Append("Queries.").Append(info.MethodName).Append("Infinite(api").Append(string.Concat(names.Select(n => ", " + n))).AppendLine("),");
 
         // No request while a path parameter or the body of a QUERY read is missing (as the query hook).
-        AppendEnabledGuard(sb, info, namingStrategy);
         sb.AppendLine("    ...options,");
+        AppendEnabledGuard(sb, info, namingStrategy);
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }
@@ -694,20 +696,19 @@ public static class TypeScriptReactQueryHookExtractor
         HookInfo info,
         TypeScriptNamingStrategy namingStrategy)
     {
-        var guards = new List<string>();
-        if (info.PathParams.Count > 0)
-        {
-            guards.Add("!!" + TypeScriptOperationHelper.ParameterIdentifier(info.PathParams[0], namingStrategy));
-        }
-
+        // Every path parameter, by presence (an id of 0 is an id); the caller's enabled narrows the guard, it
+        // does not replace it - so this comes after the options spread
+        var guards = info.PathParams
+            .Select(p => TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy) + " != null")
+            .ToList();
         if (info.HasBody)
         {
-            guards.Add("!!body");
+            guards.Add("body != null");
         }
 
         if (guards.Count > 0)
         {
-            sb.Append("    enabled: ").Append(string.Join(" && ", guards)).AppendLine(",");
+            sb.Append("    enabled: ").Append(string.Join(" && ", guards)).AppendLine(" && (options?.enabled ?? true),");
         }
     }
 
@@ -767,9 +768,10 @@ public static class TypeScriptReactQueryHookExtractor
         // onSuccess(data, variables, onMutateResult, context). Forward all four so the
         // composed wrapper type-matches the caller's options.onSuccess. See the bumped
         // peerDependency (@tanstack/react-query >= 5.81) in the package scaffold.
-        sb.AppendLine("    onSuccess: (data, variables, onMutateResult, context) => {");
-        sb.Append("      queryClient.invalidateQueries({ queryKey: ").Append(segmentCamel).AppendLine("Keys.all });");
-        sb.AppendLine("      options?.onSuccess?.(data, variables, onMutateResult, context);");
+        // Awaited, so mutateAsync resolves after the invalidated queries have refetched
+        sb.AppendLine("    onSuccess: async (data, variables, onMutateResult, context) => {");
+        sb.Append("      await queryClient.invalidateQueries({ queryKey: ").Append(segmentCamel).AppendLine("Keys.all });");
+        sb.AppendLine("      await options?.onSuccess?.(data, variables, onMutateResult, context);");
         sb.AppendLine("    },");
 
         sb.AppendLine("  });");

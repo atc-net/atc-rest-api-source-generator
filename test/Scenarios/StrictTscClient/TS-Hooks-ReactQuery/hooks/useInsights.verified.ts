@@ -68,7 +68,7 @@ export function useGetInsightsDevicesStream(query?: { pageSize?: number }, heade
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, keyDep]);
+  }, [enabled, api, keyDep]);
 
   return { items, status, error, cancel, reset };
 }

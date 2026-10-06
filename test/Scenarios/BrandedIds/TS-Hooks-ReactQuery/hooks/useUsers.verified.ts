@@ -47,7 +47,7 @@ export function useGetUser(id: UserId, options?: Omit<UseQueryOptions<User, ApiE
   const api = useApiService();
   return useQuery({
     ...usersQueries.getUser(api, id),
-    enabled: !!id,
     ...options,
+    enabled: id != null && (options?.enabled ?? true),
   });
 }

@@ -122,7 +122,7 @@ export function useListItemsStream(query?: { filter?: string }, options?: { enab
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, keyDep]);
+  }, [enabled, api, keyDep]);
 
   return { items, status, error, cancel, reset };
 }
@@ -186,7 +186,7 @@ export function useListItemPagesStream(query?: { pageSize?: number }, options?: 
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, keyDep]);
+  }, [enabled, api, keyDep]);
 
   return { items, status, error, cancel, reset };
 }
@@ -196,8 +196,8 @@ export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'i
   const api = useApiService();
   return useQuery({
     ...itemsQueries.getItemLogs(api, itemId, query),
-    enabled: !!itemId,
     ...options,
+    enabled: itemId != null && (options?.enabled ?? true),
   });
 }
 
@@ -268,7 +268,7 @@ export function useStreamItemEventsStream(options?: { enabled?: boolean }) {
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, api]);
 
   return { items, status, error, cancel, reset };
 }

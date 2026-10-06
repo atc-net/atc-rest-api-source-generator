@@ -67,7 +67,7 @@ export function useStreamEventsSeqStream(options?: { enabled?: boolean }) {
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, api]);
 
   return { items, status, error, cancel, reset };
 }

@@ -47,7 +47,7 @@ export function useGetPet(petId: PetId, options?: Omit<UseQueryOptions<Pet, ApiE
   const api = useApiService();
   return useQuery({
     ...petsQueries.getPet(api, petId),
-    enabled: !!petId,
     ...options,
+    enabled: petId != null && (options?.enabled ?? true),
   });
 }

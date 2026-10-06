@@ -92,9 +92,9 @@ export function useCreatePets(options?: Omit<UseMutationOptions<void, ApiError, 
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: petsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: petsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -104,7 +104,7 @@ export function useShowPetById(petId: string, options?: Omit<UseQueryOptions<Pet
   const api = useApiService();
   return useQuery({
     ...petsQueries.showPetById(api, petId),
-    enabled: !!petId,
     ...options,
+    enabled: petId != null && (options?.enabled ?? true),
   });
 }
