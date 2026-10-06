@@ -45,7 +45,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
         ListPetsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Tag))
@@ -72,7 +72,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
         CreatePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -80,7 +80,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
     [Obsolete("Deprecated in the OpenAPI specification.")]
     public async Task<List<LegacyPet>> ListLegacyPetsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/pets/legacy";
+        var url = "pets/legacy";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<LegacyPet>>(jsonSerializerOptions, cancellationToken))!;
@@ -90,7 +90,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
         UpdatePetPhotoParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pets/{Uri.EscapeDataString(parameters.PetId)}/photo";
+        var url = $"pets/{Uri.EscapeDataString(parameters.PetId)}/photo";
         var response = await httpClient.PutAsync(url, null, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

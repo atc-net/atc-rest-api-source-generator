@@ -42,7 +42,7 @@ public sealed class KeysClient : IKeysClient
 
     public async Task<Company_Api_KeyPage> ListApiKeysAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/keys";
+        var url = "keys";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Company_Api_KeyPage>(jsonSerializerOptions, cancellationToken))!;

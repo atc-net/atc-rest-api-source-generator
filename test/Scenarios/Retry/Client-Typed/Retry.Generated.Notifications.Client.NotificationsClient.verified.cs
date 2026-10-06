@@ -45,7 +45,7 @@ public sealed class NotificationsClient : INotificationsClient
         SendNotificationParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/notifications";
+        var url = "notifications";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.NotificationsConstant);

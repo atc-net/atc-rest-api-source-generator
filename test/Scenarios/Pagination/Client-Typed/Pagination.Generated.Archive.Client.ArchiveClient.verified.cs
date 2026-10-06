@@ -44,7 +44,7 @@ public sealed class ArchiveClient : IArchiveClient
         ListArchivedAccountsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/archive";
+        var url = "api/v1/archive";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Continuation))

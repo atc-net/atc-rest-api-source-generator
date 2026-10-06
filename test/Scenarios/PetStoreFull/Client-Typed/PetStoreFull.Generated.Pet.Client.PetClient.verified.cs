@@ -46,7 +46,7 @@ public sealed class PetClient : IPetClient
         UpdatePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pet";
+        var url = "pet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
@@ -64,7 +64,7 @@ public sealed class PetClient : IPetClient
         AddPetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pet";
+        var url = "pet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
@@ -82,7 +82,7 @@ public sealed class PetClient : IPetClient
         FindPetsByStatusParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pet/findByStatus";
+        var url = "pet/findByStatus";
         var queryParams = new List<string>();
         queryParams.Add($"status={Uri.EscapeDataString(parameters.Status.ToWireValue()!)}");
 
@@ -107,7 +107,7 @@ public sealed class PetClient : IPetClient
         FindPetsByTagsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pet/findByTags";
+        var url = "pet/findByTags";
         var queryParams = new List<string>();
         foreach (var item in parameters.Tags)
         {
@@ -135,7 +135,7 @@ public sealed class PetClient : IPetClient
         GetPetByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pet/{parameters.PetId}";
+        var url = $"pet/{parameters.PetId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
@@ -152,7 +152,7 @@ public sealed class PetClient : IPetClient
         UpdatePetWithFormParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pet/{parameters.PetId}";
+        var url = $"pet/{parameters.PetId}";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Name))
@@ -186,7 +186,7 @@ public sealed class PetClient : IPetClient
         DeletePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pet/{parameters.PetId}";
+        var url = $"pet/{parameters.PetId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
         if (parameters.ApiKey is { Length: > 0 } headerApiKey)
         {
@@ -201,7 +201,7 @@ public sealed class PetClient : IPetClient
         UploadFileParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pet/{parameters.PetId}/uploadImage";
+        var url = $"pet/{parameters.PetId}/uploadImage";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.AdditionalMetadata))

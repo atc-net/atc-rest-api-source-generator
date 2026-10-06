@@ -45,7 +45,7 @@ public sealed class UserClient : IUserClient
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/user";
+        var url = "user";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
@@ -63,7 +63,7 @@ public sealed class UserClient : IUserClient
         CreateUsersWithListInputParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/user/createWithList";
+        var url = "user/createWithList";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
@@ -81,7 +81,7 @@ public sealed class UserClient : IUserClient
         LoginUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/user/login";
+        var url = "user/login";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Username))
@@ -106,7 +106,7 @@ public sealed class UserClient : IUserClient
 
     public async Task LogoutUserAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/user/logout";
+        var url = "user/logout";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -115,7 +115,7 @@ public sealed class UserClient : IUserClient
         GetUserByNameParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/user/{Uri.EscapeDataString(parameters.Username)}";
+        var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
@@ -132,7 +132,7 @@ public sealed class UserClient : IUserClient
         UpdateUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/user/{Uri.EscapeDataString(parameters.Username)}";
+        var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -141,7 +141,7 @@ public sealed class UserClient : IUserClient
         DeleteUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/user/{Uri.EscapeDataString(parameters.Username)}";
+        var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

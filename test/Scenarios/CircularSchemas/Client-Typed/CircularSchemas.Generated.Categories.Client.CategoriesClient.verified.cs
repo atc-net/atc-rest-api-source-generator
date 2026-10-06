@@ -42,7 +42,7 @@ public sealed class CategoriesClient : ICategoriesClient
 
     public async Task<List<Category>> ListCategoriesAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/categories";
+        var url = "categories";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Category>>(jsonSerializerOptions, cancellationToken))!;

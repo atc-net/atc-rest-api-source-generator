@@ -41,7 +41,7 @@ public sealed class FilesClient : IFilesClient
         DownloadFileParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/files/{Uri.EscapeDataString(parameters.FileId)}";
+        var url = $"files/{Uri.EscapeDataString(parameters.FileId)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);

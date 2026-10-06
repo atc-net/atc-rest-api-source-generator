@@ -44,7 +44,7 @@ public sealed class AccountsClient : IAccountsClient
         ListAccountsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/accounts";
+        var url = "api/v1/accounts";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Continuation))
@@ -71,7 +71,7 @@ public sealed class AccountsClient : IAccountsClient
         CreateAccountParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/accounts";
+        var url = "api/v1/accounts";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Account>(jsonSerializerOptions, cancellationToken))!;

@@ -43,7 +43,7 @@ public sealed class OrdersClient : IOrdersClient
         CreateOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/orders";
+        var url = "orders";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
@@ -53,7 +53,7 @@ public sealed class OrdersClient : IOrdersClient
         GetOrderByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/orders/{parameters.OrderId}";
+        var url = $"orders/{parameters.OrderId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;

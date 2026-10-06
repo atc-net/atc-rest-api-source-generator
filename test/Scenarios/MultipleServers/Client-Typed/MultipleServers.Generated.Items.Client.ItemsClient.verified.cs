@@ -44,7 +44,7 @@ public sealed class ItemsClient : IItemsClient
         ListItemsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/items";
+        var url = "items";
         var queryParams = new List<string>();
 
         if (parameters.Limit.HasValue)
@@ -66,7 +66,7 @@ public sealed class ItemsClient : IItemsClient
         GetItemByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/items/{parameters.ItemId}";
+        var url = $"items/{parameters.ItemId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Item>(jsonSerializerOptions, cancellationToken))!;

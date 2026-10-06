@@ -45,7 +45,7 @@ public sealed class LogsClient : ILogsClient
         ListLogsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/logs";
+        var url = "api/v1/logs";
         var queryParams = new List<string>();
         queryParams.Add($"continuation={Uri.EscapeDataString(parameters.Continuation)}");
 

@@ -98,7 +98,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
     internal async Task<IResult> UpdatePetPhoto(
         [FromServices] IUpdatePetPhotoHandler handler,
-        IFormFile? file,
+        [FromForm(Name = "file")] IFormFile? file,
         [FromForm(Name = "caption")] string? caption,
         [FromRoute(Name = "petId")] string petId,
         CancellationToken cancellationToken)

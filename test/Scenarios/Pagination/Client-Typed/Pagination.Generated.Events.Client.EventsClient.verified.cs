@@ -45,7 +45,7 @@ public sealed class EventsClient : IEventsClient
         ListEventsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/events";
+        var url = "api/v1/events";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.PageToken))

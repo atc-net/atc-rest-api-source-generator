@@ -42,7 +42,7 @@ public sealed class EventsSeqClient : IEventsSeqClient
 
     public async IAsyncEnumerable<Event> StreamEventsSeqAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var url = "/events-seq";
+        var url = "events-seq";
         using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 

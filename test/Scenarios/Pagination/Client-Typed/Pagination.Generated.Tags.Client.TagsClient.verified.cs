@@ -44,7 +44,7 @@ public sealed class TagsClient : ITagsClient
         ListTagsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/tags";
+        var url = "api/v1/tags";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Continuation))

@@ -42,7 +42,7 @@ public sealed class EventsClient : IEventsClient
 
     public async IAsyncEnumerable<Event> StreamEventsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var url = "/events";
+        var url = "events";
         using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 

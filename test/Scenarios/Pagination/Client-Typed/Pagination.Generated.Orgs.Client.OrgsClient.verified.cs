@@ -45,7 +45,7 @@ public sealed class OrgsClient : IOrgsClient
         ListOrgDevicesParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/api/v1/orgs/{Uri.EscapeDataString(parameters.OrgId)}/devices";
+        var url = $"api/v1/orgs/{Uri.EscapeDataString(parameters.OrgId)}/devices";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         if (parameters.Continuation is { Length: > 0 } headerContinuation)
         {

@@ -44,7 +44,7 @@ public sealed class ItemsClient : IItemsClient
 
     public async Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/items";
+        var url = "items";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
@@ -54,7 +54,7 @@ public sealed class ItemsClient : IItemsClient
         GetItemSheetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/items/{Uri.EscapeDataString(parameters.ItemId)}/sheet";
+        var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}/sheet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/pdf, application/problem+json");
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);

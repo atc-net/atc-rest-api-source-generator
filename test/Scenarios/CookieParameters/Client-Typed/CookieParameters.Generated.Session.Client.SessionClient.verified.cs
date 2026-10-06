@@ -45,7 +45,7 @@ public sealed class SessionClient : ISessionClient
         GetSessionParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/session";
+        var url = "session";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         var cookieParts = new List<string>();
         if (parameters.SessionId is { Length: > 0 } cookieSessionId)

@@ -42,7 +42,7 @@ public sealed class StoreClient : IStoreClient
 
     public async Task<object> GetInventoryAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/store/inventory";
+        var url = "store/inventory";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<object>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class StoreClient : IStoreClient
         PlaceOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/store/order";
+        var url = "store/order";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
@@ -62,7 +62,7 @@ public sealed class StoreClient : IStoreClient
         GetOrderByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/store/order/{parameters.OrderId}";
+        var url = $"store/order/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
@@ -79,7 +79,7 @@ public sealed class StoreClient : IStoreClient
         DeleteOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/store/order/{parameters.OrderId}";
+        var url = $"store/order/{parameters.OrderId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

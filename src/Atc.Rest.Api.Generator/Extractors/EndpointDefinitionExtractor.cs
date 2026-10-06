@@ -1646,8 +1646,10 @@ using Microsoft.AspNetCore.Builder;
 
                     if (isFile)
                     {
-                        // File property - use IFormFile (no attribute needed, ASP.NET Core binds it automatically)
+                        // File property - IFormFile, bound by the field name the specification gives it (upload_file),
+                        // not by the C# parameter name derived from it; a collection takes the files of that field
                         typeName = isCollection ? "IFormFileCollection" : "IFormFile";
+                        attributes = [new("FromForm", $"Name = \"{propName}\"")];
 
                         // Make nullable since file is often optional
                         typeName += "?";

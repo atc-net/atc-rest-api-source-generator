@@ -104,7 +104,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFile(
         [FromServices] IUploadFormDataFileHandler handler,
         [FromForm(Name = "itemName")] string? itemName,
-        IFormFile? file,
+        [FromForm(Name = "file")] IFormFile? file,
         [FromForm(Name = "items")] ParsableList<string>? items,
         CancellationToken cancellationToken)
     {
@@ -118,7 +118,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFiles(
         [FromServices] IUploadFormDataFilesHandler handler,
-        IFormFileCollection? files,
+        [FromForm(Name = "files")] IFormFileCollection? files,
         CancellationToken cancellationToken)
     {
         var request = new FilesAsFormDataRequest(Files: files?.ToList() ?? new List<IFormFile>());

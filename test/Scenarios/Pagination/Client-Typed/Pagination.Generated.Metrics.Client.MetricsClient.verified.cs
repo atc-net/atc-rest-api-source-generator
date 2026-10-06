@@ -45,7 +45,7 @@ public sealed class MetricsClient : IMetricsClient
         ListMetricsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/metrics";
+        var url = "api/v1/metrics";
         var queryParams = new List<string>();
 
         if (parameters.Cursor.HasValue)

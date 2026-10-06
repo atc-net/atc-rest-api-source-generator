@@ -43,7 +43,7 @@ public sealed class WebhooksClient : IWebhooksClient
         ReceiveWebhookParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/webhooks";
+        var url = "webhooks";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

@@ -41,7 +41,7 @@ public sealed class EnumNamingConflictsClient : IEnumNamingConflictsClient
 
     public async Task<Settings> GetSettingsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/settings";
+        var url = "settings";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Settings>(jsonSerializerOptions, cancellationToken))!;

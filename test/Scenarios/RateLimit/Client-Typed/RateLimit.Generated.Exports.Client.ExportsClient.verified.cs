@@ -43,7 +43,7 @@ public sealed class ExportsClient : IExportsClient
         CreateExportParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/exports";
+        var url = "exports";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<ExportJob>(jsonSerializerOptions, cancellationToken))!;

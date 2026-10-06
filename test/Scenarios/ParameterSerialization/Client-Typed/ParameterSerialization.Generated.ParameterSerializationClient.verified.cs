@@ -45,7 +45,7 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         ListItemsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/items";
+        var url = "items";
         var queryParams = new List<string>();
 
         if (parameters.Tags is not null)

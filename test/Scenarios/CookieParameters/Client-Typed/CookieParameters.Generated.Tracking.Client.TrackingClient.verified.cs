@@ -43,7 +43,7 @@ public sealed class TrackingClient : ITrackingClient
         TrackEventParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/tracking/{Uri.EscapeDataString(parameters.EventId)}";
+        var url = $"tracking/{Uri.EscapeDataString(parameters.EventId)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         var cookieParts = new List<string>();
         if (parameters.UserId is { Length: > 0 } cookieUserId)

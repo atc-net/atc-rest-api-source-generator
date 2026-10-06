@@ -43,7 +43,7 @@ public sealed class DogsClient : IDogsClient
 
     public async Task<List<Dog>> ListDogsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/dogs";
+        var url = "dogs";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Dog>>(jsonSerializerOptions, cancellationToken))!;

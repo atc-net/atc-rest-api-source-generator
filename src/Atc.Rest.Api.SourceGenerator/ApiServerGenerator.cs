@@ -1962,7 +1962,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                 }
 
                 private static bool TryParseItem(string item, out T value)
-                    => T.TryParse(item, null, out value!);
+                    => T.TryParse(item, global::System.Globalization.CultureInfo.InvariantCulture, out value!);
             }
 
             /// <summary>

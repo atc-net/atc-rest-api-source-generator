@@ -42,7 +42,7 @@ public sealed class ResourcesClient : IResourcesClient
 
     public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/resources";
+        var url = "resources";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Resource>>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class ResourcesClient : IResourcesClient
         CreateResourceParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/resources";
+        var url = "resources";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Resource>(jsonSerializerOptions, cancellationToken))!;
@@ -62,7 +62,7 @@ public sealed class ResourcesClient : IResourcesClient
         GetResourceByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/resources/{parameters.ResourceId}";
+        var url = $"resources/{parameters.ResourceId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Resource>(jsonSerializerOptions, cancellationToken))!;
@@ -72,7 +72,7 @@ public sealed class ResourcesClient : IResourcesClient
         DeleteResourceParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/resources/{parameters.ResourceId}";
+        var url = $"resources/{parameters.ResourceId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

@@ -45,7 +45,7 @@ public sealed class ReportsClient : IReportsClient
         GenerateReportParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/reports/generate";
+        var url = "reports/generate";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, timeoutSeconds: 600);

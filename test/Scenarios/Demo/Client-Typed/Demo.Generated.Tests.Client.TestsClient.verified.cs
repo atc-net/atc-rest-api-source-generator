@@ -43,7 +43,7 @@ public sealed class TestsClient : ITestsClient
         CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/tests/create/create-model";
+        var url = "tests/create/create-model";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<TestItem>(jsonSerializerOptions, cancellationToken))!;
@@ -53,7 +53,7 @@ public sealed class TestsClient : ITestsClient
         CreateTestItemWithLocationHeaderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/tests/create/create-location-header";
+        var url = "tests/create/create-location-header";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return response.Headers.Location!;
@@ -63,7 +63,7 @@ public sealed class TestsClient : ITestsClient
         CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/tests/create/create-location-body";
+        var url = "tests/create/create-location-body";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Uri>(jsonSerializerOptions, cancellationToken))!;
@@ -73,7 +73,7 @@ public sealed class TestsClient : ITestsClient
         CreateTestItemEmptyParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/tests/create/create-empty";
+        var url = "tests/create/create-empty";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

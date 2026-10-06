@@ -43,7 +43,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
 
     public async Task<EndpointResponse<List<Device>>> ListDevicesAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/devices";
+        var url = "devices";
         var response = await httpClient.GetAsync(url, cancellationToken);
         return await BuildJsonResponseAsync<List<Device>>(response, jsonSerializerOptions, cancellationToken);
     }
@@ -52,7 +52,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CreateDeviceParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/devices";
+        var url = "devices";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken);
     }
@@ -61,7 +61,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         GetDeviceByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/devices/{Uri.EscapeDataString(parameters.DeviceId)}";
+        var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken);
     }
@@ -70,7 +70,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         UpdateDeviceParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/devices/{Uri.EscapeDataString(parameters.DeviceId)}";
+        var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken);
     }
@@ -79,7 +79,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         DeleteDeviceParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/devices/{Uri.EscapeDataString(parameters.DeviceId)}";
+        var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         return await BuildEmptyResponseAsync(response, cancellationToken);
     }
@@ -88,7 +88,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         DownloadFirmwareParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/devices/{Uri.EscapeDataString(parameters.DeviceId)}/firmware";
+        var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}/firmware";
         var response = await httpClient.GetAsync(url, cancellationToken);
         return await BuildBinaryResponseAsync(response, cancellationToken);
     }
@@ -97,7 +97,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         GetDeviceLogParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/devices/{Uri.EscapeDataString(parameters.DeviceId)}/log";
+        var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}/log";
         var response = await httpClient.GetAsync(url, cancellationToken);
         return await BuildTextResponseAsync(response, cancellationToken);
     }

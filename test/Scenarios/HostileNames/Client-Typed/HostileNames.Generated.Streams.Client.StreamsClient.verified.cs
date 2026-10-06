@@ -43,7 +43,7 @@ public sealed class StreamsClient : IStreamsClient
 
     public async Task<List<HostileNames.Generated.Streams.Models.Stream>> ListStreamsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/streams";
+        var url = "streams";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<HostileNames.Generated.Streams.Models.Stream>>(jsonSerializerOptions, cancellationToken))!;
@@ -53,7 +53,7 @@ public sealed class StreamsClient : IStreamsClient
         CreateStreamParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/streams";
+        var url = "streams";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<HostileNames.Generated.Streams.Models.Results>(jsonSerializerOptions, cancellationToken))!;

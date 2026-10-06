@@ -42,7 +42,7 @@ public sealed class OrdersClient : IOrdersClient
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/orders";
+        var url = "orders";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Order>>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class OrdersClient : IOrdersClient
         CreateOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/orders";
+        var url = "orders";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
@@ -62,7 +62,7 @@ public sealed class OrdersClient : IOrdersClient
         GetOrderByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/orders/{parameters.OrderId}";
+        var url = $"orders/{parameters.OrderId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
@@ -72,7 +72,7 @@ public sealed class OrdersClient : IOrdersClient
         DeleteOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/orders/{parameters.OrderId}";
+        var url = $"orders/{parameters.OrderId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -81,7 +81,7 @@ public sealed class OrdersClient : IOrdersClient
         GetOrderTrackingParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/orders/{parameters.OrderId}/tracking";
+        var url = $"orders/{parameters.OrderId}/tracking";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<TrackingInfo>(jsonSerializerOptions, cancellationToken))!;

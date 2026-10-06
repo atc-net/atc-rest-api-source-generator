@@ -45,7 +45,7 @@ public sealed class MoviesClient : IMoviesClient
         GetMovieParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/3/movies/{parameters.Id}";
+        var url = $"3/movies/{parameters.Id}";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.IdQuery))

@@ -45,7 +45,7 @@ public sealed class PersonsClient : IPersonsClient
         ListPersonsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/persons";
+        var url = "persons";
         var queryParams = new List<string>();
 
         if (parameters.Gender is not null)

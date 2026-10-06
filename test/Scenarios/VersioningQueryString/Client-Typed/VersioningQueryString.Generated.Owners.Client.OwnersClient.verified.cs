@@ -42,7 +42,7 @@ public sealed class OwnersClient : IOwnersClient
 
     public async Task<List<Owner>> ListOwnersAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/owners";
+        var url = "owners";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Owner>>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class OwnersClient : IOwnersClient
         CreateOwnerParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/owners";
+        var url = "owners";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Owner>(jsonSerializerOptions, cancellationToken))!;
@@ -62,7 +62,7 @@ public sealed class OwnersClient : IOwnersClient
         GetOwnerByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/owners/{parameters.OwnerId}";
+        var url = $"owners/{parameters.OwnerId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Owner>(jsonSerializerOptions, cancellationToken))!;

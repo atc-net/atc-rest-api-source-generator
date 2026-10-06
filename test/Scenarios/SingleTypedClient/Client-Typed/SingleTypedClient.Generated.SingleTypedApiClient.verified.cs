@@ -42,7 +42,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
 
     public async Task<List<Account>> ListAccountsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/accounts";
+        var url = "accounts";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Account>>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         GetAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/accounts/{Uri.EscapeDataString(parameters.AccountId)}";
+        var url = $"accounts/{Uri.EscapeDataString(parameters.AccountId)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Account>(jsonSerializerOptions, cancellationToken))!;
@@ -60,7 +60,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/orders";
+        var url = "orders";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Order>>(jsonSerializerOptions, cancellationToken))!;
@@ -70,7 +70,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         CreateOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/orders";
+        var url = "orders";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;

@@ -43,7 +43,7 @@ public sealed class AccountsClient : IAccountsClient
 
     public async Task<List<account_summary>> ListAccountsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/2010-04-01/accounts";
+        var url = "2010-04-01/accounts";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<account_summary>>(jsonSerializerOptions, cancellationToken))!;

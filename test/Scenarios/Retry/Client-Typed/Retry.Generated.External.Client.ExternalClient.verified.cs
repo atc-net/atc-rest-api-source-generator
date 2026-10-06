@@ -45,7 +45,7 @@ public sealed class ExternalClient : IExternalClient
         ProcessPaymentParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/external/payment";
+        var url = "external/payment";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.ExternalService);

@@ -42,7 +42,7 @@ public sealed class OverlaysClient : IOverlaysClient
 
     public async Task<List<Device>> ListDevicesAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/devices";
+        var url = "devices";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Device>>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class OverlaysClient : IOverlaysClient
         GetDeviceParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/devices/{parameters.DeviceId}";
+        var url = $"devices/{parameters.DeviceId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Device>(jsonSerializerOptions, cancellationToken))!;

@@ -44,7 +44,7 @@ public sealed class TasksClient : ITasksClient
         ListTasksParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/tasks";
+        var url = "tasks";
         var queryParams = new List<string>();
 
         if (parameters.Limit.HasValue)
@@ -66,7 +66,7 @@ public sealed class TasksClient : ITasksClient
         CreateTaskParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/tasks";
+        var url = "tasks";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Demo.Generated.Tasks.Models.Task>(jsonSerializerOptions, cancellationToken))!;
@@ -76,7 +76,7 @@ public sealed class TasksClient : ITasksClient
         GetTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/tasks/{Uri.EscapeDataString(parameters.TaskId)}";
+        var url = $"tasks/{Uri.EscapeDataString(parameters.TaskId)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Demo.Generated.Tasks.Models.Task>(jsonSerializerOptions, cancellationToken))!;
@@ -86,7 +86,7 @@ public sealed class TasksClient : ITasksClient
         DeleteTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/tasks/{Uri.EscapeDataString(parameters.TaskId)}";
+        var url = $"tasks/{Uri.EscapeDataString(parameters.TaskId)}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -95,7 +95,7 @@ public sealed class TasksClient : ITasksClient
         UpdateTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/tasks/{Uri.EscapeDataString(parameters.TaskId)}";
+        var url = $"tasks/{Uri.EscapeDataString(parameters.TaskId)}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Demo.Generated.Tasks.Models.Task>(jsonSerializerOptions, cancellationToken))!;

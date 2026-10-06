@@ -128,7 +128,22 @@ public static class WireBindingExtensions
                     return;
                 }
 
-                var form = await context.Request.ReadFormAsync(context.RequestAborted);
+                // A form the framework cannot read (no multipart boundary, more fields or a longer value
+                // than its limits, a body cut short) is the caller's mistake: a 400 naming it, never a 500
+                global::Microsoft.AspNetCore.Http.IFormCollection form;
+                try
+                {
+                    form = await context.Request.ReadFormAsync(context.RequestAborted);
+                }
+                catch (global::System.Exception ex) when (ex is global::System.IO.InvalidDataException or global::System.IO.IOException or global::Microsoft.AspNetCore.Http.BadHttpRequestException)
+                {
+                    await global::Microsoft.AspNetCore.Http.Results.Problem(
+                        detail: ex.Message,
+                        statusCode: global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest,
+                        title: "The form could not be read").ExecuteAsync(context);
+                    return;
+                }
+
                 var errors = CheckForm(form, checks, out var rewritten);
                 if (errors is not null)
                 {

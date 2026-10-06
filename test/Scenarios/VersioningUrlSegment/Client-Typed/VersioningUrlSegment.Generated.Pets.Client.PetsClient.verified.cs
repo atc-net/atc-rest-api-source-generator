@@ -44,7 +44,7 @@ public sealed class PetsClient : IPetsClient
         ListPetsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var queryParams = new List<string>();
 
         if (parameters.Limit.HasValue)
@@ -66,7 +66,7 @@ public sealed class PetsClient : IPetsClient
         CreatePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
@@ -76,7 +76,7 @@ public sealed class PetsClient : IPetsClient
         GetPetByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pets/{parameters.PetId}";
+        var url = $"pets/{parameters.PetId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
@@ -86,7 +86,7 @@ public sealed class PetsClient : IPetsClient
         UpdatePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pets/{parameters.PetId}";
+        var url = $"pets/{parameters.PetId}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
@@ -96,7 +96,7 @@ public sealed class PetsClient : IPetsClient
         DeletePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pets/{parameters.PetId}";
+        var url = $"pets/{parameters.PetId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

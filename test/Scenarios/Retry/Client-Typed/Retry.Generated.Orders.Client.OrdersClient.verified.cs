@@ -44,7 +44,7 @@ public sealed class OrdersClient : IOrdersClient
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/orders";
+        var url = "orders";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
@@ -56,7 +56,7 @@ public sealed class OrdersClient : IOrdersClient
         CreateOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/orders";
+        var url = "orders";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.OrdersFast);
@@ -69,7 +69,7 @@ public sealed class OrdersClient : IOrdersClient
         GetOrderByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/orders/{parameters.OrderId}";
+        var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
@@ -81,7 +81,7 @@ public sealed class OrdersClient : IOrdersClient
         DeleteOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/orders/{parameters.OrderId}";
+        var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersDelete);
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);

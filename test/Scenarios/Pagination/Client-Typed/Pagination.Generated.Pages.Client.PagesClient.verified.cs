@@ -45,7 +45,7 @@ public sealed class PagesClient : IPagesClient
         ListAccountPagesParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/pages";
+        var url = "api/v1/pages";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Continuation))

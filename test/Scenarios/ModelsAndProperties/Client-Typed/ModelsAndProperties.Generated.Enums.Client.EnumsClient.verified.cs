@@ -42,7 +42,7 @@ public sealed class EnumsClient : IEnumsClient
 
     public async Task<EnumTypes> GetEnumTypesAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/enums";
+        var url = "enums";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<EnumTypes>(jsonSerializerOptions, cancellationToken))!;

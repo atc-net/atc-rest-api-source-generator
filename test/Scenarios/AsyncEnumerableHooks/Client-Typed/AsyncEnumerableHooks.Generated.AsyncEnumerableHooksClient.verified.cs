@@ -46,7 +46,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
         ListItemsParameters parameters,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/items";
+        var url = "api/v1/items";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Filter))
@@ -77,7 +77,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
         ListItemPagesParameters parameters,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/items/pages";
+        var url = "api/v1/items/pages";
         var queryParams = new List<string>();
 
         if (parameters.PageSize.HasValue)
@@ -108,7 +108,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
         GetItemLogsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/api/v1/items/{parameters.ItemId}/logs";
+        var url = $"api/v1/items/{parameters.ItemId}/logs";
         var queryParams = new List<string>();
 
         if (parameters.LogLevel is not null)
@@ -135,7 +135,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
         SearchItemsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/items/search";
+        var url = "api/v1/items/search";
         var queryParams = new List<string>();
 
         if (parameters.CreatedAfter is not null)
@@ -156,7 +156,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
 
     public async IAsyncEnumerable<Item> StreamItemEventsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var url = "/api/v1/items/events";
+        var url = "api/v1/items/events";
         using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 

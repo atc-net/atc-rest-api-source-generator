@@ -44,7 +44,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
         ListNotesParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/notes";
+        var url = "notes";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Filter))
@@ -79,7 +79,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
 
     public async Task DeleteNotesAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/notes";
+        var url = "notes";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -88,7 +88,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
         CreateNoteParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/notes";
+        var url = "notes";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Note>(jsonSerializerOptions, cancellationToken))!;

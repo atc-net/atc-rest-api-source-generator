@@ -42,7 +42,7 @@ public sealed class ColorsClient : IColorsClient
 
     public async Task<RgbColor> GetColorsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/colors";
+        var url = "colors";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<RgbColor>(jsonSerializerOptions, cancellationToken))!;

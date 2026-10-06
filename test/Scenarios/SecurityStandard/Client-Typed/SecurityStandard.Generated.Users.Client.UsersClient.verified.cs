@@ -42,7 +42,7 @@ public sealed class UsersClient : IUsersClient
 
     public async Task<List<User>> ListUsersAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/users";
+        var url = "users";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<User>>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class UsersClient : IUsersClient
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/users/{parameters.UserId}";
+        var url = $"users/{parameters.UserId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;

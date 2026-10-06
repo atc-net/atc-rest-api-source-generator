@@ -42,7 +42,7 @@ public sealed class EventsSseClient : IEventsSseClient
 
     public async IAsyncEnumerable<Event> StreamEventsSseAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var url = "/events-sse";
+        var url = "events-sse";
         using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 

@@ -43,7 +43,7 @@ public sealed class NotificationsClient : INotificationsClient
         SendNotificationParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/notifications";
+        var url = "notifications";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

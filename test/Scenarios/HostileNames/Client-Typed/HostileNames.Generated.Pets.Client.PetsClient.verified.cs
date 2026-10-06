@@ -43,7 +43,7 @@ public sealed class PetsClient : IPetsClient
 
     public async Task<List<pet>> ListPetsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<pet>>(jsonSerializerOptions, cancellationToken))!;
@@ -53,7 +53,7 @@ public sealed class PetsClient : IPetsClient
         CreatePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<pet>(jsonSerializerOptions, cancellationToken))!;

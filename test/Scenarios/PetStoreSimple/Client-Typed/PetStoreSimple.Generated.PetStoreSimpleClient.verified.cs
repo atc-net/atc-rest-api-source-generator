@@ -44,7 +44,7 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
         ListPetsParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var queryParams = new List<string>();
 
         if (parameters.Limit.HasValue)
@@ -64,7 +64,7 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
 
     public async Task CreatePetsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var response = await httpClient.PostAsync(url, null, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -73,7 +73,7 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
         ShowPetByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pets/{Uri.EscapeDataString(parameters.PetId)}";
+        var url = $"pets/{Uri.EscapeDataString(parameters.PetId)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;

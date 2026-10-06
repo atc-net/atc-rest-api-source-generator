@@ -44,7 +44,7 @@ public sealed class FilesClient : IFilesClient
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/files/{Uri.EscapeDataString(parameters.Id)}";
+        var url = $"files/{Uri.EscapeDataString(parameters.Id)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
@@ -54,7 +54,7 @@ public sealed class FilesClient : IFilesClient
         UploadFormDataFileParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/files/form-data/singleObject";
+        var url = "files/form-data/singleObject";
         using var content = new MultipartFormDataContent();
 
         if (parameters.Request?.ItemName is { } itemName)
@@ -91,7 +91,7 @@ public sealed class FilesClient : IFilesClient
         UploadFormDataFilesParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/files/form-data/singleObjectMultiFile";
+        var url = "files/form-data/singleObjectMultiFile";
         using var content = new MultipartFormDataContent();
 
         if (parameters.Request?.Files is not null)
@@ -118,7 +118,7 @@ public sealed class FilesClient : IFilesClient
         UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/files/form-data/singleFile";
+        var url = "files/form-data/singleFile";
 
         using var content = new StreamContent(parameters.File!.OpenReadStream());
         content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
@@ -131,7 +131,7 @@ public sealed class FilesClient : IFilesClient
         UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/files/form-data/multiFile";
+        var url = "files/form-data/multiFile";
 
         using var content = new MultipartFormDataContent();
 

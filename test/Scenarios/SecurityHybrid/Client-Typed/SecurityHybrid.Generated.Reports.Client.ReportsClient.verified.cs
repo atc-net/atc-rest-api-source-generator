@@ -42,7 +42,7 @@ public sealed class ReportsClient : IReportsClient
 
     public async Task<List<ListReportsResponseItem>> ListReportsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/reports";
+        var url = "reports";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<ListReportsResponseItem>>(jsonSerializerOptions, cancellationToken))!;

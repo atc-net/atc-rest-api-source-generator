@@ -42,7 +42,7 @@ public sealed class ValidationsClient : IValidationsClient
 
     public async Task<ValidationConstraints> GetValidationsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/validations";
+        var url = "validations";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<ValidationConstraints>(jsonSerializerOptions, cancellationToken))!;

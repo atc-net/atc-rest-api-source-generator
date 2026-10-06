@@ -43,7 +43,7 @@ public sealed class ReadOnlyWriteOnlyClient : IReadOnlyWriteOnlyClient
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/users";
+        var url = "users";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
@@ -53,7 +53,7 @@ public sealed class ReadOnlyWriteOnlyClient : IReadOnlyWriteOnlyClient
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/users/{parameters.UserId}";
+        var url = $"users/{parameters.UserId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;

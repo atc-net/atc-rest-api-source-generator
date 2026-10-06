@@ -43,7 +43,7 @@ public sealed class EventsMultipartClient : IEventsMultipartClient
 
     public async IAsyncEnumerable<Event> StreamEventsMultipartAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var url = "/events-multipart";
+        var url = "events-multipart";
         using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 

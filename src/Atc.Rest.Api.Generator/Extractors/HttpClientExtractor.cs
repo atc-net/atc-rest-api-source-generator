@@ -804,8 +804,10 @@ public static class HttpClientExtractor
         // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
         var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
 
-        // Build the URL - optionally prepend server base path, then replace path parameters
-        var urlBuilder = serverBasePath is not null ? $"{serverBasePath}{path}" : path;
+        // Build the URL - optionally prepend server base path, then replace path parameters. The URL is relative
+        // (no leading slash), so the HttpClient's BaseAddress keeps its path: https://gw/svc-a/ + prices is
+        // /svc-a/prices; a leading slash would replace that path
+        var urlBuilder = (serverBasePath is not null ? $"{serverBasePath}{path}" : path).TrimStart('/');
 
         // Process path-level parameters first
         if (pathLevelParameters is not null)

@@ -44,7 +44,7 @@ public sealed class UsersClient : IUsersClient
         ListUsersParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/users";
+        var url = "users";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Search))
@@ -86,7 +86,7 @@ public sealed class UsersClient : IUsersClient
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/users";
+        var url = "users";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
@@ -96,7 +96,7 @@ public sealed class UsersClient : IUsersClient
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/users/{parameters.UserId}";
+        var url = $"users/{parameters.UserId}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
@@ -106,7 +106,7 @@ public sealed class UsersClient : IUsersClient
         UpdateUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/users/{parameters.UserId}";
+        var url = $"users/{parameters.UserId}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
@@ -116,7 +116,7 @@ public sealed class UsersClient : IUsersClient
         DeleteUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/users/{parameters.UserId}";
+        var url = $"users/{parameters.UserId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }

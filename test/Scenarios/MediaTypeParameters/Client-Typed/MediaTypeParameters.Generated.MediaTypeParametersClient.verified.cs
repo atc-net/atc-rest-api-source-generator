@@ -42,7 +42,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
 
     public async Task<List<Pet>> ListPetsAsync(CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Pet>>(jsonSerializerOptions, cancellationToken))!;
@@ -52,7 +52,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CreatePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = "/pets";
+        var url = "pets";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
@@ -62,7 +62,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         GetPetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pets/{parameters.Id}";
+        var url = $"pets/{parameters.Id}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
@@ -72,7 +72,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         GetPhotoParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"/pets/{parameters.Id}/photo";
+        var url = $"pets/{parameters.Id}/photo";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
