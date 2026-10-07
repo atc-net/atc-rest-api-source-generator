@@ -166,4 +166,29 @@ public class HttpStatusCodeHelperTests
     {
         Assert.Equal(expected, HttpStatusCodeHelper.ToHttpStatusCodeExpression(statusCode));
     }
+
+    // ========== TryGetStatusCodesConstant against ASP.NET Core's own StatusCodes ==========
+    [Fact]
+    public void TryGetStatusCodesConstant_EveryCode_NamesAStatusCodesConstantOfThatValue_WhenOneExists()
+    {
+        var constants = typeof(Microsoft.AspNetCore.Http.StatusCodes)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral)
+            .ToLookup(f => (int)f.GetRawConstantValue()!, f => f.Name);
+
+        var wrong = new List<string>();
+        for (var code = 100; code < 600; code++)
+        {
+            var known = HttpStatusCodeHelper.TryGetStatusCodesConstant(
+                code.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                out var constant);
+            var names = constants[code].ToList();
+            if (known != names.Count > 0 || (known && !names.Contains(constant!, StringComparer.Ordinal)))
+            {
+                wrong.Add($"{code}: '{constant}', StatusCodes has [{string.Join(", ", names)}]");
+            }
+        }
+
+        Assert.True(wrong.Count == 0, string.Join(Environment.NewLine, wrong));
+    }
 }

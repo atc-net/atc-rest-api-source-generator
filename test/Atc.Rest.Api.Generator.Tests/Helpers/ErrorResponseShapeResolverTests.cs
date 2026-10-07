@@ -161,7 +161,7 @@ public class ErrorResponseShapeResolverTests
         Assert.Equal(".Produces<ApiError>(StatusCodes.Status409Conflict, contentType: \"application/json\")", ErrorResponseShapeResolver.ToProducesCall("409", shape, "ApiError"));
 
         // No model type: object; an unmapped status: the numeric literal
-        Assert.Equal(".Produces<object>(499, contentType: \"application/json\")", ErrorResponseShapeResolver.ToProducesCall("499", shape, null));
+        Assert.Equal(".Produces<object>(599, contentType: \"application/json\")", ErrorResponseShapeResolver.ToProducesCall("599", shape, null));
     }
 
     [Theory]

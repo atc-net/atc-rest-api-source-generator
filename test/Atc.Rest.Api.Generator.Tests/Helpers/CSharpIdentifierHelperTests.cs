@@ -17,4 +17,13 @@ public class CSharpIdentifierHelperTests
         // Only reserved keywords get the @ prefix; a contextual keyword such as var is a valid identifier
         Assert.Equal(expected, CSharpIdentifierHelper.EscapeIfKeyword(identifier));
     }
+
+    // Roslyn's own list, the undocumented __arglist family included
+    public static TheoryData<string> ReservedKeywords
+        => [.. SyntaxFacts.GetReservedKeywordKinds().Select(SyntaxFacts.GetText)];
+
+    [Theory]
+    [MemberData(nameof(ReservedKeywords))]
+    public void EscapeIfKeyword_EveryReservedKeyword_IsPrefixed(string keyword)
+        => Assert.Equal("@" + keyword, CSharpIdentifierHelper.EscapeIfKeyword(keyword));
 }

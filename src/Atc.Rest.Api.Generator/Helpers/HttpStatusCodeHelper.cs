@@ -61,6 +61,7 @@ public static class HttpStatusCodeHelper
         ["416"] = "Status416RangeNotSatisfiable",
         ["417"] = "Status417ExpectationFailed",
         ["418"] = "Status418ImATeapot",
+        ["419"] = "Status419AuthenticationTimeout",
         ["421"] = "Status421MisdirectedRequest",
         ["422"] = "Status422UnprocessableEntity",
         ["423"] = "Status423Locked",
@@ -70,6 +71,7 @@ public static class HttpStatusCodeHelper
         ["429"] = "Status429TooManyRequests",
         ["431"] = "Status431RequestHeaderFieldsTooLarge",
         ["451"] = "Status451UnavailableForLegalReasons",
+        ["499"] = "Status499ClientClosedRequest",
 
         // 5xx Server Error
         ["500"] = "Status500InternalServerError",

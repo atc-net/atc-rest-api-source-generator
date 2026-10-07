@@ -1011,7 +1011,7 @@ public class PolicyExtractorTests
                                   responses:
                                     '200':
                                       description: OK
-                                    '499':
+                                    '599':
                                       description: Closed
                                     '422':
                                       description: Rejected
@@ -1036,8 +1036,8 @@ public class PolicyExtractorTests
 
         Assert.NotNull(result);
         var content = result.Methods[0].Content!;
-        Assert.Contains(".ProducesProblem(499)", content, StringComparison.Ordinal);
-        Assert.DoesNotContain("Status499", content, StringComparison.Ordinal);
+        Assert.Contains(".ProducesProblem(599)", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Status599", content, StringComparison.Ordinal);
         Assert.Contains(".ProducesProblem(StatusCodes.Status422UnprocessableEntity)", content, StringComparison.Ordinal);
         Assert.DoesNotContain(".ProducesValidationProblem()", content, StringComparison.Ordinal);
     }

@@ -28,6 +28,7 @@ global using Atc.Rest.Api.Generator.Overlays;
 global using Atc.Rest.Api.Generator.Services;
 global using Atc.Rest.Api.Generator.Validators;
 
+global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.OpenApi;
 
 global using Xunit;
