@@ -21,16 +21,21 @@ public sealed class TypeScriptClientRetryGateTests
 {
     [Fact]
     public void GeneratedFetchClient_Retries_FollowTheSpecification()
-        => RunGate(TypeScriptHttpClient.Fetch, FetchHarness, FetchPackageJson);
+        => RunGate(TypeScriptHttpClient.Fetch, FetchHarness, FetchPackageJson, Cases);
 
     [Fact]
     public void GeneratedAxiosClient_Retries_FollowTheSpecification()
-        => RunGate(TypeScriptHttpClient.Axios, AxiosHarness, AxiosPackageJson);
+        => RunGate(TypeScriptHttpClient.Axios, AxiosHarness, AxiosPackageJson, Cases);
+
+    [Fact]
+    public void GeneratedFetchClient_RetriedAttempt_ReleasesItsResponseBody()
+        => RunGate(TypeScriptHttpClient.Fetch, BodyReleaseHarness, FetchPackageJson, string.Empty);
 
     private static void RunGate(
         TypeScriptHttpClient httpClient,
         string harness,
-        string packageJson)
+        string packageJson,
+        string cases)
     {
         if (!NodeToolchain.IsAvailable(out var skipReason))
         {
@@ -67,7 +72,7 @@ public sealed class TypeScriptClientRetryGateTests
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), packageJson);
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
-            File.WriteAllText(Path.Combine(workDir, "harness.mts"), harness + Cases);
+            File.WriteAllText(Path.Combine(workDir, "harness.mts"), harness + cases);
 
             NodeWorkspace.Link(workDir);
 
@@ -311,6 +316,65 @@ public sealed class TypeScriptClientRetryGateTests
 
         function createApi(options?: any): any { return new ApiClient('http://localhost', options); }
 
+        """;
+
+    // A retried attempt's body is never read: it must be cancelled, or Undici keeps the connection busy until it is
+    // garbage-collected. Each 503 body is a stream that never ends on its own and records its cancellation.
+    private const string BodyReleaseHarness = """
+        import { ApiClient } from './generated/client/ApiClient';
+        import { ItemsClient } from './generated/client/ItemsClient';
+
+        let calls = 0;
+        const released: number[] = [];
+
+        (globalThis as any).fetch = async () => {
+          calls += 1;
+          const attempt = calls;
+          if (attempt >= 3) {
+            return new Response(null, { status: 204 });
+          }
+
+          const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('<html>Service Unavailable</html>'));
+            },
+            cancel() {
+              released.push(attempt);
+            },
+          });
+          return new Response(body, { status: 503, headers: { 'Content-Type': 'text/html' } });
+        };
+
+        async function main(): Promise<void> {
+          const items = new ItemsClient(new ApiClient('http://localhost'));
+          const result: any = await items.getItem('503');
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          const failures: string[] = [];
+          if (calls !== 3) {
+            failures.push('expected 3 attempts, got ' + calls);
+          }
+
+          if (result?.status !== 'noContent') {
+            failures.push('expected the last attempt (noContent), got ' + result?.status);
+          }
+
+          if (released.join(',') !== '1,2') {
+            failures.push('expected the bodies of the retried attempts 1 and 2 to be cancelled, got [' + released.join(',') + ']');
+          }
+
+          if (failures.length > 0) {
+            console.error('BODY RELEASE FAILURES:\n' + failures.join('\n'));
+            process.exit(1);
+          }
+
+          console.log('ALL BODY RELEASE CHECKS PASSED');
+        }
+
+        main().catch((e) => {
+          console.error('HARNESS ERROR', e);
+          process.exit(2);
+        });
         """;
 
     private const string Cases = """
