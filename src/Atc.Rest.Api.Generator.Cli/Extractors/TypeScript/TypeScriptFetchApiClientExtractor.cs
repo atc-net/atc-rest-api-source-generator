@@ -494,31 +494,7 @@ public static class TypeScriptFetchApiClientExtractor
     }
 
     private static void AppendBuildUrlMethod(StringBuilder sb)
-    {
-        sb.AppendLine("  buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {");
-        sb.AppendLine("    // A relative base URL ('/api', or an empty one) resolves against the origin of the page");
-        sb.AppendLine("    const origin = (globalThis as { location?: { origin?: string } }).location?.origin;");
-        sb.AppendLine("    const url = new URL(`${this.baseUrl}${path}`, origin);");
-        sb.AppendLine("    if (query) {");
-        sb.AppendLine("      for (const [key, value] of Object.entries(query)) {");
-        sb.AppendLine("        if (value === undefined) {");
-        sb.AppendLine("          continue;");
-        sb.AppendLine("        }");
-        sb.AppendLine("        if (Array.isArray(value)) {");
-        sb.AppendLine("          for (const item of value) {");
-        sb.AppendLine("            url.searchParams.append(key, String(item));");
-        sb.AppendLine("          }");
-        sb.AppendLine("        } else {");
-        sb.AppendLine("          url.searchParams.set(key, String(value));");
-        sb.AppendLine("        }");
-        sb.AppendLine("      }");
-        sb.AppendLine("    }");
-        sb.AppendLine("    // Note: URL.searchParams always percent-encodes values.");
-        sb.AppendLine("    // OpenAPI allowReserved cannot be honoured via this path.");
-        sb.AppendLine("    return url.toString();");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-    }
+        => TypeScriptOperationHelper.AppendBuildUrlMethod(sb, modifier: string.Empty);
 
     private static void AppendGetHeadersMethod(StringBuilder sb)
     {

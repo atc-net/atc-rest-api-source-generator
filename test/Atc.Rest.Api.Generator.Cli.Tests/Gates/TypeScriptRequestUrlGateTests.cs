@@ -5,7 +5,8 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Gates;
 /// Runtime gate for the URL the generated TypeScript clients request (Fetch and Axios):
 /// <list type="bullet">
 ///   <item><description>a path parameter is percent-encoded, so <c>a/b?c#d</c> stays one path segment;</description></item>
-///   <item><description>a relative base URL (<c>/api</c>, or an empty one) resolves against the origin of the page instead of throwing.</description></item>
+///   <item><description>a relative base URL (<c>/api</c>, or an empty one) resolves against the origin of the page instead of throwing;</description></item>
+///   <item><description>without a page (server-side rendering, Node) a relative base URL stays relative instead of throwing.</description></item>
 /// </list>
 /// Self-skips without a Node toolchain, but fails under CI where Node is provisioned.
 /// </summary>
@@ -87,7 +88,24 @@ public sealed class TypeScriptRequestUrlGateTests
             check(label + ' absolute base', buildUrl(new ctor('http://localhost:5000/api'), '/items', { q: '1' }), 'http://localhost:5000/api/items?q=1');
           }
 
-          // 3. A relative base URL resolves against the origin of the page (a browser app served with its API).
+          // 3. Without a page (server-side rendering, Node) a relative base URL stays relative instead of throwing: the
+          // request goes to a fetch that knows its origin (or fails there), and building a URL never throws.
+          for (const [label, ctor] of [['fetch', FetchApiClient], ['axios', AxiosApiClient]] as const) {
+            check(label + ' relative base without a page', buildUrl(new ctor('/api'), '/items', { q: '1' }), '/api/items?q=1');
+            check(label + ' empty base without a page', buildUrl(new ctor(''), '/items'), '/items');
+            check(label + ' relative base without a page, array query', buildUrl(new ctor('/api/'), '/items', { tag: ['a b', 'c'] } as any), '/api/items?tag=a+b&tag=c');
+            check(label + ' relative base without a page, path with a query', buildUrl(new ctor('/api'), '/search?raw=1', { q: '2' }), '/api/search?raw=1&q=2');          }
+
+          const relativeItems = new FetchItemsClient(new FetchApiClient('/api'));
+          let relativeError = '';
+          try {
+            await relativeItems.getItem('a/b');
+          } catch (e) {
+            relativeError = (e as Error).message;
+          }
+          check('fetch relative request without a page', relativeError === '' ? requested[requested.length - 1] : 'THROWS ' + relativeError, '/api/items/a%2Fb');
+
+          // 4. A relative base URL resolves against the origin of the page (a browser app served with its API).
           (globalThis as any).location = { origin: 'http://localhost:5173' };
           for (const [label, ctor] of [['fetch', FetchApiClient], ['axios', AxiosApiClient]] as const) {
             check(label + ' relative base', buildUrl(new ctor('/api'), '/items', { q: '1' }), 'http://localhost:5173/api/items?q=1');

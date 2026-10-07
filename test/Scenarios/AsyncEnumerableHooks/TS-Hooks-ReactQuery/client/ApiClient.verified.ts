@@ -390,9 +390,11 @@ export class ApiClient {
   }
 
   buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {
-    // A relative base URL ('/api', or an empty one) resolves against the origin of the page
+    // A relative base URL ('/api', or an empty one) resolves against the origin of the page; without a page
+    // (server-side rendering, Node) it stays relative
+    const relativeOrigin = 'http://relative.invalid';
     const origin = (globalThis as { location?: { origin?: string } }).location?.origin;
-    const url = new URL(`${this.baseUrl}${path}`, origin);
+    const url = new URL(`${this.baseUrl}${path}`, origin ?? relativeOrigin);
     if (query) {
       for (const [key, value] of Object.entries(query)) {
         if (value === undefined) {
@@ -409,7 +411,7 @@ export class ApiClient {
     }
     // Note: URL.searchParams always percent-encodes values.
     // OpenAPI allowReserved cannot be honoured via this path.
-    return url.toString();
+    return url.origin === relativeOrigin ? `${url.pathname}${url.search}${url.hash}` : url.toString();
   }
 
   async getHeaders(extra?: Record<string, string | number | boolean | undefined>): Promise<Headers> {
