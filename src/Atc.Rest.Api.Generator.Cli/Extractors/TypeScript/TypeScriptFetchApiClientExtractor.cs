@@ -548,12 +548,15 @@ public static class TypeScriptFetchApiClientExtractor
             ? "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text', parseSchema?: ZodTypeAny" + wireParameter + "): Promise<ApiResult<T>> {"
             : "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'" + wireParameter + "): Promise<ApiResult<T>> {";
         sb.AppendLine(signature);
-        sb.AppendLine("    // 204 and 205 never carry a body; 304 neither (RFC 9110).");
+        sb.AppendLine("    // 204 and 205 never carry a body; 304 neither (RFC 9110). The empty body is still read to its end: a");
+        sb.AppendLine("    // browser holds the response open until then, and one left unread is reported as a cancelled request.");
         sb.AppendLine("    if (response.status === 204 || response.status === 205) {");
+        sb.AppendLine("      await response.arrayBuffer().catch(() => undefined);");
         sb.AppendLine("      return { status: 'noContent', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (response.status === 304) {");
+        sb.AppendLine("      await response.arrayBuffer().catch(() => undefined);");
         sb.AppendLine("      return { status: 'notModified', response };");
         sb.AppendLine("    }");
         sb.AppendLine();

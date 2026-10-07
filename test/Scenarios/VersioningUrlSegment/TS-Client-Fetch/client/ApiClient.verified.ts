@@ -469,12 +469,15 @@ export class ApiClient {
   }
 
   private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {
-    // 204 and 205 never carry a body; 304 neither (RFC 9110).
+    // 204 and 205 never carry a body; 304 neither (RFC 9110). The empty body is still read to its end: a
+    // browser holds the response open until then, and one left unread is reported as a cancelled request.
     if (response.status === 204 || response.status === 205) {
+      await response.arrayBuffer().catch(() => undefined);
       return { status: 'noContent', response };
     }
 
     if (response.status === 304) {
+      await response.arrayBuffer().catch(() => undefined);
       return { status: 'notModified', response };
     }
 

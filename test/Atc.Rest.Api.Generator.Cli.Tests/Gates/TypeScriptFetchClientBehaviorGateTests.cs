@@ -184,6 +184,18 @@ public sealed class TypeScriptFetchClientBehaviorGateTests
           respondWith(JSON.stringify({ title: 'Validation failed', errors: { name: ['required'] } }), 'application/problem+json', 400);
           const r4 = await client.request('get', '/validate');
           check(label + ' problem-json-badRequest', r4.status === 'badRequest', 'expected badRequest, got ' + r4.status);
+
+          // Case 5: 204, 205 and 304 carry no body, but a browser holds the (empty) response open until it is read:
+          // one left unread is reported as a cancelled request (net::ERR_ABORTED). The client reads it to its end.
+          for (const [status, arm] of [[204, 'noContent'], [205, 'noContent'], [304, 'notModified']] as const) {
+            const bodiless = new Response(new ReadableStream({ start: (controller) => controller.close() }), { status: 200 });
+            Object.defineProperty(bodiless, 'status', { value: status });
+            Object.defineProperty(bodiless, 'ok', { value: status < 300 });
+            nextResponse = () => bodiless;
+            const r5 = await client.request('get', '/bodiless');
+            check(label + ' bodiless-' + status + '-arm', r5.status === arm, 'expected ' + arm + ', got ' + r5.status);
+            check(label + ' bodiless-' + status + '-read', bodiless.bodyUsed, 'the empty body was left unread');
+          }
         }
 
         async function main(): Promise<void> {
