@@ -55,11 +55,12 @@ public static class OverlayDocumentReader
             return false;
         }
 
-        // A cheap look at the top-level keys first: most files are specifications. Blanks within the line only
-        // (\s would run across blank lines, quadratically); a timeout all the same is answered by reading the file.
+        // A cheap look at the top-level keys first: most files are specifications. A key starts a line, or follows an
+        // opening brace or a comma when the JSON is on one line. Blanks within the line only (\s would run across blank
+        // lines, quadratically); a timeout all the same is answered by reading the file.
         try
         {
-            if (!Regex.IsMatch(content, @"^[ \t]*[""']?overlay[""']?[ \t]*:", RegexOptions.Multiline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)))
+            if (!Regex.IsMatch(content, @"(?:^|[{,])[ \t]*[""']?overlay[""']?[ \t]*:", RegexOptions.Multiline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)))
             {
                 return false;
             }

@@ -44,6 +44,18 @@ public sealed class OverlayHardeningTests
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(2), $"took {stopwatch.Elapsed}");
     }
 
+    [Theory]
+    [InlineData("""{"overlay":"1.0.0","info":{"title":"Contoso","version":"1"},"actions":[]}""", true)]
+    [InlineData("""{ "overlay": "1.0.0", "info": { "title": "Contoso", "version": "1" }, "actions": [] }""", true)]
+    [InlineData("""{"info":{"title":"Contoso","version":"1"},"overlay":"1.0.0","actions":[]}""", true)]
+    [InlineData("""{'overlay':'1.0.0','info':{'title':'Contoso','version':'1'},'actions':[]}""", true)]
+    [InlineData("""{"openapi":"3.0.3","info":{"title":"Contoso","version":"1"},"paths":{},"x-overlay":{"overlay":"1"}}""", false)]
+    [InlineData("""{"openapi":"3.0.3","overlay":"1.0.0","info":{"title":"Contoso","version":"1"},"paths":{}}""", false)]
+    public void IsOverlay_JsonOnOneLine_IsToldByItsKeys(
+        string content,
+        bool expected)
+        => Assert.Equal(expected, OverlayDocumentReader.IsOverlay(content));
+
     [Fact]
     public void Parse_AQueryNestedPastTheLimit_IsAJsonPathException()
     {
