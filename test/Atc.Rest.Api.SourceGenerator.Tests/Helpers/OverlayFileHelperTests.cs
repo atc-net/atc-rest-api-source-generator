@@ -270,6 +270,19 @@ public class OverlayFileHelperTests
     }
 
     [Fact]
+    public void ResolveListed_SettingThereTwiceInDifferentCasings_IsTheLastOne_AsTheGeneratorReadsIt()
+    {
+        const string marker = "{ \"overlays\": [\"first.overlay.yaml\"], \"Overlays\": [\"second.overlay.yaml\"] }";
+        var first = OverlayFile("first.overlay.yaml");
+        var second = OverlayFile("second.overlay.yaml");
+
+        var config = JsonSerializer.Deserialize<ServerConfig>(marker, JsonHelper.ConfigOptions);
+
+        Assert.Equal(["second.overlay.yaml"], config!.Overlays);
+        Assert.Equal([second.Path], OverlayFileHelper.ResolveListed(Markers((Marker, marker)), [first, second]).Select(o => o.FilePath), StringComparer.Ordinal);
+    }
+
+    [Fact]
     public void ResolveListed_NoMarkers_IsNoOverlay()
         => Assert.Empty(OverlayFileHelper.ResolveListed(Markers(), [OverlayFile("fixes.overlay.yaml")]));
 
