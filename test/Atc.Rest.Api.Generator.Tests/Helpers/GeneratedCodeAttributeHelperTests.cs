@@ -69,6 +69,20 @@ public class GeneratedCodeAttributeHelperTests
     }
 
     [Fact]
+    public void ApplyExcludeFromCodeCoverage_WithoutTheCodeDomUsing_AddsTheUsingAfterNullableEnable()
+    {
+        // Arrange
+        var content = SampleContent.Replace("using System.CodeDom.Compiler;\n", string.Empty, StringComparison.Ordinal);
+
+        // Act
+        var result = GeneratedCodeAttributeHelper.ApplyExcludeFromCodeCoverage(content, excludeFromCodeCoverage: true);
+
+        // Assert
+        Assert.Contains("#nullable enable\nusing System.Diagnostics.CodeAnalysis;\n", result, StringComparison.Ordinal);
+        Assert.StartsWith(content[..content.IndexOf("#nullable enable", StringComparison.Ordinal)], result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ApplyExcludeFromCodeCoverage_UsingAlreadyPresent_DoesNotDuplicateUsing()
     {
         // Arrange
