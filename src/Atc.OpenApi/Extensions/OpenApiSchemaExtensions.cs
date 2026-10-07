@@ -1053,7 +1053,9 @@ public static class OpenApiSchemaExtensions
                 }
             }
 
-            // String length validation - use separate MinLength/MaxLength (match old generator style)
+            // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
+
+            // project declares (LengthLimitAttributesExtractor)
             // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[])
             if (schemaType.HasFlag(JsonSchemaType.String))
             {
@@ -1064,12 +1066,12 @@ public static class OpenApiSchemaExtensions
                 {
                     if (actualSchema.MinLength > 0)
                     {
-                        attributes.Add($"MinLength({actualSchema.MinLength})");
+                        attributes.Add($"ApiMinLength({actualSchema.MinLength})");
                     }
 
                     if (actualSchema.MaxLength > 0)
                     {
-                        attributes.Add($"MaxLength({actualSchema.MaxLength})");
+                        attributes.Add($"ApiMaxLength({actualSchema.MaxLength})");
                     }
 
                     // Regular expression validation
@@ -1102,12 +1104,12 @@ public static class OpenApiSchemaExtensions
 
                 if (hasMinItems)
                 {
-                    attributes.Add($"MinLength({actualSchema.MinItems})");
+                    attributes.Add($"ApiMinLength({actualSchema.MinItems})");
                 }
 
                 if (hasMaxItems)
                 {
-                    attributes.Add($"MaxLength({actualSchema.MaxItems})");
+                    attributes.Add($"ApiMaxLength({actualSchema.MaxItems})");
                 }
             }
 

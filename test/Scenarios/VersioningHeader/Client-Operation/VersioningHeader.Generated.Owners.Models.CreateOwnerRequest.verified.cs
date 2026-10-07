@@ -16,6 +16,6 @@ namespace VersioningHeader.Generated.Owners.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOwnerRequest(
-    [property: Required, MinLength(1), MaxLength(100)] string Name,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name,
     [property: Required, EmailAddress] string Email,
     string? Phone = null);

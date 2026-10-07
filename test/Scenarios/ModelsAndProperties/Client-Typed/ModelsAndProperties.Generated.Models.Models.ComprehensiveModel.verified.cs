@@ -43,10 +43,10 @@ namespace ModelsAndProperties.Generated.Models.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ComprehensiveModel(
     [property: Required] Guid Id,
-    [property: Required, MinLength(2), MaxLength(100)] string Name,
-    [property: Required, MaxLength(254), EmailAddress] string Email,
+    [property: Required, ApiMinLength(2), ApiMaxLength(100)] string Name,
+    [property: Required, ApiMaxLength(254), EmailAddress] string Email,
     [property: Required] DateTimeOffset CreatedAt,
-    [property: MaxLength(500)] string? Description = null,
+    [property: ApiMaxLength(500)] string? Description = null,
     Uri? Website = null,
     DateTimeOffset? UpdatedAt = null,
     DateOnly? BirthDate = null,
@@ -61,6 +61,6 @@ public sealed record ComprehensiveModel(
     Address? Address = null,
     GenderType? Gender = null,
     StatusType? Status = null,
-    [property: MaxLength(10)] List<string>? Tags = null,
+    [property: ApiMaxLength(10)] List<string>? Tags = null,
     List<RoleType>? Roles = null,
     Dictionary<string, string>? Metadata = null);

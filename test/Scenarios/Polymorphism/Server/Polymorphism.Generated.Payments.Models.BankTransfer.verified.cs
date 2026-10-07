@@ -25,7 +25,7 @@ namespace Polymorphism.Generated.Payments.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record BankTransfer(
     [property: Required] string Type,
-    [property: Required, MinLength(5), MaxLength(17)] string AccountNumber,
-    [property: Required, MinLength(9), MaxLength(9), RegularExpression(@"^\d{9}$")] string RoutingNumber,
-    [property: MaxLength(100)] string? BankName = null,
-    [property: MaxLength(100)] string? AccountHolderName = null) : PaymentMethod;
+    [property: Required, ApiMinLength(5), ApiMaxLength(17)] string AccountNumber,
+    [property: Required, ApiMinLength(9), ApiMaxLength(9), RegularExpression(@"^\d{9}$")] string RoutingNumber,
+    [property: ApiMaxLength(100)] string? BankName = null,
+    [property: ApiMaxLength(100)] string? AccountHolderName = null) : PaymentMethod;

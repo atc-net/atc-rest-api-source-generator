@@ -17,6 +17,6 @@ namespace VersioningQueryString.Generated.Owners.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Owner(
     [property: Required] Guid Id,
-    [property: Required, MinLength(1), MaxLength(100)] string Name,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name,
     [property: Required, EmailAddress] string Email,
     string? Phone = null);

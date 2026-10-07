@@ -33,9 +33,9 @@ namespace ModelsAndProperties.Generated.Persons.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Person(
     [property: Required] Guid Id,
-    [property: Required, MinLength(1), MaxLength(50)] string FirstName,
-    [property: Required, MinLength(1), MaxLength(50)] string LastName,
-    [property: Required, MaxLength(254), EmailAddress] string Email,
+    [property: Required, ApiMinLength(1), ApiMaxLength(50)] string FirstName,
+    [property: Required, ApiMinLength(1), ApiMaxLength(50)] string LastName,
+    [property: Required, ApiMaxLength(254), EmailAddress] string Email,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
     Uri? Website = null,
     DateOnly? DateOfBirth = null,

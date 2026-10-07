@@ -30,14 +30,14 @@ namespace Demo.Generated.Users.Models;
 /// <param name="IsActive">The isActive property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserRequest(
-    [property: Required, MinLength(2), MaxLength(50)] string FirstName,
-    [property: Required, MinLength(2), MaxLength(50)] string LastName,
-    [property: Required, MaxLength(254), EmailAddress] string Email,
+    [property: Required, ApiMinLength(2), ApiMaxLength(50)] string FirstName,
+    [property: Required, ApiMinLength(2), ApiMaxLength(50)] string LastName,
+    [property: Required, ApiMaxLength(254), EmailAddress] string Email,
     [property: Required] DateOnly DateOfBirth,
     [property: Required] UserRole Role,
     [property: Required] AddressRequest Address,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
     Uri? Website = null,
-    [property: MaxLength(1000)] string? Bio = null,
+    [property: ApiMaxLength(1000)] string? Bio = null,
     Uri? AvatarUrl = null,
     bool IsActive = true);

@@ -38,9 +38,9 @@ namespace ModelsAndProperties.Generated.Validations.Models;
 public sealed record ValidationConstraints(
     [property: Required] string RequiredString,
     [property: Required] int RequiredInteger,
-    [property: MinLength(5)] string? MinLengthString = null,
-    [property: MaxLength(100)] string? MaxLengthString = null,
-    [property: MinLength(2), MaxLength(50)] string? LengthRangeString = null,
+    [property: ApiMinLength(5)] string? MinLengthString = null,
+    [property: ApiMaxLength(100)] string? MaxLengthString = null,
+    [property: ApiMinLength(2), ApiMaxLength(50)] string? LengthRangeString = null,
     [property: RegularExpression(@"^[A-Z]{2,3}$")] string? PatternString = null,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? PhonePattern = null,
     [property: RegularExpression(@"^[a-zA-Z0-9_-]+$")] string? AlphanumericPattern = null,

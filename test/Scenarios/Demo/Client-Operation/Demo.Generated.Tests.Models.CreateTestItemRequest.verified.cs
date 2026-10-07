@@ -21,5 +21,5 @@ namespace Demo.Generated.Tests.Models;
 /// <param name="Description">Optional description.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateTestItemRequest(
-    [property: Required, MinLength(1), MaxLength(100)] string Name,
-    [property: MaxLength(500)] string? Description = null);
+    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name,
+    [property: ApiMaxLength(500)] string? Description = null);

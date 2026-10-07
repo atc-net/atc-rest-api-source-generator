@@ -26,6 +26,6 @@ namespace Polymorphism.Generated.Notifications.Models;
 public sealed record EmailNotification(
     [property: Required] string Kind,
     [property: Required, EmailAddress] string To,
-    [property: Required, MaxLength(200)] string Subject,
-    [property: Required, MaxLength(10000)] string Body,
+    [property: Required, ApiMaxLength(200)] string Subject,
+    [property: Required, ApiMaxLength(10000)] string Body,
     bool IsHtml = false) : Notification;

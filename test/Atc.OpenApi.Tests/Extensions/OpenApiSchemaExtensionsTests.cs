@@ -678,7 +678,7 @@ public class OpenApiSchemaExtensionsTests
     }
 
     [Fact]
-    public void GetValidationAttributes_StringMinMaxLength_IncludesBoth()
+    public void GetValidationAttributes_StringMinMaxLength_IncludesBothApiLengths()
     {
         var schema = new OpenApiSchema
         {
@@ -687,8 +687,8 @@ public class OpenApiSchemaExtensionsTests
             MaxLength = 255,
         };
         var attrs = schema.GetValidationAttributes(isRequired: false);
-        Assert.Contains("MinLength(1)", attrs, StringComparer.Ordinal);
-        Assert.Contains("MaxLength(255)", attrs, StringComparer.Ordinal);
+        Assert.Contains("ApiMinLength(1)", attrs, StringComparer.Ordinal);
+        Assert.Contains("ApiMaxLength(255)", attrs, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -729,7 +729,7 @@ public class OpenApiSchemaExtensionsTests
     }
 
     [Fact]
-    public void GetValidationAttributes_ArrayMinItems_IncludesMinLength()
+    public void GetValidationAttributes_ArrayMinItems_IncludesApiMinLength()
     {
         var schema = new OpenApiSchema
         {
@@ -737,7 +737,7 @@ public class OpenApiSchemaExtensionsTests
             MinItems = 1,
         };
         var attrs = schema.GetValidationAttributes(isRequired: false);
-        Assert.Contains("MinLength(1)", attrs, StringComparer.Ordinal);
+        Assert.Contains("ApiMinLength(1)", attrs, StringComparer.Ordinal);
     }
 
     // ========== ToCSharpType (Parameter) Tests ==========

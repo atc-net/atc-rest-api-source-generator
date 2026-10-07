@@ -6,7 +6,13 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// baseline is lowered (run with <c>ATC_UPDATE_AOT_BASELINE=1</c>, which rewrites the file). The goal is an
 /// empty baseline: generated code a project with <c>IsAotCompatible</c> builds without IL warnings.
 /// </summary>
+/// <remarks>
+/// It builds every combination in parallel on all cores, so it runs alone - beside it, the tests that time retries
+/// and timeouts miss their windows.
+/// </remarks>
 [Trait("Category", "CompilationGate")]
+[Collection(nameof(GeneratedCodeAotGateTests))]
+[CollectionDefinition(nameof(GeneratedCodeAotGateTests), DisableParallelization = true)]
 public class GeneratedCodeAotGateTests
 {
     private static string BaselinePath

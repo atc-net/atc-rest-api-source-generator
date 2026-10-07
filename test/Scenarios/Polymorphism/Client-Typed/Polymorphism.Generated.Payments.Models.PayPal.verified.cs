@@ -23,5 +23,5 @@ namespace Polymorphism.Generated.Payments.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PayPal(
     [property: Required] string Type,
-    [property: Required, MaxLength(254), EmailAddress] string Email,
+    [property: Required, ApiMaxLength(254), EmailAddress] string Email,
     string? PayerId = null) : PaymentMethod;

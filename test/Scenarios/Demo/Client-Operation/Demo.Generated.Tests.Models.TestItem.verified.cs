@@ -24,6 +24,6 @@ namespace Demo.Generated.Tests.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TestItem(
     [property: Required] Guid Id,
-    [property: Required, MinLength(1), MaxLength(100)] string Name,
-    [property: MaxLength(500)] string? Description = null,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name,
+    [property: ApiMaxLength(500)] string? Description = null,
     DateTimeOffset? CreatedAt = null);

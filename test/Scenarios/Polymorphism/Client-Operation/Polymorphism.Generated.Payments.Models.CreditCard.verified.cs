@@ -25,7 +25,7 @@ namespace Polymorphism.Generated.Payments.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreditCard(
     [property: Required] string Type,
-    [property: Required, MinLength(13), MaxLength(19)] string CardNumber,
+    [property: Required, ApiMinLength(13), ApiMaxLength(19)] string CardNumber,
     [property: Required, RegularExpression(@"^\d{2}/\d{2}$")] string ExpiryDate,
-    [property: MinLength(3), MaxLength(4)] string? Cvv = null,
-    [property: MaxLength(100)] string? CardholderName = null) : PaymentMethod;
+    [property: ApiMinLength(3), ApiMaxLength(4)] string? Cvv = null,
+    [property: ApiMaxLength(100)] string? CardholderName = null) : PaymentMethod;

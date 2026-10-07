@@ -612,6 +612,14 @@ public class ApiServerGenerator : IIncrementalGenerator
                 SourceText.From(WireBindingHelper.GenerateContent(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
+        // The trim- and AOT-safe length-limit attributes the models and parameters are written with
+        if (LengthLimitAttributesExtractor.IsNeeded(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.LengthLimitAttributes.g.cs",
+                SourceText.From(LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Generate the server-side SequentialResults helper (the writer-based sequential-streaming
         // writers + their IResult wrappers for JSON Lines, JSON Text Sequence and multipart/mixed)
         // when an operation uses one of those framings. Uses the shared CodeGenerationService

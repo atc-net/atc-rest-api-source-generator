@@ -16,11 +16,11 @@ namespace Demo.Generated.Users.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record AddressRequest(
-    [property: Required, MinLength(1), MaxLength(200)] string Street,
-    [property: Required, MinLength(1), MaxLength(100)] string City,
-    [property: Required, MinLength(2), MaxLength(20)] string PostalCode,
-    [property: Required, MinLength(2), MaxLength(100)] string Country,
-    [property: MaxLength(100)] string? State = null,
-    [property: MinLength(2), MaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
+    [property: Required, ApiMinLength(1), ApiMaxLength(200)] string Street,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string City,
+    [property: Required, ApiMinLength(2), ApiMaxLength(20)] string PostalCode,
+    [property: Required, ApiMinLength(2), ApiMaxLength(100)] string Country,
+    [property: ApiMaxLength(100)] string? State = null,
+    [property: ApiMinLength(2), ApiMaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
     [property: Range(-90, 90)] double? Latitude = null,
     [property: Range(-180, 180)] double? Longitude = null);

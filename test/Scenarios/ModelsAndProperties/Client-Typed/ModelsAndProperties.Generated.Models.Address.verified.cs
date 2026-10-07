@@ -25,9 +25,9 @@ namespace ModelsAndProperties.Generated.Models;
 /// <param name="State">State or region.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
-    [property: Required, MaxLength(255)] string StreetName,
-    [property: Required, MinLength(2), MaxLength(20)] string PostalCode,
-    [property: Required, MaxLength(100)] string CityName,
+    [property: Required, ApiMaxLength(255)] string StreetName,
+    [property: Required, ApiMinLength(2), ApiMaxLength(20)] string PostalCode,
+    [property: Required, ApiMaxLength(100)] string CityName,
     [property: Required] Country Country,
-    [property: MaxLength(20)] string? StreetNumber = null,
-    [property: MaxLength(100)] string? State = null);
+    [property: ApiMaxLength(20)] string? StreetNumber = null,
+    [property: ApiMaxLength(100)] string? State = null);

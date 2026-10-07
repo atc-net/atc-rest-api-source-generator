@@ -349,6 +349,14 @@ public class ApiClientGenerator : IIncrementalGenerator
                 SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
+        // The trim- and AOT-safe length-limit attributes the models and parameters are written with
+        if (LengthLimitAttributesExtractor.IsNeeded(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.LengthLimitAttributes.g.cs",
+                SourceText.From(LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Single-client mode: emit one client covering every operation, with all models flattened
         // into "{projectName}.Generated.Models". Handled before the per-area loop because the two
         // layouts are mutually exclusive.

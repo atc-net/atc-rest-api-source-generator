@@ -39,4 +39,4 @@ public sealed record DefaultValues(
     bool BooleanTrueDefault = true,
     bool BooleanFalseDefault = false,
     [property: Range(1, 100)] int IntegerWithRangeAndDefault = 10,
-    [property: MinLength(1), MaxLength(50)] string StringWithLengthAndDefault = "Hello");
+    [property: ApiMinLength(1), ApiMaxLength(50)] string StringWithLengthAndDefault = "Hello");

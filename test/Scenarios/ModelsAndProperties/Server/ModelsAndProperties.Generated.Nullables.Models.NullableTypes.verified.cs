@@ -50,7 +50,7 @@ public sealed record NullableTypes(
     Uri? NullableUri = null,
     [property: EmailAddress] string? NullableEmail = null,
     [property: Range(0, 100)] int? NullableIntegerWithRange = null,
-    [property: MinLength(1), MaxLength(255)] string? NullableStringWithLength = null,
+    [property: ApiMinLength(1), ApiMaxLength(255)] string? NullableStringWithLength = null,
     string? NullableWithDefault = "default-nullable",
     List<string>? NullableArray = null,
     Address? NullableAddress = null);
