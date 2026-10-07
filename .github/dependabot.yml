@@ -5,6 +5,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Pinned to 32.x: Verify 33 fails Release builds until the project declares a sponsorship license
+      - dependency-name: "Verify*"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: chore(deps)
     groups:

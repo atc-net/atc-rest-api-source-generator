@@ -9,7 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
+    <!-- Pinned to 32.x: Verify 33 fails every Release build until the project declares a sponsorship license (SponsorCheck SC021) -->
+    <PackageReference Include="Verify.XunitV3" Version="[32.0.0,33.0.0)" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
   </ItemGroup>
 
