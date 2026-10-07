@@ -68,7 +68,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetOrderByIdParameters>()
+            .WithWireBinding(GetOrderByIdParametersWire.Parameters)
             .RequireAuthorization(policy => policy.RequireRole("manager"));
 
         orders
@@ -82,7 +82,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, DeleteOrderParameters>()
+            .WithWireBinding(DeleteOrderParametersWire.Parameters)
             .RequireAuthorization(policy => policy.RequireRole("admin"));
 
         orders
@@ -94,7 +94,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetOrderTrackingParameters>()
+            .WithWireBinding(GetOrderTrackingParametersWire.Parameters)
             .AllowAnonymous();
     }
 

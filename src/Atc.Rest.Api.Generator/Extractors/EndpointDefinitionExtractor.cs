@@ -1231,7 +1231,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         builder.AppendLine();
-        builder.Append($"    .WithWireBinding<RouteHandlerBuilder, {methodName}Parameters>({string.Join(", ", WireBindingHelper.DelimitedArrayArguments(operation, pathItem))})");
+        builder.Append($"    .WithWireBinding({string.Join(", ", new[] { $"{methodName}ParametersWire.Parameters" }.Concat(WireBindingHelper.DelimitedArrayArguments(operation, pathItem)))})");
     }
 
     private static void GenerateValidationFilterMetadata(

@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListPetsParameters>();
+            .WithWireBinding(ListPetsParametersWire.Parameters);
 
         pets
             .MapPost("/", CreatePet)
@@ -64,7 +64,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetPetByIdParameters>();
+            .WithWireBinding(GetPetByIdParametersWire.Parameters);
 
         pets
             .MapPut("{petId}", UpdatePet)
@@ -76,7 +76,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, UpdatePetParameters>();
+            .WithWireBinding(UpdatePetParametersWire.Parameters);
 
         pets
             .MapDelete("{petId}", DeletePet)
@@ -87,7 +87,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, DeletePetParameters>();
+            .WithWireBinding(DeletePetParametersWire.Parameters);
     }
 
     internal async Task<IResult> ListPets(

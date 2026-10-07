@@ -44,7 +44,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetFileByIdParameters>();
+            .WithWireBinding(GetFileByIdParametersWire.Parameters);
 
         files
             .MapPost("form-data/singleObject", UploadFormDataFile)
@@ -55,7 +55,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireFormBinding(("itemName", typeof(string), true, false), ("file", typeof(global::Microsoft.AspNetCore.Http.IFormFile), false, false), ("items", typeof(string), true, true))
+            .WithWireFormBinding((WireParameter.Text("form", "itemName"), true, false), (WireParameter.Text("form", "file"), false, true), (WireParameter.Text("form", "items", isArray: true), true, false))
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 
@@ -68,7 +68,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireFormBinding(("files", typeof(global::Microsoft.AspNetCore.Http.IFormFile), true, true))
+            .WithWireFormBinding((WireParameter.Text("form", "files"), true, true))
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 

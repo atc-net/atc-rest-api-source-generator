@@ -8,6 +8,7 @@ using System.Threading;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -19,6 +20,61 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 
 namespace ModelsAndProperties.Generated;
+
+/// <summary>
+/// A parameter the wire-binding step reads: where it is (path, query, header, form), its wire name, whether a value
+/// parses (null: any text), the type a problem names, an enum's member names by wire value, and whether it is an
+/// array. Built from the parameter's type, without reflection.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray)
+{
+    /// <summary>
+    /// A value any text is (a string, or a type without a parser).
+    /// </summary>
+    public static WireParameter Text(string @in, string name, bool isArray = false)
+        => new(@in, name, null, "String", null, isArray);
+
+    /// <summary>
+    /// A boolean.
+    /// </summary>
+    public static WireParameter Boolean(string @in, string name, bool isArray = false)
+        => new(@in, name, value => bool.TryParse(value, out _), "Boolean", null, isArray);
+
+    /// <summary>
+    /// A value its type parses with the invariant culture.
+    /// </summary>
+    public static WireParameter Parsable<T>(string @in, string name, bool isArray = false)
+        where T : IParsable<T>
+        => new(@in, name, value => T.TryParse(value, CultureInfo.InvariantCulture, out _), typeof(T).Name, null, isArray);
+
+    /// <summary>
+    /// An enum, by the wire value the specification writes or by its member name.
+    /// </summary>
+    public static WireParameter EnumValue<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>(string @in, string name, bool isArray = false)
+        where T : struct, Enum
+    {
+        var members = MemberNames<T>();
+        return new(@in, name, value => members.ContainsKey(value) || (Enum.TryParse<T>(value, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed)), typeof(T).Name, members, isArray);
+    }
+
+    // The wire values of an enum that differ from the member name, by wire value
+    private static Dictionary<string, string> MemberNames<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>()
+        where T : struct, Enum
+    {
+        var members = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue &&
+                !string.Equals(wireValue, field.Name, StringComparison.Ordinal))
+            {
+                members[wireValue] = field.Name;
+            }
+        }
+
+        return members;
+    }
+}
 
 /// <summary>
 /// Runs before the framework binds an operation's parameters, for what its binder cannot do: read an enum
@@ -39,42 +95,23 @@ public static class WireBindingExtensions
     private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray);
 
     /// <summary>
-    /// Adds the step for the parameters of <typeparamref name="TParameters"/>.
+    /// Adds the step for the parameters an endpoint binds (its <c>{Record}Wire.Parameters</c>); an array whose
+    /// items are delimited inside one value is listed with its delimiter.
     /// </summary>
-    public static TBuilder WithWireBinding<TBuilder, TParameters>(this TBuilder builder, params (string Name, char Delimiter)[] delimitedArrays)
+    public static TBuilder WithWireBinding<TBuilder>(this TBuilder builder, IReadOnlyList<WireParameter> wireParameters, params (string Name, char Delimiter)[] delimitedArrays)
         where TBuilder : IEndpointConventionBuilder
     {
         var parameters = new List<BoundParameter>();
         var cookies = new List<string>();
-        foreach (var property in typeof(TParameters).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        foreach (var wire in wireParameters)
         {
-            var (location, name) = property.GetCustomAttribute<FromRouteAttribute>() is { Name: { } route }
-                ? ("path", route)
-                : property.GetCustomAttribute<FromQueryAttribute>() is { Name: { } query }
-                    ? ("query", query)
-                    : property.GetCustomAttribute<FromHeaderAttribute>() is { Name: { } header }
-                        ? ("header", header)
-                        : (string.Empty, string.Empty);
-            if (location.Length == 0)
+            if (wire.In == "header" && wire.Name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal))
             {
-                continue;
+                cookies.Add(wire.Name[CookieHeaderPrefix.Length..]);
             }
 
-            if (location == "header" && name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal))
-            {
-                cookies.Add(name[CookieHeaderPrefix.Length..]);
-            }
-
-            var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            var isArray = location == "query" && type.IsGenericType && type.GetGenericTypeDefinition().Name.StartsWith("Parsable", StringComparison.Ordinal);
-            if (isArray)
-            {
-                type = type.GetGenericArguments()[0];
-            }
-
-            var members = type.IsEnum ? MemberNames(type) : null;
-            var delimited = Array.Find(delimitedArrays, d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase));
-            parameters.Add(new BoundParameter(location, name, Parser(type, members), type.Name, members, delimited.Name is null ? null : delimited.Delimiter, isArray));
+            var delimited = Array.Find(delimitedArrays, d => string.Equals(d.Name, wire.Name, StringComparison.OrdinalIgnoreCase));
+            parameters.Add(new BoundParameter(wire.In, wire.Name, wire.Parses, wire.TypeName, wire.Members, delimited.Name is null ? null : delimited.Delimiter, wire.IsArray));
         }
 
         if (parameters.Count == 0)
@@ -106,14 +143,13 @@ public static class WireBindingExtensions
     /// a required field that is missing, or a value that does not parse, is answered with a problem naming
     /// the field, and an enum's wire value is rewritten to the member name the binder reads.
     /// </summary>
-    public static TBuilder WithWireFormBinding<TBuilder>(this TBuilder builder, params (string Name, Type Type, bool Required, bool IsArray)[] fields)
+    public static TBuilder WithWireFormBinding<TBuilder>(this TBuilder builder, params (WireParameter Field, bool Required, bool IsFile)[] fields)
         where TBuilder : IEndpointConventionBuilder
     {
         var checks = new List<FormField>();
-        foreach (var (name, type, required, isArray) in fields)
+        foreach (var (field, required, isFile) in fields)
         {
-            var members = type.IsEnum ? MemberNames(type) : null;
-            checks.Add(new FormField(name, required, type == typeof(IFormFile), Parser(type, members), type.Name, members, isArray));
+            checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray));
         }
 
         builder.Add(endpoint =>
@@ -343,46 +379,5 @@ public static class WireBindingExtensions
         }
 
         return errors;
-    }
-
-    // Whether a value parses as the type - an enum by wire value or member name, a parsable type through
-    // its TryParse with the invariant culture; null for a string or a type without one
-    private static Func<string, bool>? Parser(Type type, Dictionary<string, string>? members)
-    {
-        if (type == typeof(string))
-        {
-            return null;
-        }
-
-        if (type.IsEnum)
-        {
-            return value => members?.ContainsKey(value) == true || (Enum.TryParse(type, value, ignoreCase: true, out var parsed) && Enum.IsDefined(type, parsed!));
-        }
-
-        if (type == typeof(bool))
-        {
-            return value => bool.TryParse(value, out _);
-        }
-
-        var tryParse = type.GetMethod("TryParse", BindingFlags.Public | BindingFlags.Static, [typeof(string), typeof(IFormatProvider), type.MakeByRefType()]);
-        return tryParse is null
-            ? null
-            : value => (bool)tryParse.Invoke(null, [value, CultureInfo.InvariantCulture, null])!;
-    }
-
-    // The wire values of an enum that differ from the member name, by wire value
-    private static Dictionary<string, string> MemberNames(Type enumType)
-    {
-        var members = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
-        {
-            if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue &&
-                !string.Equals(wireValue, field.Name, StringComparison.Ordinal))
-            {
-                members[wireValue] = field.Name;
-            }
-        }
-
-        return members;
     }
 }

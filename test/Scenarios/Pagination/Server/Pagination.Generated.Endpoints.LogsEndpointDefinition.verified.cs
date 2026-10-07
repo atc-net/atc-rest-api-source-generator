@@ -44,7 +44,7 @@ public sealed class LogsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListLogsParameters>();
+            .WithWireBinding(ListLogsParametersWire.Parameters);
     }
 
     internal async Task<IResult> ListLogs(

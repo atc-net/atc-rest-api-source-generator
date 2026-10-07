@@ -59,7 +59,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetUserByIdParameters>()
+            .WithWireBinding(GetUserByIdParametersWire.Parameters)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("Bearer")
                 .RequireAuthenticatedUser());

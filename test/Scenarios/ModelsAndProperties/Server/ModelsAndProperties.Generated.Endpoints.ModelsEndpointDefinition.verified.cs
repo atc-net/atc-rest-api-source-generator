@@ -63,7 +63,7 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetModelByIdParameters>();
+            .WithWireBinding(GetModelByIdParametersWire.Parameters);
     }
 
     internal async Task<IResult> ListModels(

@@ -43,7 +43,7 @@ public sealed class TicketsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListTicketsParameters>();
+            .WithWireBinding(ListTicketsParametersWire.Parameters);
 
         tickets
             .MapPost("/", CreateTicket)

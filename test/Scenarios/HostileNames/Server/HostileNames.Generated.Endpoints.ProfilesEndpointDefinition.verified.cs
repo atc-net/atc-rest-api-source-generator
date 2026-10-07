@@ -45,7 +45,7 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireFormBinding(("user_name", typeof(string), true, false), ("display_name", typeof(string), false, false))
+            .WithWireFormBinding((WireParameter.Text("form", "user_name"), true, false), (WireParameter.Text("form", "display_name"), false, false))
             .Accepts<user_profile>("application/x-www-form-urlencoded")
             .DisableAntiforgery();
     }

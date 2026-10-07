@@ -177,11 +177,11 @@ public class WireBindingHelperTests
 
         Assert.Equal(
             [
-                "(\"name\", typeof(string), true, false)",
-                "(\"count\", typeof(int), false, false)",
-                "(\"color\", typeof(Color), false, false)",
-                "(\"tags\", typeof(string), false, true)",
-                "(\"file\", typeof(global::Microsoft.AspNetCore.Http.IFormFile), true, false)",
+                "(WireParameter.Text(\"form\", \"name\"), true, false)",
+                "(WireParameter.Parsable<int>(\"form\", \"count\"), false, false)",
+                "(WireParameter.EnumValue<Color>(\"form\", \"color\"), false, false)",
+                "(WireParameter.Text(\"form\", \"tags\", isArray: true), false, false)",
+                "(WireParameter.Text(\"form\", \"file\"), true, true)",
             ],
             result);
     }
@@ -232,8 +232,83 @@ public class WireBindingHelperTests
         Assert.Contains("namespace TestApi.Generated;", code, StringComparison.Ordinal);
         Assert.Contains("public static class WireBindingExtensions", code, StringComparison.Ordinal);
         Assert.Contains("private const string CookieHeaderPrefix = \"x-cookie-\";", code, StringComparison.Ordinal);
-        Assert.Contains("public static TBuilder WithWireBinding<TBuilder, TParameters>(this TBuilder builder, params (string Name, char Delimiter)[] delimitedArrays)", code, StringComparison.Ordinal);
-        Assert.Contains("public static TBuilder WithWireFormBinding<TBuilder>(this TBuilder builder, params (string Name, Type Type, bool Required, bool IsArray)[] fields)", code, StringComparison.Ordinal);
+        Assert.Contains("public static TBuilder WithWireBinding<TBuilder>(this TBuilder builder, IReadOnlyList<WireParameter> wireParameters, params (string Name, char Delimiter)[] delimitedArrays)", code, StringComparison.Ordinal);
+        Assert.Contains("public static TBuilder WithWireFormBinding<TBuilder>(this TBuilder builder, params (WireParameter Field, bool Required, bool IsFile)[] fields)", code, StringComparison.Ordinal);
         Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", code, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("string", "WireParameter.Text(\"query\", \"x\")")]
+    [InlineData("Uri", "WireParameter.Text(\"query\", \"x\")")]
+    [InlineData("bool", "WireParameter.Boolean(\"query\", \"x\")")]
+    [InlineData("int", "WireParameter.Parsable<int>(\"query\", \"x\")")]
+    [InlineData("Guid", "WireParameter.Parsable<Guid>(\"query\", \"x\")")]
+    [InlineData("DateTimeOffset", "WireParameter.Parsable<DateTimeOffset>(\"query\", \"x\")")]
+    [InlineData("Color", "WireParameter.EnumValue<Color>(\"query\", \"x\")")]
+    [InlineData("ParsableList<string>", "WireParameter.Text(\"query\", \"x\", isArray: true)")]
+    [InlineData("ParsableList<int>", "WireParameter.Parsable<int>(\"query\", \"x\", isArray: true)")]
+    [InlineData("ParsableEnumList<Color>", "WireParameter.EnumValue<Color>(\"query\", \"x\", isArray: true)")]
+    public void ParameterExpression_DescribesTheParameterByItsType(
+        string typeName,
+        string expected)
+        => Assert.Equal(expected, WireBindingHelper.ParameterExpression("query", "\"x\"", typeName));
+
+    [Fact]
+    public void GenerateContent_FindsNothingThroughReflection()
+    {
+        var code = WireBindingHelper.GenerateContent("TestApi");
+
+        Assert.DoesNotContain("GetProperties(", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetMethod(", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("PropertyType", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ParameterDescriptionClass_DescribesEveryBoundProperty_InTheRecordsNamespace()
+    {
+        var record = new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
+            Name: "ListPetsParameters",
+            Parameters:
+            [
+                Bound("FromRoute", "\"petId\"", "Guid"),
+                Bound("FromQuery", "\"limit\"", "int"),
+                Bound("FromHeader", "\"x-cookie-session\"", "string"),
+                new ParameterBaseParameters(null, null, false, "Pet", false, true, "Request", null),
+            ]);
+
+        var description = WireBindingHelper.ParameterDescriptionClass(record, "Contoso.Generated.Parameters", headerContent: null);
+
+        Assert.NotNull(description);
+        Assert.Equal("ListPetsParametersWire", description.ClassTypeName);
+        Assert.Equal(DeclarationModifiers.PublicStaticClass, description.DeclarationModifier);
+        var parameters = Assert.Single(description.Properties!);
+        Assert.Equal("Parameters", parameters.Name);
+        Assert.Equal(
+            "[" + Environment.NewLine +
+            "        WireParameter.Parsable<Guid>(\"path\", \"petId\")," + Environment.NewLine +
+            "        WireParameter.Parsable<int>(\"query\", \"limit\")," + Environment.NewLine +
+            "        WireParameter.Text(\"header\", \"x-cookie-session\")," + Environment.NewLine +
+            "    ]",
+            parameters.DefaultValue);
+    }
+
+    [Fact]
+    public void ParameterDescriptionClass_NoBoundProperty_IsNone()
+    {
+        var record = new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
+            Name: "CreatePetParameters",
+            Parameters: [new ParameterBaseParameters(null, null, false, "Pet", false, true, "Request", null)]);
+
+        Assert.Null(WireBindingHelper.ParameterDescriptionClass(record, "Contoso.Generated.Parameters", headerContent: null));
+    }
+
+    private static ParameterBaseParameters Bound(
+        string attribute,
+        string nameLiteral,
+        string typeName)
+        => new([new AttributeParameters(attribute, $"Name = {nameLiteral}")], null, false, typeName, false, false, "P", null);
 }

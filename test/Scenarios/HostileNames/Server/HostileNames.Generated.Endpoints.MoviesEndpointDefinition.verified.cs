@@ -44,7 +44,7 @@ public sealed class MoviesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetMovieParameters>();
+            .WithWireBinding(GetMovieParametersWire.Parameters);
     }
 
     internal async Task<IResult> GetMovie(

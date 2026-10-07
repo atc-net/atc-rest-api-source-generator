@@ -43,7 +43,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListAccountsParameters>();
+            .WithWireBinding(ListAccountsParametersWire.Parameters);
 
         accounts
             .MapPost("/", CreateAccount)
@@ -64,7 +64,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetAccountByIdParameters>();
+            .WithWireBinding(GetAccountByIdParametersWire.Parameters);
 
         accounts
             .MapDelete("{accountId}", DeleteAccountById)
@@ -75,7 +75,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, DeleteAccountByIdParameters>();
+            .WithWireBinding(DeleteAccountByIdParametersWire.Parameters);
 
         accounts
             .MapPut("{accountId}", UpdateAccountById)
@@ -87,7 +87,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, UpdateAccountByIdParameters>();
+            .WithWireBinding(UpdateAccountByIdParametersWire.Parameters);
 
         accounts
             .MapGet("paginated", ListPaginatedAccounts)
@@ -97,7 +97,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListPaginatedAccountsParameters>();
+            .WithWireBinding(ListPaginatedAccountsParametersWire.Parameters);
 
         accounts
             .MapGet("async-enumerable", ListAsyncEnumerableAccounts)

@@ -43,7 +43,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListTasksParameters>();
+            .WithWireBinding(ListTasksParametersWire.Parameters);
 
         tasks
             .MapPost("/", CreateTask)
@@ -64,7 +64,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetTaskByIdParameters>();
+            .WithWireBinding(GetTaskByIdParametersWire.Parameters);
 
         tasks
             .MapDelete("{taskId}", DeleteTaskById)
@@ -75,7 +75,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, DeleteTaskByIdParameters>();
+            .WithWireBinding(DeleteTaskByIdParametersWire.Parameters);
 
         tasks
             .MapPut("{taskId}", UpdateTaskById)
@@ -87,7 +87,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, UpdateTaskByIdParameters>();
+            .WithWireBinding(UpdateTaskByIdParametersWire.Parameters);
     }
 
     internal async System.Threading.Tasks.Task<IResult> ListTasks(

@@ -44,7 +44,7 @@ public sealed class PersonsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListPersonsParameters>();
+            .WithWireBinding(ListPersonsParametersWire.Parameters);
     }
 
     internal async Task<IResult> ListPersons(

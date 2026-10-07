@@ -43,7 +43,7 @@ public sealed class ReposEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ReposListParameters>();
+            .WithWireBinding(ReposListParametersWire.Parameters);
 
         repos
             .MapGet("{package}/{function}", ReposGet)
@@ -55,7 +55,7 @@ public sealed class ReposEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ReposGetParameters>();
+            .WithWireBinding(ReposGetParametersWire.Parameters);
     }
 
     internal async Task<IResult> ReposList(

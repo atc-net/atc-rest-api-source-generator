@@ -44,7 +44,7 @@ public sealed class SessionEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetSessionParameters>();
+            .WithWireBinding(GetSessionParametersWire.Parameters);
     }
 
     internal async Task<IResult> GetSession(

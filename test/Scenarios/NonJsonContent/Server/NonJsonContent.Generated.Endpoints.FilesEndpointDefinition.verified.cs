@@ -43,7 +43,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, DownloadFileParameters>();
+            .WithWireBinding(DownloadFileParametersWire.Parameters);
     }
 
     internal async Task<IResult> DownloadFile(

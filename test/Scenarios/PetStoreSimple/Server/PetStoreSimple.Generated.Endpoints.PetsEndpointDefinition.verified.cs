@@ -42,7 +42,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .Produces<List<Pet>>()
             .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")
             .ProducesValidationProblem()
-            .WithWireBinding<RouteHandlerBuilder, ListPetsParameters>();
+            .WithWireBinding(ListPetsParametersWire.Parameters);
 
         pets
             .MapPost("/", CreatePets)
@@ -60,7 +60,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .WithWireBinding<RouteHandlerBuilder, ShowPetByIdParameters>();
+            .WithWireBinding(ShowPetByIdParametersWire.Parameters);
     }
 
     internal async Task<IResult> ListPets(

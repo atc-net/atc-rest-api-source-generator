@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListPetsParameters>();
+            .WithWireBinding(ListPetsParametersWire.Parameters);
 
         pets
             .MapPost("/", CreatePet)
@@ -71,7 +71,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireFormBinding(("file", typeof(global::Microsoft.AspNetCore.Http.IFormFile), false, false), ("caption", typeof(string), false, false))
+            .WithWireFormBinding((WireParameter.Text("form", "file"), false, true), (WireParameter.Text("form", "caption"), false, false))
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
     }

@@ -1447,6 +1447,20 @@ public class ApiServerGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             $"{parametersNamespace}.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+
+        // What each record binds, for the endpoint's wire-binding step - described here, not found by reflection
+        // (only where the step is generated: a record can bind a header no endpoint step reads)
+        foreach (var record in WireBindingHelper.IsNeeded(openApiDoc) ? recordsParams.Parameters : [])
+        {
+            if (WireBindingHelper.ParameterDescriptionClass(record, recordsParams.Namespace, recordsParams.HeaderContent) is not { } description)
+            {
+                continue;
+            }
+
+            context.AddGeneratedSource(
+                NamespaceBuilder.ToFileName(parametersNamespace, description.ClassTypeName),
+                SourceText.From(new GenerateContentForClass(codeDocGenerator, description).Generate().NormalizeForSourceOutput(), Encoding.UTF8));
+        }
     }
 
     private static void GenerateResultClasses(

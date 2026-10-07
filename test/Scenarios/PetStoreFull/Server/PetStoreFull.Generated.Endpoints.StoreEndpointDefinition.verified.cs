@@ -66,7 +66,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .WithWireBinding<RouteHandlerBuilder, GetOrderByIdParameters>();
+            .WithWireBinding(GetOrderByIdParametersWire.Parameters);
 
         store
             .MapDelete("order/{orderId}", DeleteOrder)
@@ -76,7 +76,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .WithWireBinding<RouteHandlerBuilder, DeleteOrderParameters>();
+            .WithWireBinding(DeleteOrderParametersWire.Parameters);
     }
 
     internal async Task<IResult> GetInventory(

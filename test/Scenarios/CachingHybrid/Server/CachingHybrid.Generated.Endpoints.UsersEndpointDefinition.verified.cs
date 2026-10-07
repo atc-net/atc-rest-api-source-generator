@@ -43,7 +43,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, ListUsersParameters>();
+            .WithWireBinding(ListUsersParametersWire.Parameters);
 
         users
             .MapPost("/", CreateUser)
@@ -64,7 +64,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetUserByIdParameters>();
+            .WithWireBinding(GetUserByIdParametersWire.Parameters);
 
         users
             .MapPut("{userId}", UpdateUser)
@@ -76,7 +76,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, UpdateUserParameters>();
+            .WithWireBinding(UpdateUserParametersWire.Parameters);
 
         users
             .MapDelete("{userId}", DeleteUser)
@@ -87,7 +87,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, DeleteUserParameters>();
+            .WithWireBinding(DeleteUserParametersWire.Parameters);
     }
 
     internal async Task<IResult> ListUsers(

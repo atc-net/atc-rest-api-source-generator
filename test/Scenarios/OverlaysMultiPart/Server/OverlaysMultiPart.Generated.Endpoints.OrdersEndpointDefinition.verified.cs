@@ -52,7 +52,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding<RouteHandlerBuilder, GetOrderParameters>();
+            .WithWireBinding(GetOrderParametersWire.Parameters);
     }
 
     internal async Task<IResult> ListOrders(

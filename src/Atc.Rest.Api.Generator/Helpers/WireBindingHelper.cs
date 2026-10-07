@@ -26,6 +26,17 @@ public static class WireBindingHelper
     /// </summary>
     public const string QueryStringKey = "\u001Fquerystring";
 
+    private static readonly HashSet<string> ParsableTypes = new(StringComparer.Ordinal)
+    {
+        "int", "long", "short", "byte", "sbyte", "uint", "ulong", "ushort", "decimal", "double", "float", "char",
+        "Guid", "DateTime", "DateTimeOffset", "DateOnly", "TimeOnly", "TimeSpan", "Half", "Int128", "UInt128",
+    };
+
+    private static readonly HashSet<string> TextTypes = new(StringComparer.Ordinal)
+    {
+        "string", "Uri", "object", "byte[]", "IFormFile",
+    };
+
     /// <summary>
     /// Whether an operation needs the step: it has a parameter in the path, the query string, a header or a cookie.
     /// </summary>
@@ -77,11 +88,11 @@ public static class WireBindingHelper
 
     /// <summary>
     /// The fields of an operation's form body (bound field by field) as the arguments of <c>WithWireFormBinding</c>:
-    /// the field's name, its C# type (an item's for a list), whether the specification requires it, and whether it is
-    /// a list. A file is checked for presence only.
+    /// the field described by its type (an item's for a list, see <see cref="ParameterExpression"/>), whether the
+    /// specification requires it, and whether it is a file - checked for presence only.
     /// </summary>
     /// <param name="operation">The operation.</param>
-    /// <returns>C# tuple literals, <c>("count", typeof(int), false, false)</c>.</returns>
+    /// <returns>C# tuple literals, <c>(WireParameter.Parsable&lt;int&gt;("form", "count"), false, false)</c>.</returns>
     public static IReadOnlyList<string> FormFieldArguments(
         OpenApiOperation operation)
     {
@@ -96,10 +107,15 @@ public static class WireBindingHelper
         {
             var (isFile, _) = property.Value.GetFileUploadInfo();
             var isArray = property.Value.IsOfType(JsonSchemaType.Array);
-            var type = isFile
-                ? "typeof(global::Microsoft.AspNetCore.Http.IFormFile)"
-                : $"typeof({(isArray ? property.Value.Items?.ToCSharpType(isRequired: true, registry: null) ?? "string" : property.Value.ToCSharpType(isRequired: true, registry: null)).TrimEnd('?')})";
-            arguments.Add($"(\"{property.Key}\", {type}, {(required.Contains(property.Key) ? "true" : "false")}, {(isArray ? "true" : "false")})");
+            var name = CSharpLiteralHelper.ToStringLiteral(property.Key);
+            var field = isFile
+                ? $"WireParameter.Text(\"form\", {name})"
+                : Describe(
+                    "form",
+                    name,
+                    (isArray ? property.Value.Items?.ToCSharpType(isRequired: true, registry: null) ?? "string" : property.Value.ToCSharpType(isRequired: true, registry: null)).TrimEnd('?'),
+                    isArray);
+            arguments.Add($"({field}, {(required.Contains(property.Key) ? "true" : "false")}, {(isFile ? "true" : "false")})");
         }
 
         return arguments;
@@ -137,6 +153,122 @@ public static class WireBindingHelper
     }
 
     /// <summary>
+    /// A bound parameter as the step reads it, by its C# type: no parser for a string (or a type without one, such as
+    /// <c>Uri</c>), <c>bool.TryParse</c> for a boolean, <c>T.TryParse</c> with the invariant culture for a parsable
+    /// type, the wire values and member names for an enum - and an array query parameter (<c>ParsableList&lt;T&gt;</c>,
+    /// <c>ParsableEnumList&lt;T&gt;</c>) by its item. Nothing is found through reflection, so the step works in a
+    /// trimmed or Native AOT app.
+    /// </summary>
+    /// <param name="location">Where the parameter is: <c>path</c>, <c>query</c>, <c>header</c>.</param>
+    /// <param name="nameLiteral">Its wire name, as a C# string literal.</param>
+    /// <param name="typeName">The C# type of its property.</param>
+    /// <returns>The C# expression, <c>WireParameter.Parsable&lt;int&gt;("query", "limit")</c>.</returns>
+    public static string ParameterExpression(
+        string location,
+        string nameLiteral,
+        string typeName)
+    {
+        if (typeName is null)
+        {
+            throw new ArgumentNullException(nameof(typeName));
+        }
+
+        var type = typeName.TrimEnd('?');
+        foreach (var list in new[] { "ParsableList<", "ParsableEnumList<" })
+        {
+            if (type.StartsWith(list, StringComparison.Ordinal) && type.EndsWith(">", StringComparison.Ordinal))
+            {
+                return Describe(location, nameLiteral, type.Substring(list.Length, type.Length - list.Length - 1), isArray: true);
+            }
+        }
+
+        return Describe(location, nameLiteral, type, isArray: false);
+    }
+
+    /// <summary>
+    /// The description of an <c>[AsParameters]</c> record's bound parameters - <c>{Record}Wire.Parameters</c>, which
+    /// the endpoint passes to <c>WithWireBinding</c> - or null when it binds none.
+    /// </summary>
+    /// <param name="record">The parameters record.</param>
+    /// <param name="namespaceName">The record's namespace.</param>
+    /// <param name="headerContent">The record file's header (its usings name the enum types).</param>
+    /// <returns>The class, or null.</returns>
+    public static ClassParameters? ParameterDescriptionClass(
+        RecordParameters record,
+        string namespaceName,
+        string? headerContent)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        var entries = new List<string>();
+        foreach (var parameter in record.Parameters ?? [])
+        {
+            var binding = parameter.Attributes?.FirstOrDefault(a => a.Name is "FromRoute" or "FromQuery" or "FromHeader");
+            if (binding?.Content is not { } content ||
+                !content.StartsWith("Name = ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var location = binding.Name switch
+            {
+                "FromRoute" => "path",
+                "FromQuery" => "query",
+                _ => "header",
+            };
+            entries.Add(ParameterExpression(location, content.Substring("Name = ".Length), parameter.TypeName));
+        }
+
+        if (entries.Count == 0)
+        {
+            return null;
+        }
+
+        var initializer = "[" + Environment.NewLine +
+                          string.Concat(entries.Select(e => $"        {e},{Environment.NewLine}")) +
+                          "    ]";
+
+        return new ClassParameters(
+            HeaderContent: headerContent,
+            Namespace: namespaceName,
+            DocumentationTags: new CodeDocumentationTags($"The bound parameters of <see cref=\"{record.Name}\"/>, as the endpoint's wire-binding step reads them."),
+            Attributes: [new AttributeParameters("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\"")],
+            DeclarationModifier: DeclarationModifiers.PublicStaticClass,
+            ClassTypeName: record.Name + "Wire",
+            GenericTypeName: null,
+            InheritedClassTypeName: null,
+            InheritedGenericClassTypeName: null,
+            InheritedInterfaceTypeName: null,
+            Constructors: null,
+            Properties:
+            [
+                new PropertyParameters(
+                    DocumentationTags: null,
+                    Attributes: null,
+                    DeclarationModifier: DeclarationModifiers.PublicStatic,
+                    GenericTypeName: "IReadOnlyList",
+                    TypeName: "WireParameter",
+                    IsNullableType: false,
+                    Name: "Parameters",
+                    JsonName: null,
+                    DefaultValue: initializer,
+                    IsReferenceType: true,
+                    IsGenericListType: true,
+                    UseAutoProperty: true,
+                    UseGet: true,
+                    UseSet: false,
+                    UseExpressionBody: false,
+                    UseRequired: false,
+                    Content: null),
+            ],
+            Methods: null,
+            GenerateToStringMethod: false);
+    }
+
+    /// <summary>
     /// The source of the generated helper.
     /// </summary>
     /// <param name="projectName">The project name (root namespace).</param>
@@ -149,6 +281,7 @@ public static class WireBindingHelper
             using System;
             using System.CodeDom.Compiler;
             using System.Collections.Generic;
+            using System.Diagnostics.CodeAnalysis;
             using System.Globalization;
             using System.Linq;
             using System.Reflection;
@@ -160,6 +293,61 @@ public static class WireBindingHelper
             using Microsoft.Extensions.Primitives;
 
             namespace {{projectName}}.Generated;
+
+            /// <summary>
+            /// A parameter the wire-binding step reads: where it is (path, query, header, form), its wire name, whether a value
+            /// parses (null: any text), the type a problem names, an enum's member names by wire value, and whether it is an
+            /// array. Built from the parameter's type, without reflection.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray)
+            {
+                /// <summary>
+                /// A value any text is (a string, or a type without a parser).
+                /// </summary>
+                public static WireParameter Text(string @in, string name, bool isArray = false)
+                    => new(@in, name, null, "String", null, isArray);
+
+                /// <summary>
+                /// A boolean.
+                /// </summary>
+                public static WireParameter Boolean(string @in, string name, bool isArray = false)
+                    => new(@in, name, value => bool.TryParse(value, out _), "Boolean", null, isArray);
+
+                /// <summary>
+                /// A value its type parses with the invariant culture.
+                /// </summary>
+                public static WireParameter Parsable<T>(string @in, string name, bool isArray = false)
+                    where T : IParsable<T>
+                    => new(@in, name, value => T.TryParse(value, CultureInfo.InvariantCulture, out _), typeof(T).Name, null, isArray);
+
+                /// <summary>
+                /// An enum, by the wire value the specification writes or by its member name.
+                /// </summary>
+                public static WireParameter EnumValue<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>(string @in, string name, bool isArray = false)
+                    where T : struct, Enum
+                {
+                    var members = MemberNames<T>();
+                    return new(@in, name, value => members.ContainsKey(value) || (Enum.TryParse<T>(value, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed)), typeof(T).Name, members, isArray);
+                }
+
+                // The wire values of an enum that differ from the member name, by wire value
+                private static Dictionary<string, string> MemberNames<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>()
+                    where T : struct, Enum
+                {
+                    var members = new Dictionary<string, string>(StringComparer.Ordinal);
+                    foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue &&
+                            !string.Equals(wireValue, field.Name, StringComparison.Ordinal))
+                        {
+                            members[wireValue] = field.Name;
+                        }
+                    }
+
+                    return members;
+                }
+            }
 
             /// <summary>
             /// Runs before the framework binds an operation's parameters, for what its binder cannot do: read an enum
@@ -180,42 +368,23 @@ public static class WireBindingHelper
                 private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray);
 
                 /// <summary>
-                /// Adds the step for the parameters of <typeparamref name="TParameters"/>.
+                /// Adds the step for the parameters an endpoint binds (its <c>{Record}Wire.Parameters</c>); an array whose
+                /// items are delimited inside one value is listed with its delimiter.
                 /// </summary>
-                public static TBuilder WithWireBinding<TBuilder, TParameters>(this TBuilder builder, params (string Name, char Delimiter)[] delimitedArrays)
+                public static TBuilder WithWireBinding<TBuilder>(this TBuilder builder, IReadOnlyList<WireParameter> wireParameters, params (string Name, char Delimiter)[] delimitedArrays)
                     where TBuilder : IEndpointConventionBuilder
                 {
                     var parameters = new List<BoundParameter>();
                     var cookies = new List<string>();
-                    foreach (var property in typeof(TParameters).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    foreach (var wire in wireParameters)
                     {
-                        var (location, name) = property.GetCustomAttribute<FromRouteAttribute>() is { Name: { } route }
-                            ? ("path", route)
-                            : property.GetCustomAttribute<FromQueryAttribute>() is { Name: { } query }
-                                ? ("query", query)
-                                : property.GetCustomAttribute<FromHeaderAttribute>() is { Name: { } header }
-                                    ? ("header", header)
-                                    : (string.Empty, string.Empty);
-                        if (location.Length == 0)
+                        if (wire.In == "header" && wire.Name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal))
                         {
-                            continue;
+                            cookies.Add(wire.Name[CookieHeaderPrefix.Length..]);
                         }
 
-                        if (location == "header" && name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal))
-                        {
-                            cookies.Add(name[CookieHeaderPrefix.Length..]);
-                        }
-
-                        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-                        var isArray = location == "query" && type.IsGenericType && type.GetGenericTypeDefinition().Name.StartsWith("Parsable", StringComparison.Ordinal);
-                        if (isArray)
-                        {
-                            type = type.GetGenericArguments()[0];
-                        }
-
-                        var members = type.IsEnum ? MemberNames(type) : null;
-                        var delimited = Array.Find(delimitedArrays, d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase));
-                        parameters.Add(new BoundParameter(location, name, Parser(type, members), type.Name, members, delimited.Name is null ? null : delimited.Delimiter, isArray));
+                        var delimited = Array.Find(delimitedArrays, d => string.Equals(d.Name, wire.Name, StringComparison.OrdinalIgnoreCase));
+                        parameters.Add(new BoundParameter(wire.In, wire.Name, wire.Parses, wire.TypeName, wire.Members, delimited.Name is null ? null : delimited.Delimiter, wire.IsArray));
                     }
 
                     if (parameters.Count == 0)
@@ -247,14 +416,13 @@ public static class WireBindingHelper
                 /// a required field that is missing, or a value that does not parse, is answered with a problem naming
                 /// the field, and an enum's wire value is rewritten to the member name the binder reads.
                 /// </summary>
-                public static TBuilder WithWireFormBinding<TBuilder>(this TBuilder builder, params (string Name, Type Type, bool Required, bool IsArray)[] fields)
+                public static TBuilder WithWireFormBinding<TBuilder>(this TBuilder builder, params (WireParameter Field, bool Required, bool IsFile)[] fields)
                     where TBuilder : IEndpointConventionBuilder
                 {
                     var checks = new List<FormField>();
-                    foreach (var (name, type, required, isArray) in fields)
+                    foreach (var (field, required, isFile) in fields)
                     {
-                        var members = type.IsEnum ? MemberNames(type) : null;
-                        checks.Add(new FormField(name, required, type == typeof(IFormFile), Parser(type, members), type.Name, members, isArray));
+                        checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray));
                     }
 
                     builder.Add(endpoint =>
@@ -485,47 +653,25 @@ public static class WireBindingHelper
 
                     return errors;
                 }
-
-                // Whether a value parses as the type - an enum by wire value or member name, a parsable type through
-                // its TryParse with the invariant culture; null for a string or a type without one
-                private static Func<string, bool>? Parser(Type type, Dictionary<string, string>? members)
-                {
-                    if (type == typeof(string))
-                    {
-                        return null;
-                    }
-
-                    if (type.IsEnum)
-                    {
-                        return value => members?.ContainsKey(value) == true || (Enum.TryParse(type, value, ignoreCase: true, out var parsed) && Enum.IsDefined(type, parsed!));
-                    }
-
-                    if (type == typeof(bool))
-                    {
-                        return value => bool.TryParse(value, out _);
-                    }
-
-                    var tryParse = type.GetMethod("TryParse", BindingFlags.Public | BindingFlags.Static, [typeof(string), typeof(IFormatProvider), type.MakeByRefType()]);
-                    return tryParse is null
-                        ? null
-                        : value => (bool)tryParse.Invoke(null, [value, CultureInfo.InvariantCulture, null])!;
-                }
-
-                // The wire values of an enum that differ from the member name, by wire value
-                private static Dictionary<string, string> MemberNames(Type enumType)
-                {
-                    var members = new Dictionary<string, string>(StringComparer.Ordinal);
-                    foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
-                    {
-                        if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue &&
-                            !string.Equals(wireValue, field.Name, StringComparison.Ordinal))
-                        {
-                            members[wireValue] = field.Name;
-                        }
-                    }
-
-                    return members;
-                }
             }
             """;
+
+    private static string Describe(
+        string location,
+        string nameLiteral,
+        string itemType,
+        bool isArray)
+    {
+        var simple = itemType.Replace("global::", string.Empty);
+        simple = simple.StartsWith("System.", StringComparison.Ordinal) ? simple.Substring("System.".Length) : simple;
+        var factory = simple switch
+        {
+            "bool" or "Boolean" => "WireParameter.Boolean",
+            _ when ParsableTypes.Contains(simple) => $"WireParameter.Parsable<{itemType}>",
+            _ when TextTypes.Contains(simple) || simple.EndsWith("IFormFile", StringComparison.Ordinal) => "WireParameter.Text",
+            _ => $"WireParameter.EnumValue<{itemType}>",
+        };
+
+        return $"{factory}(\"{location}\", {nameLiteral}{(isArray ? ", isArray: true" : string.Empty)})";
+    }
 }
