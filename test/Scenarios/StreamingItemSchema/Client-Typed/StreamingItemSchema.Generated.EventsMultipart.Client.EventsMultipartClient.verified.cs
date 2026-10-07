@@ -52,7 +52,7 @@ public sealed class EventsMultipartClient : IEventsMultipartClient
 
         var boundary = response.Content.Headers.ContentType?.Parameters
             .FirstOrDefault(p => string.Equals(p.Name, "boundary", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('"')
-            ?? "atc-stream-boundary";
+            ?? throw new global::System.IO.InvalidDataException("A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.");
         await foreach (var item in StreamReaders.ReadMultipartMixedAsync<Event>(stream, boundary, jsonSerializerOptions, cancellationToken))
         {
             if (item is not null)

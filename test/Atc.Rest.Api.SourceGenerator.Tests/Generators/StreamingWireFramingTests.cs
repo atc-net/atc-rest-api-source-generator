@@ -26,6 +26,49 @@ public class StreamingWireFramingTests
         Assert.Equal("b", items[1].GetProperty("id").GetString());
     }
 
+    /// <summary>
+    /// What a real event stream carries besides the items: a comment (keep-alive), an event without data, a heartbeat
+    /// whose data is no item (<c>event: ping</c>, <c>data: ping</c>), and items in named events as well as unnamed ones.
+    /// The items are read; the rest is skipped instead of failing the stream.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_SkipsWhatIsNoItem()
+    {
+        var streamReaders = LoadGeneratedType("StreamReaders");
+        var read = streamReaders
+            .GetMethod("ReadServerSentEventsAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+
+        const string sse =
+            ": keep-alive\n\n" +
+            "event: update\ndata: {\"id\":\"a\"}\n\n" +
+            "data:\n\n" +
+            "event: ping\ndata: ping\n\n" +
+            "event: ping\n\n" +
+            "data: {\"id\":\"b\"}\n\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(sse));
+
+        var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
+
+        Assert.Equal(["a", "b"], items.Select(i => i.GetProperty("id").GetString()));
+    }
+
+    /// <summary>
+    /// An unnamed event - the item event of a stream - whose data is no JSON is the server's mistake and fails the
+    /// stream, as before: only named events (control frames) are skipped.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_AnUnnamedEventThatIsNoJson_Throws()
+    {
+        var streamReaders = LoadGeneratedType("StreamReaders");
+        var read = streamReaders
+            .GetMethod("ReadServerSentEventsAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("data: not json\n\n"));
+
+        await Assert.ThrowsAnyAsync<JsonException>(() => EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions()));
+    }
+
     [Fact]
     public async Task JsonLines_WriteThenRead_RoundTrips()
     {

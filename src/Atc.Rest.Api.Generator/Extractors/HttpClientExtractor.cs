@@ -1147,7 +1147,7 @@ public static class HttpClientExtractor
             {
                 builder.AppendLine("var boundary = response.Content.Headers.ContentType?.Parameters");
                 builder.AppendLine(4, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
-                builder.AppendLine(4, $"?? \"{SequentialResultsExtractor.MultipartBoundaryValue}\";");
+                builder.AppendLine(4, "?? throw new global::System.IO.InvalidDataException(\"A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.\");");
                 builder.AppendLine($"await foreach (var item in StreamReaders.ReadMultipartMixedAsync<{streamingItemType}>(stream, boundary, jsonSerializerOptions, cancellationToken))");
             }
             else if (streamingFraming == StreamingFraming.JsonArray)
@@ -1254,7 +1254,7 @@ public static class HttpClientExtractor
 
         builder.AppendLine("var boundary = response.Content.Headers.ContentType?.Parameters");
         builder.AppendLine(4, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
-        builder.AppendLine(4, $"?? \"{SequentialResultsExtractor.MultipartBoundaryValue}\";");
+        builder.AppendLine(4, "?? throw new global::System.IO.InvalidDataException(\"A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.\");");
     }
 
     /// <summary>

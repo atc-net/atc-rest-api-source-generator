@@ -1359,7 +1359,7 @@ public static class EndpointPerOperationExtractor
             {
                 sb.AppendLine("var boundary = response.Content.Headers.ContentType?.Parameters");
                 sb.AppendLine(4, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
-                sb.AppendLine(4, $"?? \"{SequentialResultsExtractor.MultipartBoundaryValue}\";");
+                sb.AppendLine(4, "?? throw new global::System.IO.InvalidDataException(\"A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.\");");
                 sb.AppendLine($"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, boundary, contractSerializer, cancellationToken);");
             }
             else

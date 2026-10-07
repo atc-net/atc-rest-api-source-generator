@@ -88,7 +88,7 @@ public class StreamReadersExtractorTests
         Assert.DoesNotContain("using Atc.Rest.Client.Serialization;", content, StringComparison.Ordinal);
         Assert.DoesNotContain("IContractSerializer", content, StringComparison.Ordinal);
 
-        Assert.Contains("(eventType, bytes) => JsonSerializer.Deserialize<T>(bytes, options));", content, StringComparison.Ordinal);
+        Assert.Contains("(eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize<T>(data, options)));", content, StringComparison.Ordinal);
         Assert.Contains("=> JsonSerializer.DeserializeAsyncEnumerable<T>(stream, topLevelValues: true, options, cancellationToken);", content, StringComparison.Ordinal);
         Assert.Contains("yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);", content, StringComparison.Ordinal);
         Assert.Contains("yield return JsonSerializer.Deserialize<T>(body.ToString(), options);", content, StringComparison.Ordinal);
@@ -103,7 +103,7 @@ public class StreamReadersExtractorTests
         Assert.DoesNotContain("using System.Text.Json;", content, StringComparison.Ordinal);
         Assert.DoesNotContain("JsonSerializerOptions", content, StringComparison.Ordinal);
 
-        Assert.Contains("(eventType, bytes) => serializer.Deserialize<T>(bytes.ToArray()));", content, StringComparison.Ordinal);
+        Assert.Contains("(eventType, bytes) => ReadEvent(eventType, bytes, data => serializer.Deserialize<T>(data)));", content, StringComparison.Ordinal);
         Assert.Contains("public static async IAsyncEnumerable<T?> ReadJsonLinesAsync<T>(", content, StringComparison.Ordinal);
         Assert.Contains("yield return serializer.Deserialize<T>(line);", content, StringComparison.Ordinal);
         Assert.Contains("yield return serializer.Deserialize<T>(record.ToArray());", content, StringComparison.Ordinal);

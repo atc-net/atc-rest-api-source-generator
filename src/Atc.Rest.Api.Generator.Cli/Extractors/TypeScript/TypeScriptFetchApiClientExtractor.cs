@@ -355,7 +355,9 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    if (framing === 'multipart') {");
         sb.AppendLine("      const contentType = response.headers.get('content-type') ?? '';");
         sb.AppendLine("      const m = /boundary=(\"?)([^\";]+)\\1/i.exec(contentType);");
-        sb.AppendLine("      const delimiter = '--' + (m ? m[2] : '');");
+        sb.AppendLine("      // Without a boundary the parts cannot be found: an error, not a guess");
+        sb.AppendLine("      if (!m) throw new Error('A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.');");
+        sb.AppendLine("      const delimiter = '--' + m[2];");
         sb.AppendLine("      let buf = '';");
         sb.AppendLine("      let finished = false;");
         sb.AppendLine("      try {");

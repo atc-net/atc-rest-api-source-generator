@@ -105,6 +105,26 @@ public sealed class TypeScriptStreamFramingsGateTests
                   content:
                     multipart/mixed:
                       schema: {}
+          /feed/sse:
+            get:
+              operationId: streamSse
+              x-return-async-enumerable: true
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    text/event-stream:
+                      schema: {}
+          /feed/mixed-no-boundary:
+            get:
+              operationId: streamMixedNoBoundary
+              x-return-async-enumerable: true
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    multipart/mixed:
+                      schema: {}
         """;
 
     private const string PackageJson = """
@@ -144,6 +164,17 @@ public sealed class TypeScriptStreamFramingsGateTests
             contentType: 'multipart/mixed; boundary=frame',
             text: json.map((j) => '--frame\r\nContent-Type: application/json\r\n\r\n' + j + '\r\n').join('') + '--frame--\r\n',
           },
+          // Besides the items (in named and unnamed events): a comment, an event without data, a heartbeat whose data
+          // is no item - all skipped
+          '/feed/sse': {
+            contentType: 'text/event-stream',
+            text: ': keep-alive\n\n' + json.map((j, i) => (i % 2 === 0 ? 'event: update\n' : '') + 'data: ' + j + '\n\n' + (i === 1 ? 'data:\n\nevent: ping\ndata: ping\n\nevent: ping\n\n' : '')).join(''),
+          },
+          // No boundary named: the parts cannot be found - an error, not an empty stream
+          '/feed/mixed-no-boundary': {
+            contentType: 'multipart/mixed',
+            text: json.map((j) => '--frame\r\nContent-Type: application/json\r\n\r\n' + j + '\r\n').join('') + '--frame--\r\n',
+          },
         };
 
         const server = createServer((req, res) => {
@@ -178,6 +209,17 @@ public sealed class TypeScriptStreamFramingsGateTests
           }
         }
 
+        async function checkThrows(name: string, stream: AsyncGenerator<unknown>): Promise<void> {
+          const got: unknown[] = [];
+          try {
+            for await (const item of stream) got.push(item);
+          } catch {
+            console.log(name + ': threw');
+            return;
+          }
+          failures.push(name + ': did not throw, got ' + JSON.stringify(got));
+        }
+
         async function main(): Promise<void> {
           await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
           const baseUrl = 'http://127.0.0.1:' + (server.address() as AddressInfo).port;
@@ -190,6 +232,8 @@ public sealed class TypeScriptStreamFramingsGateTests
             await check(label + ' json-lines', feed.streamLines());
             await check(label + ' json-seq', feed.streamSeq());
             await check(label + ' multipart', feed.streamMixed());
+            await check(label + ' server-sent events', feed.streamSse());
+            await checkThrows(label + ' multipart without a boundary', feed.streamMixedNoBoundary());
           }
 
           server.close();

@@ -50,14 +50,24 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
         const rawEvent = buffer.substring(0, sep);
         buffer = buffer.substring(sep + 2);
-        const data = rawEvent
-          .split('\n')
+        const lines = rawEvent.split('\n');
+        const eventLine = lines.find((l) => l.startsWith('event:'));
+        const eventType = eventLine ? eventLine.slice(6).trim() : 'message';
+        const data = lines
           .filter((l) => l.startsWith('data:'))
           .map((l) => l.slice(5).trimStart())
           .join('\n');
-        if (data.length > 0) {
-          yield JSON.parse(data, reviver) as T;
+        // An event without data is no item; a named event whose data is no JSON (a heartbeat, a control frame) is
+        // skipped; an unnamed event - the item event - must be one
+        if (data.trim().length === 0) continue;
+        let item: T;
+        try {
+          item = JSON.parse(data, reviver) as T;
+        } catch (e) {
+          if (eventType !== 'message') continue;
+          throw e;
         }
+        yield item;
       }
     }
   } finally {
@@ -303,7 +313,9 @@ export class ApiClient {
     if (framing === 'multipart') {
       const contentType = response.headers.get('content-type') ?? '';
       const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
-      const delimiter = '--' + (m ? m[2] : '');
+      // Without a boundary the parts cannot be found: an error, not a guess
+      if (!m) throw new Error('A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.');
+      const delimiter = '--' + m[2];
       let buf = '';
       let finished = false;
       try {
