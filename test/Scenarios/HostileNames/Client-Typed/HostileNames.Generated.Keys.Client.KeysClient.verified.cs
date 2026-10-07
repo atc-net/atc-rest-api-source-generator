@@ -3,7 +3,6 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -46,7 +45,8 @@ public sealed class KeysClient : IKeysClient
         var url = "keys";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Company_Api_KeyPage>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Company_Api_KeyPage>(json, jsonSerializerOptions)!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -58,7 +58,19 @@ public sealed class KeysClient : IKeysClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,

@@ -60,10 +60,23 @@ public sealed record DownloadedFile(
             else if (string.Equals(header.Key, "Content-Disposition", System.StringComparison.OrdinalIgnoreCase) &&
                      ContentDispositionHeaderValue.TryParse(value, out var disposition))
             {
-                fileName = (disposition.FileNameStar ?? disposition.FileName)?.Trim('"');
+                fileName = SafeFileName((disposition.FileNameStar ?? disposition.FileName)?.Trim('"'));
             }
         }
 
         return new DownloadedFile(content, contentType, fileName, content.LongLength);
+    }
+
+    // The server's name, as a file name only: the last segment of whatever path it sent (either separator, on any
+    // OS) - never "..\..\x" or "/etc/x" a consumer would write outside its folder with
+    private static string? SafeFileName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var lastSegment = name!.Substring(name.LastIndexOfAny(['/', '\\']) + 1).Trim();
+        return lastSegment is "" or "." or ".." ? null : lastSegment;
     }
 }

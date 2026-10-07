@@ -15,6 +15,13 @@ namespace StreamingItemSchema.Generated.Streaming;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 internal static class StreamReaders
 {
+    /// <summary>
+    /// The longest record (a JSON Text Sequence record, a multipart part) a reader buffers, in bytes or characters:
+    /// a longer one is an InvalidDataException, not a buffer that grows until the process runs out of memory.
+    /// Default: 16 MB.
+    /// </summary>
+    public static int MaxRecordLength { get; set; } = 16 * 1024 * 1024;
+
     public static async IAsyncEnumerable<T?> ReadServerSentEventsAsync<T>(
         Stream stream,
         IContractSerializer serializer,
@@ -78,6 +85,10 @@ internal static class StreamReaders
                 else
                 {
                     record.WriteByte(buffer[i]);
+                    if (record.Length > MaxRecordLength)
+                    {
+                        throw new InvalidDataException($"A JSON Text Sequence record is longer than {MaxRecordLength} bytes.");
+                    }
                 }
             }
         }
@@ -136,6 +147,10 @@ internal static class StreamReaders
             }
 
             body.Append(line);
+            if (body.Length > MaxRecordLength)
+            {
+                throw new InvalidDataException($"A multipart part is longer than {MaxRecordLength} characters.");
+            }
 
             // A body that is complete JSON is yielded now, not at the next boundary - a server that fails after
             // this part never sends one

@@ -51,7 +51,7 @@ public sealed class ListAccountsEndpoint : IListAccountsEndpoint
         }
         if (parameters.PageSize is not null)
         {
-            requestBuilder.WithQueryParameter("pageSize", parameters.PageSize);
+            requestBuilder.WithQueryParameter("pageSize", ((global::System.IFormattable?)parameters.PageSize)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

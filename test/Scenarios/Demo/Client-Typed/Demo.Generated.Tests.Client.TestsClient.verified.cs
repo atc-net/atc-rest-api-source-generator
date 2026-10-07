@@ -47,7 +47,8 @@ public sealed class TestsClient : ITestsClient
         var url = "tests/create/create-model";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<TestItem>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<TestItem>(json, jsonSerializerOptions)!;
     }
 
     public async System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationHeaderAsync(
@@ -67,7 +68,8 @@ public sealed class TestsClient : ITestsClient
         var url = "tests/create/create-location-body";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Uri>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Uri>(json, jsonSerializerOptions)!;
     }
 
     public async System.Threading.Tasks.Task CreateTestItemEmptyAsync(
@@ -88,7 +90,19 @@ public sealed class TestsClient : ITestsClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,

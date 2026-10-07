@@ -46,7 +46,8 @@ public sealed class StoreClient : IStoreClient
         var url = "store/inventory";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<object>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<object>(json, jsonSerializerOptions)!;
     }
 
     public async Task<Order> PlaceOrderAsync(
@@ -56,14 +57,15 @@ public sealed class StoreClient : IStoreClient
         var url = "store/order";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
     }
 
     public async Task<Order> GetOrderByIdAsync(
         GetOrderByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"store/order/{parameters.OrderId}";
+        var url = $"store/order/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
@@ -73,14 +75,15 @@ public sealed class StoreClient : IStoreClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
     }
 
     public async Task DeleteOrderAsync(
         DeleteOrderParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"store/order/{parameters.OrderId}";
+        var url = $"store/order/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
@@ -94,7 +97,19 @@ public sealed class StoreClient : IStoreClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,

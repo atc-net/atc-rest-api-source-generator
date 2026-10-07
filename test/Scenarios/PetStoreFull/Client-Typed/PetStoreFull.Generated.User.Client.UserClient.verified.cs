@@ -57,7 +57,8 @@ public sealed class UserClient : IUserClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.User.Models.User>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.User.Models.User>(json, jsonSerializerOptions)!;
     }
 
     public async Task<PetStoreFull.Generated.User.Models.User> CreateUsersWithListInputAsync(
@@ -75,7 +76,8 @@ public sealed class UserClient : IUserClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.User.Models.User>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.User.Models.User>(json, jsonSerializerOptions)!;
     }
 
     public async Task<string> LoginUserAsync(
@@ -126,7 +128,8 @@ public sealed class UserClient : IUserClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.User.Models.User>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.User.Models.User>(json, jsonSerializerOptions)!;
     }
 
     public async Task UpdateUserAsync(
@@ -156,7 +159,19 @@ public sealed class UserClient : IUserClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,

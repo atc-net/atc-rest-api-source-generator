@@ -58,7 +58,8 @@ public sealed class PetClient : IPetClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
     }
 
     public async Task<PetStoreFull.Generated.Pet.Models.Pet> AddPetAsync(
@@ -76,7 +77,8 @@ public sealed class PetClient : IPetClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
     }
 
     public async Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByStatusAsync(
@@ -101,7 +103,8 @@ public sealed class PetClient : IPetClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<List<PetStoreFull.Generated.Pet.Models.Pet>>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<PetStoreFull.Generated.Pet.Models.Pet>>(json, jsonSerializerOptions)!;
     }
 
     public async Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByTagsAsync(
@@ -129,14 +132,15 @@ public sealed class PetClient : IPetClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<List<PetStoreFull.Generated.Pet.Models.Pet>>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<PetStoreFull.Generated.Pet.Models.Pet>>(json, jsonSerializerOptions)!;
     }
 
     public async Task<PetStoreFull.Generated.Pet.Models.Pet> GetPetByIdAsync(
         GetPetByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"pet/{parameters.PetId}";
+        var url = $"pet/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
@@ -146,14 +150,15 @@ public sealed class PetClient : IPetClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
     }
 
     public async Task<PetStoreFull.Generated.Pet.Models.Pet> UpdatePetWithFormAsync(
         UpdatePetWithFormParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"pet/{parameters.PetId}";
+        var url = $"pet/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.Name))
@@ -180,14 +185,15 @@ public sealed class PetClient : IPetClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
     }
 
     public async Task DeletePetAsync(
         DeletePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"pet/{parameters.PetId}";
+        var url = $"pet/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
         if (parameters.ApiKey is { Length: > 0 } headerApiKey)
         {
@@ -202,7 +208,7 @@ public sealed class PetClient : IPetClient
         UploadFileParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"pet/{parameters.PetId}/uploadImage";
+        var url = $"pet/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}/uploadImage";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.AdditionalMetadata))
@@ -221,7 +227,8 @@ public sealed class PetClient : IPetClient
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<ApiResponse>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<ApiResponse>(json, jsonSerializerOptions)!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -233,7 +240,19 @@ public sealed class PetClient : IPetClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,

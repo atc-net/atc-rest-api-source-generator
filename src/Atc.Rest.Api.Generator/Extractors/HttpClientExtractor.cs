@@ -658,6 +658,19 @@ public static class HttpClientExtractor
             returnType = $"ContentOrFile<{returnType}>";
         }
 
+        // A success without a body beside the model (a 204 next to the 200 - Standard mode; Strict reports
+        // ATC_API_OPR018): the Throw style returns null for it, so the model is nullable
+        if (resultStyle == TypedClientResultStyleType.Throw &&
+            !isAsyncEnumerable &&
+            response is not null &&
+            returnType is not (nameof(Task) or "DownloadedFile" or "Uri" or "string") &&
+            !returnType.StartsWith("ContentOrFile<", StringComparison.Ordinal) &&
+            !returnType.EndsWith("?", StringComparison.Ordinal) &&
+            operation.Responses!.Any(r => r.Key.Length == 3 && r.Key[0] == '2' && r.Value != response && r.Value?.Content is not { Count: > 0 }))
+        {
+            returnType += "?";
+        }
+
         // OpenAPI 3.2 streaming: when the response declares an itemSchema, the element
         // type comes from it directly (not from an application/json array body).
         if (isAsyncEnumerable && streamingItemType is null)
@@ -939,12 +952,15 @@ public static class HttpClientExtractor
                     continue;
                 }
 
-                // allowReserved primitive: emit raw value without URL encoding
+                // allowReserved primitive: the reserved characters as they are, everything else (and #) encoded
                 if (serialization.AllowReserved && serialization.ValueKind == ParameterValueKind.Primitive)
                 {
+                    var reservedValue = paramType.TrimEnd('?') == "string"
+                        ? WireValueHelper.AllowReservedEscapeExpression(paramAccess + "!")
+                        : BuildEncodedExpression(paramAccess, paramType);
                     if (isRequired)
                     {
-                        builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{paramAccess}}}\");");
+                        builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{reservedValue}}}\");");
                     }
                     else
                     {
@@ -953,7 +969,7 @@ public static class HttpClientExtractor
                         builder.AppendLine();
                         builder.AppendLine($"if ({nullCheck})");
                         builder.AppendLine("{");
-                        builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{paramAccess}}}\");");
+                        builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{reservedValue}}}\");");
                         builder.AppendLine("}");
                     }
 
@@ -1910,20 +1926,16 @@ public static class HttpClientExtractor
             elementType = paramType;
         }
 
-        // allowReserved => emit the value WITHOUT URL-encoding. Array elements are non-nullable
-        // here (the foreach variable over a List<T> of value types / strings), so a string element
-        // is used as-is and a non-string value type uses .ToString(). Unlike the sibling
-        // BuildEncodedExpression/BuildPathParameterReplacement — which interpolate via $"{...}" to
-        // dodge nullable-ToString (CS8602) warnings on possibly-null scalars — `item` is provably
-        // non-null, so the cleaner direct .ToString() is safe.
+        // allowReserved: the reserved characters of a string item as they are, everything else (and #) encoded; a
+        // value that is no string is formatted for the wire as always
         var encodedItem = allowReserved
-            ? (elementType == "string" ? "item" : "item.ToString()")
+            ? (elementType == "string" ? WireValueHelper.AllowReservedEscapeExpression("item") : BuildEncodedExpression("item", elementType))
             : BuildEncodedExpression("item", elementType);
 
         // An enum item: the value as the specification writes it
         if (itemIsEnum)
         {
-            encodedItem = allowReserved ? "item.ToWireValue()" : "Uri.EscapeDataString(item.ToWireValue())";
+            encodedItem = allowReserved ? WireValueHelper.AllowReservedEscapeExpression("item.ToWireValue()") : "Uri.EscapeDataString(item.ToWireValue())";
         }
 
         // An integer enum item: its number
@@ -2246,11 +2258,18 @@ public static class HttpClientExtractor
 
         builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
 
+        if (payloadKind == ResponsePayloadKind.Json)
+        {
+            // A success without a body (a 204, an empty 200) is null, not a JsonException
+            builder.AppendLine("var json = await response.Content.ReadAsStringAsync(cancellationToken);");
+            AppendStatement(builder, $"return json.Length == 0 ? default! : JsonSerializer.Deserialize<{returnType}>(json, jsonSerializerOptions)!;", isLastStatement);
+            return;
+        }
+
         var read = payloadKind switch
         {
             ResponsePayloadKind.Binary => "return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);",
-            ResponsePayloadKind.Text => "return await response.Content.ReadAsStringAsync(cancellationToken);",
-            _ => $"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;",
+            _ => "return await response.Content.ReadAsStringAsync(cancellationToken);",
         };
 
         AppendStatement(builder, read, isLastStatement);
@@ -2349,7 +2368,21 @@ public static class HttpClientExtractor
         sb.AppendLine(4, "return;");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);");
+
+        // At most 4 KB of the error body in the message: a proxy's 10 MB HTML page is not read whole into it
+        sb.AppendLine("const int MaxErrorBytes = 4096;");
+        sb.AppendLine("using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+        sb.AppendLine("var errorBuffer = new byte[MaxErrorBytes + 1];");
+        sb.AppendLine("var errorLength = 0;");
+        sb.AppendLine("int errorRead;");
+        sb.AppendLine("while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "errorLength += errorRead;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("var errorContent = errorLength > MaxErrorBytes");
+        sb.AppendLine(4, "? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + \"…\"");
+        sb.AppendLine(4, ": System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);");
         sb.AppendLine("throw new HttpRequestException(");
         sb.AppendLine(4, "$\"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}\",");
         sb.AppendLine(4, "inner: null,");
@@ -2467,13 +2500,22 @@ public static class HttpClientExtractor
         sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
         sb.AppendLine();
         sb.AppendLine("object? contentObject = null;");
-        sb.AppendLine("if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(content))");
+        sb.AppendLine("var isSuccess = response.IsSuccessStatusCode;");
+        sb.AppendLine("if (isSuccess && !string.IsNullOrEmpty(content))");
         sb.AppendLine("{");
-        sb.AppendLine(4, "contentObject = JsonSerializer.Deserialize<T>(content, jsonSerializerOptions);");
+        sb.AppendLine(4, "// A success whose body is no JSON (a proxy's HTML page) is no success - this style never throws for it");
+        sb.AppendLine(4, "try");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "contentObject = JsonSerializer.Deserialize<T>(content, jsonSerializerOptions);");
+        sb.AppendLine(4, "}");
+        sb.AppendLine(4, "catch (JsonException)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "isSuccess = false;");
+        sb.AppendLine(4, "}");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("return new EndpointResponse<T>(");
-        sb.AppendLine(4, "response.IsSuccessStatusCode,");
+        sb.AppendLine(4, "isSuccess,");
         sb.AppendLine(4, "response.StatusCode,");
         sb.AppendLine(4, "content,");
         sb.AppendLine(4, "contentObject,");

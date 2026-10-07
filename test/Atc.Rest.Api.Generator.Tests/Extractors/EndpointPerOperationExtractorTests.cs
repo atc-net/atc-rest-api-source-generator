@@ -1215,7 +1215,7 @@ public class EndpointPerOperationExtractorTests
             operationFile.EndpointClassContent,
             StringComparison.Ordinal);
         Assert.Contains(
-            "requestBuilder.WithQueryParameter(\"limit\", parameters.Limit);",
+            "requestBuilder.WithQueryParameter(\"limit\", ((global::System.IFormattable?)parameters.Limit)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));",
             operationFile.EndpointClassContent,
             StringComparison.Ordinal);
 

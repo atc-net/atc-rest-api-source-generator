@@ -45,7 +45,8 @@ public sealed class AdminClient : IAdminClient
         var url = "admin/settings";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<AdminSettings>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<AdminSettings>(json, jsonSerializerOptions)!;
     }
 
     public async Task<AdminSettings> UpdateAdminSettingsAsync(
@@ -55,7 +56,8 @@ public sealed class AdminClient : IAdminClient
         var url = "admin/settings";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<AdminSettings>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<AdminSettings>(json, jsonSerializerOptions)!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -67,7 +69,19 @@ public sealed class AdminClient : IAdminClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,

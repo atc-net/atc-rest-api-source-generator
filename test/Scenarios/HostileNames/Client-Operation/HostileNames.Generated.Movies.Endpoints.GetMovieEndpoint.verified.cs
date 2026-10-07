@@ -45,7 +45,7 @@ public sealed class GetMovieEndpoint : IGetMovieEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/3/movies/{id}");
-        requestBuilder.WithPathParameter("id", parameters.Id);
+        requestBuilder.WithPathParameter("id", ((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         if (parameters.IdQuery is not null)
         {
             requestBuilder.WithQueryParameter("id", parameters.IdQuery);

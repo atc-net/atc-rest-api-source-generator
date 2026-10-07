@@ -47,7 +47,7 @@ public sealed class ListItemPagesEndpoint : IListItemPagesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/api/v1/items/pages");
         if (parameters.PageSize is not null)
         {
-            requestBuilder.WithQueryParameter("pageSize", parameters.PageSize);
+            requestBuilder.WithQueryParameter("pageSize", ((global::System.IFormattable?)parameters.PageSize)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

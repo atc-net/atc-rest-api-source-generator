@@ -47,7 +47,7 @@ public sealed class ListTasksEndpoint : IListTasksEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/tasks");
         if (parameters.Limit is not null)
         {
-            requestBuilder.WithQueryParameter("limit", parameters.Limit);
+            requestBuilder.WithQueryParameter("limit", ((global::System.IFormattable?)parameters.Limit)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

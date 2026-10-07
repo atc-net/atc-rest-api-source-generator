@@ -39,7 +39,7 @@ public class FormBodyHelperTests
 
         Assert.Contains("if (parameters.Request?.Name is { } name)", code, StringComparison.Ordinal);
         Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"name\", name));", code, StringComparison.Ordinal);
-        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"count\", global::System.FormattableString.Invariant($\"{count}\")));", code, StringComparison.Ordinal);
+        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"count\", ((global::System.IFormattable?)count)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!));", code, StringComparison.Ordinal);
         Assert.Contains("\"ratio\", ((global::System.IFormattable?)ratio)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!", code, StringComparison.Ordinal);
         Assert.Contains("\"flag\", (flag ? \"true\" : \"false\")", code, StringComparison.Ordinal);
         Assert.Contains("\"when\", ((global::System.IFormattable?)when)?.ToString(\"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\", global::System.Globalization.CultureInfo.InvariantCulture)!", code, StringComparison.Ordinal);
@@ -118,7 +118,7 @@ public class FormBodyHelperTests
         Assert.Contains(
             "if (parameters.Request?.Count is { } count)" + Environment.NewLine +
             "{" + Environment.NewLine +
-            "    content.Add(new StringContent(global::System.FormattableString.Invariant($\"{count}\")), \"count\");" + Environment.NewLine +
+            "    content.Add(new StringContent(((global::System.IFormattable?)count)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!), \"count\");" + Environment.NewLine +
             "}" + Environment.NewLine,
             code,
             StringComparison.Ordinal);
@@ -137,7 +137,7 @@ public class FormBodyHelperTests
     [Theory]
     [InlineData("value", "string", false, "value")]
     [InlineData("flag", "bool", false, "(flag ? \"true\" : \"false\")")]
-    [InlineData("count", "int", false, "global::System.FormattableString.Invariant($\"{count}\")")]
+    [InlineData("count", "int", false, "((global::System.IFormattable?)count)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!")]
     [InlineData("id", "Guid", false, "global::System.FormattableString.Invariant($\"{id}\")")]
     [InlineData("ratio", "double", false, "((global::System.IFormattable?)ratio)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!")]
     [InlineData("price", "decimal", false, "((global::System.IFormattable?)price)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!")]

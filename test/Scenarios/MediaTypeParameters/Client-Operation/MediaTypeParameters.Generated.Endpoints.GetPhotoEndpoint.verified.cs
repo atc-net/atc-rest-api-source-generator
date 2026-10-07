@@ -45,7 +45,7 @@ public sealed class GetPhotoEndpoint : IGetPhotoEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/pets/{id}/photo");
-        requestBuilder.WithPathParameter("id", parameters.Id);
+        requestBuilder.WithPathParameter("id", ((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

@@ -45,7 +45,7 @@ public sealed class UploadFileEndpoint : IUploadFileEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/pet/{petId}/uploadImage");
-        requestBuilder.WithPathParameter("petId", parameters.PetId);
+        requestBuilder.WithPathParameter("petId", ((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         if (parameters.AdditionalMetadata is not null)
         {
             requestBuilder.WithQueryParameter("additionalMetadata", parameters.AdditionalMetadata);

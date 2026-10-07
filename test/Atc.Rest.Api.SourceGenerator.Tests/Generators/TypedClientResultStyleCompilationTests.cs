@@ -70,8 +70,9 @@ public class TypedClientResultStyleCompilationTests
 
         // Assert - EndpointResponse<T>.SuccessContent casts contentObject and throws on a mismatch,
         // so an error body must never be deserialized into TSuccess.
+        Assert.Contains("var isSuccess = response.IsSuccessStatusCode;", client, StringComparison.Ordinal);
         Assert.Contains(
-            "if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(content))",
+            "if (isSuccess && !string.IsNullOrEmpty(content))",
             client,
             StringComparison.Ordinal);
     }

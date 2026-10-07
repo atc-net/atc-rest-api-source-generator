@@ -175,7 +175,7 @@ public class HttpClientExtractorResultStyleTests
         // the thrown HttpRequestException carries the error body. (GetFromJsonAsync, used before 3.0,
         // throws without it.)
         Assert.Contains("EnsureSuccessAsync", method.Content, StringComparison.Ordinal);
-        Assert.Contains("ReadFromJsonAsync<Device>", method.Content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize<Device>(json, jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("GetFromJsonAsync", method.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("BuildJsonResponseAsync", method.Content, StringComparison.Ordinal);
     }

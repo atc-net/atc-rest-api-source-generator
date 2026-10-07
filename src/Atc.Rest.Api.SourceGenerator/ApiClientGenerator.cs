@@ -1594,11 +1594,24 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(12, "else if (string.Equals(header.Key, \"Content-Disposition\", System.StringComparison.OrdinalIgnoreCase) &&");
         sb.AppendLine(12, "         ContentDispositionHeaderValue.TryParse(value, out var disposition))");
         sb.AppendLine(12, "{");
-        sb.AppendLine(16, "fileName = (disposition.FileNameStar ?? disposition.FileName)?.Trim('\"');");
+        sb.AppendLine(16, "fileName = SafeFileName((disposition.FileNameStar ?? disposition.FileName)?.Trim('\"'));");
         sb.AppendLine(12, "}");
         sb.AppendLine(8, "}");
         sb.AppendLine();
         sb.AppendLine(8, "return new DownloadedFile(content, contentType, fileName, content.LongLength);");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "// The server's name, as a file name only: the last segment of whatever path it sent (either separator, on any");
+        sb.AppendLine(4, "// OS) - never \"..\\..\\x\" or \"/etc/x\" a consumer would write outside its folder with");
+        sb.AppendLine(4, "private static string? SafeFileName(string? name)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "if (string.IsNullOrWhiteSpace(name))");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return null;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "var lastSegment = name!.Substring(name.LastIndexOfAny(['/', '\\\\']) + 1).Trim();");
+        sb.AppendLine(8, "return lastSegment is \"\" or \".\" or \"..\" ? null : lastSegment;");
         sb.AppendLine(4, "}");
         sb.AppendLine("}");
 

@@ -45,7 +45,7 @@ public sealed class GetDeviceEndpoint : IGetDeviceEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/devices/{deviceId}");
-        requestBuilder.WithPathParameter("deviceId", parameters.DeviceId);
+        requestBuilder.WithPathParameter("deviceId", ((global::System.IFormattable?)parameters.DeviceId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

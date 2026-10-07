@@ -45,7 +45,7 @@ public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/store/order/{orderId}");
-        requestBuilder.WithPathParameter("orderId", parameters.OrderId);
+        requestBuilder.WithPathParameter("orderId", ((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

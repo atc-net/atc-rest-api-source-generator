@@ -45,7 +45,7 @@ public sealed class GetPetEndpoint : IGetPetEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/pets/{id}");
-        requestBuilder.WithPathParameter("id", parameters.Id);
+        requestBuilder.WithPathParameter("id", ((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

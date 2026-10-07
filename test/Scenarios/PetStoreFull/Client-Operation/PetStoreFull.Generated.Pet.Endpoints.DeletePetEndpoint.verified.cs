@@ -45,7 +45,7 @@ public sealed class DeletePetEndpoint : IDeletePetEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/pet/{petId}");
-        requestBuilder.WithPathParameter("petId", parameters.PetId);
+        requestBuilder.WithPathParameter("petId", ((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         if (parameters.ApiKey is not null)
         {
             requestBuilder.WithHeaderParameter("api_key", parameters.ApiKey);

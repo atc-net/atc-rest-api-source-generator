@@ -165,6 +165,38 @@ public class StreamingWireFramingTests
         Assert.Equal("b", items[1].GetProperty("id").GetString());
     }
 
+    /// <summary>
+    /// A record past <c>StreamReaders.MaxRecordLength</c> (a server that never ends one) is an
+    /// <see cref="InvalidDataException"/>, not a buffer that grows until the process runs out of memory.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonSequenceAsync", "\u001e{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n")]
+    [InlineData("ReadMultipartMixedAsync", "--b\r\nContent-Type: application/json\r\n\r\n{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\r\n--b--\r\n")]
+    public async Task Reader_ARecordPastTheMaximum_IsInvalidData(
+        string readerName,
+        string wire)
+    {
+        var readerType = LoadGeneratedType("StreamReaders");
+        readerType.GetProperty("MaxRecordLength")!.SetValue(null, 16);
+        var read = readerType.GetMethods().Single(m => m.Name == readerName && m.GetParameters()[0].ParameterType == typeof(Stream)).MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var arguments = read.GetParameters().Length switch
+        {
+            3 => new object?[] { stream, new JsonSerializerOptions(), CancellationToken.None },
+            _ => new object?[] { stream, "b", new JsonSerializerOptions(), CancellationToken.None },
+        };
+        var items = (IAsyncEnumerable<JsonElement>)read.Invoke(null, arguments)!;
+
+        await Assert.ThrowsAsync<InvalidDataException>(async () =>
+        {
+            await foreach (var item in items)
+            {
+                Assert.NotEqual(JsonValueKind.Undefined, item.ValueKind);
+            }
+        });
+    }
+
     [Fact]
     public async Task JsonSequenceResult_ExecuteAsync_UsesConfiguredOptions_AndAsyncIo()
     {

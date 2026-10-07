@@ -89,12 +89,11 @@ public class WireValueHelperTests
 
     [Theory]
     [InlineData("Name")]
-    [InlineData("Count")]
     [InlineData("Color")]
-    public void TryBuildWireExpression_Schema_StringsIntegersAndStringEnums_ReturnNull(
+    public void TryBuildWireExpression_Schema_StringsAndStringEnums_ReturnNull(
         string schemaName)
     {
-        // A string is sent as is, an integer has no culture and a string enum is written with ToWireValue()
+        // A string is sent as is and a string enum is written with ToWireValue()
         var document = OpenApiDocumentHelper.ParseYaml(Yaml);
         var schema = document.Components!.Schemas![schemaName];
 
@@ -127,6 +126,8 @@ public class WireValueHelperTests
     [InlineData("float", "null")]
     [InlineData("double?", "null")]
     [InlineData("decimal", "null")]
+    [InlineData("int", "null")]
+    [InlineData("long?", "null")]
     public void TryBuildWireExpression_CSharpType_FormatsWithTheInvariantCulture(
         string csharpType,
         string format)
@@ -138,8 +139,6 @@ public class WireValueHelperTests
 
     [Theory]
     [InlineData("string")]
-    [InlineData("int")]
-    [InlineData("long?")]
     [InlineData("bool")]
     [InlineData("Guid")]
     [InlineData("Color")]

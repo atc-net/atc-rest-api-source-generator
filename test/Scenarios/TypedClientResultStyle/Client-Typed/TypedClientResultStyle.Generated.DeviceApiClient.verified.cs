@@ -112,7 +112,19 @@ public sealed class DeviceApiClient : IDeviceApiClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,
@@ -158,13 +170,22 @@ public sealed class DeviceApiClient : IDeviceApiClient
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
         object? contentObject = null;
-        if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(content))
+        var isSuccess = response.IsSuccessStatusCode;
+        if (isSuccess && !string.IsNullOrEmpty(content))
         {
-            contentObject = JsonSerializer.Deserialize<T>(content, jsonSerializerOptions);
+            // A success whose body is no JSON (a proxy's HTML page) is no success - this style never throws for it
+            try
+            {
+                contentObject = JsonSerializer.Deserialize<T>(content, jsonSerializerOptions);
+            }
+            catch (JsonException)
+            {
+                isSuccess = false;
+            }
         }
 
         return new EndpointResponse<T>(
-            response.IsSuccessStatusCode,
+            isSuccess,
             response.StatusCode,
             content,
             contentObject,

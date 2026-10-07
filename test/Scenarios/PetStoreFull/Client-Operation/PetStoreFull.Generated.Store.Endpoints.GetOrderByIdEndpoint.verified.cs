@@ -45,7 +45,7 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/store/order/{orderId}");
-        requestBuilder.WithPathParameter("orderId", parameters.OrderId);
+        requestBuilder.WithPathParameter("orderId", ((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

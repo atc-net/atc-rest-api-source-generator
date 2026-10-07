@@ -52,7 +52,7 @@ public sealed class ListEventsEndpoint : IListEventsEndpoint
         }
         if (parameters.PageSize is not null)
         {
-            requestBuilder.WithQueryParameter("page-size", parameters.PageSize);
+            requestBuilder.WithQueryParameter("page-size", ((global::System.IFormattable?)parameters.PageSize)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

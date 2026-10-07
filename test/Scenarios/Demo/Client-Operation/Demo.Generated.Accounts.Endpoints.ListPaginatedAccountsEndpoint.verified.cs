@@ -47,11 +47,11 @@ public sealed class ListPaginatedAccountsEndpoint : IListPaginatedAccountsEndpoi
         var requestBuilder = httpMessageFactory.FromTemplate("/accounts/paginated");
         if (parameters.PageSize is not null)
         {
-            requestBuilder.WithQueryParameter("pageSize", parameters.PageSize);
+            requestBuilder.WithQueryParameter("pageSize", ((global::System.IFormattable?)parameters.PageSize)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         }
         if (parameters.PageIndex is not null)
         {
-            requestBuilder.WithQueryParameter("pageIndex", parameters.PageIndex);
+            requestBuilder.WithQueryParameter("pageIndex", ((global::System.IFormattable?)parameters.PageIndex)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         }
         if (parameters.QueryString is not null)
         {

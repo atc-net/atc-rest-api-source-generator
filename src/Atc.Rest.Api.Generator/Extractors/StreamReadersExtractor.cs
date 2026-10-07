@@ -105,6 +105,13 @@ public static class StreamReadersExtractor
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine("internal static class StreamReaders");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// The longest record (a JSON Text Sequence record, a multipart part) a reader buffers, in bytes or characters:");
+        sb.AppendLine("    /// a longer one is an InvalidDataException, not a buffer that grows until the process runs out of memory.");
+        sb.AppendLine("    /// Default: 16 MB.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public static int MaxRecordLength { get; set; } = 16 * 1024 * 1024;");
+        sb.AppendLine();
         sb.AppendLine("    public static async IAsyncEnumerable<T?> ReadServerSentEventsAsync<T>(");
         sb.AppendLine("        Stream stream,");
         if (perOperation)
@@ -224,6 +231,10 @@ public static class StreamReadersExtractor
         sb.AppendLine("                else");
         sb.AppendLine("                {");
         sb.AppendLine("                    record.WriteByte(buffer[i]);");
+        sb.AppendLine("                    if (record.Length > MaxRecordLength)");
+        sb.AppendLine("                    {");
+        sb.AppendLine("                        throw new InvalidDataException($\"A JSON Text Sequence record is longer than {MaxRecordLength} bytes.\");");
+        sb.AppendLine("                    }");
         sb.AppendLine("                }");
         sb.AppendLine("            }");
         sb.AppendLine("        }");
@@ -303,6 +314,10 @@ public static class StreamReadersExtractor
         sb.AppendLine("            }");
         sb.AppendLine();
         sb.AppendLine("            body.Append(line);");
+        sb.AppendLine("            if (body.Length > MaxRecordLength)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                throw new InvalidDataException($\"A multipart part is longer than {MaxRecordLength} characters.\");");
+        sb.AppendLine("            }");
         sb.AppendLine();
         sb.AppendLine("            // A body that is complete JSON is yielded now, not at the next boundary - a server that fails after");
         sb.AppendLine("            // this part never sends one");

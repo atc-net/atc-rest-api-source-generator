@@ -567,7 +567,7 @@ public class HttpClientExtractorTests
         var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
         Assert.Contains("PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
-        Assert.Contains("ReadFromJsonAsync<Gadget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize<Gadget>(json, jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -633,7 +633,7 @@ public class HttpClientExtractorTests
         Assert.DoesNotContain("new HttpMethod(\"QUERY\")", method.Content, StringComparison.Ordinal);
         Assert.Contains("JsonContent.Create(parameters.Request, options: jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
         Assert.Contains("SendAsync(", method.Content, StringComparison.Ordinal);
-        Assert.Contains("ReadFromJsonAsync<Widget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize<Widget>(json, jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -762,9 +762,9 @@ public class HttpClientExtractorTests
     [InlineData("Date", "DateTimeOffset", "{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Date)?.ToString(\"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\", global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}")]
     [InlineData("Day", "DateOnly", "{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Day)?.ToString(\"yyyy-MM-dd\", global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}")]
     [InlineData("Ratio", "double", "{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Ratio)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}")]
-    [InlineData("Id", "int", "{parameters.Id}")]
+    [InlineData("Id", "int", "{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}")]
     [InlineData("Id", "Guid", "{parameters.Id}")]
-    [InlineData("Count", "long", "{parameters.Count}")]
+    [InlineData("Count", "long", "{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Count)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}")]
     public void BuildPathParameterReplacement_ReturnsExpectedResult(
         string propName,
         string paramType,
@@ -778,7 +778,7 @@ public class HttpClientExtractorTests
     [Theory]
     [InlineData("parameters.Name", "string", "Uri.EscapeDataString(parameters.Name)")]
     [InlineData("parameters.Status", "OrderStatus", "Uri.EscapeDataString($\"{parameters.Status}\")")]
-    [InlineData("parameters.Id", "int", "parameters.Id")]
+    [InlineData("parameters.Id", "int", "Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)")]
     [InlineData("parameters.Id", "Guid", "parameters.Id")]
     public void BuildEncodedExpression_ReturnsExpectedResult(
         string accessExpression,
@@ -894,7 +894,7 @@ public class HttpClientExtractorTests
     }
 
     [Fact]
-    public void Extract_QueryPrimitiveParam_AllowReserved_EmitsRawValueWithoutEncoding()
+    public void Extract_QueryPrimitiveParam_AllowReserved_KeepsTheReservedCharactersOnly()
     {
         // Arrange
         const string yaml = """
@@ -934,11 +934,9 @@ public class HttpClientExtractorTests
         var method = clientClass.Methods.First(m => m.Name == "SearchAsync");
         Assert.NotNull(method.Content);
 
-        // Should emit raw value without encoding
-        Assert.Contains("queryParams.Add($\"q={parameters.Q}\");", method.Content, StringComparison.Ordinal);
-
-        // Should NOT encode the value
-        Assert.DoesNotContain("Uri.EscapeDataString(parameters.Q)", method.Content, StringComparison.Ordinal);
+        // The reserved characters as they are, everything else (a space, a #) encoded
+        Assert.Contains($"queryParams.Add($\"q={{{WireValueHelper.AllowReservedEscapeExpression("parameters.Q!")}}}\");", method.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("queryParams.Add($\"q={parameters.Q}\");", method.Content, StringComparison.Ordinal);
     }
 
     // ========== Client class naming Tests ==========

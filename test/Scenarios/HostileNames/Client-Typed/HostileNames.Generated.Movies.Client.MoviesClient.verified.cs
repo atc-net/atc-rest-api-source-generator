@@ -5,7 +5,6 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -46,7 +45,7 @@ public sealed class MoviesClient : IMoviesClient
         GetMovieParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"3/movies/{parameters.Id}";
+        var url = $"3/movies/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         var queryParams = new List<string>();
 
         if (!string.IsNullOrEmpty(parameters.IdQuery))
@@ -67,7 +66,8 @@ public sealed class MoviesClient : IMoviesClient
 
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<movie>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<movie>(json, jsonSerializerOptions)!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -79,7 +79,19 @@ public sealed class MoviesClient : IMoviesClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,

@@ -54,6 +54,16 @@ public static class WireValueHelper
         => $"((global::System.IFormattable?){accessExpression})?.ToString(\"D\", {Invariant})";
 
     /// <summary>
+    /// A C# expression that percent-encodes a string for an <c>allowReserved</c> query value: the RFC 3986 reserved
+    /// characters stay as they are (<c>:/?[]@!$&amp;'()*+,;=</c>), everything else is encoded - and <c>#</c> always, as
+    /// a raw one would cut the URL at the fragment.
+    /// </summary>
+    /// <param name="valueExpression">An expression of type <c>string</c>.</param>
+    /// <returns>The expression.</returns>
+    public static string AllowReservedEscapeExpression(string valueExpression)
+        => $"(global::System.Text.RegularExpressions.Regex.Replace(global::System.Uri.EscapeDataString({valueExpression}), \"%(3A|2F|3F|5B|5D|40|21|24|26|27|28|29|2A|2B|2C|3B|3D)\", m => global::System.Uri.UnescapeDataString(m.Value), global::System.Text.RegularExpressions.RegexOptions.None, global::System.TimeSpan.FromSeconds(1)))";
+
+    /// <summary>
     /// Returns a C# expression that formats a parameter value for the wire from its schema, or
     /// <see langword="null"/> when the schema needs no culture-independent formatting. The expression
     /// works for a nullable and a non-nullable property alike and is of type <c>string?</c>.
@@ -91,8 +101,9 @@ public static class WireValueHelper
                 return null;
             }
         }
-        else if (actualSchema.IsOfType(JsonSchemaType.Number))
+        else if (actualSchema.IsOfType(JsonSchemaType.Number) || actualSchema.IsOfType(JsonSchemaType.Integer))
         {
+            // A culture may write a minus sign (U+2212 under sv-SE) or a decimal comma the server cannot read
             format = "null";
         }
         else
@@ -130,7 +141,8 @@ public static class WireValueHelper
             // RFC 3339 partial-time
             "TimeOnly" => $"\"HH:mm:ss.FFFFFFF\", {Invariant}",
 
-            "float" or "double" or "decimal" => $"null, {Invariant}",
+            // Numbers: a culture may write a minus sign (U+2212 under sv-SE) or a decimal comma the server cannot read
+            "float" or "double" or "decimal" or "int" or "long" or "short" or "byte" or "sbyte" or "uint" or "ulong" or "ushort" => $"null, {Invariant}",
             _ => null,
         };
 

@@ -48,7 +48,7 @@ public sealed class ListMetricsEndpoint : IListMetricsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/api/v1/metrics");
         if (parameters.Cursor is not null)
         {
-            requestBuilder.WithQueryParameter("cursor", parameters.Cursor);
+            requestBuilder.WithQueryParameter("cursor", ((global::System.IFormattable?)parameters.Cursor)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

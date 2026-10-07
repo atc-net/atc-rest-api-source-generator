@@ -46,7 +46,8 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
         var url = "pets";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<List<Pet>>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Pet>>(json, jsonSerializerOptions)!;
     }
 
     public async Task<Pet> CreatePetAsync(
@@ -56,17 +57,19 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
         var url = "pets";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;
     }
 
     public async Task<Pet> GetPetByIdAsync(
         GetPetByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"pets/{parameters.PetId}";
+        var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -78,7 +81,19 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
             return;
         }
 
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        const int MaxErrorBytes = 4096;
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var errorBuffer = new byte[MaxErrorBytes + 1];
+        var errorLength = 0;
+        int errorRead;
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        {
+            errorLength += errorRead;
+        }
+
+        var errorContent = errorLength > MaxErrorBytes
+            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
         throw new HttpRequestException(
             $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
             inner: null,
