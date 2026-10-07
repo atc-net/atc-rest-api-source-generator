@@ -91,6 +91,10 @@ public static class TypeScriptMswHandlerExtractor
 
         sb.Append("export const ").Append(segmentLower).AppendLine("Handlers = [");
 
+        // MSW answers with the first handler that matches: a literal route goes before a parameterized one that
+        // would also match it (/pets/mine before /pets/{id}).
+        operations = OrderLiteralRoutesFirst(operations);
+
         for (var i = 0; i < operations.Count; i++)
         {
             var (path, method, operation) = operations[i];
@@ -190,20 +194,78 @@ public static class TypeScriptMswHandlerExtractor
         return sb.ToString();
     }
 
+    /// <summary>
+    /// The operations in their order, except that an operation moves before the first one of the same method whose
+    /// route would also match all its requests: <c>/pets/{id}</c> matches <c>/pets/mine</c>, so <c>/pets/mine</c>
+    /// goes first. Routes that cannot match the same request keep their order.
+    /// </summary>
+    private static List<(string Path, string Method, OpenApiOperation Operation)> OrderLiteralRoutesFirst(
+        List<(string Path, string Method, OpenApiOperation Operation)> operations)
+    {
+        var ordered = new List<(string Path, string Method, OpenApiOperation Operation)>(operations.Count);
+        foreach (var operation in operations)
+        {
+            var index = ordered.FindIndex(placed =>
+                string.Equals(placed.Method, operation.Method, StringComparison.OrdinalIgnoreCase) &&
+                Shadows(placed.Path, operation.Path));
+            ordered.Insert(index < 0 ? ordered.Count : index, operation);
+        }
+
+        return ordered;
+
+        // Whether every request of `path` also matches `route`, and `route` has a parameter where `path` has a literal
+        static bool Shadows(
+            string route,
+            string path)
+        {
+            var routeSegments = route.Split('/');
+            var pathSegments = path.Split('/');
+            if (routeSegments.Length != pathSegments.Length)
+            {
+                return false;
+            }
+
+            var widens = false;
+            for (var i = 0; i < routeSegments.Length; i++)
+            {
+                var routeIsParameter = routeSegments[i].StartsWith('{') && routeSegments[i].EndsWith('}');
+                var pathIsParameter = pathSegments[i].StartsWith('{') && pathSegments[i].EndsWith('}');
+                if (routeIsParameter)
+                {
+                    widens |= !pathIsParameter;
+                }
+                else if (pathIsParameter || !string.Equals(routeSegments[i], pathSegments[i], StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return widens;
+        }
+    }
+
+    /// <summary>
+    /// The MSW route of an OpenAPI path: <c>{petId}</c> -> <c>:petId</c>. MSW names a parameter with word characters
+    /// only (<c>:pet-id</c> would be the parameter <c>pet</c> followed by the text <c>-id</c>), so other characters
+    /// of the name become <c>_</c>; the handlers do not read the parameters.
+    /// </summary>
     private static string ConvertPathToMswFormat(string path)
     {
         var sb = new StringBuilder(path.Length);
+        var inParameter = false;
         foreach (var c in path)
         {
             switch (c)
             {
                 case '{':
+                    inParameter = true;
                     sb.Append(':');
                     break;
                 case '}':
+                    inParameter = false;
                     break;
                 default:
-                    sb.Append(c);
+                    sb.Append(inParameter && !(char.IsAsciiLetterOrDigit(c) || c == '_') ? '_' : c);
                     break;
             }
         }
@@ -249,24 +311,8 @@ public static class TypeScriptMswHandlerExtractor
             return null;
         }
 
-        // For array responses, wrap in []
-        if (schema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
-        {
-            var itemMock = GenerateMockObject(arraySchema.Items, openApiDoc, namingStrategy);
-            return $"[{itemMock}]";
-        }
-
-        // For $ref, resolve and generate
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var resolved = schemaRef.Target;
-            if (resolved is not null)
-            {
-                return GenerateMockObject(resolved, openApiDoc, namingStrategy);
-            }
-        }
-
-        return GenerateMockObject(schema, openApiDoc, namingStrategy);
+        // The body has the declared shape: an array of strings is ['sample-item'], a number a number, a model an object
+        return GenerateMockValue(schema, "item", openApiDoc, namingStrategy, depth: 0);
     }
 
     private static string GenerateMockObject(
@@ -372,14 +418,29 @@ public static class TypeScriptMswHandlerExtractor
                 return firstValue is not null ? $"'{firstValue}'" : "'unknown'";
             }
 
+            // A named array, primitive or model: mocked by its own shape
             return target is not null
-                ? GenerateMockObject(target, openApiDoc, namingStrategy, depth)
+                ? GenerateMockValue(target, propertyName, openApiDoc, namingStrategy, depth)
                 : "{}";
         }
 
         if (schema is not OpenApiSchema actualSchema)
         {
             return "null";
+        }
+
+        // A model without a type (properties or allOf only)
+        if (actualSchema.Type is null &&
+            (actualSchema.Properties is { Count: > 0 } || actualSchema.AllOf is { Count: > 0 }))
+        {
+            return depth > 2 ? "{}" : GenerateMockObject(actualSchema, openApiDoc, namingStrategy, depth);
+        }
+
+        // oneOf / anyOf: the first alternative
+        if (actualSchema.Type is null &&
+            (actualSchema.OneOf ?? actualSchema.AnyOf) is { Count: > 0 } alternatives)
+        {
+            return GenerateMockValue(alternatives[0], propertyName, openApiDoc, namingStrategy, depth);
         }
 
         // Handle enums
