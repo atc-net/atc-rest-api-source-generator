@@ -75,7 +75,7 @@ public static class WebApplicationExtensionsExtractor
                                RateLimitPoliciesExtractor.CollectPolicies(openApiDoc, config?.IncludeDeprecated ?? false)
                                    .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User);
 
-        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity, limiterNeedsUser);
+        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, openApiDoc.HasOutputCaching());
     }
 
     /// <summary>
@@ -85,7 +85,8 @@ public static class WebApplicationExtensionsExtractor
         string projectName,
         bool hasRateLimiting,
         bool hasSecurity,
-        bool limiterNeedsUser)
+        bool limiterNeedsUser,
+        bool hasOutputCaching)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -114,7 +115,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine("{");
 
         // Generate Map{ProjectName}Api method
-        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity, limiterNeedsUser);
+        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, hasOutputCaching);
 
         builder.AppendLine("}");
 
@@ -129,7 +130,8 @@ public static class WebApplicationExtensionsExtractor
         string projectName,
         bool hasRateLimiting,
         bool hasSecurity,
-        bool limiterNeedsUser)
+        bool limiterNeedsUser,
+        bool hasOutputCaching)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Configures {projectName} API middleware and maps all endpoints.");
@@ -149,6 +151,11 @@ public static class WebApplicationExtensionsExtractor
         if (hasSecurity)
         {
             builder.AppendLine(4, "/// - Authentication and authorization middleware (auto-detected)");
+        }
+
+        if (hasOutputCaching)
+        {
+            builder.AppendLine(4, "/// - Output cache middleware (auto-detected, after authentication)");
         }
 
         builder.AppendLine(4, "/// - Global error handling middleware");
@@ -184,6 +191,21 @@ public static class WebApplicationExtensionsExtractor
         {
             AppendRateLimiter(builder, hasRateLimiting, "// Rate limiter middleware (before auth to protect against DDoS)");
             AppendAuthentication(builder, hasSecurity);
+        }
+
+        // The output cache after authentication: the default policy never caches an authenticated caller's answer, and
+        // it can only tell once the user is known
+        if (hasOutputCaching)
+        {
+            builder.AppendLine();
+            builder.AppendLine(8, "// Output cache middleware (after authentication: an authenticated caller's answer is not cached). It");
+            builder.AppendLine(8, "// stands aside when the host added UseOutputCache() itself: a second one throws on every request.");
+            builder.AppendLine(8, "if (options.UseOutputCache)");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, "app.UseWhen(");
+            builder.AppendLine(16, "context => context.Features.Get<global::Microsoft.AspNetCore.OutputCaching.IOutputCacheFeature>() is null,");
+            builder.AppendLine(16, "branch => branch.UseOutputCache());");
+            builder.AppendLine(8, "}");
         }
 
         // Global error handler (always)

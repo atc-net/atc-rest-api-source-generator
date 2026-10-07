@@ -39,7 +39,8 @@ internal sealed class XmlTestHost : IAsyncDisposable
         Action<WebApplication>? configure = null,
         Action<IServiceCollection>? configureServices = null,
         bool plainHost = false,
-        string? serverMarker = null)
+        string? serverMarker = null,
+        Action<WebApplication, Assembly>? configureWithAssembly = null)
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(
             new ApiServerGenerator(),
@@ -79,6 +80,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
         }
 
         configure?.Invoke(webApp);
+        configureWithAssembly?.Invoke(webApp, assembly);
         if (plainHost)
         {
             webApp.UseStatusCodePages();

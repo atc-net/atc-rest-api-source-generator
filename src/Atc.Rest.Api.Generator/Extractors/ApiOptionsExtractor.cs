@@ -27,7 +27,7 @@ public static class ApiOptionsExtractor
         var hasVersioning = config.VersioningStrategy != VersioningStrategyType.None;
         var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
 
-        return GenerateApiServiceOptionsContent(projectName, hasRateLimiting, hasVersioning, hasSecurity);
+        return GenerateApiServiceOptionsContent(projectName, hasRateLimiting, hasVersioning, hasSecurity, openApiDoc.HasOutputCaching());
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public static class ApiOptionsExtractor
         var hasRateLimiting = openApiDoc.HasRateLimiting();
         var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
 
-        return GenerateApiMiddlewareOptionsContent(projectName, hasRateLimiting, hasSecurity);
+        return GenerateApiMiddlewareOptionsContent(projectName, hasRateLimiting, hasSecurity, openApiDoc.HasOutputCaching());
     }
 
     /// <summary>
@@ -58,7 +58,8 @@ public static class ApiOptionsExtractor
         string projectName,
         bool hasRateLimiting,
         bool hasVersioning,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool hasOutputCaching)
     {
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -71,7 +72,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        GenerateApiServiceOptions(builder, projectName, hasRateLimiting, hasVersioning, hasSecurity);
+        GenerateApiServiceOptions(builder, projectName, hasRateLimiting, hasVersioning, hasSecurity, hasOutputCaching);
 
         return builder.ToString();
     }
@@ -82,7 +83,8 @@ public static class ApiOptionsExtractor
     private static string GenerateApiMiddlewareOptionsContent(
         string projectName,
         bool hasRateLimiting,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool hasOutputCaching)
     {
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -96,7 +98,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        GenerateApiMiddlewareOptions(builder, projectName, hasRateLimiting, hasSecurity);
+        GenerateApiMiddlewareOptions(builder, projectName, hasRateLimiting, hasSecurity, hasOutputCaching);
 
         return builder.ToString();
     }
@@ -109,7 +111,8 @@ public static class ApiOptionsExtractor
         string projectName,
         bool hasRateLimiting,
         bool hasVersioning,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool hasOutputCaching)
     {
         builder.AppendLine("/// <summary>");
         builder.AppendLine($"/// Options for configuring {projectName} API services.");
@@ -128,6 +131,15 @@ public static class ApiOptionsExtractor
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, $"public bool UseRateLimiting {{ get; set; }} = {BoolToString(hasRateLimiting)};");
         builder.AppendLine();
+
+        if (hasOutputCaching)
+        {
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Register the output cache policies (<c>AddApiOutputCaching()</c>). Auto-detected from x-cache-type: output.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseOutputCaching { get; set; } = true;");
+            builder.AppendLine();
+        }
 
         // UseVersioning - auto-detected
         builder.AppendLine(4, "/// <summary>");
@@ -161,7 +173,8 @@ public static class ApiOptionsExtractor
         StringBuilder builder,
         string projectName,
         bool hasRateLimiting,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool hasOutputCaching)
     {
         builder.AppendLine("/// <summary>");
         builder.AppendLine($"/// Options for configuring {projectName} API middleware pipeline.");
@@ -176,6 +189,16 @@ public static class ApiOptionsExtractor
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, $"public bool UseRateLimiter {{ get; set; }} = {BoolToString(hasRateLimiting)};");
         builder.AppendLine();
+
+        if (hasOutputCaching)
+        {
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Enable the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated");
+            builder.AppendLine(4, "/// caller's answer is never cached). Auto-detected from x-cache-type: output.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseOutputCache { get; set; } = true;");
+            builder.AppendLine();
+        }
 
         // UseAuthentication - auto-detected
         builder.AppendLine(4, "/// <summary>");

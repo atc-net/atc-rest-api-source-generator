@@ -33,7 +33,7 @@ public static class UnifiedServiceCollectionExtractor
         var hasXml = XmlBodyReachability.Collect(openApiDoc).Count > 0;
         var hasEnums = EnumWireConverterExtractor.HasEnums(openApiDoc);
 
-        return GenerateFileContent(projectName, pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums);
+        return GenerateFileContent(projectName, pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, openApiDoc.HasOutputCaching());
     }
 
     /// <summary>
@@ -47,7 +47,8 @@ public static class UnifiedServiceCollectionExtractor
         bool hasVersioning,
         bool hasSecurity,
         bool hasXml = false,
-        bool hasEnums = false)
+        bool hasEnums = false,
+        bool hasOutputCaching = false)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -129,7 +130,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}Api method
-        GenerateAddApiMethod(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums);
+        GenerateAddApiMethod(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, hasOutputCaching);
 
         builder.AppendLine("}");
 
@@ -147,7 +148,8 @@ public static class UnifiedServiceCollectionExtractor
         bool hasVersioning,
         bool hasSecurity,
         bool hasXml,
-        bool hasEnums)
+        bool hasEnums,
+        bool hasOutputCaching)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Adds all {projectName} API services with auto-detected features.");
@@ -239,6 +241,17 @@ public static class UnifiedServiceCollectionExtractor
             builder.AppendLine(8, "if (options.UseRateLimiting)");
             builder.AppendLine(8, "{");
             builder.AppendLine(12, "services.AddApiRateLimiting();");
+            builder.AppendLine(8, "}");
+        }
+
+        // Optional: output caching (Map…Api() adds the middleware)
+        if (hasOutputCaching)
+        {
+            builder.AppendLine();
+            builder.AppendLine(8, "// Register the output cache policies from OpenAPI x-cache-* extensions");
+            builder.AppendLine(8, "if (options.UseOutputCaching)");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, $"global::{projectName}.Generated.Caching.OutputCachingServiceCollectionExtensions.AddApiOutputCaching(services);");
             builder.AppendLine(8, "}");
         }
 
