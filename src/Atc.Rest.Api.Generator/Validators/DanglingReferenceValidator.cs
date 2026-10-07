@@ -71,6 +71,11 @@ internal static class DanglingReferenceValidator
             IOpenApiPathItem? item,
             string path)
         {
+            if (item is OpenApiPathItemReference unsupported && IsUnsupportedForm(unsupported.Reference, path))
+            {
+                return;
+            }
+
             if (item is OpenApiPathItemReference { Target: null } reference)
             {
                 Report("Path item", "pathItems", reference.Reference.Id, path);
@@ -95,10 +100,17 @@ internal static class DanglingReferenceValidator
         {
             switch (schema)
             {
+                case OpenApiSchemaReference reference when IsUnsupportedForm(reference.Reference, path):
+                    return;
                 case OpenApiSchemaReference { Target: null } reference:
                     Diagnostics.Add(DiagnosticBuilder.SchemaReferenceError(reference.Reference.Id ?? "unknown", path, sourceFilePath));
                     return;
                 case OpenApiSchema concrete when visited.Add(concrete):
+                    if (!string.IsNullOrEmpty(concrete.DynamicRef))
+                    {
+                        Diagnostics.Add(DiagnosticBuilder.UnsupportedReferenceFormError(concrete.DynamicRef!, path, sourceFilePath));
+                    }
+
                     Schema(concrete.Items, $"{path}/items");
                     Schema(concrete.AdditionalProperties, $"{path}/additionalProperties");
                     Schema(concrete.Not, $"{path}/not");
@@ -121,6 +133,11 @@ internal static class DanglingReferenceValidator
             IOpenApiParameter? parameter,
             string path)
         {
+            if (parameter is OpenApiParameterReference unsupported && IsUnsupportedForm(unsupported.Reference, path))
+            {
+                return;
+            }
+
             if (parameter is OpenApiParameterReference { Target: null } reference)
             {
                 Report("Parameter", "parameters", reference.Reference.Id, path);
@@ -140,6 +157,11 @@ internal static class DanglingReferenceValidator
             IOpenApiResponse? response,
             string path)
         {
+            if (response is OpenApiResponseReference unsupported && IsUnsupportedForm(unsupported.Reference, path))
+            {
+                return;
+            }
+
             if (response is OpenApiResponseReference { Target: null } reference)
             {
                 Report("Response", "responses", reference.Reference.Id, path);
@@ -163,6 +185,11 @@ internal static class DanglingReferenceValidator
             IOpenApiRequestBody? body,
             string path)
         {
+            if (body is OpenApiRequestBodyReference unsupported && IsUnsupportedForm(unsupported.Reference, path))
+            {
+                return;
+            }
+
             if (body is OpenApiRequestBodyReference { Target: null } reference)
             {
                 Report("Request body", "requestBodies", reference.Reference.Id, path);
@@ -179,6 +206,11 @@ internal static class DanglingReferenceValidator
             IOpenApiHeader? header,
             string path)
         {
+            if (header is OpenApiHeaderReference unsupported && IsUnsupportedForm(unsupported.Reference, path))
+            {
+                return;
+            }
+
             if (header is OpenApiHeaderReference { Target: null } reference)
             {
                 Report("Header", "headers", reference.Reference.Id, path);
@@ -240,6 +272,29 @@ internal static class DanglingReferenceValidator
             {
                 Schema(schemas![index], $"{path}/{index}");
             }
+        }
+
+        /// <summary>
+        /// Whether the reference is in a form the generators cannot follow - to another file or a URL, or a pointer
+        /// into a component rather than to it - and if so reports it (whether or not the reader resolved it).
+        /// </summary>
+        private bool IsUnsupportedForm(
+            BaseOpenApiReference reference,
+            string path)
+        {
+            var written = reference.ReferenceV3 ?? reference.Id ?? string.Empty;
+            var segments = written.Split('/');
+            var supported = !reference.IsExternal &&
+                            segments.Length == 4 &&
+                            segments[0] == "#" &&
+                            segments[1] == "components";
+            if (supported)
+            {
+                return false;
+            }
+
+            Diagnostics.Add(DiagnosticBuilder.UnsupportedReferenceFormError(written, path, sourceFilePath));
+            return true;
         }
 
         private void Report(

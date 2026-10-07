@@ -254,6 +254,115 @@ public class SchemaReferenceValidatorTests
         }
     }
 
+    /// <summary>
+    /// A reference the generators cannot follow - to another file or a URL, or a pointer into a component (a property
+    /// of a schema) - is an error saying the form is not supported, not a "missing component" (the component may well
+    /// exist, and SCH013 named only the pointer's last segment).
+    /// </summary>
+    [Theory]
+    [InlineData("other.yaml#/components/schemas/Thing")]
+    [InlineData("https://schemas.contoso.example/thing.yaml#/components/schemas/Thing")]
+    [InlineData("#/components/schemas/Thing/properties/name")]
+    public void Validate_AnUnsupportedReferenceForm_IsAnErrorSayingSo_UnderEveryStrategy(
+        string reference)
+    {
+        var document = Parse(
+            $$"""
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema: { $ref: '{{reference}}' }
+            components:
+              schemas:
+                Thing: { type: object, properties: { name: { type: string } } }
+            """);
+
+        foreach (var strategy in (ValidateSpecificationStrategy[])[ValidateSpecificationStrategy.None, ValidateSpecificationStrategy.Standard, ValidateSpecificationStrategy.Strict])
+        {
+            var diagnostics = OpenApiDocumentValidator.Validate(strategy, document, [], TestFilePath);
+
+            var error = Assert.Single(diagnostics, d => d.RuleId == RuleIdentifiers.UnsupportedReferenceForm);
+            Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+            Assert.Contains(reference, error.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.InvalidSchemaReference);
+        }
+    }
+
+    /// <summary>
+    /// An OpenAPI 3.1 <c>$dynamicRef</c> names no component the generators can type: an error saying so, rather than a
+    /// property typed after the anchor.
+    /// </summary>
+    [Fact]
+    public void Validate_ADynamicReference_IsAnUnsupportedReferenceForm()
+    {
+        var document = Parse(
+            """
+            paths:
+              /trees:
+                get:
+                  operationId: getTree
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema: { $ref: '#/components/schemas/Tree' }
+            components:
+              schemas:
+                Tree:
+                  $dynamicAnchor: node
+                  type: object
+                  properties:
+                    children:
+                      type: array
+                      items: { $dynamicRef: '#node' }
+            """);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, document, [], TestFilePath);
+
+        var error = Assert.Single(diagnostics, d => d.RuleId == RuleIdentifiers.UnsupportedReferenceForm);
+        Assert.Contains("#node", error.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The reader's warnings reach the author as warnings (under Standard and Strict) - except the two kinds a rule of
+    /// its own already reports as an error with its place: a missing schema (SCH013) and a reference cycle.
+    /// </summary>
+    [Fact]
+    public void Validate_TheReadersWarnings_AreReported_ExceptThoseARuleCovers()
+    {
+        var document = Parse(
+            """
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200': { description: OK }
+            """);
+        IList<OpenApiError> warnings =
+        [
+            new("#/paths/~1things", "Something the reader found odd"),
+            new("#/components/schemas/A", "Circular reference detected while resolving reference: #/components/schemas/B"),
+            new("#/paths", "The schema reference '#/components/schemas/Missing' does not point to an existing schema."),
+        ];
+
+        var standard = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, document, [], TestFilePath, diagnosticWarnings: warnings);
+        var none = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.None, document, [], TestFilePath, diagnosticWarnings: warnings);
+
+        var warning = Assert.Single(standard, d => d.RuleId == RuleIdentifiers.OpenApiCoreWarning);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Contains("Something the reader found odd", warning.Message, StringComparison.Ordinal);
+        Assert.Equal("#/paths/~1things", warning.Context);
+        Assert.DoesNotContain(none, d => d.RuleId == RuleIdentifiers.OpenApiCoreWarning);
+    }
+
     [Fact]
     public void Validate_EveryReferenceResolves_IsNoError()
     {

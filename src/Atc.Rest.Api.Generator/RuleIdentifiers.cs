@@ -190,6 +190,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string OpenApi20NotSupported = "ATC_API_VAL002";
 
+    /// <summary>
+    /// ATC_API_VAL003: A warning from the Microsoft.OpenApi reader (except the kinds a rule of its own reports: a
+    /// missing schema is SCH013, a reference cycle SCH023). Warning, Standard and Strict.
+    /// </summary>
+    public const string OpenApiCoreWarning = "ATC_API_VAL003";
+
     // ========== Naming Convention Rules (NAM) ==========
 
     /// <summary>
@@ -524,6 +530,13 @@ public static class RuleIdentifiers
     /// once - two members with one wire value could not both be read back. Warning, every strategy.
     /// </summary>
     public const string EnumValueListedTwice = "ATC_API_SCH026";
+
+    /// <summary>
+    /// ATC_API_SCH027: A reference in a form the generators cannot follow: to another file or a URL, a pointer into a
+    /// component (a property of a schema), or an OpenAPI 3.1 '$dynamicRef'. Only '#/components/{section}/{name}'
+    /// references are generated - bundle the document first. Error, every strategy.
+    /// </summary>
+    public const string UnsupportedReferenceForm = "ATC_API_SCH027";
 
     // ========== Path Rules (PTH) ==========
 

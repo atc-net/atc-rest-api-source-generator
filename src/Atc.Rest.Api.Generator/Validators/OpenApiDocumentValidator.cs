@@ -49,13 +49,15 @@ public static class OpenApiDocumentValidator
     /// the type flags nor <c>UnrecognizedKeywords</c>. Those rules read the text instead, which also
     /// lets them report a line number.
     /// </param>
+    /// <param name="diagnosticWarnings">Diagnostic warnings from parsing (reported under Standard and Strict).</param>
     /// <returns>List of diagnostic messages to report.</returns>
     public static List<DiagnosticMessage> Validate(
         ValidateSpecificationStrategy strategy,
         OpenApiDocument document,
         IList<OpenApiError> diagnosticErrors,
         string sourceFilePath,
-        string? sourceText = null)
+        string? sourceText = null,
+        IList<OpenApiError>? diagnosticWarnings = null)
     {
         // A value of another kind where an object belongs (the reader leaves a null there, without an error): an
         // error under every strategy, and nothing else is checked - every later step would trip over the null
@@ -106,6 +108,18 @@ public static class OpenApiDocumentValidator
         if (strategy >= ValidateSpecificationStrategy.Standard)
         {
             diagnostics.AddRange(ValidateStandard(strategy, diagnosticErrors, document, sourceFilePath));
+
+            // The reader's warnings, but for the kinds a rule of its own reports as an error with its place
+            foreach (var warning in diagnosticWarnings ?? [])
+            {
+                if (warning.Message.Contains("does not point to an existing", StringComparison.Ordinal) ||
+                    warning.Message.StartsWith("Circular reference detected", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                diagnostics.Add(DiagnosticBuilder.ParsingWarning(warning.Message, warning.Pointer, sourceFilePath));
+            }
         }
 
         // Strict validation: Standard + custom ATC rules

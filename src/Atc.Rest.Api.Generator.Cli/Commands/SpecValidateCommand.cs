@@ -115,7 +115,8 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             openApiDoc,
             openApiDiagnostic?.Errors ?? [],
             specPath,
-            yamlContent);
+            yamlContent,
+            openApiDiagnostic?.Warnings);
 
         // Display results
         return DisplayValidationResults(diagnostics);

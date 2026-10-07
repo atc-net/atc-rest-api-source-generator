@@ -60,7 +60,8 @@ internal static class SpecificationLoader
             openApiDoc,
             openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
             yamlPath,
-            yamlContent);
+            yamlContent,
+            openApiDiagnostic?.Warnings);
 
         // A status range (2XX) is its first status for every generator (the validator has warned about it)
         return ReportAndContinue(context, validationDiagnostics) ? ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc) : null;
