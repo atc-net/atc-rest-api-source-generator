@@ -20,7 +20,7 @@ internal static class EndpointInjectionExtractor
     {
         var endpoints = new List<EndpointInfo>();
 
-        if (openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is not { Count: > 0 })
         {
             return endpoints;
         }
