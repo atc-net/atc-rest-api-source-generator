@@ -601,7 +601,8 @@ public class TypeScriptOperationHelperOtherMethodsTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void SerializeDateParameter_DateFormat_WritesTheLocalCalendarDay(bool optional)
+    public void SerializeDateParameter_DateFormat_WritesTheLocalCalendarDay(
+        bool optional)
     {
         // OpenAPI `format: date` is YYYY-MM-DD on the wire: the caller's calendar day, not the UTC day of the instant
         // (toISOString().substring(0, 10) is the day before for a local midnight east of UTC).

@@ -151,7 +151,8 @@ public class TypeScriptXmlHelperExtractorTests
     [Theory]
     [InlineData(TypeScriptHttpClient.Fetch)]
     [InlineData(TypeScriptHttpClient.Axios)]
-    public void ApiClient_WithoutXml_HasNoXmlSupport(TypeScriptHttpClient httpClient)
+    public void ApiClient_WithoutXml_HasNoXmlSupport(
+        TypeScriptHttpClient httpClient)
     {
         var client = httpClient == TypeScriptHttpClient.Axios
             ? TypeScriptAxiosApiClientExtractor.Generate(headerContent: null)
