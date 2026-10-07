@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security problem
+    url: https://github.com/atc-net/atc-rest-api-source-generator/security/policy
+    about: Please report security vulnerabilities privately, as the security policy describes - not as a public issue.
+  - name: Documentation
+    url: https://github.com/atc-net/atc-rest-api-source-generator/wiki
+    about: How to configure the generator, the x-* extensions, the CLI and the generated clients.

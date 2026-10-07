@@ -1,0 +1,37 @@
+# Weekly update PRs, minor and patch versions grouped per ecosystem; "chore(deps)" keeps release-please's changelog clean
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      nuget-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      actions:
+        patterns: ['*']
+
+  # The TypeScript gates' pinned workspace, the Showcase React apps and the Playwright tests
+  - package-ecosystem: npm
+    directories:
+      - /test/NodeWorkspace
+      - /test/Showcase.E2ETests
+      - /sample/Showcase/Showcase.ReactApp.Fetch
+      - /sample/Showcase/Showcase.ReactApp.Axios
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
