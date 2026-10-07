@@ -6,6 +6,8 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 /// </summary>
 internal static class OverlayFileHelper
 {
+    private static readonly JsonNodeOptions MarkerNodeOptions = new() { PropertyNameCaseInsensitive = true };
+
     /// <summary>
     /// Whether a collected file can be a specification or an overlay: YAML, or JSON that is an overlay (a JSON file
     /// is otherwise a marker or something else entirely).
@@ -102,7 +104,8 @@ internal static class OverlayFileHelper
             List<string>? listed = null;
             try
             {
-                if (JsonNode.Parse(marker.Content) is JsonObject root && root["overlays"] is JsonArray array)
+                // Read as the generators read a marker: the setting's name in any casing
+                if (JsonNode.Parse(marker.Content, MarkerNodeOptions) is JsonObject root && root["overlays"] is JsonArray array)
                 {
                     listed = array.Select(n => n?.ToString()).OfType<string>().ToList();
                 }

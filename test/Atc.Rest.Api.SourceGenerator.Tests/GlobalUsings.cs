@@ -10,6 +10,7 @@ global using System.Net;
 global using System.Net.Http.Json;
 global using System.Reflection;
 global using System.Runtime.CompilerServices;
+global using System.Runtime.ExceptionServices;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
@@ -31,7 +32,9 @@ global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
+global using Atc.Rest.Api.Generator.Overlays;
 global using Atc.Rest.Api.Generator.Validators;
+global using Atc.Rest.Api.SourceGenerator.Extractors;
 global using Atc.Rest.Api.SourceGenerator.Helpers;
 global using Atc.Rest.Api.SourceGenerator.Tests.Helpers;
 global using Atc.Rest.Api.Tests.Node;
@@ -58,3 +61,6 @@ global using Microsoft.OpenApi;
 global using VerifyXunit;
 
 global using Xunit;
+
+global using EndpointInfo = Atc.Rest.Api.Generator.Models.EndpointInfo;
+global using MultiPartConfiguration = Atc.Rest.Api.Generator.Models.MultiPartConfiguration;
