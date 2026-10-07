@@ -19,6 +19,8 @@ public class WireValueHelperTests
             Level:
               type: integer
               enum: [1, 2, 3]
+            Rank:
+              enum: [1, 2, 3]
             Name: { type: string }
             Day: { type: string, format: date }
             When: { type: string, format: date-time }
@@ -99,12 +101,14 @@ public class WireValueHelperTests
         Assert.Null(WireValueHelper.TryBuildWireExpression("parameters.Value", schema));
     }
 
-    [Fact]
-    public void TryBuildWireExpression_Schema_IntegerEnum_IsItsNumber()
+    [Theory]
+    [InlineData("Level")]
+    [InlineData("Rank")]
+    public void TryBuildWireExpression_Schema_IntegerEnum_IsItsNumber(string schemaName)
     {
-        // The member's name is a C# name; the specification's value is the number
+        // The member's name is a C# name; the specification's value is the number - also for an enum without a type
         var document = OpenApiDocumentHelper.ParseYaml(Yaml);
-        var schema = document.Components!.Schemas!["Level"];
+        var schema = document.Components!.Schemas![schemaName];
 
         Assert.True(WireValueHelper.IsIntegerEnum(schema));
         Assert.Equal($"((global::System.IFormattable?)parameters.Value)?.ToString(\"D\", {Invariant})", WireValueHelper.TryBuildWireExpression("parameters.Value", schema));
