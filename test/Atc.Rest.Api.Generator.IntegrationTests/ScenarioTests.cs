@@ -108,11 +108,67 @@ public class ScenarioTests
         var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder);
         var isTypeScript = string.Equals(generator, "TypeScriptClient", StringComparison.OrdinalIgnoreCase);
 
+        // Every file is verified, so one run writes every .received file and names every mismatch - not only the first
+        var mismatches = new List<string>();
         foreach (var type in types)
         {
-            await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
+            try
+            {
+                await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                mismatches.Add($"{Path.Combine(type.SubFolder ?? string.Empty, SafeFileName(type.TypeName))}: {ex.Message.Split('\n')[0]}");
+            }
         }
+
+        Assert.True(mismatches.Count == 0, $"{mismatches.Count} of {types.Count} files differ from their snapshots:\n" + string.Join("\n", mismatches));
     }
+
+    /// <summary>
+    /// Asserts that no TypeScript snapshot survives that the generator no longer emits, by path relative to the
+    /// master folder and case-sensitively: Verify never deletes, so a removed or renamed file (also a rename that only
+    /// changes case, which Windows would otherwise match) would leave its snapshot behind.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllScenarioGenerators))]
+    public void TypeScriptSnapshots_HaveNoOrphans(
+        string scenarioName,
+        string masterFolder,
+        string generator)
+    {
+        if (!string.Equals(generator, "TypeScriptClient", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var yamlPath = ScenarioDiscovery.GetYamlPath(scenarioName);
+        var markerPath = ScenarioDiscovery.GetMarkerPath(scenarioName, masterFolder, ScenarioDiscovery.GetMarkerFileForGenerator(generator)!);
+        var expected = GeneratorTestHelper
+            .GetTypeScriptClientTypesWithPaths(yamlPath, markerPath, scenarioName)
+            .Select(t => Path.Combine(t.SubFolder ?? string.Empty, SafeFileName(t.TypeName) + ".verified.ts"))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder);
+        var orphans = Directory
+            .EnumerateFiles(baseDir, "*.verified.ts", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(baseDir, f))
+            .Where(f => !expected.Contains(f))
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(orphans.Count == 0, $"{scenarioName}/{masterFolder}: {orphans.Count} snapshot(s) no longer emitted:\n  " + string.Join("\n  ", orphans));
+    }
+
+    /// <summary>
+    /// A type name as a Windows-safe file name: <c>&lt;T&gt;</c> as <c>[T]</c>, " : " (inheritance) and ":" as "-".
+    /// </summary>
+    private static string SafeFileName(string typeName)
+        => typeName
+            .Replace("<", "[", StringComparison.Ordinal)
+            .Replace(">", "]", StringComparison.Ordinal)
+            .Replace(" : ", "-", StringComparison.Ordinal)
+            .Replace(":", "-", StringComparison.Ordinal);
 
     /// <summary>
     /// Verifies a generated type against its verified snapshot file using Verify.
@@ -124,13 +180,7 @@ public class ScenarioTests
     {
         var directory = Path.Combine(baseDir, type.SubFolder ?? string.Empty);
 
-        // Sanitize type name for Windows filename compatibility
-        // Replace <T> with [T] and " : " (inheritance) with "-"
-        var safeTypeName = type.TypeName
-            .Replace("<", "[", StringComparison.Ordinal)
-            .Replace(">", "]", StringComparison.Ordinal)
-            .Replace(" : ", "-", StringComparison.Ordinal)
-            .Replace(":", "-", StringComparison.Ordinal);
+        var safeTypeName = SafeFileName(type.TypeName);
 
         string actualContent;
         string extension;
