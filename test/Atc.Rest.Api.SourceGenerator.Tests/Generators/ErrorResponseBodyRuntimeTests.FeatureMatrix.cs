@@ -1575,10 +1575,6 @@ public partial class ErrorResponseBodyRuntimeTests
     /// </summary>
     private static readonly HashSet<string> KnownFeatureFailures = new(StringComparer.Ordinal)
     {
-        // The Axios client's per-operation timeout rejects with axios' CanceledError - what the caller's own abort rejects with
-        "network: no answer, the operation's x-retry-timeout-seconds [ts-axios]",
-        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [ts-axios]",
-
         // The C# resilience handler's timeout ends with the headers: a body that stalls runs into HttpClient.Timeout
         "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-epo]",
         "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-epo-classic-enums]",

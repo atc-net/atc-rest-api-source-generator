@@ -220,11 +220,13 @@ public static class TypeScriptRetryInterceptorExtractor
         sb.AppendLine("        throw error;");
         sb.AppendLine("      }");
         sb.AppendLine();
-        sb.AppendLine("      lastError = error;");
+        sb.AppendLine("      // A timed-out attempt fails with the timeout's TimeoutError, whatever the transport rejected with: Axios");
+        sb.AppendLine("      // rejects every abort with its CanceledError, which would make a timeout look like the caller's cancellation.");
+        sb.AppendLine("      lastError = timeoutFired ? controller.signal.reason : error;");
         sb.AppendLine();
         sb.AppendLine("      // Last attempt — rethrow");
         sb.AppendLine("      if (attempt === policy.maxAttempts) {");
-        sb.AppendLine("        throw error;");
+        sb.AppendLine("        throw lastError;");
         sb.AppendLine("      }");
         sb.AppendLine();
         sb.AppendLine("      await sleep(computeDelay(attempt, policy), signal);");

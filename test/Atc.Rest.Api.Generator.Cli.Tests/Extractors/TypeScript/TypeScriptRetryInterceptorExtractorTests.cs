@@ -76,6 +76,17 @@ public class TypeScriptRetryInterceptorExtractorTests
     }
 
     [Fact]
+    public void Generate_TimedOutAttempt_FailsWithTheTimeoutError()
+    {
+        // Axios rejects every abort with its CanceledError - the timeout's own reason is thrown instead, so a timeout
+        // never looks like the caller's cancellation.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("lastError = timeoutFired ? controller.signal.reason : error;", result, StringComparison.Ordinal);
+        Assert.Contains("throw lastError;", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_PerAttemptCleanup_HappensInFinally()
     {
         // The timer must be cleared and the parent listener removed in finally so each

@@ -12,6 +12,7 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Gates;
 ///   <item><description>path- and operation-level <c>x-retry-enabled: false</c> and <c>x-retry-policy</c> are honored;</description></item>
 ///   <item><description>a 429 whose Retry-After is longer than the policy timeout goes back to the caller;</description></item>
 ///   <item><description>"no retry" keeps the policy's timeout, and an operation timeout next to it replaces it;</description></item>
+///   <item><description>a timeout rejects with a <c>TimeoutError</c> with both transports, the caller's abort with the transport's own error;</description></item>
 ///   <item><description>a hand-written <c>request('POST', ...)</c> is not retried, and <c>retryPolicy: false</c> switches retry off.</description></item>
 /// </list>
 /// Also type-checks the generated code with <c>tsc</c>. Self-skips without a Node toolchain, but fails under CI.
@@ -248,7 +249,8 @@ public sealed class TypeScriptClientRetryGateTests
         """;
 
     // The mocked wire, shared by both transports: answers by the last path segment (a status code, "429-short"
-    // with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds unless aborted).
+    // with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds unless aborted). An aborted
+    // "slow" rejects as the transport does (abortedBy): fetch with the signal's reason, axios with its CanceledError.
     private const string Wire = """
         let calls = 0;
 
@@ -262,7 +264,7 @@ public sealed class TypeScriptClientRetryGateTests
             case 'slow':
               return new Promise((resolve, reject) => {
                 const timer = setTimeout(() => resolve({ status: 204, headers: {} }), 2000);
-                signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true });
+                signal?.addEventListener('abort', () => { clearTimeout(timer); reject(abortedBy(signal)); }, { once: true });
               });
             default: {
               // A status code sweep: '418' answers 418; a 429 comes with Retry-After: 0.
@@ -287,6 +289,10 @@ public sealed class TypeScriptClientRetryGateTests
         import { OwnClient } from './generated/client/OwnClient';
         import { WideClient } from './generated/client/WideClient';
 
+        // fetch rejects an aborted request with the signal's reason (an AbortError, or the TimeoutError it was aborted with)
+        const abortedBy = (signal: AbortSignal) => signal.reason;
+        const callerAbortName = 'AbortError';
+
         """ + Wire + """
         (globalThis as any).fetch = async (url: string, init?: RequestInit) => {
           const r = await reply(String(url), init?.signal ?? undefined);
@@ -307,6 +313,10 @@ public sealed class TypeScriptClientRetryGateTests
         import { OptinClient } from './generated/client/OptinClient';
         import { OwnClient } from './generated/client/OwnClient';
         import { WideClient } from './generated/client/WideClient';
+
+        // axios rejects an aborted request with its CanceledError, whatever the signal was aborted with
+        const abortedBy = (_signal: AbortSignal) => new axios.CanceledError();
+        const callerAbortName = 'CanceledError';
 
         """ + Wire + """
         axios.defaults.adapter = (async (config: any) => {
@@ -380,20 +390,27 @@ public sealed class TypeScriptClientRetryGateTests
     private const string Cases = """
         const failures: string[] = [];
 
-        async function attempt(name: string, expected: number, call: () => Promise<unknown>, maxMs?: number): Promise<void> {
+        // rejectsWith: the name of the error the call must reject with
+        async function attempt(name: string, expected: number, call: () => Promise<unknown>, maxMs?: number, rejectsWith?: string): Promise<void> {
           calls = 0;
           const started = Date.now();
           let outcome = 'returned';
+          let rejectedWith: string | undefined;
           try {
             const result: any = await call();
             outcome = 'returned ' + (result?.status ?? '');
           } catch (e: any) {
+            rejectedWith = e?.name;
             outcome = 'threw ' + (e?.name ?? '') + ' ' + (e?.message ?? '');
           }
 
           const elapsed = Date.now() - started;
           if (calls !== expected) {
             failures.push(name + ': ' + calls + ' attempt(s), expected ' + expected + ' (' + outcome + ')');
+          }
+
+          if (rejectsWith !== undefined && rejectedWith !== rejectsWith) {
+            failures.push(name + ': expected to reject with a ' + rejectsWith + ' (' + outcome + ')');
           }
 
           if (maxMs !== undefined && elapsed > maxMs) {
@@ -419,11 +436,16 @@ public sealed class TypeScriptClientRetryGateTests
           await attempt('deleteItem 503', 3, () => items.deleteItem('503'));
           await attempt('postItem 503', 1, () => items.postItem('503'));
           await attempt('postItem 429-short', 1, () => items.postItem('429-short'));
-          await attempt('postItem slow (policy timeout 1 s still applies)', 1, () => items.postItem('slow'), 1800);
+          // A timeout rejects with a TimeoutError with either transport - never with what the caller's own abort rejects with
+          await attempt('postItem slow (policy timeout 1 s still applies)', 1, () => items.postItem('slow'), 1800, 'TimeoutError');
           await attempt('patchItem 503', 1, () => items.patchItem('503'));
           await attempt('getDisabled 503', 1, () => disabled.getDisabled('503'));
           await attempt('getQuiet 503', 1, () => quiet.getQuiet('503'));
-          await attempt('getQuiet slow (operation timeout 0.3 s)', 1, () => quiet.getQuiet('slow'), 900);
+          await attempt('getQuiet slow (operation timeout 0.3 s)', 1, () => quiet.getQuiet('slow'), 900, 'TimeoutError');
+          await attempt('getItem slow (every attempt times out)', 3, () => items.getItem('slow'), undefined, 'TimeoutError');
+          const caller = new AbortController();
+          setTimeout(() => caller.abort(), 100);
+          await attempt('getItem slow (aborted by the caller)', 1, () => items.getItem('slow', caller.signal), undefined, callerAbortName);
           await attempt('postOptin 503', 3, () => optin.postOptin('503'));
           await attempt('postOptin 429-short', 3, () => optin.postOptin('429-short'));
           await attempt('postOptin 429-long', 1, () => optin.postOptin('429-long'));

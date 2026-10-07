@@ -186,11 +186,13 @@ export async function retryWithBackoff<T = Response>(
         throw error;
       }
 
-      lastError = error;
+      // A timed-out attempt fails with the timeout's TimeoutError, whatever the transport rejected with: Axios
+      // rejects every abort with its CanceledError, which would make a timeout look like the caller's cancellation.
+      lastError = timeoutFired ? controller.signal.reason : error;
 
       // Last attempt — rethrow
       if (attempt === policy.maxAttempts) {
-        throw error;
+        throw lastError;
       }
 
       await sleep(computeDelay(attempt, policy), signal);
