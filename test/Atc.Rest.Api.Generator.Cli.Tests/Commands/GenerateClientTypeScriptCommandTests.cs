@@ -453,10 +453,9 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     public async Task GenerateClientTypeScript_Hooks_CompileWithNoUnusedLocals(
         string hooksStyle)
     {
-        var nodeAvailable = await IsNodeAvailable(TestContext.Current.CancellationToken);
-        if (!nodeAvailable)
+        if (!NodeToolchain.IsAvailable(out var skipReason))
         {
-            return;
+            Assert.Skip(skipReason);
         }
 
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Showcase");
@@ -496,11 +495,7 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         // The shared, pinned workspace gives the output directory its TypeScript
         NodeWorkspace.Link(outputPath);
 
-        var (_, tscOutput) = await RunCommand(
-            "npx",
-            "tsc --noEmit",
-            outputPath,
-            TestContext.Current.CancellationToken);
+        var tscOutput = NodeToolchain.RunNpx("tsc --noEmit", outputPath, TimeSpan.FromMinutes(5)).Output;
 
         // Missing React/SWR/TanStack packages produce TS2307 "cannot find module", which is an
         // artefact of not installing them rather than a defect in the generated code. Unused
@@ -520,11 +515,9 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     [Trait("Category", "RequiresNode")]
     public async Task GenerateClientTypeScript_Showcase_CompilesWithTscStrict()
     {
-        // Skip if Node.js is not available
-        var nodeAvailable = await IsNodeAvailable(TestContext.Current.CancellationToken);
-        if (!nodeAvailable)
+        if (!NodeToolchain.IsAvailable(out var skipReason))
         {
-            return;
+            Assert.Skip(skipReason);
         }
 
         // Arrange — generate TypeScript from Showcase.yaml
@@ -564,14 +557,10 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         NodeWorkspace.Link(outputPath);
 
         // Act — run tsc via npx
-        var (tscSuccess, tscOutput) = await RunCommand(
-            "npx",
-            "tsc --noEmit",
-            outputPath,
-            TestContext.Current.CancellationToken);
+        var tsc = NodeToolchain.RunNpx("tsc --noEmit", outputPath, TimeSpan.FromMinutes(5));
 
         // Assert
-        Assert.True(tscSuccess, $"tsc --strict should compile without errors. tsc output:\n{tscOutput}");
+        Assert.True(tsc.ExitCode == 0, $"tsc --strict should compile without errors. tsc output:\n{tsc.Output}");
     }
 
     [Fact]
@@ -971,69 +960,5 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
             var content = await File.ReadAllTextAsync(enumFile, TestContext.Current.CancellationToken);
             Assert.Equal(open, content.Contains("| (string & {});", StringComparison.Ordinal));
         }
-    }
-
-    private static async Task<bool> IsNodeAvailable(
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var (success, _) = await RunCommand("node", "--version", Directory.GetCurrentDirectory(), cancellationToken);
-            return success;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static async Task<(bool IsSuccessful, string Output)> RunCommand(
-        string fileName,
-        string arguments,
-        string workingDirectory,
-        CancellationToken cancellationToken)
-    {
-        // On Windows, .cmd scripts (node, npx) require cmd.exe to execute
-        var isWindows = OperatingSystem.IsWindows();
-        var actualFileName = isWindows ? "cmd.exe" : fileName;
-        var actualArguments = isWindows ? $"/c {fileName} {arguments}" : arguments;
-
-        var startInfo = new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = actualFileName,
-            Arguments = actualArguments,
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new System.Diagnostics.Process { StartInfo = startInfo };
-        var outputBuilder = new System.Text.StringBuilder();
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data is not null)
-            {
-                outputBuilder.AppendLine(e.Data);
-            }
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is not null)
-            {
-                outputBuilder.AppendLine(e.Data);
-            }
-        };
-
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        await process.WaitForExitAsync(cancellationToken);
-
-        return (process.ExitCode == 0, outputBuilder.ToString());
     }
 }

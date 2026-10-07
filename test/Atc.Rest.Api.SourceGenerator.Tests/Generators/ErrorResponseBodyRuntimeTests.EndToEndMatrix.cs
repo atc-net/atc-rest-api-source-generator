@@ -2009,7 +2009,15 @@ public partial class ErrorResponseBodyRuntimeTests
         process.BeginErrorReadLine();
         if (!process.WaitForExit((int)(timeout ?? TimeSpan.FromMinutes(1)).TotalMilliseconds))
         {
-            process.Kill(entireProcessTree: true);
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // It exited between the wait and the kill
+            }
+
             return (-1, $"Timed out: {tool} {arguments}");
         }
 

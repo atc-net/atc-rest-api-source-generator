@@ -27,6 +27,7 @@ global using Atc.Rest.Api.Generator.Cli.Models.Migration;
 global using Atc.Rest.Api.Generator.Cli.Options;
 global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Cli.Services.Migration;
+global using Atc.Rest.Api.Generator.Cli.Tests.Gates;
 global using Atc.Rest.Api.Generator.Cli.Tests.Helpers;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Helpers;

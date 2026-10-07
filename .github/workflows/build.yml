@@ -17,6 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - name: 🛒 Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,6 +49,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     needs: dotnet-build
     steps:
       - name: 🛒 Checkout repository
@@ -96,6 +98,7 @@ jobs:
 
   playwright:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: dotnet-build
     steps:
       - name: 🛒 Checkout repository
@@ -143,6 +146,7 @@ jobs:
   # Playwright job, whose results it reads from test/Showcase.E2ETests/test-results/results.json.
   test-suite-report:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [dotnet-test, playwright]
     if: always()
     steps:
@@ -199,6 +203,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     needs: dotnet-test
     steps:
       - name: 🛒 Checkout repository
