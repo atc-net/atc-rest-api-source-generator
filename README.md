@@ -7,6 +7,8 @@
 
 A Roslyn Source Generator that automatically generates REST API server and client code from OpenAPI specifications. **No CLI commands, no manual code generation** - just build your project and get production-ready code.
 
+> ⬆️ **Upgrading from 2.x?** 3.0 changes what the generated server sends for errors, several generated client types and the TypeScript result unions, and pairs with Atc.Rest.MinimalApi 3.x. Read [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3) before you update.
+
 ## ✨ Key Features
 
 | Area       | Feature                          | Description                                                                      |
