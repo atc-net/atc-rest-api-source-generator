@@ -161,6 +161,7 @@ app.Run();
 ## 📋 Requirements
 
 - **.NET 10** or later
+- **A C# compiler with Roslyn 5.9 or later** for the source generator: .NET SDK **10.0.401** or later, and an IDE that uses it. With an older compiler the build reports `CS9057` and generates nothing
 - **OpenAPI 3.0.x**, **3.1.x** or **3.2.x** specification
 
 ### Companion Packages
