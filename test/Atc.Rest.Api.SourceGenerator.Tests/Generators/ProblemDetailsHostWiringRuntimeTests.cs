@@ -7,14 +7,14 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </summary>
 /// <remarks>
 /// Input for the decision whether the generated <c>Add{Project}Api()</c> / <c>Map{Project}Api()</c>
-/// should wire these up (see issues/return-body.md, Q9).
+/// should wire these up.
 /// </remarks>
 public class ProblemDetailsHostWiringRuntimeTests
 {
     [Fact(Explicit = true)]
     public async Task Report_HostWiringMatrix()
     {
-        var path = Environment.GetEnvironmentVariable("ERRORBODY_WIRING_REPORT_FILE") ?? Path.Combine(Path.GetTempPath(), "errorbody-wiring.md");
+        var path = ErrorResponseBodyRuntimeTests.HandRunOutputPath("ERRORBODY_WIRING_REPORT_FILE", "errorbody-wiring.md");
 
         var sb = new StringBuilder();
         sb.AppendLine("| AddProblemDetails | UseStatusCodePages | Case | Status | Content-Type | Body |");

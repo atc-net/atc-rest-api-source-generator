@@ -41,7 +41,8 @@ public class SpecificationValidatorTests
 
     private static string CreateTempSpec(string openapiLine)
     {
-        var path = Path.GetTempFileName() + ".yaml";
+        // A name of its own, not GetTempFileName() + ".yaml": that left its empty .tmp behind on every run
+        var path = Path.Combine(Path.GetTempPath(), "atc-spec-" + Guid.NewGuid().ToString("N") + ".yaml");
         File.WriteAllText(path, $"""
             {openapiLine}
             info:

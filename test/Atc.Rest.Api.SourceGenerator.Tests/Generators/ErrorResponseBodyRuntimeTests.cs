@@ -26,6 +26,22 @@ public partial class ErrorResponseBodyRuntimeTests
         """;
 
     /// <summary>
+    /// Where a hand-run (explicit) test writes its output: the environment variable's path when set, else a fresh
+    /// folder of its own under the temp folder - two runs (or two checkouts) never overwrite each other. The path is
+    /// written to the test output.
+    /// </summary>
+    internal static string HandRunOutputPath(
+        string environmentVariable,
+        string name)
+    {
+        var path = Environment.GetEnvironmentVariable(environmentVariable)
+            ?? Path.Combine(Path.GetTempPath(), "atc-hand-run", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N")[..6], name);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        TestContext.Current.TestOutputHelper?.WriteLine(path);
+        return path;
+    }
+
+    /// <summary>
     /// Every registered 4xx/5xx status code, plus two non-standard codes (499, 599). The <c>all-*</c>
     /// operations declare all of them.
     /// </summary>
@@ -435,7 +451,7 @@ public partial class ErrorResponseBodyRuntimeTests
     [Fact(Explicit = true)]
     public void Dump_GeneratedSources()
     {
-        var root = Environment.GetEnvironmentVariable("ERRORBODY_DUMP_DIR") ?? Path.Combine(Path.GetTempPath(), "errorbody-dump");
+        var root = HandRunOutputPath("ERRORBODY_DUMP_DIR", "errorbody-dump");
         Directory.CreateDirectory(root);
         File.WriteAllText(Path.Combine(root, ProjectName + ".yaml"), Yaml);
         Dump(Path.Combine(root, "Server"), GenerateServer());
@@ -457,7 +473,7 @@ public partial class ErrorResponseBodyRuntimeTests
     [Fact(Explicit = true)]
     public async Task Report_WireAndClientMatrix()
     {
-        var path = Environment.GetEnvironmentVariable("ERRORBODY_REPORT_FILE") ?? Path.Combine(Path.GetTempPath(), "errorbody-report.md");
+        var path = HandRunOutputPath("ERRORBODY_REPORT_FILE", "errorbody-report.md");
 
         await using var host = await ErrorBodyHost.StartAsync();
 
