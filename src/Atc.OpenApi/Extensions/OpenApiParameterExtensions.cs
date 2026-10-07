@@ -169,8 +169,12 @@ public static class OpenApiParameterExtensions
 
             var isSupported = style switch
             {
-                ParameterStyle.Form => valueKind == ParameterValueKind.Primitive
-                    || (valueKind == ParameterValueKind.Array && explode),
+                ParameterStyle.Form => valueKind is ParameterValueKind.Primitive or ParameterValueKind.Array,
+
+                // A query array whose items are one value with a pipe or a space between them (or repeated keys
+                // with explode: true)
+                ParameterStyle.PipeDelimited or ParameterStyle.SpaceDelimited => valueKind == ParameterValueKind.Array &&
+                                                                                   parameter.In == ParameterLocation.Query,
                 ParameterStyle.Simple => valueKind == ParameterValueKind.Primitive,
 
                 // OAS 3.2: style:cookie (RFC 6265) applies to in:cookie params; no percent-encoding,
@@ -181,6 +185,31 @@ public static class OpenApiParameterExtensions
             };
 
             return new ParameterSerialization(style, explode, allowReserved, valueKind, isSupported);
+        }
+
+        /// <summary>
+        /// The character between the items of a query array that is one value: <c>,</c> for <c>form</c> with
+        /// <c>explode: false</c>, <c>|</c> for <c>pipeDelimited</c> and a space for <c>spaceDelimited</c> (both without
+        /// explode). <see langword="null"/> for an array sent as repeated keys (<c>explode: true</c>) and for anything
+        /// that is no query array.
+        /// </summary>
+        /// <returns>The delimiter, or null.</returns>
+        public char? GetArrayDelimiter()
+        {
+            if (parameter.In != ParameterLocation.Query ||
+                GetValueKind(parameter.Schema) != ParameterValueKind.Array ||
+                parameter.Explode)
+            {
+                return null;
+            }
+
+            return (parameter.Style ?? ParameterStyle.Form) switch
+            {
+                ParameterStyle.Form => ',',
+                ParameterStyle.PipeDelimited => '|',
+                ParameterStyle.SpaceDelimited => ' ',
+                _ => null,
+            };
         }
     }
 

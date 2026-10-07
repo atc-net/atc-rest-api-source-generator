@@ -1295,6 +1295,13 @@ public static class TypeScriptClientExtractor
                 ? "?" + TypeScriptOperationHelper.GetDateSerializationSuffix(param)
                 : string.Empty;
 
+            // An array whose items are one value (form with explode: false, pipeDelimited, spaceDelimited): the items
+            // joined on the declared delimiter (an array would be sent as repeated keys)
+            if (param.GetArrayDelimiter() is { } delimiter)
+            {
+                coercion += "?.join('" + delimiter + "')";
+            }
+
             // Use original name as key if different from the transformed name
             if (!(param.Name ?? string.Empty).Equals(propName, StringComparison.Ordinal))
             {

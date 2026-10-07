@@ -2494,7 +2494,7 @@ public class OperationValidationTests
     // ========== OPR026: Parameter serialization not supported ==========
 
     [Fact]
-    public void Validate_QueryArray_SpaceDelimited_EmitsOPR026Warning()
+    public void Validate_QueryArray_DeepObject_EmitsOPR026Warning()
     {
         // Arrange
         const string yaml = """
@@ -2510,7 +2510,7 @@ public class OperationValidationTests
                                   parameters:
                                     - name: tags
                                       in: query
-                                      style: spaceDelimited
+                                      style: deepObject
                                       schema:
                                         type: array
                                         items:
@@ -2577,6 +2577,41 @@ public class OperationValidationTests
         var opr026 = diagnostics.FirstOrDefault(d =>
             d.RuleId == Generator.RuleIdentifiers.ParameterSerializationNotSupported);
         Assert.Null(opr026);
+    }
+
+    [Theory]
+    [InlineData("explode: false")]
+    [InlineData("style: pipeDelimited")]
+    [InlineData("style: spaceDelimited")]
+    public void Validate_QueryArray_DelimitedStyle_NoOPR026Warning(string style)
+    {
+        var yaml = $"""
+                    openapi: 3.0.0
+                    info:
+                      title: Test API
+                      version: 1.0.0
+                    paths:
+                      /items:
+                        get:
+                          operationId: listItems
+                          parameters:
+                            - name: tags
+                              in: query
+                              {style}
+                              schema:
+                                type: array
+                                items:
+                                  type: string
+                          responses:
+                            '200':
+                              description: Success
+                    """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath);
+
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.ParameterSerializationNotSupported);
     }
 
     // ========== Helper Methods ==========

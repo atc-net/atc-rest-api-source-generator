@@ -55,7 +55,7 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         }
         if (parameters.Legacy is not null)
         {
-            requestBuilder.WithQueryParameter("legacy", parameters.Legacy);
+            requestBuilder.WithQueryParameter("legacy", string.Join(" ", global::System.Linq.Enumerable.Select(parameters.Legacy, item => global::System.FormattableString.Invariant($"{item}"))));
         }
         if (parameters.Ids is not null)
         {

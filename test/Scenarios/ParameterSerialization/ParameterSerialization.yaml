@@ -5,7 +5,7 @@ info:
   description: >
     Exercises query-parameter style/explode/allowReserved serialization:
     a supported optional form-explode array (tags), an allowReserved primitive (q),
-    an unsupported spaceDelimited array (legacy → ATC_API_OPR026), a $ref-to-array
+    a spaceDelimited array (legacy, sent as one value with spaces), a $ref-to-array
     query param (ids), an OAS 3.2 in:querystring raw-query param (rawFilter), and
     an in:cookie with style:cookie (session) per RFC 6265.
 

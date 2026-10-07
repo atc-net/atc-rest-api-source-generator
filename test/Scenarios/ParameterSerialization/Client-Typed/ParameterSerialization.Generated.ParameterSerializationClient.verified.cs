@@ -62,12 +62,9 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             queryParams.Add($"q={parameters.Q}");
         }
 
-        if (parameters.Legacy is not null)
+        if (parameters.Legacy is not null && global::System.Linq.Enumerable.Any(parameters.Legacy))
         {
-            foreach (var item in parameters.Legacy)
-            {
-                queryParams.Add($"legacy={Uri.EscapeDataString(item)}");
-            }
+            queryParams.Add($"legacy={Uri.EscapeDataString(string.Join(" ", global::System.Linq.Enumerable.Select(parameters.Legacy, item => item)))}");
         }
 
         if (parameters.Ids is not null)

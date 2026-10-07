@@ -25,7 +25,7 @@ export class ItemsClient {
       query: {
         tags: query?.tags,
         q: query?.q,
-        legacy: query?.legacy,
+        legacy: query?.legacy?.join(' '),
         ids: query?.ids,
       },
       headers: {

@@ -118,24 +118,13 @@ public static class WireBindingHelper
         var arguments = new List<string>();
         foreach (var parameter in (pathItem?.Parameters ?? []).Concat(operation.Parameters ?? []).Select(p => p.Resolve().Parameter))
         {
-            if (parameter is not { In: ParameterLocation.Query, Name: { } name } ||
-                parameter.Schema?.IsOfType(JsonSchemaType.Array) != true)
+            if (parameter is not { Name: { } name } ||
+                parameter.GetArrayDelimiter() is not { } delimiter)
             {
                 continue;
             }
 
-            var delimiter = (parameter.Style ?? ParameterStyle.Form) switch
-            {
-                ParameterStyle.PipeDelimited => "'|'",
-                ParameterStyle.SpaceDelimited => "' '",
-                ParameterStyle.Form when !parameter.Explode => "','",
-                _ => null,
-            };
-
-            if (delimiter is not null)
-            {
-                arguments.Add($"({CSharpLiteralHelper.ToStringLiteral(name)}, {delimiter})");
-            }
+            arguments.Add($"({CSharpLiteralHelper.ToStringLiteral(name)}, '{delimiter}')");
         }
 
         return arguments;
@@ -355,12 +344,13 @@ public static class WireBindingHelper
                             continue;
                         }
 
-                        // A list: its items as one value with the item separator between them (the parsable list type
-                        // splits on it; form binding would read a List<T> from indexed keys). An enum by its member name.
+                        // A list: its items as one value with the item separator before each (the parsable list type
+                        // splits on it, nothing else; form binding would read a List<T> from indexed keys). An enum by
+                        // its member name.
                         if (field.IsArray)
                         {
                             values ??= form.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-                            values[field.Name] = string.Join(ItemSeparator, items);
+                            values[field.Name] = string.Concat(items.Select(item => ItemSeparator + item));
                         }
                         else if (field.Members is { Count: > 0 } members)
                         {
@@ -411,15 +401,13 @@ public static class WireBindingHelper
                             continue;
                         }
 
-                        // An array: its items as one value with the item separator between them (the list type splits on it).
-                        // A repeated key is one item each; a declared delimiter splits each value; a single plain value is
-                        // split on commas, as it always was.
+                        // An array: its items as one value with the item separator before each (the list type splits on
+                        // it, nothing else). A declared delimiter splits each value; without one (explode: true) every
+                        // key is one item, commas and all. An item keeps its spaces; an empty one is no item.
                         var items = parameter.IsArray
                             ? parameter.Delimiter is { } delimiter
-                                ? values.SelectMany(v => (v ?? string.Empty).Split(delimiter, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToArray()
-                                : values.Count == 1
-                                    ? (values[0] ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                                    : values.Where(v => !string.IsNullOrEmpty(v)).Select(v => v!.Trim()).ToArray()
+                                ? values.SelectMany(v => (v ?? string.Empty).Split(delimiter, StringSplitOptions.RemoveEmptyEntries)).ToArray()
+                                : values.Where(v => !string.IsNullOrEmpty(v)).Select(v => v!).ToArray()
                             : values.Where(v => v is not null).Select(v => v!).ToArray();
 
                         if (parameter.Parses is { } parses && Array.Find(items, item => item.Length > 0 && !parses(item)) is { } invalid)
@@ -438,7 +426,7 @@ public static class WireBindingHelper
                         if (parameter.IsArray)
                         {
                             query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-                            query[parameter.Name] = string.Join(ItemSeparator, items);
+                            query[parameter.Name] = string.Concat(items.Select(item => ItemSeparator + item));
                         }
                         else if (parameter.Members is { Count: > 0 })
                         {

@@ -2057,12 +2057,16 @@ public class ApiServerGenerator : IIncrementalGenerator
                 public delegate bool TryParseItem<T>(string item, out T value);
 
                 /// <summary>
-                /// The items: split on the item separator when WithWireBinding put one in, else on commas.
+                /// The items: the value as WithWireBinding wrote it - each item after an item separator - is split on
+                /// that separator only, the items kept as they are. A value that did not go through WithWireBinding is
+                /// split on commas.
                 /// </summary>
                 public static string[] Split(string? value)
                     => string.IsNullOrEmpty(value)
                         ? []
-                        : value!.Split(value.Contains(ItemSeparator) ? ItemSeparator : ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        : value![0] == ItemSeparator
+                            ? value.Split(ItemSeparator, StringSplitOptions.RemoveEmptyEntries)
+                            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
                 /// <summary>
                 /// Parses every item into the list; false at the first item that does not parse.

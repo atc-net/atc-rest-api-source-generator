@@ -910,9 +910,29 @@ public static class HttpClientExtractor
                 var isRequired = param.Required;
                 var serialization = param.GetParameterSerialization();
 
-                // An array: repeated keys (form, explode). A style that is not generated yet (explode: false,
-                // pipeDelimited, spaceDelimited) is sent the same way, as ATC_API_OPR026 says - never as the list's
-                // ToString()
+                // An array whose items are one value (form with explode: false, pipeDelimited, spaceDelimited): the
+                // items joined on the declared delimiter, each as the specification writes it
+                if (serialization.ValueKind == ParameterValueKind.Array &&
+                    param.GetArrayDelimiter() is { } delimiter)
+                {
+                    var itemsSchema = (param.Schema is OpenApiSchemaReference itemsReference ? itemsReference.Target : param.Schema)?.Items;
+                    var itemType = TryGetListElementType(paramType, out var elementType) ? elementType : "string";
+                    var itemText = WireValueHelper.IsIntegerEnum(itemsSchema)
+                        ? WireValueHelper.IntegerEnumWireExpression("item") + "!"
+                        : BuildWireTextExpression("item", itemType, WireValueHelper.IsStringEnum(itemsSchema));
+                    var joined = $"string.Join({CSharpLiteralHelper.ToStringLiteral(delimiter.ToString())}, global::System.Linq.Enumerable.Select({paramAccess}, item => {itemText}))";
+                    var value = serialization.AllowReserved ? joined : $"Uri.EscapeDataString({joined})";
+
+                    builder.AppendLine();
+                    builder.AppendLine($"if ({paramAccess} is not null && global::System.Linq.Enumerable.Any({paramAccess}))");
+                    builder.AppendLine("{");
+                    builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{value}}}\");");
+                    builder.AppendLine("}");
+                    continue;
+                }
+
+                // An array: repeated keys (form, explode: true; pipeDelimited and spaceDelimited with explode: true are
+                // the same) - never as the list's ToString()
                 if (serialization.ValueKind == ParameterValueKind.Array)
                 {
                     AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema), WireValueHelper.IsIntegerEnum((param.Schema is OpenApiSchemaReference r ? r.Target : param.Schema)?.Items));

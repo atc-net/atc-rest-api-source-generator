@@ -1015,9 +1015,25 @@ public static class EndpointPerOperationExtractor
     private static string WireValue(
         OpenApiParameter param,
         string propName)
-        => WireValueHelper.IsStringEnum(param.Schema) && !param.Schema!.IsOfType(JsonSchemaType.Array)
+    {
+        // An array whose items are one value (form with explode: false, pipeDelimited, spaceDelimited): the items
+        // joined on the declared delimiter, each as the specification writes it - one string, which the builder
+        // percent-encodes (a list would be sent as repeated keys)
+        if (param.GetArrayDelimiter() is { } delimiter)
+        {
+            var itemsSchema = (param.Schema is OpenApiSchemaReference reference ? reference.Target : param.Schema)?.Items;
+            var itemText = WireValueHelper.IsStringEnum(itemsSchema)
+                ? "item.ToWireValue()"
+                : WireValueHelper.TryBuildWireExpression("item", itemsSchema) is { } formatted
+                    ? formatted + "!"
+                    : "global::System.FormattableString.Invariant($\"{item}\")";
+            return $"string.Join({CSharpLiteralHelper.ToStringLiteral(delimiter.ToString())}, global::System.Linq.Enumerable.Select(parameters.{propName}, item => {itemText}))";
+        }
+
+        return WireValueHelper.IsStringEnum(param.Schema) && !param.Schema!.IsOfType(JsonSchemaType.Array)
             ? $"parameters.{propName}.ToWireValue()"
             : WireValueHelper.TryBuildWireExpression($"parameters.{propName}", param.Schema) ?? $"parameters.{propName}";
+    }
 
     private static string BuildExecuteAsyncMethodBody(
         string path,

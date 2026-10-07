@@ -142,37 +142,67 @@ public class OpenApiParameterExtensionsTests
         Assert.True(s.IsSupported);
     }
 
+    [Fact]
+    public void GetParameterSerialization_DeepObjectArray_NotSupported()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "tags",
+            In = ParameterLocation.Query,
+            Style = ParameterStyle.DeepObject,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
+        };
+        Assert.False(param.GetParameterSerialization().IsSupported);
+    }
+
+    /// <summary>
+    /// The query array styles the generated server and clients carry: repeated keys (explode: true) or one value
+    /// with the style's delimiter between the items (explode: false).
+    /// </summary>
     [Theory]
-    [InlineData(ParameterStyle.SpaceDelimited)]
-    [InlineData(ParameterStyle.PipeDelimited)]
-    [InlineData(ParameterStyle.DeepObject)]
-    public void GetParameterSerialization_ExoticArrayStyle_NotSupported(
-        ParameterStyle style)
+    [InlineData(ParameterStyle.Form, true, null)]
+    [InlineData(ParameterStyle.Form, false, ',')]
+    [InlineData(ParameterStyle.PipeDelimited, false, '|')]
+    [InlineData(ParameterStyle.PipeDelimited, true, null)]
+    [InlineData(ParameterStyle.SpaceDelimited, false, ' ')]
+    [InlineData(ParameterStyle.SpaceDelimited, true, null)]
+    public void GetParameterSerialization_QueryArrayStyles_AreSupported_WithTheirDelimiter(
+        ParameterStyle style,
+        bool explode,
+        char? delimiter)
     {
         var param = new OpenApiParameter
         {
             Name = "tags",
             In = ParameterLocation.Query,
             Style = style,
+            Explode = explode,
             Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
         };
-        Assert.False(param.GetParameterSerialization().IsSupported);
+
+        Assert.True(param.GetParameterSerialization().IsSupported);
+        Assert.Equal(delimiter, param.GetArrayDelimiter());
     }
 
     [Fact]
-    public void GetParameterSerialization_FormArrayExplodeFalse_NotSupported()
+    public void GetArrayDelimiter_IsNullForAnythingButAQueryArray()
     {
-        var param = new OpenApiParameter
+        var header = new OpenApiParameter
         {
             Name = "tags",
-            In = ParameterLocation.Query,
-            Style = ParameterStyle.Form,
-            Explode = false,
+            In = ParameterLocation.Header,
             Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
         };
-        var s = param.GetParameterSerialization();
-        Assert.False(s.Explode);
-        Assert.False(s.IsSupported);
+        var primitive = new OpenApiParameter
+        {
+            Name = "tag",
+            In = ParameterLocation.Query,
+            Explode = false,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        };
+
+        Assert.Null(header.GetArrayDelimiter());
+        Assert.Null(primitive.GetArrayDelimiter());
     }
 
     [Fact]
