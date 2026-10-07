@@ -22,6 +22,14 @@ type CustomFixtures = {
 
 type ExpectedError = { pattern: RegExp; reason: string };
 
+// Noise that is not a bug in any app: a GET cancelled before its answer, then sent again and answered. React's
+// StrictMode (the dev server) mounts a component twice, and React Query cancels the first mount's query - the
+// generated hooks pass its signal - and sends it again; whether the first request is still in flight then is timing.
+// Nothing is lost. A cancelled request that is never answered still fails the test.
+const expectedEverywhere: ExpectedError[] = [
+  { pattern: /^requestfailed GET \S+ net::ERR_ABORTED \(re-sent and answered\)$/, reason: 'a cancelled GET sent again and answered' },
+];
+
 // Noise of an app that is not a bug in it. Keep these lists short, and say why each entry is here.
 const expectedFor: Record<AppType, ExpectedError[]> = {
   blazor: [
@@ -68,10 +76,11 @@ export const test = base.extend<CustomFixtures>({
   // Automatic: every test watches its page, and fails on any error nobody said to expect
   browserErrors: [
     async ({ page, appType }, use, testInfo) => {
-      const expected: ExpectedError[] = [...expectedFor[appType]];
-      const seen: Promise<string>[] = [];
+      const expected: ExpectedError[] = [...expectedEverywhere, ...expectedFor[appType]];
+      // Each error is described at the end of the test - a cancelled request may be answered later
+      const seen: Promise<string | (() => Promise<string>)>[] = [];
       let watching = true;
-      const record = (error: string | Promise<string>) => {
+      const record = (error: string | Promise<string | (() => Promise<string>)>) => {
         if (watching) seen.push(Promise.resolve(error));
       };
 
@@ -79,7 +88,21 @@ export const test = base.extend<CustomFixtures>({
       page.on('console', (message) => {
         if (message.type() === 'error') record(describeConsole(message));
       });
-      page.on('requestfailed', (request) => record(describeFailedRequest(request)));
+      // When each URL was last answered by a GET that succeeded (below 400), to tell a re-sent request from a lost one
+      const answered = new Map<string, number>();
+      page.on('requestfinished', (request) => {
+        if (request.method() !== 'GET') return;
+        void request.response().then((response) => {
+          if (response && response.status() < 400) answered.set(request.url(), Date.now());
+        }).catch(() => {});
+      });
+      page.on('requestfailed', (request) => {
+        const failedAt = Date.now();
+        record(describeFailedRequest(request).then((failed) => async () =>
+          failed.endsWith('net::ERR_ABORTED') && request.method() === 'GET' && (answered.get(request.url()) ?? 0) >= failedAt
+            ? `${failed} (re-sent and answered)`
+            : failed));
+      });
 
       await use({
         expect: (pattern, reason) => expected.push({ pattern, reason }),
@@ -94,7 +117,8 @@ export const test = base.extend<CustomFixtures>({
 
       // The page closes after this fixture: what its teardown cancels is not the app's doing
       watching = false;
-      const errors = await Promise.all(seen);
+      const errors = await Promise.all(
+        (await Promise.all(seen)).map((error) => (typeof error === 'function' ? error() : error)));
       const unexpected = errors.filter((error) => !expected.some(({ pattern }) => pattern.test(error)));
       if (unexpected.length > 0) {
         await testInfo.attach('browser-errors', { body: unexpected.join('\n'), contentType: 'text/plain' });

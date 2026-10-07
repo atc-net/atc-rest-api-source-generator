@@ -33,8 +33,10 @@ test('an unknown id shows the error', async ({ page, browserErrors }) => {
 ```
 
 `expectStatus(status, urlFragment, reason)` covers Chromium's console error for an error response, `expectAborted(urlFragment, reason)`
-a request the test cancels (a stream it stops), and `expect(pattern, reason)` anything else. The only noise expected everywhere is in
-`fixtures/test.ts`: on Blazor, a bodiless answer (204, 304, a 200 without content) that the WebAssembly HttpClient releases by aborting its fetch.
+a request the test cancels (a stream it stops), and `expect(pattern, reason)` anything else. The only noise tolerated is in
+`fixtures/test.ts`: a GET cancelled before its answer and then sent again and answered (React StrictMode on the dev server remounts a
+component, and React Query cancels and re-sends its query), and on Blazor a bodiless answer (204, 304, a 200 without content) that the
+WebAssembly HttpClient releases by aborting its fetch.
 
 ### Shared data
 
