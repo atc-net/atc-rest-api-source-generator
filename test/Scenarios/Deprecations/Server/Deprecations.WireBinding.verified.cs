@@ -30,6 +30,8 @@ public static class WireBindingExtensions
 {
     private const string CookieHeaderPrefix = "x-cookie-";
 
+    private const string QueryStringKey = "\u001Fquerystring";
+
     private const char ItemSeparator = '\u001F';
 
     private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray);
@@ -121,6 +123,18 @@ public static class WireBindingExtensions
 
             endpoint.RequestDelegate = async context =>
             {
+                // A request whose antiforgery token the middleware rejected (an endpoint that validates it -
+                // useAntiforgery) is a 400, as the framework's own binding answers it; even asking whether
+                // the body is a form would throw
+                if (context.Features.Get<global::Microsoft.AspNetCore.Antiforgery.IAntiforgeryValidationFeature>() is { IsValid: false } antiforgery)
+                {
+                    await global::Microsoft.AspNetCore.Http.Results.Problem(
+                        detail: antiforgery.Error?.Message,
+                        statusCode: global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest,
+                        title: "Invalid antiforgery token").ExecuteAsync(context);
+                    return;
+                }
+
                 // Another media type is the framework's 415 (the Accepts metadata)
                 if (!context.Request.HasFormContentType)
                 {
@@ -253,6 +267,18 @@ public static class WireBindingExtensions
         Dictionary<string, string[]>? errors = null;
         foreach (var parameter in parameters)
         {
+            // OAS 3.2 in: querystring - the whole query string, as sent
+            if (parameter.In == "query" && parameter.Name == QueryStringKey)
+            {
+                if (request.QueryString.Value is { Length: > 1 } rawQuery)
+                {
+                    query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                    query[QueryStringKey] = rawQuery[1..];
+                }
+
+                continue;
+            }
+
             var values = parameter.In switch
             {
                 "path" => request.RouteValues.TryGetValue(parameter.Name, out var routeValue) && routeValue is string routeText ? new StringValues(routeText) : StringValues.Empty,

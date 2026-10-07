@@ -525,6 +525,13 @@ public static class OperationParameterExtractor
                                 "FromHeader",
                                 $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"));
                             break;
+                        case ParameterLocation.QueryString:
+                            // OAS 3.2: the whole query string - bound from a key no request can send, which the
+                            // endpoint's WithWireBinding step fills with the raw query string
+                            attributes.Add(new AttributeParameters(
+                                "FromQuery",
+                                $"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.QueryStringKey)}"));
+                            break;
                         case ParameterLocation.Cookie:
                             // ASP.NET Core has no cookie binding source: the property is bound from a request header
                             // that the endpoint's WithWireBinding step fills from the cookie

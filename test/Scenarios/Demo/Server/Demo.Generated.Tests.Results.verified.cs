@@ -31,8 +31,10 @@ public sealed class CreateTestItemWithModelResult : IResult
     /// <summary>
     /// 201 Created - Item created successfully.
     /// </summary>
-    public static CreateTestItemWithModelResult Created(TestItem response)
-        => new(TypedResults.Created((string?)null, response));
+    public static CreateTestItemWithModelResult Created(
+        TestItem response,
+        string? location = null)
+        => new(location is null ? (IResult)TypedResults.Created((string?)null, response) : new LocationHttpResult(TypedResults.Created((string?)null, response), location));
 
     public static implicit operator CreateTestItemWithModelResult(TestItem response)
         => Created(response);
@@ -112,8 +114,10 @@ public sealed class CreateTestItemWithLocationInBodyResult : IResult
     /// <summary>
     /// 201 Created - Item created successfully.
     /// </summary>
-    public static CreateTestItemWithLocationInBodyResult Created(Uri response)
-        => new(TypedResults.Created((string?)null, response));
+    public static CreateTestItemWithLocationInBodyResult Created(
+        Uri response,
+        string? location = null)
+        => new(location is null ? (IResult)TypedResults.Created((string?)null, response) : new LocationHttpResult(TypedResults.Created((string?)null, response), location));
 
     public static implicit operator CreateTestItemWithLocationInBodyResult(Uri response)
         => Created(response);
@@ -186,5 +190,29 @@ internal static class ProblemWithStatus
     {
         problem.Status = status;
         return problem;
+    }
+}
+
+/// <summary>
+/// Writes the wrapped result with a <c>Location</c> header.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class LocationHttpResult : IResult
+{
+    private readonly IResult inner;
+    private readonly string location;
+
+    public LocationHttpResult(
+        IResult inner,
+        string location)
+    {
+        this.inner = inner;
+        this.location = location;
+    }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.Headers.Location = location;
+        return inner.ExecuteAsync(httpContext);
     }
 }

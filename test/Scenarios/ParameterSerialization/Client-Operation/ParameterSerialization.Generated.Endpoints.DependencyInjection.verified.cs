@@ -28,6 +28,7 @@ public static class EndpointsServiceCollectionExtensions
         services.AddAtcRestClientCore();
 
         services.AddTransient<IListItemsEndpoint, ListItemsEndpoint>();
+        services.AddTransient<IListItemsByQueryStringEndpoint, ListItemsByQueryStringEndpoint>();
 
         return services;
     }

@@ -728,6 +728,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ResponseLinksDropped = "ATC_API_OPR035";
 
+    /// <summary>
+    /// ATC_API_OPR036: An OAS 3.2 'in: querystring' parameter appears more than once, or next to an 'in: query'
+    /// parameter of the operation or its path item - the specification forbids both: the querystring parameter is the
+    /// whole query string. Error, every strategy.
+    /// </summary>
+    public const string QueryStringParameterNotAlone = "ATC_API_OPR036";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

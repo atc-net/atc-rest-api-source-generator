@@ -26,6 +26,13 @@ public static class SequentialStreamWriter
 
     private static readonly byte[] Crlf = { (byte)'\r', (byte)'\n' };
 
+    private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> CompactOptions = new();
+
+    private static JsonSerializerOptions Compact(JsonSerializerOptions options)
+        => options.WriteIndented
+            ? CompactOptions.GetValue(options, static o => new JsonSerializerOptions(o) { WriteIndented = false })
+            : options;
+
     public static async Task WriteJsonLinesAsync<T>(
         IAsyncEnumerable<T> items,
         Stream stream,
@@ -34,7 +41,7 @@ public static class SequentialStreamWriter
     {
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
-            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);
             await stream.WriteAsync(LineFeed, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
@@ -49,7 +56,7 @@ public static class SequentialStreamWriter
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
             await stream.WriteAsync(RecordSeparator, cancellationToken);
-            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);
             await stream.WriteAsync(LineFeed, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
@@ -66,7 +73,7 @@ public static class SequentialStreamWriter
         {
             var header = Encoding.ASCII.GetBytes($"--{boundary}\r\nContent-Type: application/json\r\n\r\n");
             await stream.WriteAsync(header, cancellationToken);
-            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);
             await stream.WriteAsync(Crlf, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }

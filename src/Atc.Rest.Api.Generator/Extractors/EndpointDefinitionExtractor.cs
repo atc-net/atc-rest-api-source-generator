@@ -71,7 +71,8 @@ public static class EndpointDefinitionExtractor
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
         string? defaultApiVersion = null,
         bool useServersBasePath = true,
-        string? namespaceSegment = null)
+        string? namespaceSegment = null,
+        bool useAntiforgery = false)
     {
         if (openApiDoc is null)
         {
@@ -108,7 +109,7 @@ public static class EndpointDefinitionExtractor
         {
             var groupName = kvp.Key;
             var operations = kvp.Value;
-            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, effectiveNamespaceSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
+            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, effectiveNamespaceSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath, useAntiforgery);
             if (classParams is not null)
             {
                 classes.Add(classParams);
@@ -430,7 +431,8 @@ using Microsoft.AspNetCore.Builder;
         bool useValidationFilter = false,
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
         string? defaultApiVersion = null,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        bool useAntiforgery = false)
     {
         var className = $"{segment}EndpointDefinition";
 
@@ -447,7 +449,7 @@ using Microsoft.AspNetCore.Builder;
         var methods = new List<MethodParameters>();
 
         // Add DefineEndpoints method
-        var defineEndpointsContent = GenerateDefineEndpointsContent(openApiDoc, operations, projectName, segment, apiRouteBase, originalPrefix, systemTypeResolver, registry, useValidationFilter, versioningStrategy, defaultApiVersion);
+        var defineEndpointsContent = GenerateDefineEndpointsContent(openApiDoc, operations, projectName, segment, apiRouteBase, originalPrefix, systemTypeResolver, registry, useValidationFilter, versioningStrategy, defaultApiVersion, useAntiforgery);
         var defineEndpointsMethod = new MethodParameters(
             DocumentationTags: null,
             Attributes: null,
@@ -656,7 +658,8 @@ using Microsoft.AspNetCore.Builder;
         TypeConflictRegistry? registry = null,
         bool useValidationFilter = false,
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
-        string? defaultApiVersion = null)
+        string? defaultApiVersion = null,
+        bool useAntiforgery = false)
     {
         var builder = new StringBuilder();
         var hasVersioning = versioningStrategy != VersioningStrategyType.None;
@@ -725,7 +728,7 @@ using Microsoft.AspNetCore.Builder;
                 pathItem = item;
             }
 
-            GenerateEndpointRegistration(builder, openApiDoc, path, httpMethod, operation, pathItem, projectName, segment, originalPrefix, systemTypeResolver, groupSecurity, groupRateLimit, groupOutputCache, registry, useValidationFilter);
+            GenerateEndpointRegistration(builder, openApiDoc, path, httpMethod, operation, pathItem, projectName, segment, originalPrefix, systemTypeResolver, groupSecurity, groupRateLimit, groupOutputCache, registry, useValidationFilter, useAntiforgery);
         }
 
         return builder
@@ -944,7 +947,8 @@ using Microsoft.AspNetCore.Builder;
         RateLimitConfiguration? groupRateLimit,
         CacheConfiguration? groupOutputCache,
         TypeConflictRegistry? registry = null,
-        bool useValidationFilter = false)
+        bool useValidationFilter = false,
+        bool useAntiforgery = false)
     {
         var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
@@ -1027,8 +1031,13 @@ using Microsoft.AspNetCore.Builder;
                 builder.Append($"    .Accepts<IFormFile>({string.Join(", ", operation.GetFormBodyMediaTypes().Select(m => $"\"{m}\""))})");
             }
 
-            builder.AppendLine();
-            builder.Append("    .DisableAntiforgery()");
+            // Form binding opts the endpoint into antiforgery validation: off for an API (useAntiforgery: false, the
+            // default - its callers send a token in a header, not a cookie), on for a host that validates it
+            if (!useAntiforgery)
+            {
+                builder.AppendLine();
+                builder.Append("    .DisableAntiforgery()");
+            }
         }
         else if (operation.RequiresFormBindingFlattening() && operation.GetFormBodyMediaTypes() is { Count: > 0 } formMediaTypes)
         {
@@ -1037,8 +1046,11 @@ using Microsoft.AspNetCore.Builder;
             var (formSchemaName, _, _) = operation.GetFormBodySchemaInfo();
             builder.AppendLine();
             builder.Append($"    .Accepts<{(formSchemaName is null ? "object" : OpenApiSchemaExtensions.SanitizeSchemaName(formSchemaName))}>({string.Join(", ", formMediaTypes.Select(m => $"\"{m}\""))})");
-            builder.AppendLine();
-            builder.Append("    .DisableAntiforgery()");
+            if (!useAntiforgery)
+            {
+                builder.AppendLine();
+                builder.Append("    .DisableAntiforgery()");
+            }
         }
 
         builder.AppendLine(";");

@@ -582,7 +582,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 config.DefaultApiVersion,
                 config.UseServersBasePath,
                 includeSharedModelsUsing: sharedSchemas.Count > 0,
-                namespaceSegment: effectiveSegment);
+                namespaceSegment: effectiveSegment,
+                useAntiforgery: config.UseAntiforgery);
 
             if (segmentEndpointDefinitionClassNames.Count > 0)
             {
@@ -1045,14 +1046,15 @@ public class ApiServerGenerator : IIncrementalGenerator
         string defaultApiVersion,
         bool useServersBasePath,
         bool includeSharedModelsUsing = false,
-        string? namespaceSegment = null)
+        string? namespaceSegment = null,
+        bool useAntiforgery = false)
     {
         // The raw pathSegment still filters operations, while namespaceSegment drives namespaces
         // and file names so a redundant segment collapses away.
         var effectiveSegment = namespaceSegment ?? pathSegment;
 
         // Use EndpointDefinitionExtractor to extract interface and class parameters filtered by path segment
-        var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath, effectiveSegment);
+        var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath, effectiveSegment, useAntiforgery);
 
         if (interfaceParams is null && (classParameters is null || classParameters.Count == 0))
         {

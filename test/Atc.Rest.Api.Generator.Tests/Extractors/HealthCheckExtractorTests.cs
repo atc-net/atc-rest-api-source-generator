@@ -119,6 +119,30 @@ public class HealthCheckExtractorTests
         Assert.Contains("MapGroup", result, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The key is read from the header only, unless a query parameter is configured: a key in a URL ends up in access
+    /// logs and proxies. It is compared in constant time (of SHA-256 hashes, so neither its content nor its length
+    /// leaks through the timing).
+    /// </summary>
+    [Fact]
+    public void GenerateEndpoints_SecurityApiKey_ByDefault_ReadsTheHeaderOnly_AndComparesInConstantTime()
+    {
+        var config = new HealthCheckConfig
+        {
+            Enabled = true,
+            Security = "apiKey",
+        };
+
+        var result = HealthCheckExtractor.GenerateEndpoints("TestApi", config);
+
+        Assert.Null(config.ApiKeyQueryParameterName);
+        Assert.DoesNotContain("Request.Query", result, StringComparison.Ordinal);
+        Assert.Contains("Request.Headers[\"X-Health-Api-Key\"]", result, StringComparison.Ordinal);
+        Assert.Contains("CryptographicOperations.FixedTimeEquals", result, StringComparison.Ordinal);
+        Assert.Contains("SHA256.HashData", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("string.Equals(providedKey", result, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void GenerateEndpoints_CustomQueryParamAndHeaderName()
     {

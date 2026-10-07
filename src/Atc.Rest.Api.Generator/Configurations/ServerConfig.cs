@@ -100,4 +100,12 @@ public class ServerConfig : BaseConfig
     /// </summary>
     [JsonConverter(typeof(InlineParameterEnumModeConverter))]
     public InlineParameterEnumMode InlineParameterEnums { get; set; } = InlineParameterEnumMode.Enum;
+
+    /// <summary>
+    /// Whether the endpoints that bind a form (a file upload, a URL-encoded form) validate an antiforgery token.
+    /// Default: false - they call <c>DisableAntiforgery()</c>: an API's callers authenticate with a token in a header,
+    /// which a cross-site form cannot send. Set it for a host whose browser clients authenticate with a cookie; the
+    /// host then calls <c>AddAntiforgery()</c> and <c>UseAntiforgery()</c>, or a form post fails at request time.
+    /// </summary>
+    public bool UseAntiforgery { get; set; }
 }

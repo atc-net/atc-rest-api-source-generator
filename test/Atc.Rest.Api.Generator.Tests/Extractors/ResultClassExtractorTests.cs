@@ -1223,8 +1223,9 @@ public class ResultClassExtractorTests
         Assert.Contains("? xml(mediaType).ExecuteAsync(httpContext)", source, StringComparison.Ordinal);
         Assert.Contains(": json.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
 
-        // */* and a tie are JSON, never a 406
-        Assert.Contains("if (type is \"*/*\" or \"application/*\" or \"application/json\" ||", source, StringComparison.Ordinal);
+        // */* and a tie are JSON, never a 406; media types compare case-insensitively; a cache keys on Accept
+        Assert.Contains("string.Equals(type, \"application/json\", global::System.StringComparison.OrdinalIgnoreCase)", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.Headers.Append(\"Vary\", \"Accept\");", source, StringComparison.Ordinal);
         Assert.Contains("return xmlQuality > jsonQuality ? chosen : null;", source, StringComparison.Ordinal);
     }
 

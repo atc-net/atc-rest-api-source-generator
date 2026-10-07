@@ -110,6 +110,17 @@ public static class SequentialResultsExtractor
         sb.AppendLine();
         sb.AppendLine("    private static readonly byte[] Crlf = { (byte)'\\r', (byte)'\\n' };");
         sb.AppendLine();
+
+        // One item per line, whatever the host's options say: an indented item would break a JSON Lines stream (and a
+        // JSON Text Sequence or multipart part is easier read on one line too). The compact copy is cached per options
+        // instance, so the serializer keeps its metadata cache.
+        sb.AppendLine("    private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> CompactOptions = new();");
+        sb.AppendLine();
+        sb.AppendLine("    private static JsonSerializerOptions Compact(JsonSerializerOptions options)");
+        sb.AppendLine("        => options.WriteIndented");
+        sb.AppendLine("            ? CompactOptions.GetValue(options, static o => new JsonSerializerOptions(o) { WriteIndented = false })");
+        sb.AppendLine("            : options;");
+        sb.AppendLine();
         sb.AppendLine("    public static async Task WriteJsonLinesAsync<T>(");
         sb.AppendLine("        IAsyncEnumerable<T> items,");
         sb.AppendLine("        Stream stream,");
@@ -118,7 +129,7 @@ public static class SequentialResultsExtractor
         sb.AppendLine("    {");
         sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
         sb.AppendLine("        {");
-        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);");
         sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");
@@ -136,7 +147,7 @@ public static class SequentialResultsExtractor
         sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
         sb.AppendLine("        {");
         sb.AppendLine("            await stream.WriteAsync(RecordSeparator, cancellationToken);");
-        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);");
         sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");
@@ -156,7 +167,7 @@ public static class SequentialResultsExtractor
         sb.AppendLine("        {");
         sb.AppendLine("            var header = Encoding.ASCII.GetBytes($\"--{boundary}\\r\\nContent-Type: application/json\\r\\n\\r\\n\");");
         sb.AppendLine("            await stream.WriteAsync(header, cancellationToken);");
-        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);");
         sb.AppendLine("            await stream.WriteAsync(Crlf, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");

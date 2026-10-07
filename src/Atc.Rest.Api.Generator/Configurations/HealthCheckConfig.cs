@@ -41,11 +41,12 @@ public class HealthCheckConfig
     public string Security { get; set; } = "none";
 
     /// <summary>
-    /// Name of the query parameter for API key authentication.
-    /// Used when security is "apiKey". Default: "api-key".
-    /// Example: GET /health/live?api-key=my-secret
+    /// Name of a query parameter the API key may also be sent in, for a probe that cannot send a header.
+    /// Used when security is "apiKey". Default: none - the key is read from the header only (a key in a URL ends up
+    /// in access logs and proxies).
+    /// Example: "api-key" accepts GET /health/live?api-key=my-secret
     /// </summary>
-    public string ApiKeyQueryParameterName { get; set; } = "api-key";
+    public string? ApiKeyQueryParameterName { get; set; }
 
     /// <summary>
     /// Name of the HTTP header for API key authentication.

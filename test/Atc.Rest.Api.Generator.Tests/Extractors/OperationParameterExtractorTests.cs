@@ -1226,7 +1226,11 @@ public class OperationParameterExtractorTests
         Assert.Equal("RawFilter", param.Name);
         Assert.Equal("string", param.TypeName);  // NOT "object"
         Assert.True(param.IsNullableType);
-        Assert.Null(param.Attributes?.FirstOrDefault(a => a.Name == "FromQuery"));
+
+        // Bound from the reserved key the wire-binding step fills with the raw query string (without it, the binder
+        // read the query key "RawFilter", so the value was always null)
+        var fromQuery = Assert.Single(param.Attributes!, a => a.Name == "FromQuery");
+        Assert.Equal($"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.QueryStringKey)}", fromQuery.Content);
     }
 
     [Fact]

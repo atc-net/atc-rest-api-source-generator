@@ -38,12 +38,13 @@ internal sealed class XmlTestHost : IAsyncDisposable
         string registrationTypeName,
         Action<WebApplication>? configure = null,
         Action<IServiceCollection>? configureServices = null,
-        bool plainHost = false)
+        bool plainHost = false,
+        string? serverMarker = null)
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(
             new ApiServerGenerator(),
             ".atc-rest-api-server",
-            plainHost ? "{}" : ErrorResponseBodyRuntimeTests.ServerMarker,
+            serverMarker ?? (plainHost ? "{}" : ErrorResponseBodyRuntimeTests.ServerMarker),
             includeMinimalApi: !plainHost,
             yaml);
 

@@ -154,11 +154,25 @@ public static class HealthCheckExtractor
         sb.AppendLine("                var expectedKey = configuration[\"HealthChecks:ApiKey\"];");
         sb.AppendLine("                if (!string.IsNullOrEmpty(expectedKey))");
         sb.AppendLine("                {");
-        sb.AppendLine($"                    var providedKey = context.HttpContext.Request.Query[\"{queryParam}\"].FirstOrDefault()");
-        sb.AppendLine($"                        ?? context.HttpContext.Request.Headers[\"{headerName}\"].FirstOrDefault();");
-        sb.AppendLine("                    if (!string.Equals(providedKey, expectedKey, StringComparison.Ordinal))");
+
+        // The header; the query string only when a parameter is configured (a key in a URL ends up in logs)
+        if (string.IsNullOrEmpty(queryParam))
+        {
+            sb.AppendLine($"                    var providedKey = context.HttpContext.Request.Headers[{CSharpLiteralHelper.ToStringLiteral(headerName)}].FirstOrDefault();");
+        }
+        else
+        {
+            sb.AppendLine($"                    var providedKey = context.HttpContext.Request.Headers[{CSharpLiteralHelper.ToStringLiteral(headerName)}].FirstOrDefault()");
+            sb.AppendLine($"                        ?? context.HttpContext.Request.Query[{CSharpLiteralHelper.ToStringLiteral(queryParam!)}].FirstOrDefault();");
+        }
+
+        // Compared in constant time, of hashes - neither the key nor its length leaks through the timing
+        sb.AppendLine("                    if (providedKey is null ||");
+        sb.AppendLine("                        !global::System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(");
+        sb.AppendLine("                            global::System.Security.Cryptography.SHA256.HashData(global::System.Text.Encoding.UTF8.GetBytes(providedKey)),");
+        sb.AppendLine("                            global::System.Security.Cryptography.SHA256.HashData(global::System.Text.Encoding.UTF8.GetBytes(expectedKey))))");
         sb.AppendLine("                    {");
-        sb.AppendLine("                        return Results.Unauthorized();");
+        sb.AppendLine("                        return global::Microsoft.AspNetCore.Http.Results.Unauthorized();");
         sb.AppendLine("                    }");
         sb.AppendLine("                }");
         sb.AppendLine();

@@ -21,5 +21,4 @@ public sealed record ListItemsParameters(
     string? Q,
     List<string>? Legacy,
     List<string>? Ids,
-    string? RawFilter,
     string? Session);

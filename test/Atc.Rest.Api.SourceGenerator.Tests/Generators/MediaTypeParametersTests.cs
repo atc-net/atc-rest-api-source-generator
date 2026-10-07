@@ -23,7 +23,7 @@ public class MediaTypeParametersTests
 
         var results = Source(sources, "Generated.Results");
         Assert.Contains("ListPetsResult Ok(List<Pet>", results, StringComparison.Ordinal);
-        Assert.Contains("CreatePetResult Created(Pet", results, StringComparison.Ordinal);
+        Assert.Matches(@"CreatePetResult Created\(\s+Pet response", results);
         Assert.Contains("GetPetResult Ok(Pet", results, StringComparison.Ordinal);
         Assert.Matches(@"GetPhotoResult Ok\(\s+byte\[\] bytes", results); // */* with a binary schema stays a file
     }

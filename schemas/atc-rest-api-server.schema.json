@@ -317,9 +317,11 @@
               "default": "none"
             },
             "apiKeyQueryParameterName": {
-              "type": "string",
-              "description": "Name of the query parameter for API key authentication. Used when security is \"apiKey\". Default: \"api-key\". Example: GET /health/live?api-key=my-secret",
-              "default": "api-key"
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Name of a query parameter the API key may also be sent in, for a probe that cannot send a header. Used when security is \"apiKey\". Default: none - the key is read from the header only (a key in a URL ends up in access logs and proxies). Example: \"api-key\" accepts GET /health/live?api-key=my-secret"
             },
             "apiKeyHeaderName": {
               "type": "string",
@@ -342,6 +344,11 @@
       ],
       "description": "How to generate an inline enum declared directly on a path/query/header parameter. Default: Enum (a named C# enum type). Set to String to keep the pre-1.0.252 behavior where such parameters are generated as string, avoiding a source-breaking change for handlers/services written against the old shape.",
       "default": "Enum"
+    },
+    "useAntiforgery": {
+      "type": "boolean",
+      "description": "Whether the endpoints that bind a form (a file upload, a URL-encoded form) validate an antiforgery token. Default: false - they call DisableAntiforgery(): an API's callers authenticate with a token in a header, which a cross-site form cannot send. Set it for a host whose browser clients authenticate with a cookie; the host then calls AddAntiforgery() and UseAntiforgery(), or a form post fails at request time.",
+      "default": false
     }
   },
   "additionalProperties": false

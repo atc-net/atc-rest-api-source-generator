@@ -11,6 +11,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddParameterSerializationHandlers(this IServiceCollection services)
     {
+        // Handler for IListItemsByQueryStringHandler must be registered in the Domain project
+        // services.AddScoped<IListItemsByQueryStringHandler, YourImplementation>();
         // Handler for IListItemsHandler must be registered in the Domain project
         // services.AddScoped<IListItemsHandler, YourImplementation>();
 

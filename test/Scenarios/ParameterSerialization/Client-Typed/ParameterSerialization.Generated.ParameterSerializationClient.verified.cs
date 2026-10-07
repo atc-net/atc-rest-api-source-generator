@@ -80,12 +80,6 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             url += "?" + string.Join("&", queryParams);
         }
 
-
-        if (!string.IsNullOrEmpty(parameters.RawFilter))
-        {
-            url += (url.Contains('?') ? "&" : "?") + parameters.RawFilter;
-        }
-
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         var cookieParts = new List<string>();
         if (parameters.Session is { Length: > 0 } cookieSession)
@@ -99,6 +93,22 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         }
 
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
+    }
+
+    public async Task<List<Item>> ListItemsByQueryStringAsync(
+        ListItemsByQueryStringParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = "items/search";
+
+        if (!string.IsNullOrEmpty(parameters.RawFilter))
+        {
+            url += (url.Contains('?') ? "&" : "?") + parameters.RawFilter;
+        }
+
+        var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
     }

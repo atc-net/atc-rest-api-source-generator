@@ -94,7 +94,7 @@ app.MapShowcaseApi();
 // Map webhook endpoints (receives external webhook calls)
 app.MapShowcaseWebhooks();
 
-// Map health check endpoints (secured via api-key query/header)
+// Map health check endpoints (secured via the X-Health-Api-Key header)
 app.MapHealthCheckEndpoints();
 
 if (app.Environment.IsDevelopment())

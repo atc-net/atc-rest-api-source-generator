@@ -8,7 +8,8 @@ import type { IdList, Item } from '../models';
 
 const itemsKeys = {
   all: ['items'] as const,
-  list: (rawFilter?: string, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }) => [...itemsKeys.all, 'list', rawFilter, query] as const,
+  list: (query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }) => [...itemsKeys.all, 'list', query] as const,
+  listItemsByQueryString: (rawFilter?: string) => [...itemsKeys.all, 'listItemsByQueryString', rawFilter] as const,
 };
 
 export { itemsKeys };
@@ -19,10 +20,29 @@ export { itemsKeys };
  * React Query's signal to the client, so a cancelled or unused query stops its request.
  */
 const itemsQueries = {
-  listItems: (api: ApiService, rawFilter?: string, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }) => queryOptions<Item[], ApiError>({
-    queryKey: itemsKeys.list(rawFilter, query),
+  listItems: (api: ApiService, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }) => queryOptions<Item[], ApiError>({
+    queryKey: itemsKeys.list(query),
     queryFn: async ({ signal }) => {
-      const result = await api.items.listItems(rawFilter, query, cookies, signal);
+      const result = await api.items.listItems(query, cookies, signal);
+      if (result.status === 'ok') {
+        return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    retry: false,
+  }),
+  listItemsByQueryString: (api: ApiService, rawFilter?: string) => queryOptions<Item[], ApiError>({
+    queryKey: itemsKeys.listItemsByQueryString(rawFilter),
+    queryFn: async ({ signal }) => {
+      const result = await api.items.listItemsByQueryString(rawFilter, signal);
       if (result.status === 'ok') {
         return result.data;
       }
@@ -43,10 +63,19 @@ const itemsQueries = {
 export { itemsQueries };
 
 /** List items */
-export function useListItems(rawFilter?: string, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }, options?: Omit<UseQueryOptions<Item[], ApiError>, 'queryKey' | 'queryFn'>) {
+export function useListItems(query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }, options?: Omit<UseQueryOptions<Item[], ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
-    ...itemsQueries.listItems(api, rawFilter, query, cookies),
+    ...itemsQueries.listItems(api, query, cookies),
+    ...options,
+  });
+}
+
+/** Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have) */
+export function useListItemsByQueryString(rawFilter?: string, options?: Omit<UseQueryOptions<Item[], ApiError>, 'queryKey' | 'queryFn'>) {
+  const api = useApiService();
+  return useQuery({
+    ...itemsQueries.listItemsByQueryString(api, rawFilter),
     ...options,
   });
 }

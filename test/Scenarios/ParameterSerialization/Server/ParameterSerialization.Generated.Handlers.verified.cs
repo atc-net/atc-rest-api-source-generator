@@ -22,3 +22,14 @@ public interface IListItemsHandler
         ListItemsParameters parameters,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IListItemsByQueryStringHandler
+{
+    Task<ListItemsByQueryStringResult> ExecuteAsync(
+        ListItemsByQueryStringParameters parameters,
+        CancellationToken cancellationToken = default);
+}

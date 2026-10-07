@@ -23,5 +23,13 @@ public sealed record ListItemsParameters(
     [property: FromQuery(Name = "q")] string? Q,
     [property: FromQuery(Name = "legacy")] ParsableList<string>? Legacy,
     [property: FromQuery(Name = "ids")] ParsableList<string>? Ids,
-    string? RawFilter,
     [property: FromHeader(Name = "x-cookie-session")] string? Session);
+
+/// <summary>
+/// Parameters for operation request.
+/// Description: Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have).
+/// Operation: ListItemsByQueryString.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record ListItemsByQueryStringParameters(
+    [property: FromQuery(Name = "\u001fquerystring")] string? RawFilter);

@@ -94,6 +94,9 @@ public static class OpenApiDocumentValidator
         diagnostics.AddRange(ValidatePaths(document, sourceFilePath));
         diagnostics.AddRange(ValidateResponseRanges(document, sourceFilePath));
 
+        // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it)
+        diagnostics.AddRange(ValidateQueryStringParameters(document, sourceFilePath));
+
         if (strategy == ValidateSpecificationStrategy.None)
         {
             return diagnostics; // Skip all validation
@@ -113,6 +116,41 @@ public static class OpenApiDocumentValidator
             // ATC_API_VER0xx: constructs that do not mean what the author thinks at the declared
             // spec version, or that must change when the version is raised.
             SpecVersionMigrationValidator.Validate(diagnostics, sourceFilePath, document, sourceText);
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// ATC_API_OPR036: an OAS 3.2 <c>in: querystring</c> parameter is the whole query string - it MUST NOT appear more
+    /// than once, nor next to an <c>in: query</c> parameter of the operation or its path item (the generated server
+    /// would bind both from one query string, a client could not send both). Every strategy.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateQueryStringParameters(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        foreach (var path in document.Paths ?? [])
+        {
+            foreach (var operation in path.Value?.Operations ?? [])
+            {
+                var locations = (path.Value!.Parameters ?? [])
+                    .Concat(operation.Value?.Parameters ?? [])
+                    .Select(p => p.Resolve().Parameter?.In)
+                    .ToList();
+                var queryStrings = locations.Count(l => l == ParameterLocation.QueryString);
+                if (queryStrings > 1 || (queryStrings == 1 && locations.Contains(ParameterLocation.Query)))
+                {
+                    var operationId = operation.Value?.OperationId ?? $"{operation.Key.Method} {path.Key}";
+                    diagnostics.Add(new DiagnosticMessage(
+                        RuleIdentifiers.QueryStringParameterNotAlone,
+                        $"Operation '{operationId}' has {(queryStrings > 1 ? "more than one 'in: querystring' parameter" : "an 'in: querystring' parameter next to 'in: query' parameters")}; the querystring parameter is the whole query string (OpenAPI 3.2).",
+                        DiagnosticSeverity.Error,
+                        sourceFilePath,
+                        Suggestions: ["Keep one 'in: querystring' parameter and move the query parameters into its content, or use 'in: query' parameters only"]));
+                }
+            }
         }
 
         return diagnostics;

@@ -290,9 +290,13 @@ internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
         => (json as IStatusCodeHttpResult)?.StatusCode;
 
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
-        => PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
+    {
+        // The body depends on Accept: a cache must not answer one Accept with the other's
+        httpContext.Response.Headers.Append("Vary", "Accept");
+        return PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
             ? xml(mediaType).ExecuteAsync(httpContext)
             : json.ExecuteAsync(httpContext);
+    }
 
     private string? PreferredXmlMediaType(global::Microsoft.Extensions.Primitives.StringValues accept)
     {
@@ -309,7 +313,10 @@ internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
         {
             var quality = value.Quality ?? 1d;
             var type = value.MediaType.Value ?? string.Empty;
-            if (type is "*/*" or "application/*" or "application/json" ||
+            // Media types are case-insensitive (RFC 9110 §8.3.1)
+            if (type == "*/*" ||
+                string.Equals(type, "application/*", global::System.StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(type, "application/json", global::System.StringComparison.OrdinalIgnoreCase) ||
                 type.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase))
             {
                 jsonQuality = global::System.Math.Max(jsonQuality, quality);

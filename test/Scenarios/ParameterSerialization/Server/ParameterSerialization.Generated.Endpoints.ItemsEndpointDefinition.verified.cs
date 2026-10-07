@@ -39,6 +39,16 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding<RouteHandlerBuilder, ListItemsParameters>(("legacy", ' '));
+
+        items
+            .MapGet("search", ListItemsByQueryString)
+            .WithName("ListItemsByQueryString")
+            .WithSummary("Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have)")
+            .Produces<List<Item>>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListItemsByQueryStringParameters>();
     }
 
     internal async Task<IResult> ListItems(
@@ -46,6 +56,15 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
         [AsParameters] ListItemsParameters parameters,
         CancellationToken cancellationToken)
         => ListItemsResult.ToIResult(
+                    await handler.ExecuteAsync(
+                        parameters,
+                        cancellationToken));
+
+    internal async Task<IResult> ListItemsByQueryString(
+        [FromServices] IListItemsByQueryStringHandler handler,
+        [AsParameters] ListItemsByQueryStringParameters parameters,
+        CancellationToken cancellationToken)
+        => ListItemsByQueryStringResult.ToIResult(
                     await handler.ExecuteAsync(
                         parameters,
                         cancellationToken));

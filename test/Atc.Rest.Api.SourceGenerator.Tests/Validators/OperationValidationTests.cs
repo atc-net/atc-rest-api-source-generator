@@ -2579,6 +2579,71 @@ public class OperationValidationTests
         Assert.Null(opr026);
     }
 
+    /// <summary>
+    /// OAS 3.2: a querystring parameter is the whole query string - it MUST NOT appear more than once, nor next to a
+    /// query parameter of the operation or its path item.
+    /// </summary>
+    [Theory]
+    [InlineData("- { name: q, in: query, schema: { type: string } }")]
+    [InlineData("- { name: other, in: querystring, content: { application/x-www-form-urlencoded: { schema: { type: string } } } }")]
+    public void Validate_QueryStringWithAQueryParameterOrASecondQueryString_ReportsOPR036Error(string secondParameter)
+    {
+        var yaml = $$"""
+                     openapi: 3.2.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /items:
+                         get:
+                           operationId: listItems
+                           parameters:
+                             - { name: filter, in: querystring, content: { application/x-www-form-urlencoded: { schema: { type: string } } } }
+                             {{secondParameter}}
+                           responses:
+                             '200':
+                               description: Success
+                     """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        foreach (var strategy in (ValidateSpecificationStrategy[])[ValidateSpecificationStrategy.None, ValidateSpecificationStrategy.Standard, ValidateSpecificationStrategy.Strict])
+        {
+            var diagnostics = OpenApiDocumentValidator.Validate(strategy, document, [], TestFilePath);
+
+            var error = Assert.Single(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.QueryStringParameterNotAlone);
+            Assert.Equal(Generator.Models.DiagnosticSeverity.Error, error.Severity);
+            Assert.Contains("listItems", error.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Validate_AQueryStringParameterAlone_NoOPR036()
+    {
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - { name: filter, in: querystring, content: { application/x-www-form-urlencoded: { schema: { type: string } } } }
+                                    - { name: x-trace, in: header, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: Success
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath);
+
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.QueryStringParameterNotAlone);
+    }
+
     [Theory]
     [InlineData("explode: false")]
     [InlineData("style: pipeDelimited")]

@@ -1060,9 +1060,22 @@ public static class EndpointPerOperationExtractor
 
         // Build URL template with path parameters (optionally prepend server base path)
         var templatePath = serverBasePath is not null ? $"{serverBasePath}{path}" : path;
-        sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{templatePath}\");");
-
         var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
+
+        // OAS 3.2 in: querystring is the whole query string, as given (an operation that has one has no query
+        // parameters, so the builder adds none after it)
+        var queryStringParameter = (pathLevelParameters ?? []).Concat(operation.Parameters ?? [])
+            .Select(p => p.Resolve())
+            .FirstOrDefault(r => r?.Parameter is { In: ParameterLocation.QueryString });
+        if (queryStringParameter?.Parameter is { } queryString)
+        {
+            var queryStringProperty = propertyNames.Get(queryString, queryStringParameter.ReferenceId);
+            sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{templatePath}\" + (parameters.{queryStringProperty} is {{ Length: > 0 }} queryString ? \"?\" + queryString : string.Empty));");
+        }
+        else
+        {
+            sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{templatePath}\");");
+        }
 
         // Add path parameters
         var allParams = new List<(OpenApiParameter Param, string? ReferenceId)>();

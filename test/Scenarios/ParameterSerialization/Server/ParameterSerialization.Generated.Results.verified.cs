@@ -49,3 +49,42 @@ public sealed class ListItemsResult : IResult
     public static IResult ToIResult(ListItemsResult result)
         => result.Result;
 }
+
+/// <summary>
+/// Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class ListItemsByQueryStringResult : IResult
+{
+    private readonly IResult innerResult;
+
+    private ListItemsByQueryStringResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - OK.
+    /// </summary>
+    public static ListItemsByQueryStringResult Ok(List<Item> response)
+        => new(TypedResults.Ok(response));
+
+    public static implicit operator ListItemsByQueryStringResult(List<Item> response)
+        => Ok(response);
+
+    public static implicit operator ListItemsByQueryStringResult(Item[] response)
+        => Ok(response.ToList());
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts ListItemsByQueryStringResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(ListItemsByQueryStringResult result)
+        => result.Result;
+}

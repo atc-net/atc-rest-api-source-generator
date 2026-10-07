@@ -31,8 +31,10 @@ public sealed class CreateUserResult : IResult
     /// <summary>
     /// 201 Created - User created.
     /// </summary>
-    public static CreateUserResult Created(User response)
-        => new(TypedResults.Created((string?)null, response));
+    public static CreateUserResult Created(
+        User response,
+        string? location = null)
+        => new(location is null ? (IResult)TypedResults.Created((string?)null, response) : new LocationHttpResult(TypedResults.Created((string?)null, response), location));
 
     public static implicit operator CreateUserResult(User response)
         => Created(response);
@@ -87,4 +89,28 @@ public sealed class GetUserByIdResult : IResult
     /// </summary>
     public static IResult ToIResult(GetUserByIdResult result)
         => result.Result;
+}
+
+/// <summary>
+/// Writes the wrapped result with a <c>Location</c> header.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class LocationHttpResult : IResult
+{
+    private readonly IResult inner;
+    private readonly string location;
+
+    public LocationHttpResult(
+        IResult inner,
+        string location)
+    {
+        this.inner = inner;
+        this.location = location;
+    }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.Headers.Location = location;
+        return inner.ExecuteAsync(httpContext);
+    }
 }

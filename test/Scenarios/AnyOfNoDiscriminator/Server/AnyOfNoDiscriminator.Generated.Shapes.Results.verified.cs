@@ -70,8 +70,10 @@ public sealed class CreateShapeResult : IResult
     /// <summary>
     /// 201 Created - Shape created.
     /// </summary>
-    public static CreateShapeResult Created(Shape response)
-        => new(TypedResults.Created((string?)null, response));
+    public static CreateShapeResult Created(
+        Shape response,
+        string? location = null)
+        => new(location is null ? (IResult)TypedResults.Created((string?)null, response) : new LocationHttpResult(TypedResults.Created((string?)null, response), location));
 
     public static implicit operator CreateShapeResult(Shape response)
         => Created(response);
@@ -84,4 +86,28 @@ public sealed class CreateShapeResult : IResult
     /// </summary>
     public static IResult ToIResult(CreateShapeResult result)
         => result.Result;
+}
+
+/// <summary>
+/// Writes the wrapped result with a <c>Location</c> header.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class LocationHttpResult : IResult
+{
+    private readonly IResult inner;
+    private readonly string location;
+
+    public LocationHttpResult(
+        IResult inner,
+        string location)
+    {
+        this.inner = inner;
+        this.location = location;
+    }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.Headers.Location = location;
+        return inner.ExecuteAsync(httpContext);
+    }
 }

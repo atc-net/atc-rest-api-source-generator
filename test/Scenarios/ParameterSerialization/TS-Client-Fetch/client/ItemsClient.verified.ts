@@ -10,6 +10,13 @@ export type ListItemsResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+export type ListItemsByQueryStringResult =
+  | { status: 'ok'; data: Item[]; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
 export class ItemsClient {
   private readonly api: ApiClient;
 
@@ -18,10 +25,8 @@ export class ItemsClient {
   }
 
   /** List items */
-  async listItems(rawFilter?: string, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }, signal?: AbortSignal): Promise<ListItemsResult> {
-    const _basePath = '/items';
-    const _url = rawFilter ? `${_basePath}?${rawFilter}` : _basePath;
-    return this.api.request<Item[]>('GET', _url, {
+  async listItems(query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }, signal?: AbortSignal): Promise<ListItemsResult> {
+    return this.api.request<Item[]>('GET', '/items', {
       query: {
         tags: query?.tags,
         q: query?.q,
@@ -36,5 +41,16 @@ export class ItemsClient {
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListItemsResult>;
+  }
+
+  /** Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have) */
+  async listItemsByQueryString(rawFilter?: string, signal?: AbortSignal): Promise<ListItemsByQueryStringResult> {
+    const _basePath = '/items/search';
+    const _url = rawFilter ? `${_basePath}?${rawFilter}` : _basePath;
+    return this.api.request<Item[]>('GET', _url, {
+      responseType: 'json',
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<ListItemsByQueryStringResult>;
   }
 }

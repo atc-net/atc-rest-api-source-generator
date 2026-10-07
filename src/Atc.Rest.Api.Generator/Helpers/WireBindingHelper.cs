@@ -21,6 +21,12 @@ public static class WireBindingHelper
     public const string CookieHeaderPrefix = "x-cookie-";
 
     /// <summary>
+    /// The query key an OAS 3.2 <c>in: querystring</c> parameter is bound from: one no request can send (it starts
+    /// with the unit separator), which the step fills with the raw query string.
+    /// </summary>
+    public const string QueryStringKey = "\u001Fquerystring";
+
+    /// <summary>
     /// Whether an operation needs the step: it has a parameter in the path, the query string, a header or a cookie.
     /// </summary>
     /// <param name="operation">The operation.</param>
@@ -38,7 +44,7 @@ public static class WireBindingHelper
         return (pathItem?.Parameters ?? [])
             .Concat(operation.Parameters ?? [])
             .Select(p => p.Resolve().Parameter)
-            .Any(p => p is { In: ParameterLocation.Path or ParameterLocation.Query or ParameterLocation.Header or ParameterLocation.Cookie });
+            .Any(p => p is { In: ParameterLocation.Path or ParameterLocation.Query or ParameterLocation.QueryString or ParameterLocation.Header or ParameterLocation.Cookie });
     }
 
     /// <summary>
@@ -167,6 +173,8 @@ public static class WireBindingHelper
             {
                 private const string CookieHeaderPrefix = "{{CookieHeaderPrefix}}";
 
+                private const string QueryStringKey = "\u001Fquerystring";
+
                 private const char ItemSeparator = '\u001F';
 
                 private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray);
@@ -258,6 +266,18 @@ public static class WireBindingHelper
 
                         endpoint.RequestDelegate = async context =>
                         {
+                            // A request whose antiforgery token the middleware rejected (an endpoint that validates it -
+                            // useAntiforgery) is a 400, as the framework's own binding answers it; even asking whether
+                            // the body is a form would throw
+                            if (context.Features.Get<global::Microsoft.AspNetCore.Antiforgery.IAntiforgeryValidationFeature>() is { IsValid: false } antiforgery)
+                            {
+                                await global::Microsoft.AspNetCore.Http.Results.Problem(
+                                    detail: antiforgery.Error?.Message,
+                                    statusCode: global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest,
+                                    title: "Invalid antiforgery token").ExecuteAsync(context);
+                                return;
+                            }
+
                             // Another media type is the framework's 415 (the Accepts metadata)
                             if (!context.Request.HasFormContentType)
                             {
@@ -390,6 +410,18 @@ public static class WireBindingHelper
                     Dictionary<string, string[]>? errors = null;
                     foreach (var parameter in parameters)
                     {
+                        // OAS 3.2 in: querystring - the whole query string, as sent
+                        if (parameter.In == "query" && parameter.Name == QueryStringKey)
+                        {
+                            if (request.QueryString.Value is { Length: > 1 } rawQuery)
+                            {
+                                query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                                query[QueryStringKey] = rawQuery[1..];
+                            }
+
+                            continue;
+                        }
+
                         var values = parameter.In switch
                         {
                             "path" => request.RouteValues.TryGetValue(parameter.Name, out var routeValue) && routeValue is string routeText ? new StringValues(routeText) : StringValues.Empty,

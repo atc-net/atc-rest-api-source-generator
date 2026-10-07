@@ -183,9 +183,13 @@ public static class ResultClassExtractor
                     => (json as IStatusCodeHttpResult)?.StatusCode;
 
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
-                    => PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
+                {
+                    // The body depends on Accept: a cache must not answer one Accept with the other's
+                    httpContext.Response.Headers.Append("Vary", "Accept");
+                    return PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
                         ? xml(mediaType).ExecuteAsync(httpContext)
                         : json.ExecuteAsync(httpContext);
+                }
 
                 private string? PreferredXmlMediaType(global::Microsoft.Extensions.Primitives.StringValues accept)
                 {
@@ -202,7 +206,10 @@ public static class ResultClassExtractor
                     {
                         var quality = value.Quality ?? 1d;
                         var type = value.MediaType.Value ?? string.Empty;
-                        if (type is "*/*" or "application/*" or "application/json" ||
+                        // Media types are case-insensitive (RFC 9110 §8.3.1)
+                        if (type == "*/*" ||
+                            string.Equals(type, "application/*", global::System.StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(type, "application/json", global::System.StringComparison.OrdinalIgnoreCase) ||
                             type.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase))
                         {
                             jsonQuality = global::System.Math.Max(jsonQuality, quality);
@@ -1138,10 +1145,11 @@ public static class ResultClassExtractor
                         IsReferenceType: true,
                         Name: "response",
                         DefaultValue: null),
+                    LocationParameter(),
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: xmlBody is null ? "new(TypedResults.Created((string?)null, response))" : XmlResultExpression(201, contentType!, xmlBody, "response", "TypedResults.Created((string?)null, response)"));
+                Content: WithLocation(xmlBody is null ? "new(TypedResults.Created((string?)null, response))" : XmlResultExpression(201, contentType!, xmlBody, "response", "TypedResults.Created((string?)null, response)")));
             methods.Add(createdWithResponse);
 
             // Generate implicit operator for convenience
@@ -1251,10 +1259,11 @@ public static class ResultClassExtractor
                         IsReferenceType: true,
                         Name: "response",
                         DefaultValue: null),
+                    LocationParameter(),
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: xmlBody is null ? "new(TypedResults.Accepted((string?)null, response))" : XmlResultExpression(202, contentType!, xmlBody, "response", "TypedResults.Accepted((string?)null, response)"));
+                Content: WithLocation(xmlBody is null ? "new(TypedResults.Accepted((string?)null, response))" : XmlResultExpression(202, contentType!, xmlBody, "response", "TypedResults.Accepted((string?)null, response)")));
         }
 
         // TypedResults.Accepted() has no parameterless overload - every overload expects
@@ -1341,6 +1350,29 @@ public static class ResultClassExtractor
                 Method(contentType, "response", $"new(TypedResults.Json(response, statusCode: {status}))"),
             _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
         };
+    }
+
+    /// <summary>
+    /// The optional <c>location</c> of a 201 or 202 with a body: where the created or accepted resource is.
+    /// </summary>
+    private static ParameterBaseParameters LocationParameter()
+        => new(
+            Attributes: null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: "string",
+            IsNullableType: true,
+            IsReferenceType: true,
+            Name: "location",
+            DefaultValue: "null");
+
+    /// <summary>
+    /// A factory's <c>new(result)</c>, with a <c>Location</c> header when <c>location</c> is given.
+    /// </summary>
+    private static string WithLocation(string factoryContent)
+    {
+        var result = factoryContent.Substring("new(".Length, factoryContent.Length - "new(".Length - 1);
+        return $"new(location is null ? (IResult){result} : new LocationHttpResult({result}, location))";
     }
 
     private static string XmlResultExpression(
