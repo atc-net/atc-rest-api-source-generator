@@ -816,6 +816,7 @@ renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
   if (!pw) { $('#playwright').innerHTML = '<h2>Playwright</h2><p>The Showcase end-to-end suite (<code>test/Showcase.E2ETests</code>) has not run on this machine: no <code>test-results/results.json</code>. Run <code>npx playwright test</code> there and regenerate this report.</p>'; return; }
   $('#playwright').innerHTML = `<h2>Playwright</h2>
     <p>The Showcase apps (Blazor, React on fetch, React on Axios) driven by Playwright against the generated API: ${pw.specs} spec files, run ${esc(pw.startTime)} in ${esc(pw.durationSeconds)} s.</p>
+    ${pw.stale ? `<p class="callout warn"><b>Stale:</b> this Playwright run started before the commit this report was built from (${esc(pw.commitTime ?? 'unknown')}), so it tested older code. Run <code>npx playwright test</code> in <code>test/Showcase.E2ETests</code> and regenerate the report.</p>` : ''}
     <div class="table-wrap"><table><thead><tr><th>App (project)</th><th>Results</th></tr></thead><tbody>${Object.entries(pw.apps).map(([app, t]) => `<tr><td><b>${esc(app)}</b></td><td>${Object.entries(t).map(([st, n]) => `<span class="v ${st === 'expected' || st === 'passed' ? 'pass' : st === 'skipped' ? 'na' : st === 'flaky' ? 'lossy' : 'fail'}">${esc(st)}</span> ${n}`).join(' ')}</td></tr>`).join('')}</tbody></table></div>`;
 })();
 
@@ -890,7 +891,7 @@ document.addEventListener('click', (e) => {
       ${stat(sum('lossy'), 'lossy, each with an assessment', 'warn')}
       ${gate ? stat(`${gate.clean} / ${gate.scenarios}`, `scenarios compile clean for all ${gate.generators} C# generators`, gate.clean === gate.scenarios ? 'good' : 'bad') : ''}
       ${diag ? stat(`${diag.tested} / ${diag.rules}`, 'diagnostic rules with a test', diag.tested === diag.rules ? 'good' : 'warn') : ''}
-      ${pw ? stat(pw.failed ? `${pw.failed} failed` : 'green', `Playwright, ${pw.apps} apps${pw.flaky ? `, ${pw.flaky} flaky (passed on a retry)` : ''}`, pw.failed ? 'bad' : pw.flaky ? 'warn' : 'good') : stat('not run', 'Playwright (Showcase apps)', '')}
+      ${pw?.stale ? stat('stale', 'Playwright run older than this commit', 'warn') : pw ? stat(pw.failed ? `${pw.failed} failed` : 'green', `Playwright, ${pw.apps} apps${pw.flaky ? `, ${pw.flaky} flaky (passed on a retry)` : ''}`, pw.failed ? 'bad' : pw.flaky ? 'warn' : 'good') : stat('not run', 'Playwright (Showcase apps)', '')}
     </div>
     <p class="counts">Run ${esc(REPORT.generatedAt)} on commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ' + uncommitted changes' : ''} · regenerate: <code>${esc(cmdFor(REPORT_TEST, true))}</code> ${copyButton(cmdFor(REPORT_TEST, true))}</p>`;
 

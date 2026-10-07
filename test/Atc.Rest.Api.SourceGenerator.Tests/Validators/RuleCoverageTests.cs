@@ -22,7 +22,7 @@ public class RuleCoverageTests
         ["ATC_API_GEN008"] = "EndpointInjectionGenerationError - the catch around endpoint injection; no known input makes the generator throw",
 
         // ========== OpenAPI Validation Rules (VAL) ==========
-        ["ATC_API_VAL002"] = "OpenApi20NotSupported - Tested in Atc.Rest.Api.SourceGenerator.Tests.OpenApiVersionValidationTests",
+        ["ATC_API_VAL002"] = "OpenApi20NotSupported - Tested in Atc.Rest.Api.SourceGenerator.Tests.Validators.OpenApiVersionValidationTests",
 
         // ========== Multi-Part Rules (MPT) ==========
         ["ATC_API_MPT001"] = "DuplicatePathInPart - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
@@ -32,20 +32,20 @@ public class RuleCoverageTests
         ["ATC_API_MPT006"] = "UnresolvedReferenceAfterMerge - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
         ["ATC_API_MPT007"] = "PartFileInfoIgnored - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
         ["ATC_API_MPT008"] = "BaseFileNotFound - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
-        ["ATC_API_MPT009"] = "DuplicateParameterInPart - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
-        ["ATC_API_MPT010"] = "NonIdenticalMergeConflict - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
-        ["ATC_API_MPT011"] = "SplitPathSpansGroups - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
+        ["ATC_API_MPT009"] = "DuplicateParameterInPart - Tested in Atc.Rest.Api.Generator.Tests.Services.SpecificationServiceTests",
+        ["ATC_API_MPT010"] = "NonIdenticalMergeConflict - Tested in Atc.Rest.Api.Generator.Tests.Services.SpecificationServiceTests",
+        ["ATC_API_MPT011"] = "SplitPathSpansGroups - Tested in Atc.Rest.Api.Generator.Tests.Services.SpecificationServiceTests",
         ["ATC_API_MPT012"] = "PartFileOpenApiVersionDiffers - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
         ["ATC_API_MPT013"] = "PartFileContributesNothing - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
 
         // ========== Rules tested in Atc.Rest.Api.Generator.Tests ==========
         // These rules have tests but in a separate test project
-        ["ATC_API_OPR010"] = "BadRequestWithoutParameters - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR021"] = "UnauthorizedWithoutSecurity - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR022"] = "ForbiddenWithoutAuthorization - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR023"] = "NotFoundOnPostOperation - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR024"] = "ConflictOnNonMutatingOperation - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR025"] = "TooManyRequestsWithoutRateLimiting - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
+        ["ATC_API_OPR010"] = "BadRequestWithoutParameters - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseCodeValidationTests",
+        ["ATC_API_OPR021"] = "UnauthorizedWithoutSecurity - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseCodeValidationTests",
+        ["ATC_API_OPR022"] = "ForbiddenWithoutAuthorization - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseCodeValidationTests",
+        ["ATC_API_OPR023"] = "NotFoundOnPostOperation - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseCodeValidationTests",
+        ["ATC_API_OPR024"] = "ConflictOnNonMutatingOperation - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseCodeValidationTests",
+        ["ATC_API_OPR025"] = "TooManyRequestsWithoutRateLimiting - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseCodeValidationTests",
         ["ATC_API_CACHE001"] = "OutputCacheOnNonCacheableMethod - Tested in Atc.Rest.Api.Generator.Tests.Validators.OutputCacheValidationTests",
         ["ATC_API_OPR027"] = "LargeArrayQueryParameterShouldUseQueryMethod - Tested in Atc.Rest.Api.Generator.Tests.Validators.LargeArrayQueryParameterValidationTests",
         ["ATC_API_OPR028"] = "QueryOperationWithoutRequestBody - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
@@ -110,6 +110,59 @@ public class RuleCoverageTests
             invalidExclusions.Count == 0,
             $"The following excluded rules do not exist in RuleIdentifiers:\n" +
             $"{string.Join("\n", invalidExclusions.Select(r => $"  - {r}"))}");
+    }
+
+    /// <summary>
+    /// An exclusion that says "Tested in X" names a test class that exists - in the test project its namespace names -
+    /// and that mentions the rule (its short code, e.g. MPT001, or its RuleIdentifiers name). A renamed or deleted test
+    /// class otherwise leaves the rule silently untested.
+    /// </summary>
+    [Fact]
+    public void ExcludedRules_TestedElsewhere_NameATestClassThatCoversTheRule()
+    {
+        var testRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        var ruleNames = typeof(Generator.RuleIdentifiers)
+            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.GetValue(null) is string)
+            .ToDictionary(f => (string)f.GetValue(null)!, f => f.Name, StringComparer.Ordinal);
+        var problems = new List<string>();
+
+        foreach (var (ruleId, reason) in ExcludedRules.OrderBy(r => r.Key, StringComparer.Ordinal))
+        {
+            var marker = reason.IndexOf("Tested in ", StringComparison.Ordinal);
+            if (marker < 0)
+            {
+                continue;
+            }
+
+            var fullName = reason[(marker + "Tested in ".Length)..].Split(' ', ',', ';')[0].TrimEnd('.');
+            var lastDot = fullName.LastIndexOf('.');
+            var className = fullName[(lastDot + 1)..];
+            var classNamespace = fullName[..lastDot];
+            var project = new[] { "Atc.Rest.Api.Generator.Tests", "Atc.Rest.Api.SourceGenerator.Tests" }
+                .FirstOrDefault(p => classNamespace.StartsWith(p, StringComparison.Ordinal));
+            var source = project is null
+                ? null
+                : Directory
+                    .EnumerateFiles(Path.Combine(testRoot, project), "*.cs", SearchOption.AllDirectories)
+                    .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal) && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                    .Select(File.ReadAllText)
+                    .FirstOrDefault(text => text.Contains($"namespace {classNamespace};", StringComparison.Ordinal) && text.Contains($" class {className}", StringComparison.Ordinal));
+            if (source is null)
+            {
+                problems.Add($"{ruleId}: no class {fullName}");
+                continue;
+            }
+
+            var shortCode = ExtractShortCode(ruleId);
+            if ((shortCode is null || !source.Contains(shortCode, StringComparison.OrdinalIgnoreCase))
+                && !source.Contains(ruleNames[ruleId], StringComparison.Ordinal))
+            {
+                problems.Add($"{ruleId}: {fullName} does not mention {shortCode} or {ruleNames[ruleId]}");
+            }
+        }
+
+        Assert.True(problems.Count == 0, "Exclusions that point at no covering test:\n" + string.Join("\n", problems));
     }
 
     [Fact]

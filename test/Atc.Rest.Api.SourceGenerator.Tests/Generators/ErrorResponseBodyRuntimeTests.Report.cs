@@ -210,6 +210,39 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// A Playwright run that started before the commit the report is built from tested older code: it is stale, and
+    /// so is one whose start time cannot be read. (A local results.json is whatever ran last on the machine.)
+    /// </summary>
+    [Theory]
+    [InlineData("2026-10-07T10:00:00.000Z", "2026-10-07T12:00:00+02:00", false)]
+    [InlineData("2026-10-07T10:30:00.000Z", "2026-10-07T12:00:00+02:00", false)]
+    [InlineData("2026-10-07T09:59:59.000Z", "2026-10-07T12:00:00+02:00", true)]
+    [InlineData(null, "2026-10-07T12:00:00+02:00", true)]
+    [InlineData("yesterday", "2026-10-07T12:00:00+02:00", true)]
+    public void APlaywrightRunOlderThanTheCommit_IsStale(
+        string? startTime,
+        string commitTime,
+        bool expected)
+        => Assert.Equal(expected, PlaywrightRunIsStale(startTime, DateTimeOffset.Parse(commitTime, CultureInfo.InvariantCulture)));
+
+    /// <summary>
+    /// A stale Playwright run is no evidence for the report's commit: the summary says so, and does not count it as
+    /// green.
+    /// </summary>
+    [Fact]
+    public void Summary_MarksAStalePlaywrightRun()
+    {
+        var matrix = new JsonObject
+        {
+            ["cases"] = new JsonArray(),
+            ["ratchet"] = new JsonObject(),
+            ["playwright"] = new JsonObject { ["stale"] = true, ["apps"] = new JsonObject { ["blazor"] = new JsonObject { ["expected"] = 3 } } },
+        };
+
+        Assert.True((bool?)Summary(matrix)["playwright"]!["stale"]);
+    }
+
+    /// <summary>
     /// The Feature support tab names the overlay a scenario's markers list: its row is the specification as the
     /// overlay changes it, which the raw file alone does not show.
     /// </summary>
@@ -344,6 +377,7 @@ public partial class ErrorResponseBodyRuntimeTests
         var support = matrix["support"]?["scenarios"]?.AsArray();
         var diagnostics = matrix["diagnostics"]?["rules"]?.AsArray();
         var playwright = matrix["playwright"]?["apps"]?.AsObject();
+        var playwrightStale = (bool?)matrix["playwright"]?["stale"] ?? false;
         return new JsonObject
         {
             ["state"] = unexpected.Count > 0 ? "regressions" : knownCount > 0 ? "known-failures" : "green",
@@ -365,6 +399,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 ["apps"] = playwright.Count,
                 ["failed"] = playwright.Sum(a => a.Value!.AsObject().Where(s => s.Key is not ("expected" or "passed" or "skipped" or "flaky")).Sum(s => (int)s.Value!)),
                 ["flaky"] = playwright.Sum(a => (int?)a.Value!["flaky"] ?? 0),
+                ["stale"] = playwrightStale,
             },
         };
     }
@@ -376,6 +411,8 @@ public partial class ErrorResponseBodyRuntimeTests
     private static JsonObject Ratchets()
         => new()
         {
+            // The error-body and body-media matrices allow no failing cell at all (their tests assert none), so their
+            // ratchet is empty by construction; the others list the cells their tests expect to fail
             ["errorBodies"] = new JsonArray(),
             ["errorBodiesPlain"] = new JsonArray(),
             ["bodyMedia"] = new JsonArray(),
@@ -646,9 +683,17 @@ public partial class ErrorResponseBodyRuntimeTests
             Visit(suite!.AsObject());
         }
 
+        // A run that started before the commit tested older code: say so rather than present it as this commit's
+        var startTime = (string?)results["stats"]?["startTime"];
+        var commitTime = DateTimeOffset.TryParse(RunTool("git", "log -1 --format=%cI", root).Output.Trim().Split('\n')[0], CultureInfo.InvariantCulture, DateTimeStyles.None, out var committed)
+            ? committed
+            : DateTimeOffset.MaxValue;
+
         return new JsonObject
         {
-            ["startTime"] = (string?)results["stats"]?["startTime"],
+            ["startTime"] = startTime,
+            ["commitTime"] = commitTime == DateTimeOffset.MaxValue ? null : commitTime.ToString("O", CultureInfo.InvariantCulture),
+            ["stale"] = PlaywrightRunIsStale(startTime, commitTime),
             ["durationSeconds"] = results["stats"]?["duration"] is { } d ? System.Math.Round((double)d / 1000, 1) : null,
             ["specs"] = specs.Count,
             ["apps"] = new JsonObject(apps.OrderBy(a => a.Key, StringComparer.Ordinal).Select(a => new KeyValuePair<string, JsonNode?>(
@@ -656,6 +701,15 @@ public partial class ErrorResponseBodyRuntimeTests
                 new JsonObject(a.Value.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => new KeyValuePair<string, JsonNode?>(s.Key, s.Value)))))),
         };
     }
+
+    /// <summary>
+    /// Whether a Playwright run (its <c>stats.startTime</c>) started before the commit: an unreadable start is stale too.
+    /// </summary>
+    private static bool PlaywrightRunIsStale(
+        string? startTime,
+        DateTimeOffset commitTime)
+        => !DateTimeOffset.TryParse(startTime, CultureInfo.InvariantCulture, DateTimeStyles.None, out var started)
+           || started < commitTime;
 
     /// <summary>
     /// A data file another test project left for the report (<c>docs/test-suite-report.*.json</c>), or null.
