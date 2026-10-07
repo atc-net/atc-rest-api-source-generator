@@ -519,7 +519,7 @@ export class ApiClient {
       errorBody = undefined;
     }
 
-    const message = errorMessage(response.status, response.statusText, errorBody);
+    const message = errorMessage(response.status, response.statusText, errorBody, contentType);
 
     if (response.status === 400) {
       // Always badRequest: a 400 without validation errors carries an empty errors map.

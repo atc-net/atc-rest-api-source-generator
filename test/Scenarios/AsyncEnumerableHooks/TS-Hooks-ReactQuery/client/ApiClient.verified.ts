@@ -513,7 +513,7 @@ export class ApiClient {
       errorBody = undefined;
     }
 
-    const message = errorMessage(response.status, response.statusText, errorBody);
+    const message = errorMessage(response.status, response.statusText, errorBody, contentType);
 
     const shape = wire?.errors?.[String(response.status)] ?? wire?.errors?.['default'];
     const body = shape ? fromWire(errorBody, shape) : errorBody;

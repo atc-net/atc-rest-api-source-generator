@@ -519,7 +519,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("        errorBody = undefined;");
         sb.AppendLine("      }");
         sb.AppendLine();
-        sb.AppendLine("      throw new ApiError(response.status, response.statusText, errorMessage(response.status, response.statusText, errorBody), undefined, errorBody);");
+        sb.AppendLine("      throw new ApiError(response.status, response.statusText, errorMessage(response.status, response.statusText, errorBody, errorContentType), undefined, errorBody);");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const reader = response.body?.getReader();");
@@ -763,7 +763,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody);");
+        sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody, String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? ''));");
         sb.AppendLine();
 
         // With renaming, `body` is the declared error model under the models' names, while the message, the

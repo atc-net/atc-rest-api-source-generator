@@ -685,7 +685,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      errorBody = undefined;");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody);");
+        sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody, contentType);");
         sb.AppendLine();
 
         // With renaming, `body` is the declared error model under the models' names, while the message, the

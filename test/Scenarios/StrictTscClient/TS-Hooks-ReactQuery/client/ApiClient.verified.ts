@@ -382,7 +382,7 @@ export class ApiClient {
         errorBody = undefined;
       }
 
-      throw new ApiError(response.status, response.statusText, errorMessage(response.status, response.statusText, errorBody), undefined, errorBody);
+      throw new ApiError(response.status, response.statusText, errorMessage(response.status, response.statusText, errorBody, errorContentType), undefined, errorBody);
     }
 
     const reader = response.body?.getReader();
@@ -558,7 +558,7 @@ export class ApiClient {
       }
     }
 
-    const message = errorMessage(response.status, response.statusText, errorBody);
+    const message = errorMessage(response.status, response.statusText, errorBody, String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? ''));
 
     const shape = wire?.errors?.[String(response.status)] ?? wire?.errors?.['default'];
     const body = shape ? fromWire(errorBody, shape) : errorBody;

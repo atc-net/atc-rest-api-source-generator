@@ -319,6 +319,27 @@ public sealed class TypeScriptClientErrorContractGateTests
           const r12 = await items.getItem(1);
           check('E12 text message', r12.error?.message === 'Service down for maintenance', 'expected the text as message, got ' + JSON.stringify(r12.error?.message));
 
+          // E13: a page (a proxy's HTML, a gateway's XML) is no message: the message is the status text (else HTTP {status})
+          // and the page stays available as the body.
+          const page = '<!DOCTYPE html><html><head><title>502 Bad Gateway</title></head><body><center><h1>502 Bad Gateway</h1></center><hr><center>nginx</center></body></html>';
+          respond(page, 'text/html; charset=utf-8', 502, 'Bad Gateway');
+          const r13 = await items.getItem(1);
+          check('E13 html message', r13.error?.message === 'Bad Gateway', 'expected the status text as message, got ' + JSON.stringify(r13.error?.message));
+          check('E13 html body', r13.error?.body === page, 'expected the page as body, got ' + JSON.stringify(r13.error?.body));
+          respond(page, 'text/html', 502, '');
+          const r13b = await client.request('get', '/items/1');
+          check('E13 html message without status text', r13b.error?.message === 'HTTP 502', 'expected "HTTP 502", got ' + JSON.stringify(r13b.error?.message));
+          respond('<error><reason>down</reason></error>', 'application/xml', 503, 'Service Unavailable');
+          const r13c = await items.getItem(1);
+          check('E13 xml message', r13c.error?.message === 'Service Unavailable', 'expected the status text as message, got ' + JSON.stringify(r13c.error?.message));
+
+          // E14: a text/plain body too long for a message (a stack trace, a dump) is no message either; the body keeps it.
+          const dump = 'System.InvalidOperationException: boom\n' + '   at Contoso.Orders.Handler.Run()\n'.repeat(40);
+          respond(dump, 'text/plain', 500, 'Internal Server Error');
+          const r14 = await items.getItem(1);
+          check('E14 long text message', r14.error?.message === 'Internal Server Error', 'expected the status text as message, got ' + JSON.stringify(r14.error?.message?.slice(0, 80)));
+          check('E14 long text body', r14.error?.body === dump, 'expected the text as body');
+
           if (failures.length > 0) {
             console.error('ERROR-CONTRACT FAILURES:\n' + failures.join('\n'));
             process.exit(1);

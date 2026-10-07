@@ -9,7 +9,7 @@ public class TypeScriptErrorExtractorTests
 
         Assert.Contains("export class ApiError<TBody = unknown> extends Error", result, StringComparison.Ordinal);
         Assert.Contains("readonly detail?: string;", result, StringComparison.Ordinal);
-        Assert.Contains("export function errorMessage(status: number, statusText: string, body: unknown): string", result, StringComparison.Ordinal);
+        Assert.Contains("export function errorMessage(status: number, statusText: string, body: unknown, contentType?: string | null): string", result, StringComparison.Ordinal);
         Assert.Contains("response?: Response", result, StringComparison.Ordinal);
         Assert.DoesNotContain("AxiosResponse", result, StringComparison.Ordinal);
     }
