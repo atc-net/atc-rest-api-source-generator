@@ -296,7 +296,11 @@ export class ApiClient {
       init = await interceptor(url, init);
     }
 
-    const response = await fetch(url, init);
+    // The same pipeline as any request: the response interceptors see the stream's response (a 401 refresh applies)
+    let response = await fetch(url, init);
+    for (const interceptor of this.options.responseInterceptors ?? []) {
+      response = await interceptor(response);
+    }
 
     if (!response.ok) {
       const result = await this.handleResponse<T>(response);

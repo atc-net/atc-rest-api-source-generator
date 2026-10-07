@@ -210,7 +210,6 @@ public static class TypeScriptAxiosApiClientExtractor
         }
 
         AppendRequestStreamMethod(sb, hasWireNames);
-        AppendBuildUrlMethod(sb);
         AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames, hasXml);
 
         sb.AppendLine("}");
@@ -473,58 +472,56 @@ public static class TypeScriptAxiosApiClientExtractor
     {
         const string multipartParse = "JSON.parse(bodyText)";
 
-        sb.AppendLine("  // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.");
-        sb.AppendLine("  // Auth and default headers are applied manually; Axios interceptors do not apply to streaming requests.");
+        sb.AppendLine("  // A stream goes through the axios instance like every request - the default headers, the access token and the");
+        sb.AppendLine("  // request and response interceptors apply - with axios' fetch adapter, whose 'stream' response is the body's");
+        sb.AppendLine("  // ReadableStream (axios 1.7 or later).");
 
         // With renaming, requestStream renames each item this reader yields.
         sb.AppendLine(hasWireNames
             ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {"
             : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
-        sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
-        sb.AppendLine("    const headers = new Headers(this.options.defaultHeaders);");
-        sb.AppendLine();
-        sb.AppendLine("    if (this.options.getAccessToken) {");
-        sb.AppendLine("      const token = await this.options.getAccessToken();");
-        sb.AppendLine("      headers.set('Authorization', `Bearer ${token}`);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
+        sb.AppendLine("    const headers: Record<string, string> = {};");
         sb.AppendLine("    if (options?.headers) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(options.headers)) {");
         sb.AppendLine("        if (value !== undefined) {");
-        sb.AppendLine("          headers.set(key, String(value));");
+        sb.AppendLine("          headers[key] = String(value);");
         sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        TypeScriptOperationHelper.AppendStreamRequestBody(sb, hasWireNames);
-        sb.AppendLine("    const response = await fetch(url, {");
+
+        // A streamed search (POST or QUERY) sends its criteria as JSON, renamed to the API's property names
+        sb.AppendLine("    let data: unknown;");
+        sb.AppendLine("    if (options?.body !== undefined) {");
+        sb.AppendLine("      headers['Content-Type'] = 'application/json';");
+        sb.Append("      data = ").Append(hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body").AppendLine(";");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    const response = await this.client.request<ReadableStream<Uint8Array> | undefined>({");
         sb.AppendLine("      method,");
+        sb.AppendLine("      url: path,");
+        sb.AppendLine("      data,");
+        sb.AppendLine("      params: options?.query,");
         sb.AppendLine("      headers,");
-        sb.AppendLine("      body: streamBody,");
         sb.AppendLine("      signal: options?.signal,");
+        sb.AppendLine("      adapter: 'fetch',");
+        sb.AppendLine("      responseType: 'stream',");
         sb.AppendLine("    });");
         sb.AppendLine();
-        sb.AppendLine("    if (!response.ok) {");
-        sb.AppendLine("      // Read the error body like the non-streaming path: a ProblemDetails / model / JSON string, or text.");
-        sb.AppendLine("      const errorContentType = (response.headers.get('Content-Type') ?? '').toLowerCase();");
-        sb.AppendLine("      let errorBody: unknown = undefined;");
-        sb.AppendLine("      try {");
-        sb.AppendLine("        if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {");
-        sb.AppendLine("          errorBody = await response.json();");
-        sb.AppendLine("        } else if (errorContentType.startsWith('text/') || errorContentType.includes('application/xml') || errorContentType.includes('+xml')) {");
-        sb.AppendLine("          const text = await response.text();");
-        sb.AppendLine("          errorBody = text.length > 0 ? text : undefined;");
-        sb.AppendLine("        }");
-        sb.AppendLine("      } catch {");
-        sb.AppendLine("        errorBody = undefined;");
+        sb.AppendLine("    if (response.status < 200 || response.status >= 300) {");
+        sb.AppendLine("      // The error body is read like any error body: as text, then a ProblemDetails / model / JSON string, or text");
+        sb.AppendLine("      const text = response.data ? await new Response(response.data).text() : '';");
+        sb.AppendLine("      const result = await this.handleResponse<T>({ ...response, data: text, config: { ...response.config, responseType: 'text' } } as unknown as AxiosResponse<T>);");
+        sb.AppendLine("      if ('error' in result) {");
+        sb.AppendLine("        throw result.error;");
         sb.AppendLine("      }");
         sb.AppendLine();
-        sb.AppendLine("      throw new ApiError(response.status, response.statusText, errorMessage(response.status, response.statusText, errorBody, errorContentType), undefined, errorBody);");
+        sb.AppendLine("      throw new ApiError(response.status, response.statusText, 'Stream request failed', response);");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const reader = response.body?.getReader();");
+        sb.AppendLine("    const reader = response.data?.getReader();");
         sb.AppendLine("    if (!reader) {");
-        sb.AppendLine("      throw new ApiError(0, 'NoBody', 'Response body is empty');");
+        sb.AppendLine("      throw new ApiError(0, 'NoBody', 'Response body is empty', response);");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const decoder = new TextDecoder();");
@@ -535,7 +532,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'multipart') {");
-        sb.AppendLine("      const contentType = response.headers.get('content-type') ?? '';");
+        sb.AppendLine("      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
         sb.AppendLine("      const m = /boundary=(\"?)([^\";]+)\\1/i.exec(contentType);");
         sb.AppendLine("      // Without a boundary the parts cannot be found: an error, not a guess");
         sb.AppendLine("      if (!m) throw new Error('A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.');");
@@ -600,9 +597,6 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  }");
         sb.AppendLine();
     }
-
-    private static void AppendBuildUrlMethod(StringBuilder sb)
-        => TypeScriptOperationHelper.AppendBuildUrlMethod(sb, modifier: "private ");
 
     private static void AppendHandleResponseMethod(
         StringBuilder sb,

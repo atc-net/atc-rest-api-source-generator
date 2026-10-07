@@ -2,7 +2,8 @@
 namespace Atc.Rest.Api.Generator.Cli.Tests.Gates;
 
 /// <summary>
-/// Runtime gate for the URL the generated TypeScript clients request (Fetch and Axios):
+/// Runtime gate for the URL the generated TypeScript Fetch client requests (the Axios client leaves its URLs to axios,
+/// streams included):
 /// <list type="bullet">
 ///   <item><description>a path parameter is percent-encoded, so <c>a/b?c#d</c> stays one path segment;</description></item>
 ///   <item><description>a relative base URL (<c>/api</c>, or an empty one) resolves against the origin of the page instead of throwing;</description></item>
@@ -39,9 +40,6 @@ public sealed class TypeScriptRequestUrlGateTests
           "version": "0.0.0",
           "private": true,
           "type": "module",
-          "dependencies": {
-            "axios": "^1.7.0"
-          },
           "devDependencies": {
             "tsx": "^4.19.0",
             "typescript": "^5.6.0"
@@ -50,11 +48,10 @@ public sealed class TypeScriptRequestUrlGateTests
         """;
 
     // The Fetch client is called through its generated method against a mocked global fetch that records
-    // the URL. buildUrl is called directly on both clients (it is private on the Axios one, hence `as any`).
+    // the URL. buildUrl is called directly.
     private const string Harness = """
         import { ApiClient as FetchApiClient } from './fetch/client/ApiClient';
         import { ItemsClient as FetchItemsClient } from './fetch/client/ItemsClient';
-        import { ApiClient as AxiosApiClient } from './axios/client/ApiClient';
 
         const requested: string[] = [];
         (globalThis as any).fetch = async (input: any) => {
@@ -84,13 +81,13 @@ public sealed class TypeScriptRequestUrlGateTests
           check('fetch path encoding', requested[0], 'http://localhost:5000/items/a%2Fb%3Fc%23d');
 
           // 2. An absolute base URL is used as it is.
-          for (const [label, ctor] of [['fetch', FetchApiClient], ['axios', AxiosApiClient]] as const) {
+          for (const [label, ctor] of [['fetch', FetchApiClient]] as const) {
             check(label + ' absolute base', buildUrl(new ctor('http://localhost:5000/api'), '/items', { q: '1' }), 'http://localhost:5000/api/items?q=1');
           }
 
           // 3. Without a page (server-side rendering, Node) a relative base URL stays relative instead of throwing: the
           // request goes to a fetch that knows its origin (or fails there), and building a URL never throws.
-          for (const [label, ctor] of [['fetch', FetchApiClient], ['axios', AxiosApiClient]] as const) {
+          for (const [label, ctor] of [['fetch', FetchApiClient]] as const) {
             check(label + ' relative base without a page', buildUrl(new ctor('/api'), '/items', { q: '1' }), '/api/items?q=1');
             check(label + ' empty base without a page', buildUrl(new ctor(''), '/items'), '/items');
             check(label + ' relative base without a page, array query', buildUrl(new ctor('/api/'), '/items', { tag: ['a b', 'c'] } as any), '/api/items?tag=a+b&tag=c');
@@ -107,7 +104,7 @@ public sealed class TypeScriptRequestUrlGateTests
 
           // 4. A relative base URL resolves against the origin of the page (a browser app served with its API).
           (globalThis as any).location = { origin: 'http://localhost:5173' };
-          for (const [label, ctor] of [['fetch', FetchApiClient], ['axios', AxiosApiClient]] as const) {
+          for (const [label, ctor] of [['fetch', FetchApiClient]] as const) {
             check(label + ' relative base', buildUrl(new ctor('/api'), '/items', { q: '1' }), 'http://localhost:5173/api/items?q=1');
             check(label + ' empty base', buildUrl(new ctor(''), '/items'), 'http://localhost:5173/items');
           }
@@ -164,7 +161,6 @@ public sealed class TypeScriptRequestUrlGateTests
         try
         {
             GenerateClient(doc, Path.Combine(workDir, "fetch"), TypeScriptHttpClient.Fetch);
-            GenerateClient(doc, Path.Combine(workDir, "axios"), TypeScriptHttpClient.Axios);
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);

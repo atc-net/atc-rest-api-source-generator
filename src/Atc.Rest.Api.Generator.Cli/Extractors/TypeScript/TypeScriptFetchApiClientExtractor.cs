@@ -404,7 +404,11 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      init = await interceptor(url, init);");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const response = await fetch(url, init);");
+        sb.AppendLine("    // The same pipeline as any request: the response interceptors see the stream's response (a 401 refresh applies)");
+        sb.AppendLine("    let response = await fetch(url, init);");
+        sb.AppendLine("    for (const interceptor of this.options.responseInterceptors ?? []) {");
+        sb.AppendLine("      response = await interceptor(response);");
+        sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (!response.ok) {");
         sb.AppendLine("      const result = await this.handleResponse<T>(response);");

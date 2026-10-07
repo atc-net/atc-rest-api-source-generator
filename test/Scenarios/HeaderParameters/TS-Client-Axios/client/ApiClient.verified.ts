@@ -309,58 +309,50 @@ export class ApiClient {
     return fitToArms(await this.handleResponse<T>(response), options?.arms);
   }
 
-  // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.
-  // Auth and default headers are applied manually; Axios interceptors do not apply to streaming requests.
+  // A stream goes through the axios instance like every request - the default headers, the access token and the
+  // request and response interceptors apply - with axios' fetch adapter, whose 'stream' response is the body's
+  // ReadableStream (axios 1.7 or later).
   async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
-    const url = this.buildUrl(path, options?.query);
-    const headers = new Headers(this.options.defaultHeaders);
-
-    if (this.options.getAccessToken) {
-      const token = await this.options.getAccessToken();
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-
+    const headers: Record<string, string> = {};
     if (options?.headers) {
       for (const [key, value] of Object.entries(options.headers)) {
         if (value !== undefined) {
-          headers.set(key, String(value));
+          headers[key] = String(value);
         }
       }
     }
 
-    const streamBody = options?.body !== undefined ? JSON.stringify(options.body) : undefined;
-    if (streamBody !== undefined) {
-      headers.set('Content-Type', 'application/json');
+    let data: unknown;
+    if (options?.body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      data = options.body;
     }
 
-    const response = await fetch(url, {
+    const response = await this.client.request<ReadableStream<Uint8Array> | undefined>({
       method,
+      url: path,
+      data,
+      params: options?.query,
       headers,
-      body: streamBody,
       signal: options?.signal,
+      adapter: 'fetch',
+      responseType: 'stream',
     });
 
-    if (!response.ok) {
-      // Read the error body like the non-streaming path: a ProblemDetails / model / JSON string, or text.
-      const errorContentType = (response.headers.get('Content-Type') ?? '').toLowerCase();
-      let errorBody: unknown = undefined;
-      try {
-        if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {
-          errorBody = await response.json();
-        } else if (errorContentType.startsWith('text/') || errorContentType.includes('application/xml') || errorContentType.includes('+xml')) {
-          const text = await response.text();
-          errorBody = text.length > 0 ? text : undefined;
-        }
-      } catch {
-        errorBody = undefined;
+    if (response.status < 200 || response.status >= 300) {
+      // The error body is read like any error body: as text, then a ProblemDetails / model / JSON string, or text
+      const text = response.data ? await new Response(response.data).text() : '';
+      const result = await this.handleResponse<T>({ ...response, data: text, config: { ...response.config, responseType: 'text' } } as unknown as AxiosResponse<T>);
+      if ('error' in result) {
+        throw result.error;
       }
 
-      throw new ApiError(response.status, response.statusText, errorMessage(response.status, response.statusText, errorBody, errorContentType), undefined, errorBody);
+      throw new ApiError(response.status, response.statusText, 'Stream request failed', response);
     }
 
-    const reader = response.body?.getReader();
+    const reader = response.data?.getReader();
     if (!reader) {
-      throw new ApiError(0, 'NoBody', 'Response body is empty');
+      throw new ApiError(0, 'NoBody', 'Response body is empty', response);
     }
 
     const decoder = new TextDecoder();
@@ -371,7 +363,7 @@ export class ApiClient {
     }
 
     if (framing === 'multipart') {
-      const contentType = response.headers.get('content-type') ?? '';
+      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
       const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
       // Without a boundary the parts cannot be found: an error, not a guess
       if (!m) throw new Error('A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.');
@@ -433,31 +425,6 @@ export class ApiClient {
     } else {
       yield* parseJsonArrayStream<T>(reader, decoder);
     }
-  }
-
-  private buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {
-    // A relative base URL ('/api', or an empty one) resolves against the origin of the page; without a page
-    // (server-side rendering, Node) it stays relative
-    const relativeOrigin = 'http://relative.invalid';
-    const origin = (globalThis as { location?: { origin?: string } }).location?.origin;
-    const url = new URL(`${this.baseUrl}${path}`, origin ?? relativeOrigin);
-    if (query) {
-      for (const [key, value] of Object.entries(query)) {
-        if (value === undefined) {
-          continue;
-        }
-        if (Array.isArray(value)) {
-          for (const item of value) {
-            url.searchParams.append(key, String(item));
-          }
-        } else {
-          url.searchParams.set(key, String(value));
-        }
-      }
-    }
-    // Note: URL.searchParams always percent-encodes values.
-    // OpenAPI allowReserved cannot be honoured via this path.
-    return url.origin === relativeOrigin ? `${url.pathname}${url.search}${url.hash}` : url.toString();
   }
 
   private async handleResponse<T>(response: AxiosResponse<T>): Promise<ApiResult<T>> {
