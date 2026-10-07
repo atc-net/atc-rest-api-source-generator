@@ -142,6 +142,27 @@ export function xmlDate(text: string | undefined): Date | undefined {
   return text === undefined || text.trim() === '' ? undefined : new Date(text.trim());
 }
 
+/** A format: date (yyyy-MM-dd): the calendar day as a local Date (new Date('2024-01-15') would be UTC midnight). */
+export function xmlDateOnly(text: string | undefined): Date | undefined {
+  if (text === undefined || text.trim() === '') {
+    return undefined;
+  }
+
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
+  return day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(text.trim());
+}
+
+/** A format: date Date as text: the calendar day it is in the caller's time zone (yyyy-MM-dd); anything else as it is. */
+export function xmlDateOnlyText(value: unknown): unknown {
+  if (!(value instanceof Date)) {
+    return value;
+  }
+
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${String(value.getFullYear()).padStart(4, '0')}-${month}-${day}`;
+}
+
 export function xmlMap<T>(element: Element | undefined, read: (element: Element) => T): T | undefined {
   return element ? read(element) : undefined;
 }

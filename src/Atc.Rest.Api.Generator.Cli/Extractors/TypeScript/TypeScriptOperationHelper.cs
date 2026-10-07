@@ -608,21 +608,55 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
-    /// Returns the conversion expression to use when a Date-typed parameter must be
-    /// serialized to a string for the URL/header. <c>date-time</c> -> ISO 8601 datetime;
-    /// <c>date</c> -> ISO date (truncated). Result is the suffix appended to the
-    /// parameter access expression, including the leading dot.
+    /// The expression that writes a Date-typed parameter for the URL or a header: a <c>date-time</c> as ISO 8601
+    /// (<c>toISOString()</c>), a <c>date</c> as the caller's calendar day, <c>yyyy-MM-dd</c> from the local year, month
+    /// and day (<c>dateOnly</c>, exported by the ApiClient). A <c>date</c> is a day, not an instant: the UTC day of a
+    /// local midnight is the day before east of UTC. The JSON and XML bodies read and write it the same way.
     /// </summary>
-    public static string GetDateSerializationSuffix(OpenApiParameter param)
-    {
-        if (param.Schema is OpenApiSchema schema &&
-            string.Equals(schema.Format, "date", StringComparison.OrdinalIgnoreCase))
-        {
-            // YYYY-MM-DD slice of an ISO datetime keeps date-only format on the wire.
-            return ".toISOString().substring(0, 10)";
-        }
+    /// <param name="param">The parameter.</param>
+    /// <param name="access">The expression of the value.</param>
+    /// <param name="optional">Whether the value may be undefined.</param>
+    /// <returns>The expression of the text sent.</returns>
+    public static string SerializeDateParameter(
+        OpenApiParameter param,
+        string access,
+        bool optional)
+        => IsDateOnly(param.Schema)
+            ? "dateOnly(" + access + ")"
+            : access + (optional ? "?." : ".") + "toISOString()";
 
-        return ".toISOString()";
+    /// <summary>
+    /// Whether a schema declares <c>format: date</c> (a calendar day).
+    /// </summary>
+    /// <param name="schema">The schema.</param>
+    /// <returns><see langword="true"/> for a date.</returns>
+    public static bool IsDateOnly(IOpenApiSchema? schema)
+        => string.Equals(schema?.Format, "date", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Emits <c>dateOnly</c>: a Date as the calendar day it is in the caller's time zone (<c>yyyy-MM-dd</c>), for the
+    /// <c>format: date</c> parameters and form fields of the generated clients (with <c>--convert-dates</c>).
+    /// </summary>
+    /// <param name="sb">The ApiClient being written.</param>
+    internal static void AppendDateOnlyHelper(StringBuilder sb)
+    {
+        sb.AppendLine("/**");
+        sb.AppendLine(" * A format: date value as text: the calendar day the Date is in the caller's time zone (yyyy-MM-dd from the local");
+        sb.AppendLine(" * year, month and day). A date is a day, not an instant - the UTC day of a local midnight is the day before east of");
+        sb.AppendLine(" * UTC - and the models read and write it the same way.");
+        sb.AppendLine(" */");
+        sb.AppendLine("export function dateOnly(value: Date): string;");
+        sb.AppendLine("export function dateOnly(value: Date | undefined): string | undefined;");
+        sb.AppendLine("export function dateOnly(value: Date | undefined): string | undefined {");
+        sb.AppendLine("  if (value === undefined) {");
+        sb.AppendLine("    return undefined;");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+        sb.AppendLine("  const month = String(value.getMonth() + 1).padStart(2, '0');");
+        sb.AppendLine("  const day = String(value.getDate()).padStart(2, '0');");
+        sb.AppendLine("  return `${String(value.getFullYear()).padStart(4, '0')}-${month}-${day}`;");
+        sb.AppendLine("}");
+        sb.AppendLine();
     }
 
     private static readonly Regex BlockCommentPattern = new(@"/\*.*?\*/", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
@@ -1053,7 +1087,7 @@ public static class TypeScriptOperationHelper
             string value;
             if (convertDates && IsDateParam(param))
             {
-                value = tsName + GetDateSerializationSuffix(param);
+                value = SerializeDateParameter(param, tsName, optional: false);
             }
             else if (param.Schema is { } schema &&
                      (schema.IsOfType(JsonSchemaType.String) ||

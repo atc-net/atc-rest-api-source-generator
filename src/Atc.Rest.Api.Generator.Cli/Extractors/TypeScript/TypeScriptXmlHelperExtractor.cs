@@ -15,6 +15,7 @@ public static class TypeScriptXmlHelperExtractor
         Number,
         Boolean,
         Date,
+        DateOnly,
         Model,
     }
 
@@ -191,14 +192,14 @@ public static class TypeScriptXmlHelperExtractor
         sb.AppendLine("  return xmlElement(name, namespace, prefix, [");
         foreach (var (wireName, propertySchema) in properties.Where(p => IsAttribute(p.Schema.Xml)))
         {
-            sb.Append("    xmlAttribute('").Append(Js(XmlName(propertySchema.Xml) ?? wireName)).Append("', v['")
-              .Append(Js(PropertyKey(wireName, namingStrategy))).AppendLine("']),");
+            sb.Append("    xmlAttribute('").Append(Js(XmlName(propertySchema.Xml) ?? wireName)).Append("', ")
+              .Append(ScalarValue(propertySchema, $"v['{Js(PropertyKey(wireName, namingStrategy))}']", convertDates)).AppendLine("),");
         }
 
         sb.AppendLine("  ].join(''), [");
         foreach (var (wireName, propertySchema) in properties.Where(p => !IsAttribute(p.Schema.Xml)))
         {
-            sb.Append("    ").Append(WriteExpression(wireName, propertySchema, $"v['{Js(PropertyKey(wireName, namingStrategy))}']", models)).AppendLine(",");
+            sb.Append("    ").Append(WriteExpression(wireName, propertySchema, $"v['{Js(PropertyKey(wireName, namingStrategy))}']", models, convertDates)).AppendLine(",");
         }
 
         sb.AppendLine("  ].join(''));");
@@ -260,7 +261,8 @@ public static class TypeScriptXmlHelperExtractor
         string wireName,
         IOpenApiSchema propertySchema,
         string access,
-        List<string> models)
+        List<string> models,
+        bool convertDates)
     {
         var xml = propertySchema.Xml;
         var name = XmlName(xml) ?? wireName;
@@ -272,7 +274,7 @@ public static class TypeScriptXmlHelperExtractor
             var wrapped = xml?.NodeType == OpenApiXmlNodeType.Element;
             var itemName = XmlName(items.Xml) ?? (wrapped ? name : wireName);
             var (itemNs, itemPrefix) = NamespaceOf(items.Xml);
-            var writeItem = ItemWriter(items, itemName, itemNs, itemPrefix, models);
+            var writeItem = ItemWriter(items, itemName, itemNs, itemPrefix, models, convertDates);
             var itemsExpression = $"xmlItems({access}, {writeItem})";
             return wrapped
                 ? $"xmlOptionalElement({access}, '{Js(name)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}', {itemsExpression})"
@@ -281,7 +283,7 @@ public static class TypeScriptXmlHelperExtractor
 
         if (resolved?.AdditionalProperties is { } values)
         {
-            return $"xmlOptionalElement({access}, '{Js(name)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}', xmlEntries({access}, {EntryWriter(values, models)}))";
+            return $"xmlOptionalElement({access}, '{Js(name)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}', xmlEntries({access}, {EntryWriter(values, models, convertDates)}))";
         }
 
         if (RefKey(propertySchema) is { } modelKey && models.Contains(modelKey))
@@ -289,8 +291,20 @@ public static class TypeScriptXmlHelperExtractor
             return $"({access} === undefined || {access} === null ? '' : {FunctionNames(modelKey).Write}({access} as never, '{Js(name)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}'))";
         }
 
-        return $"xmlValue('{Js(name)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}', {access})";
+        return $"xmlValue('{Js(name)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}', {ScalarValue(propertySchema, access, convertDates)})";
     }
+
+    /// <summary>
+    /// A scalar value to write: a <c>format: date</c> Date (with <c>--convert-dates</c>) as the calendar day it is in
+    /// the caller's time zone, like the JSON bodies; anything else as it is (<c>xmlString</c> writes a Date as ISO 8601).
+    /// </summary>
+    private static string ScalarValue(
+        IOpenApiSchema? schema,
+        string access,
+        bool convertDates)
+        => convertDates && Resolve(schema) is { } resolved && TypeScriptOperationHelper.IsDateOnly(resolved)
+            ? $"xmlDateOnlyText({access})"
+            : access;
 
     private static string ItemReader(
         ValueKind kind,
@@ -305,17 +319,19 @@ public static class TypeScriptXmlHelperExtractor
         string itemName,
         string? ns,
         string? prefix,
-        List<string> models)
+        List<string> models,
+        bool convertDates)
         => RefKey(items) is { } key && models.Contains(key)
             ? $"(item: unknown) => {FunctionNames(key).Write}(item as never, '{Js(itemName)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}')"
-            : $"(item: unknown) => xmlValue('{Js(itemName)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}', item)";
+            : $"(item: unknown) => xmlValue('{Js(itemName)}', '{Js(ns ?? string.Empty)}', '{Js(prefix ?? string.Empty)}', {ScalarValue(items, "item", convertDates)})";
 
     private static string EntryWriter(
         IOpenApiSchema values,
-        List<string> models)
+        List<string> models,
+        bool convertDates)
         => RefKey(values) is { } key && models.Contains(key)
             ? $"(name: string, item: unknown) => {FunctionNames(key).Write}(item as never, name)"
-            : "(name: string, item: unknown) => xmlValue(name, '', '', item)";
+            : $"(name: string, item: unknown) => xmlValue(name, '', '', {ScalarValue(values, "item", convertDates)})";
 
     private static string Parse(
         ValueKind kind,
@@ -327,6 +343,7 @@ public static class TypeScriptXmlHelperExtractor
             ValueKind.Number => $"xmlNumber({textExpression})",
             ValueKind.Boolean => $"xmlBoolean({textExpression})",
             ValueKind.Date => $"xmlDate({textExpression})",
+            ValueKind.DateOnly => $"xmlDateOnly({textExpression})",
             ValueKind.Model => $"undefined /* {RefKey(schema)} */",
             _ => textExpression,
         };
@@ -353,9 +370,17 @@ public static class TypeScriptXmlHelperExtractor
             return ValueKind.Boolean;
         }
 
-        return convertDates && resolved?.Format is "date-time" or "date"
-            ? ValueKind.Date
-            : ValueKind.Text;
+        if (!convertDates)
+        {
+            return ValueKind.Text;
+        }
+
+        return resolved?.Format switch
+        {
+            "date-time" => ValueKind.Date,
+            "date" => ValueKind.DateOnly,
+            _ => ValueKind.Text,
+        };
     }
 
     private static List<(string WireName, IOpenApiSchema Schema)> CollectProperties(
@@ -562,6 +587,27 @@ public static class TypeScriptXmlHelperExtractor
 
         export function xmlDate(text: string | undefined): Date | undefined {
           return text === undefined || text.trim() === '' ? undefined : new Date(text.trim());
+        }
+
+        /** A format: date (yyyy-MM-dd): the calendar day as a local Date (new Date('2024-01-15') would be UTC midnight). */
+        export function xmlDateOnly(text: string | undefined): Date | undefined {
+          if (text === undefined || text.trim() === '') {
+            return undefined;
+          }
+
+          const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
+          return day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(text.trim());
+        }
+
+        /** A format: date Date as text: the calendar day it is in the caller's time zone (yyyy-MM-dd); anything else as it is. */
+        export function xmlDateOnlyText(value: unknown): unknown {
+          if (!(value instanceof Date)) {
+            return value;
+          }
+
+          const month = String(value.getMonth() + 1).padStart(2, '0');
+          const day = String(value.getDate()).padStart(2, '0');
+          return `${String(value.getFullYear()).padStart(4, '0')}-${month}-${day}`;
         }
 
         export function xmlMap<T>(element: Element | undefined, read: (element: Element) => T): T | undefined {

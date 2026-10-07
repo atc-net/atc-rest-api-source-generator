@@ -582,8 +582,12 @@ public class TypeScriptOperationHelperOtherMethodsTests
         Assert.False(TypeScriptOperationHelper.IsDateParam(param));
     }
 
-    [Fact]
-    public void GetDateSerializationSuffix_DateTimeFormat_ReturnsFullIsoString()
+    [Theory]
+    [InlineData(false, "from.toISOString()")]
+    [InlineData(true, "from?.toISOString()")]
+    public void SerializeDateParameter_DateTimeFormat_ReturnsFullIsoString(
+        bool optional,
+        string expected)
     {
         var param = new OpenApiParameter
         {
@@ -591,21 +595,23 @@ public class TypeScriptOperationHelperOtherMethodsTests
             Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
         };
 
-        Assert.Equal(".toISOString()", TypeScriptOperationHelper.GetDateSerializationSuffix(param));
+        Assert.Equal(expected, TypeScriptOperationHelper.SerializeDateParameter(param, "from", optional));
     }
 
-    [Fact]
-    public void GetDateSerializationSuffix_DateFormat_TruncatesToDateOnly()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SerializeDateParameter_DateFormat_WritesTheLocalCalendarDay(bool optional)
     {
-        // OpenAPI `format: date` is YYYY-MM-DD on the wire. ISO datetime's substring(0, 10)
-        // matches that contract; emitting full toISOString() would send the time portion too.
+        // OpenAPI `format: date` is YYYY-MM-DD on the wire: the caller's calendar day, not the UTC day of the instant
+        // (toISOString().substring(0, 10) is the day before for a local midnight east of UTC).
         var param = new OpenApiParameter
         {
             Name = "birthday",
             Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date" },
         };
 
-        Assert.Equal(".toISOString().substring(0, 10)", TypeScriptOperationHelper.GetDateSerializationSuffix(param));
+        Assert.Equal("dateOnly(birthday)", TypeScriptOperationHelper.SerializeDateParameter(param, "birthday", optional));
     }
 
     [Fact]
@@ -770,7 +776,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
             TypeScriptNamingStrategy.CamelCase,
             convertDates: true);
 
-        Assert.Contains("${encodeURIComponent(day.toISOString().substring(0, 10))}", result, StringComparison.Ordinal);
+        Assert.Contains("${encodeURIComponent(dateOnly(day))}", result, StringComparison.Ordinal);
     }
 
     [Fact]

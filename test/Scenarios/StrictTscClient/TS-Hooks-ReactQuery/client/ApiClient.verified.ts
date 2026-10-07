@@ -6,6 +6,23 @@ import { ValidationError } from '../errors/ValidationError';
 import { fromWire, toWire, type WireShapes } from '../helpers/wireNames';
 import type { ApiResult } from '../types/ApiResult';
 
+/**
+ * A format: date value as text: the calendar day the Date is in the caller's time zone (yyyy-MM-dd from the local
+ * year, month and day). A date is a day, not an instant - the UTC day of a local midnight is the day before east of
+ * UTC - and the models read and write it the same way.
+ */
+export function dateOnly(value: Date): string;
+export function dateOnly(value: Date | undefined): string | undefined;
+export function dateOnly(value: Date | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${String(value.getFullYear()).padStart(4, '0')}-${month}-${day}`;
+}
+
 class UnparseableBody {
   constructor(public readonly raw: string) {}
 }

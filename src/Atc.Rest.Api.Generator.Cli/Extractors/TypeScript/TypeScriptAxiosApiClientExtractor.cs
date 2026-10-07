@@ -15,12 +15,14 @@ public static class TypeScriptAxiosApiClientExtractor
     /// When true, the TypeScript models' property names differ from the API's for some keys: bodies, responses,
     /// error bodies and stream items are renamed through <c>helpers/wireNames.ts</c>.
     /// </param>
+    /// <param name="convertDates">When true (<c>--convert-dates</c>), the file exports <c>dateOnly</c>, which the segment clients write a <c>format: date</c> parameter with.</param>
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
         bool hasRetry = false,
         bool zodRuntimeValidate = false,
-        bool hasWireNames = false)
+        bool hasWireNames = false,
+        bool convertDates = false)
     {
         var sb = new StringBuilder();
 
@@ -30,6 +32,10 @@ public static class TypeScriptAxiosApiClientExtractor
         }
 
         AppendImports(sb, hasRetry, zodRuntimeValidate, hasWireNames);
+        if (convertDates)
+        {
+            TypeScriptOperationHelper.AppendDateOnlyHelper(sb);
+        }
 
         AppendUnparseableBodyClass(sb);
         AppendApiClientOptionsInterface(sb, hasRetry);

@@ -1669,14 +1669,15 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
-    public void Extract_UrlEncodedFormBodyWithConvertDates_WritesADateAsItsIsoText()
+    public void Extract_UrlEncodedFormBodyWithConvertDates_WritesADateAsTheLocalCalendarDay()
     {
         var document = ParseYaml(UrlEncodedFormYaml.Replace("remember: { type: boolean }", "since: { type: string, format: date }", StringComparison.Ordinal));
         Assert.NotNull(document);
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null, convertDates: true));
 
-        Assert.Contains("form.append('since', body.since instanceof Date ? body.since.toISOString().substring(0, 10) : String(body.since));", content, StringComparison.Ordinal);
+        Assert.Contains("import { ApiClient, dateOnly } from './ApiClient';", content, StringComparison.Ordinal);
+        Assert.Contains("form.append('since', body.since instanceof Date ? dateOnly(body.since) : String(body.since));", content, StringComparison.Ordinal);
     }
 
     [Fact]

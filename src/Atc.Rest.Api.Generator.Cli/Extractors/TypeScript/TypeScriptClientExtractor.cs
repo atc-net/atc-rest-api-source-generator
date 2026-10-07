@@ -362,8 +362,10 @@ public static class TypeScriptClientExtractor
             sb.AppendLine("import type { AxiosResponse } from 'axios';");
         }
 
-        // Import ApiClient
-        sb.AppendLine("import { ApiClient } from './ApiClient';");
+        // Import ApiClient (and dateOnly, which writes a format: date parameter or form field as the calendar day)
+        sb.AppendLine(TypeScriptOperationHelper.ReferencesIdentifier(bodyText, "dateOnly")
+            ? "import { ApiClient, dateOnly } from './ApiClient';"
+            : "import { ApiClient } from './ApiClient';");
 
         // Build model imports and enum imports separately. Only types the body actually
         // references are imported — the schema-graph scan can over-collect (e.g. an enum
@@ -1276,13 +1278,13 @@ public static class TypeScriptClientExtractor
                (string.Equals(schema.Format, "date-time", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(schema.Format, "date", StringComparison.OrdinalIgnoreCase));
 
-        // The field's text: a Date as its ISO text (a date as its first ten characters), anything else as String()
+        // The field's text: a Date as its ISO text (a date as the caller's calendar day), anything else as String()
         static string Text(
             string value,
             bool isDate,
             IOpenApiSchema? schema)
             => isDate
-                ? $"{value} instanceof Date ? {value}.toISOString(){(string.Equals(schema?.Format, "date", StringComparison.OrdinalIgnoreCase) ? ".substring(0, 10)" : string.Empty)} : String({value})"
+                ? $"{value} instanceof Date ? {(TypeScriptOperationHelper.IsDateOnly(schema) ? $"dateOnly({value})" : value + ".toISOString()")} : String({value})"
                 : $"String({value})";
     }
 
@@ -1296,25 +1298,27 @@ public static class TypeScriptClientExtractor
         foreach (var param in queryParams)
         {
             var propName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var coercion = convertDates && TypeScriptOperationHelper.IsDateParam(param)
-                ? "?" + TypeScriptOperationHelper.GetDateSerializationSuffix(param)
-                : string.Empty;
+            var value = TypeScriptOperationHelper.OptionalPropertyAccess("query", propName);
+            if (convertDates && TypeScriptOperationHelper.IsDateParam(param))
+            {
+                value = TypeScriptOperationHelper.SerializeDateParameter(param, value, optional: true);
+            }
 
             // An array whose items are one value (form with explode: false, pipeDelimited, spaceDelimited): the items
             // joined on the declared delimiter (an array would be sent as repeated keys)
             if (param.GetArrayDelimiter() is { } delimiter)
             {
-                coercion += "?.join('" + delimiter + "')";
+                value += "?.join('" + delimiter + "')";
             }
 
             // Use original name as key if different from the transformed name
             if (!(param.Name ?? string.Empty).Equals(propName, StringComparison.Ordinal))
             {
-                sb.Append("        '").Append(param.Name).Append("': ").Append(TypeScriptOperationHelper.OptionalPropertyAccess("query", propName)).Append(coercion).AppendLine(",");
+                sb.Append("        '").Append(param.Name).Append("': ").Append(value).AppendLine(",");
             }
             else
             {
-                sb.Append("        ").Append(TypeScriptOperationHelper.PropertyKey(propName)).Append(": ").Append(TypeScriptOperationHelper.OptionalPropertyAccess("query", propName)).Append(coercion).AppendLine(",");
+                sb.Append("        ").Append(TypeScriptOperationHelper.PropertyKey(propName)).Append(": ").Append(value).AppendLine(",");
             }
         }
 
@@ -1342,10 +1346,13 @@ public static class TypeScriptClientExtractor
         foreach (var param in headerParams)
         {
             var rawName = param.Name ?? string.Empty;
-            var coercion = convertDates && TypeScriptOperationHelper.IsDateParam(param)
-                ? "?" + TypeScriptOperationHelper.GetDateSerializationSuffix(param)
-                : string.Empty;
-            sb.Append("        '").Append(rawName).Append("': headers?.['").Append(rawName).Append("']").Append(coercion).AppendLine(",");
+            var value = "headers?.['" + rawName + "']";
+            if (convertDates && TypeScriptOperationHelper.IsDateParam(param))
+            {
+                value = TypeScriptOperationHelper.SerializeDateParameter(param, value, optional: true);
+            }
+
+            sb.Append("        '").Append(rawName).Append("': ").Append(value).AppendLine(",");
         }
 
         if (cookieParams is { Count: > 0 })
