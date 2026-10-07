@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Services;
 
 /// <summary>
 /// The version lookup runs before every command, so a bad answer from the network must never
-/// throw or stall (HARD-51), and a prerelease is never offered to a scaffold.
+/// throw or stall, and a prerelease is never offered to a scaffold.
 /// </summary>
 [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The HttpClient owns the stub handler; both live for the test only.")]
 public sealed class NugetPackageVersionServiceTests

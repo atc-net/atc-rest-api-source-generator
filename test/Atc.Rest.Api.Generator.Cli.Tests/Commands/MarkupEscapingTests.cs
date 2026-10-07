@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Commands;
 
 /// <summary>
 /// Every command prints paths, spec-derived names and exception messages through Spectre markup.
-/// A <c>[</c> in any of them must be printed, never parsed as a style tag (HARD-50).
+/// A <c>[</c> in any of them must be printed, never parsed as a style tag.
 /// </summary>
 [Collection("Sequential-CLI")]
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Best effort cleanup in tests.")]

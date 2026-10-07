@@ -1,7 +1,7 @@
 namespace Atc.Rest.Api.Generator.Cli.Tests.Helpers;
 
 /// <summary>
-/// A relative argument resolves against the current directory and nothing else (HARD-42): the
+/// A relative argument resolves against the current directory and nothing else: the
 /// helper must not rewrite <c>src/&lt;Project&gt;/</c> or <c>bin/&lt;Config&gt;/&lt;tfm&gt;/</c>
 /// segments of the current directory, and <c>api.yaml</c> must mean the same as <c>./api.yaml</c>.
 /// </summary>

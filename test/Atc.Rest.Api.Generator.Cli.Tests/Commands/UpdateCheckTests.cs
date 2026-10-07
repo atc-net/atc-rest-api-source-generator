@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Commands;
 
 /// <summary>
 /// The update check that runs before a command must stay invisible: no HTTP trace lines in the
-/// output, and no network round trip at all for help and version (HARD-51).
+/// output, and no network round trip at all for help and version.
 /// </summary>
 [Collection("Sequential-CLI")]
 public sealed class UpdateCheckTests

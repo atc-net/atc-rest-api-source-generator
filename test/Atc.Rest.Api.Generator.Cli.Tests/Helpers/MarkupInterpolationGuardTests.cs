@@ -1,7 +1,7 @@
 namespace Atc.Rest.Api.Generator.Cli.Tests.Helpers;
 
 /// <summary>
-/// Guards HARD-50: a value interpolated straight into Spectre markup is parsed as markup, so a
+/// A value interpolated straight into Spectre markup is parsed as markup, so a
 /// <c>[</c> in a path or an exception message crashes the CLI. Every interpolated markup call in the
 /// CLI must go through the interpolated overloads (<c>MarkupLineInterpolated</c>,
 /// <c>MarkupInterpolated</c>, <c>Markup.FromInterpolated</c>), which escape every hole.
