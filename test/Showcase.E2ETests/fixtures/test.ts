@@ -42,11 +42,17 @@ const describeConsole = (message: ConsoleMessage) => {
 };
 
 const describeFailedRequest = async (request: Request) => {
-  // A request can fail after its answer arrived (its body was cancelled): the status says which
-  const response = await request.response().catch(() => null);
-  const bodiless = response && (response.status() === 204 || response.status() === 304 || (await response.headerValue('content-length').catch(() => null)) === '0');
-  const after = response ? ` (after ${response.status()}${bodiless ? ', no body' : ''})` : '';
-  return `requestfailed ${request.method()} ${request.url()} ${request.failure()?.errorText ?? ''}${after}`;
+  const failed = `requestfailed ${request.method()} ${request.url()} ${request.failure()?.errorText ?? ''}`;
+  // A request can fail after its answer arrived (its body was cancelled): the status says which. Best effort, and
+  // bounded - the teardown waits for this; without a status the entry stays as it is (and is not "no body")
+  const response = await Promise.race([
+    request.response().catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 1_000)),
+  ]);
+  if (!response) return failed;
+  const status = response.status();
+  const bodiless = status === 204 || status === 304 || response.headers()['content-length'] === '0';
+  return `${failed} (after ${status}${bodiless ? ', no body' : ''})`;
 };
 
 export const test = base.extend<CustomFixtures>({

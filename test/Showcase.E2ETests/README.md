@@ -54,7 +54,9 @@ npx playwright install chromium
 
 ## Running Tests
 
-The `webServer` config auto-starts the API and all three frontends. If they're already running (e.g., via Aspire), Playwright reuses the existing servers.
+The `webServer` config auto-starts the API and all three frontends, and fails on a port that is already taken. With `PW_REUSE=1` it
+reuses servers that are already running (e.g., via Aspire) - then start the API with `Showcase__DisableRateLimiter=true`, or a full
+run meets the API's rate limits (429).
 
 ```bash
 npm test                  # run all tests (all three projects)
