@@ -52,8 +52,29 @@ public static class CSharpLiteralHelper
         }
 
         var sb = new StringBuilder(value.Length + 8);
-        foreach (var c in value)
+        for (var i = 0; i < value.Length; i++)
         {
+            var c = value[i];
+
+            // The halves of a surrogate pair are written as they are; a lone surrogate (from a JSON escape) has no
+            // UTF-8 form, so written raw the generated file would hold U+FFFD instead
+            if (char.IsSurrogate(c))
+            {
+                var paired = char.IsHighSurrogate(c)
+                    ? i + 1 < value.Length && char.IsLowSurrogate(value[i + 1])
+                    : i > 0 && char.IsHighSurrogate(value[i - 1]);
+                if (paired)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append("\\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                }
+
+                continue;
+            }
+
             switch (c)
             {
                 case '\\':

@@ -20,11 +20,9 @@ public sealed class EscaperPropertyTests
 
     private static readonly Gen<string> AnyName = AnyText.Where(s => s.Length > 0);
 
-    // Well-formed text only for now: CSharpLiteralHelper writes a lone surrogate raw (pending a decision on changing
-    // Atc.CodeGeneration.CSharp)
     [Fact]
     public void CSharpStringLiteral_MeansTheSameText_AndIsValidUtf8()
-        => AnyText.Where(IsWellFormedUtf16).Sample(
+        => AnyText.Sample(
             text =>
             {
                 var literal = CSharpLiteralHelper.ToStringLiteral(text);
@@ -206,19 +204,6 @@ public sealed class EscaperPropertyTests
         }
 
         return sb.ToString();
-    }
-
-    private static bool IsWellFormedUtf16(string text)
-    {
-        try
-        {
-            StrictUtf8.GetByteCount(text);
-            return true;
-        }
-        catch (EncoderFallbackException)
-        {
-            return false;
-        }
     }
 
     private static string Show(string text)
