@@ -43,8 +43,8 @@ public sealed class CreateUserHandler : ICreateUserHandler
             PostalCode: request.Address.PostalCode,
             Country: request.Address.Country,
             CountryCode: request.Address.CountryCode,
-            Latitude: request.Address.Latitude ?? 0,
-            Longitude: request.Address.Longitude ?? 0);
+            Latitude: request.Address.Latitude,
+            Longitude: request.Address.Longitude);
 
         // Map API role to domain role
         var role = Enum.TryParse<UserRoleType>(request.Role.ToString(), ignoreCase: true, out var parsedRole)

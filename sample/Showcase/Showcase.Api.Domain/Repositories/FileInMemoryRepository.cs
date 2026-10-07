@@ -6,9 +6,10 @@ namespace Showcase.Api.Domain.Repositories;
 /// </summary>
 public sealed class FileInMemoryRepository
 {
-    private readonly Dictionary<string, StoredFile> files = new(StringComparer.OrdinalIgnoreCase);
+    // Uploads run in parallel: a concurrent dictionary, and ids taken atomically (two uploads must not share one)
+    private readonly ConcurrentDictionary<string, StoredFile> files = new(StringComparer.OrdinalIgnoreCase);
 
-    private long nextId = 1;
+    private long lastId;
 
     public FileInMemoryRepository()
     {
@@ -104,7 +105,7 @@ public sealed class FileInMemoryRepository
         CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
-        var id = nextId++.ToString(CultureInfo.InvariantCulture);
+        var id = NextId();
         var file = new StoredFile(id, fileName, contentType, content, DateTimeOffset.UtcNow);
         files[id] = file;
         return Task.FromResult(file);
@@ -119,7 +120,7 @@ public sealed class FileInMemoryRepository
 
         foreach (var (fileName, contentType, content) in fileInfos)
         {
-            var id = nextId++.ToString(CultureInfo.InvariantCulture);
+            var id = NextId();
             var file = new StoredFile(id, fileName, contentType, content, DateTimeOffset.UtcNow);
             files[id] = file;
             savedFiles.Add(file);
@@ -133,7 +134,7 @@ public sealed class FileInMemoryRepository
         CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
-        return Task.FromResult(files.Remove(id));
+        return Task.FromResult(files.TryRemove(id, out _));
     }
 
     private void AddSampleFile(
@@ -141,7 +142,7 @@ public sealed class FileInMemoryRepository
         string contentType,
         byte[] content)
     {
-        var id = nextId++.ToString(CultureInfo.InvariantCulture);
+        var id = NextId();
         files[id] = new StoredFile(id, fileName, contentType, content, DateTimeOffset.UtcNow);
     }
 
@@ -316,4 +317,7 @@ public sealed class FileInMemoryRepository
 
         return (int)((b << 16) | a);
     }
+
+    private string NextId()
+        => Interlocked.Increment(ref lastId).ToString(CultureInfo.InvariantCulture);
 }

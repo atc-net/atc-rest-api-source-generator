@@ -58,8 +58,8 @@ public partial class UserForm
                 PostalCode = user.Address?.PostalCode ?? string.Empty,
                 Country = user.Address?.Country ?? string.Empty,
                 CountryCode = user.Address?.CountryCode,
-                Latitude = user.Address?.Latitude ?? 0,
-                Longitude = user.Address?.Longitude ?? 0,
+                Latitude = user.Address?.Latitude,
+                Longitude = user.Address?.Longitude,
             };
         }
         catch (Exception ex)

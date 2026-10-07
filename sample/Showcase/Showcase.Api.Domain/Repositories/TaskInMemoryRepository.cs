@@ -21,6 +21,8 @@ public sealed class TaskInMemoryRepository
 
     private static readonly string[] Tags = ["high-priority", "low-priority", "in-progress", "blocked"];
 
+    // Requests run in parallel: every change happens under the gate, and every read works on a copy
+    private readonly Lock gate = new();
     private readonly List<Showcase.Generated.Tasks.Models.Task> tasks = [];
     private long nextId = 1;
 
@@ -46,7 +48,7 @@ public sealed class TaskInMemoryRepository
             .Delay(1)
             .ConfigureAwait(false);
 
-        var query = tasks.AsEnumerable();
+        var query = Snapshot().AsEnumerable();
 
         if (limit.HasValue)
         {
@@ -64,7 +66,7 @@ public sealed class TaskInMemoryRepository
 
         if (long.TryParse(id, out var taskId))
         {
-            return tasks.FirstOrDefault(t => t.Id == taskId);
+            return Snapshot().FirstOrDefault(t => t.Id == taskId);
         }
         else
         {
@@ -80,10 +82,13 @@ public sealed class TaskInMemoryRepository
             .Delay(1)
             .ConfigureAwait(false);
 
-        var newTask = new Showcase.Generated.Tasks.Models.Task(nextId++, name, tag ?? string.Empty);
-        tasks.Add(newTask);
+        lock (gate)
+        {
+            var newTask = new Showcase.Generated.Tasks.Models.Task(nextId++, name, tag ?? string.Empty);
+            tasks.Add(newTask);
 
-        return newTask;
+            return newTask;
+        }
     }
 
     public async Task<Showcase.Generated.Tasks.Models.Task> Create(
@@ -95,29 +100,32 @@ public sealed class TaskInMemoryRepository
             .Delay(1)
             .ConfigureAwait(false);
 
-        // No id from the client (the React apps send 0): assign the next one
-        if (id <= 0)
+        lock (gate)
         {
-            id = nextId;
+            // No id from the client (the apps send 0): assign the next one
+            if (id <= 0)
+            {
+                id = nextId;
+            }
+
+            // Check if task with this ID already exists
+            var existing = tasks.FirstOrDefault(t => t.Id == id);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            var newTask = new Showcase.Generated.Tasks.Models.Task(id, name, tag ?? string.Empty);
+            tasks.Add(newTask);
+
+            // Update nextId if necessary
+            if (id >= nextId)
+            {
+                nextId = id + 1;
+            }
+
+            return newTask;
         }
-
-        // Check if task with this ID already exists
-        var existing = tasks.FirstOrDefault(t => t.Id == id);
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        var newTask = new Showcase.Generated.Tasks.Models.Task(id, name, tag ?? string.Empty);
-        tasks.Add(newTask);
-
-        // Update nextId if necessary
-        if (id >= nextId)
-        {
-            nextId = id + 1;
-        }
-
-        return newTask;
     }
 
     public async Task<Showcase.Generated.Tasks.Models.Task?> Update(
@@ -134,16 +142,19 @@ public sealed class TaskInMemoryRepository
             return null;
         }
 
-        var existingIndex = tasks.FindIndex(t => t.Id == taskId);
-        if (existingIndex < 0)
+        lock (gate)
         {
-            return null;
+            var existingIndex = tasks.FindIndex(t => t.Id == taskId);
+            if (existingIndex < 0)
+            {
+                return null;
+            }
+
+            var updatedTask = new Showcase.Generated.Tasks.Models.Task(taskId, name, tag ?? string.Empty);
+            tasks[existingIndex] = updatedTask;
+
+            return updatedTask;
         }
-
-        var updatedTask = new Showcase.Generated.Tasks.Models.Task(taskId, name, tag ?? string.Empty);
-        tasks[existingIndex] = updatedTask;
-
-        return updatedTask;
     }
 
     public async Task<Showcase.Generated.Tasks.Models.Task?> Delete(string id)
@@ -157,15 +168,26 @@ public sealed class TaskInMemoryRepository
             return null;
         }
 
-        var existingIndex = tasks.FindIndex(t => t.Id == taskId);
-        if (existingIndex < 0)
+        lock (gate)
         {
-            return null;
+            var existingIndex = tasks.FindIndex(t => t.Id == taskId);
+            if (existingIndex < 0)
+            {
+                return null;
+            }
+
+            var deletedTask = tasks[existingIndex];
+            tasks.RemoveAt(existingIndex);
+
+            return deletedTask;
         }
+    }
 
-        var deletedTask = tasks[existingIndex];
-        tasks.RemoveAt(existingIndex);
-
-        return deletedTask;
+    private List<Showcase.Generated.Tasks.Models.Task> Snapshot()
+    {
+        lock (gate)
+        {
+            return [.. tasks];
+        }
     }
 }

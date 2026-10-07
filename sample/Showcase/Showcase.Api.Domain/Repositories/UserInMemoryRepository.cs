@@ -100,6 +100,8 @@ public sealed class UserInMemoryRepository
         "HR professional building great company cultures."
     ];
 
+    // Requests run in parallel: every change happens under the gate, and every read works on a copy
+    private readonly Lock gate = new();
     private readonly List<UserEntity> users = [];
 
     public UserInMemoryRepository()
@@ -133,7 +135,7 @@ public sealed class UserInMemoryRepository
         bool? isActive = null,
         int? limit = null)
     {
-        var query = users.AsEnumerable();
+        var query = Snapshot().AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -170,7 +172,7 @@ public sealed class UserInMemoryRepository
     }
 
     public Task<UserEntity?> GetById(Guid id)
-        => Task.FromResult(users.FirstOrDefault(u => u.Id == id));
+        => Task.FromResult(Snapshot().FirstOrDefault(u => u.Id == id));
 
     /// <summary>
     /// Fetches every user in the given id set. Unknown ids are skipped rather than erroring, so a
@@ -185,11 +187,11 @@ public sealed class UserInMemoryRepository
     {
         var idSet = ids as HashSet<Guid> ?? [.. ids];
 
-        return Task.FromResult(users.Where(u => idSet.Contains(u.Id)).ToList());
+        return Task.FromResult(Snapshot().Where(u => idSet.Contains(u.Id)).ToList());
     }
 
     public Task<UserEntity?> GetByEmail(string email)
-        => Task.FromResult(users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
+        => Task.FromResult(Snapshot().FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
 
     public Task<UserEntity> Create(
         string firstName,
@@ -221,7 +223,11 @@ public sealed class UserInMemoryRepository
             CreatedAt: DateTime.UtcNow,
             UpdatedAt: DateTime.UtcNow);
 
-        users.Add(user);
+        lock (gate)
+        {
+            users.Add(user);
+        }
+
         return Task.FromResult(user);
     }
 
@@ -239,49 +245,55 @@ public sealed class UserInMemoryRepository
         UserRoleType role,
         AddressEntity address)
     {
-        var index = users.FindIndex(u => u.Id == id);
-        if (index < 0)
+        lock (gate)
         {
-            return Task.FromResult<UserEntity?>(null);
+            var index = users.FindIndex(u => u.Id == id);
+            if (index < 0)
+            {
+                return Task.FromResult<UserEntity?>(null);
+            }
+
+            var existing = users[index];
+            var updated = new UserEntity(
+                Id: id,
+                FirstName: firstName,
+                LastName: lastName,
+                Email: email,
+                Phone: phone,
+                Website: website,
+                DateOfBirth: dateOfBirth,
+                Age: CalculateAge(dateOfBirth),
+                Bio: bio,
+                AvatarUrl: avatarUrl ?? existing.AvatarUrl,
+                IsActive: isActive ?? existing.IsActive,
+                Role: role,
+                Address: address,
+                CreatedAt: existing.CreatedAt,
+                UpdatedAt: DateTime.UtcNow);
+
+            users[index] = updated;
+            return Task.FromResult<UserEntity?>(updated);
         }
-
-        var existing = users[index];
-        var updated = new UserEntity(
-            Id: id,
-            FirstName: firstName,
-            LastName: lastName,
-            Email: email,
-            Phone: phone,
-            Website: website,
-            DateOfBirth: dateOfBirth,
-            Age: CalculateAge(dateOfBirth),
-            Bio: bio,
-            AvatarUrl: avatarUrl ?? existing.AvatarUrl,
-            IsActive: isActive ?? existing.IsActive,
-            Role: role,
-            Address: address,
-            CreatedAt: existing.CreatedAt,
-            UpdatedAt: DateTime.UtcNow);
-
-        users[index] = updated;
-        return Task.FromResult<UserEntity?>(updated);
     }
 
     public Task<UserEntity?> Delete(Guid id)
     {
-        var index = users.FindIndex(u => u.Id == id);
-        if (index < 0)
+        lock (gate)
         {
-            return Task.FromResult<UserEntity?>(null);
-        }
+            var index = users.FindIndex(u => u.Id == id);
+            if (index < 0)
+            {
+                return Task.FromResult<UserEntity?>(null);
+            }
 
-        var user = users[index];
-        users.RemoveAt(index);
-        return Task.FromResult<UserEntity?>(user);
+            var user = users[index];
+            users.RemoveAt(index);
+            return Task.FromResult<UserEntity?>(user);
+        }
     }
 
     public Task<string[]> GetDistinctCountries()
-        => Task.FromResult(users
+        => Task.FromResult(Snapshot()
             .Select(u => u.Address.Country)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(c => c, StringComparer.Ordinal)
@@ -434,5 +446,13 @@ public sealed class UserInMemoryRepository
         }
 
         return age;
+    }
+
+    private List<UserEntity> Snapshot()
+    {
+        lock (gate)
+        {
+            return [.. users];
+        }
     }
 }
