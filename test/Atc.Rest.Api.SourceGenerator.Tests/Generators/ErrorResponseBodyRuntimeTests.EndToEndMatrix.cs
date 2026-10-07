@@ -1592,9 +1592,18 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             // Node's fetch (undici) rejects every 407 response - reproduced with a plain fetch() call - so no client
             // built on it can see the response.
-            return wire.Status == 407 && ((string)threw!).Contains("fetch failed", StringComparison.Ordinal)
-                ? Cell(VerdictPlatform, "Node's fetch rejects a 407 response before any client code runs", Short((string)threw!))
-                : Cell(VerdictFail, "the client method threw", Short((string)threw!));
+            // A 421 on a reused connection is sent again on a new one (the Fetch standard's HTTP-network fetch, step 16),
+            // and undici now and then resends a request body that no longer matches its Content-Length - a plain
+            // fetch() PUT against Kestrel answering 421 fails so about 2 times in 100, never for another status.
+            var thrown = (string)threw!;
+            return (wire.Status, thrown) switch
+            {
+                (407, _) when thrown.Contains("fetch failed", StringComparison.Ordinal)
+                    => Cell(VerdictPlatform, "Node's fetch rejects a 407 response before any client code runs", Short(thrown)),
+                (421, _) when thrown.Contains("UND_ERR_REQ_CONTENT_LENGTH_MISMATCH", StringComparison.Ordinal)
+                    => Cell(VerdictPlatform, "Node's fetch resends a 421's request on a new connection and now and then fails the body", Short(thrown)),
+                _ => Cell(VerdictFail, "the client method threw", Short(thrown)),
+            };
         }
 
         var arm = (string?)result["arm"] ?? "(none)";
