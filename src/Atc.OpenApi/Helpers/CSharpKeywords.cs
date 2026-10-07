@@ -16,6 +16,9 @@ public static class CSharpKeywords
         "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
         "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
         "void", "volatile", "while",
+
+        // Reserved too, though undocumented
+        "__arglist", "__makeref", "__reftype", "__refvalue",
     };
 
     /// <summary>

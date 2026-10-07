@@ -265,6 +265,8 @@ public class OpenApiSchemaExtensionsTests
     [InlineData("class", "Class")] // a C# keyword cannot be a type name: the first letter is capitalised
     [InlineData("object", "Object")]
     [InlineData("string", "String")]
+    [InlineData("__arglist", "___arglist")] // a keyword with no letter to capitalise gets an underscore
+    [InlineData("__makeref", "___makeref")]
     public void SanitizeSchemaName_ReturnsExpected(
         string input,
         string expected)
