@@ -1545,6 +1545,12 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine(ResultClassExtractor.RetryAfterHttpResultSource());
         }
 
+        // A problem factory passes the handler's problem through with the response status
+        if (allGeneratedCode.ToString().Contains("ProblemWithStatus.Of("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.ProblemWithStatusSource());
+        }
+
         if (allGeneratedCode.ToString().Contains("new LocationHttpResult("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.LocationHttpResultSource());

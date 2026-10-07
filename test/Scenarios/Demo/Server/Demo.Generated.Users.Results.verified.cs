@@ -80,7 +80,7 @@ public sealed class CreateUserResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static CreateUserResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 409 Conflict - User with this email already exists.
@@ -170,7 +170,7 @@ public sealed class UpdateUserByIdResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static UpdateUserByIdResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 404 Not Found - User not found.
@@ -231,4 +231,20 @@ public sealed class DeleteUserByIdResult : IResult
     /// </summary>
     public static IResult ToIResult(DeleteUserByIdResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A handler's problem as it is, with the status of the response it is written to.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ProblemWithStatus
+{
+    public static TProblem Of<TProblem>(
+        TProblem problem,
+        int status)
+        where TProblem : global::Microsoft.AspNetCore.Mvc.ProblemDetails
+    {
+        problem.Status = status;
+        return problem;
+    }
 }

@@ -123,7 +123,7 @@ public sealed class GetPetResult : IResult
     /// 404 Not Found - Not found.
     /// </summary>
     public static GetPetResult NotFound(ProblemDetails problem)
-        => new(TypedResults.Problem(detail: problem.Detail, instance: problem.Instance, statusCode: 404, title: problem.Title, type: problem.Type, extensions: problem.Extensions));
+        => new(TypedResults.Problem(ProblemWithStatus.Of(problem, 404)));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -178,4 +178,20 @@ public sealed class GetPhotoResult : IResult
     /// </summary>
     public static IResult ToIResult(GetPhotoResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A handler's problem as it is, with the status of the response it is written to.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ProblemWithStatus
+{
+    public static TProblem Of<TProblem>(
+        TProblem problem,
+        int status)
+        where TProblem : global::Microsoft.AspNetCore.Mvc.ProblemDetails
+    {
+        problem.Status = status;
+        return problem;
+    }
 }

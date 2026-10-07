@@ -224,6 +224,31 @@ public static class ResultClassExtractor
             """;
 
     /// <summary>
+    /// The helper the problem factories pass a handler's problem through with: the handler's own instance - its type,
+    /// its <c>errors</c>, its own properties - with the response's status, emitted once into a Results file whose
+    /// factories use it.
+    /// </summary>
+    public static string ProblemWithStatusSource()
+        => $$"""
+
+            /// <summary>
+            /// A handler's problem as it is, with the status of the response it is written to.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal static class ProblemWithStatus
+            {
+                public static TProblem Of<TProblem>(
+                    TProblem problem,
+                    int status)
+                    where TProblem : global::Microsoft.AspNetCore.Mvc.ProblemDetails
+                {
+                    problem.Status = status;
+                    return problem;
+                }
+            }
+            """;
+
+    /// <summary>
     /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
     /// Results file whose factories use it (429 responses).
     /// </summary>
@@ -667,9 +692,7 @@ public static class ResultClassExtractor
             {
                 // 2.x shape: BadRequest(ValidationProblemDetails? errors = null) (or the declared ProblemDetails).
                 var errorsType = shape is { Kind: ErrorResponseKind.Problem, IsDeclared: true } ? "ProblemDetails" : "ValidationProblemDetails";
-                var fromErrors = errorsType == "ValidationProblemDetails"
-                    ? ValidationProblemExpression("errors", "400")
-                    : ProblemExpression("errors", "400");
+                var fromErrors = ProblemExpression("errors", "400");
                 methods.Add(CreateErrorFactory(
                     className,
                     doc,
@@ -718,9 +741,7 @@ public static class ResultClassExtractor
             if (hasProblemOverload)
             {
                 var problemType = shape.Kind == ErrorResponseKind.ValidationProblem ? "ValidationProblemDetails" : "ProblemDetails";
-                var fromProblem = shape.Kind == ErrorResponseKind.ValidationProblem
-                    ? ValidationProblemExpression("problem", status)
-                    : ProblemExpression("problem", status);
+                var fromProblem = ProblemExpression("problem", status);
                 List<ParameterBaseParameters> parameters = [CreateParameter(problemType, "problem", nullable: false, isReference: true, defaultValue: null), .. statusParameter];
                 if (isTooManyRequests)
                 {
@@ -801,22 +822,13 @@ public static class ResultClassExtractor
     }
 
     /// <summary>
-    /// A ProblemDetails built from a caller's problem object, with the response status.
+    /// The caller's problem object as it is - a <c>ValidationProblemDetails</c> keeps its errors, a type of the caller's
+    /// own its properties - with the response status (it used to be rebuilt from its five standard fields).
     /// </summary>
     private static string ProblemExpression(
         string variable,
         string status)
-        => $"TypedResults.Problem(detail: {variable}.Detail, instance: {variable}.Instance, statusCode: {status}, title: {variable}.Title, type: {variable}.Type, extensions: {variable}.Extensions)";
-
-    /// <summary>
-    /// A validation ProblemDetails built from a caller's <c>ValidationProblemDetails</c>, with the response status.
-    /// </summary>
-    private static string ValidationProblemExpression(
-        string variable,
-        string status)
-        => status == "400"
-            ? $"TypedResults.ValidationProblem({variable}.Errors, detail: {variable}.Detail, instance: {variable}.Instance, title: {variable}.Title, type: {variable}.Type, extensions: {variable}.Extensions)"
-            : $"TypedResults.Problem(new HttpValidationProblemDetails({variable}.Errors) {{ Detail = {variable}.Detail, Instance = {variable}.Instance, Status = {status}, Title = {variable}.Title, Type = {variable}.Type, Extensions = {variable}.Extensions }})";
+        => $"TypedResults.Problem(ProblemWithStatus.Of({variable}, {status}))";
 
     private static MethodParameters CreateErrorFactory(
         string className,

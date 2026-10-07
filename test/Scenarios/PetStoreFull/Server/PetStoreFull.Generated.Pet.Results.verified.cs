@@ -41,7 +41,7 @@ public sealed class UpdatePetResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static UpdatePetResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
@@ -103,7 +103,7 @@ public sealed class AddPetResult : IResult
     /// 400 Bad Request - Invalid input.
     /// </summary>
     public static AddPetResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 422 Unprocessable Entity - Validation exception.
@@ -162,7 +162,7 @@ public sealed class FindPetsByStatusResult : IResult
     /// 400 Bad Request - Invalid status value.
     /// </summary>
     public static FindPetsByStatusResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -215,7 +215,7 @@ public sealed class FindPetsByTagsResult : IResult
     /// 400 Bad Request - Invalid tag value.
     /// </summary>
     public static FindPetsByTagsResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -265,7 +265,7 @@ public sealed class GetPetByIdResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static GetPetByIdResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
@@ -321,7 +321,7 @@ public sealed class UpdatePetWithFormResult : IResult
     /// 400 Bad Request - Invalid input.
     /// </summary>
     public static UpdatePetWithFormResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -368,7 +368,7 @@ public sealed class DeletePetResult : IResult
     /// 400 Bad Request - Invalid pet value.
     /// </summary>
     public static DeletePetResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -418,7 +418,7 @@ public sealed class UploadFileResult : IResult
     /// 400 Bad Request - No file uploaded.
     /// </summary>
     public static UploadFileResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
@@ -442,6 +442,22 @@ public sealed class UploadFileResult : IResult
     /// </summary>
     public static IResult ToIResult(UploadFileResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A handler's problem as it is, with the status of the response it is written to.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ProblemWithStatus
+{
+    public static TProblem Of<TProblem>(
+        TProblem problem,
+        int status)
+        where TProblem : global::Microsoft.AspNetCore.Mvc.ProblemDetails
+    {
+        problem.Status = status;
+        return problem;
+    }
 }
 
 /// <summary>

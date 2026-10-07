@@ -82,7 +82,7 @@ public sealed class PlaceOrderResult : IResult
     /// 400 Bad Request - Invalid input.
     /// </summary>
     public static PlaceOrderResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 422 Unprocessable Entity - Validation exception.
@@ -138,7 +138,7 @@ public sealed class GetOrderByIdResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static GetOrderByIdResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 404 Not Found - Order not found.
@@ -191,7 +191,7 @@ public sealed class DeleteOrderResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static DeleteOrderResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
     /// <summary>
     /// 404 Not Found - Order not found.
@@ -215,6 +215,22 @@ public sealed class DeleteOrderResult : IResult
     /// </summary>
     public static IResult ToIResult(DeleteOrderResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A handler's problem as it is, with the status of the response it is written to.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ProblemWithStatus
+{
+    public static TProblem Of<TProblem>(
+        TProblem problem,
+        int status)
+        where TProblem : global::Microsoft.AspNetCore.Mvc.ProblemDetails
+    {
+        problem.Status = status;
+        return problem;
+    }
 }
 
 /// <summary>
