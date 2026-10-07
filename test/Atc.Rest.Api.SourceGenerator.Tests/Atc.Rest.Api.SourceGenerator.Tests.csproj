@@ -28,6 +28,8 @@
     <!-- Likewise for the OpenID Connect security scenario, whose emitted authentication wiring
          lives outside the ASP.NET Core shared framework. -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
+    <!-- The generated scope and role policies against real signed JWTs, as an identity provider issues them -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

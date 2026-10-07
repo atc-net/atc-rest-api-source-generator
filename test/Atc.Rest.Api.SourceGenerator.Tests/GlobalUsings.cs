@@ -38,6 +38,7 @@ global using Atc.Rest.Api.Tests.Node;
 
 global using CsCheck;
 global using Microsoft.AspNetCore.Authentication;
+global using Microsoft.AspNetCore.Authentication.JwtBearer;
 global using Microsoft.AspNetCore.Builder;
 global using Microsoft.AspNetCore.Http;
 global using Microsoft.AspNetCore.Mvc;
@@ -50,6 +51,8 @@ global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
+global using Microsoft.IdentityModel.JsonWebTokens;
+global using Microsoft.IdentityModel.Tokens;
 global using Microsoft.OpenApi;
 
 global using VerifyXunit;
