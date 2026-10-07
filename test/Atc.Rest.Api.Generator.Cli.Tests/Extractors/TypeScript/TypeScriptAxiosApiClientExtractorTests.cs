@@ -90,10 +90,9 @@ public class TypeScriptAxiosApiClientExtractorTests
     [Fact]
     public void Generate_StreamHeadersLoop_GuardsAgainstUndefinedValue()
     {
-        // RequestOptions.headers accepts `string | number | boolean | undefined` (axios
-        // gives the caller flexibility), but Headers.set requires a string. The loop now
-        // skips undefined and coerces with String(...) — matching the same guard used in
-        // the axios request() method and the fetch requestStream().
+        // RequestOptions.headers accepts `string | number | boolean | undefined`, but a header
+        // value is a string. The loop skips undefined and coerces with String(...) — the same
+        // guard in request() and requestStream().
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
@@ -101,12 +100,12 @@ public class TypeScriptAxiosApiClientExtractorTests
             result,
             StringComparison.Ordinal);
         Assert.Contains(
-            "headers.set(key, String(value));",
+            "headers[key] = String(value);",
             result,
             StringComparison.Ordinal);
 
         // Regression-guard for the original buggy emission shape.
-        Assert.DoesNotContain("headers.set(key, value);", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("headers[key] = value as string;", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -170,37 +169,16 @@ public class TypeScriptAxiosApiClientExtractorTests
     }
 
     [Fact]
-    public void Generate_BuildUrl_UsesAppendForArrayValuesAndSetForScalars()
+    public void Generate_Stream_GoesThroughTheAxiosInstance()
     {
-        // The streaming path uses buildUrl (not axios params). Array query params must
-        // produce repeated keys (?tags=a&tags=b) there too.
+        // A stream is sent by the axios instance (its fetch adapter, a 'stream' response), so the default
+        // headers, the credentials, the interceptors and the params serializer (repeated keys) apply to it too.
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
-        Assert.Contains("Array.isArray(value)", result, StringComparison.Ordinal);
-        Assert.Contains("url.searchParams.append(key, String(item));", result, StringComparison.Ordinal);
-        Assert.Contains("url.searchParams.set(key, String(value));", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Generate_BuildUrl_SkipsUndefinedBeforeArrayCheck()
-    {
-        // The undefined-guard must come before the Array.isArray branch so the
-        // loop does not try to iterate undefined.
-        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
-
-        // Scope the search to the buildUrl method definition so the assertion cannot be
-        // satisfied by an unrelated 'continue;' elsewhere in the generated file
-        // (e.g. the streaming/multipart parser).
-        var buildUrlIdx = result.IndexOf("buildUrl(path: string,", StringComparison.Ordinal);
-        Assert.True(buildUrlIdx >= 0, "buildUrl method must be generated.");
-        var buildUrlBody = result.Substring(buildUrlIdx);
-
-        var undefinedGuardIdx = buildUrlBody.IndexOf("value === undefined", StringComparison.Ordinal);
-        var continueIdx = buildUrlBody.IndexOf("continue;", StringComparison.Ordinal);
-        var arrayIdx = buildUrlBody.IndexOf("Array.isArray(value)", StringComparison.Ordinal);
-        Assert.True(undefinedGuardIdx >= 0, "buildUrl must contain the 'value === undefined' guard.");
-        Assert.True(continueIdx > undefinedGuardIdx, "The 'continue' must follow the undefined guard within buildUrl.");
-        Assert.True(arrayIdx > continueIdx, "The undefined guard must appear before Array.isArray within buildUrl.");
+        Assert.Contains("adapter: 'fetch',", result, StringComparison.Ordinal);
+        Assert.Contains("responseType: 'stream',", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("buildUrl(", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("await fetch(", result, StringComparison.Ordinal);
     }
 
     // ========== SSE parser LF-only ==========
