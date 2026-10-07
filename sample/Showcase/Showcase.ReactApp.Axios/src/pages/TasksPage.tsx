@@ -17,9 +17,12 @@ import {
   Stack,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useTasksList, useCreateTask, useDeleteTask } from '../hooks/useTasks';
+import { useUpdateTaskById } from '../api/hooks/useTasks';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { EditNameTagDialog } from '../components/EditNameTagDialog';
 import type { Task } from '../api/models/Task';
 
 export default function TasksPage() {
@@ -33,6 +36,8 @@ export default function TasksPage() {
   const [errorMsg, setErrorMsg] = useState('');
 
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [editTarget, setEditTarget] = useState<Task | null>(null);
+  const updateTask = useUpdateTaskById(String(editTarget?.id ?? ''));
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -61,6 +66,21 @@ export default function TasksPage() {
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to delete task.');
       setDeleteTarget(null);
+    }
+  };
+
+  const handleUpdate = async (newName: string, newTag: string) => {
+    if (!editTarget) return;
+    setSuccessMsg('');
+    setErrorMsg('');
+    try {
+      const updated = await updateTask.mutateAsync({ id: editTarget.id, name: newName, tag: newTag || undefined });
+      setSuccessMsg(`Task updated: ${updated.name}`);
+      setEditTarget(null);
+      refetch();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to update task.');
+      setEditTarget(null);
     }
   };
 
@@ -144,7 +164,11 @@ export default function TasksPage() {
                 <TableCell>{task.name}</TableCell>
                 <TableCell>{task.tag ?? ''}</TableCell>
                 <TableCell align="right">
+                  <IconButton aria-label="Edit" onClick={() => setEditTarget(task)} disabled={updateTask.isPending}>
+                    <EditIcon />
+                  </IconButton>
                   <IconButton
+                    aria-label="Delete"
                     color="error"
                     onClick={() => setDeleteTarget(task)}
                     disabled={deleteTask.isPending}
@@ -164,6 +188,16 @@ export default function TasksPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <EditNameTagDialog
+        open={editTarget !== null}
+        title="Edit Task"
+        name={editTarget?.name ?? ''}
+        tag={editTarget?.tag}
+        saving={updateTask.isPending}
+        onSave={handleUpdate}
+        onCancel={() => setEditTarget(null)}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

@@ -31,6 +31,22 @@ public sealed partial class GatewayService
     }
 
     /// <summary>
+    /// Query users by a set of ids (HTTP QUERY - the ids travel in the request body). Unknown ids are skipped.
+    /// </summary>
+    public async Task<(User[]? Users, string? Error)> QueryUsersAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var parameters = new QueryUsersParameters(Request: new UserQuery(Ids: [.. ids]));
+
+        var result = await queryUsersEndpoint.ExecuteAsync(parameters, cancellationToken: cancellationToken);
+
+        return result.IsOk
+            ? (result.OkContent.ToArray(), null)
+            : (null, $"{(int)result.StatusCode} {result.StatusCode}");
+    }
+
+    /// <summary>
     /// Create a new user.
     /// </summary>
     public async Task<(User? User, string? Error)> CreateUserAsync(

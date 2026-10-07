@@ -25,6 +25,8 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import InfoIcon from '@mui/icons-material/Info';
+import { useGetSubscriptionById } from '../api/hooks/useNotifications';
 import {
   useSubscriptionsList,
   useCreateSubscription,
@@ -46,6 +48,9 @@ export default function NotificationSubscriptionsPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Subscription | null>(null);
+  // The subscription read on its own (getSubscriptionById)
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const details = useGetSubscriptionById(detailsId ?? '', { enabled: detailsId !== null });
 
   const handleTopicsChange = (event: SelectChangeEvent<NotificationType[]>) => {
     const value = event.target.value;
@@ -74,6 +79,8 @@ export default function NotificationSubscriptionsPage() {
     if (!deleteTarget) return;
     setSuccessMsg('');
     setErrorMsg('');
+    // The details of a deleted subscription are gone with it (and not read again)
+    if (detailsId === deleteTarget.id) setDetailsId(null);
     try {
       await deleteSubscription.mutateAsync(deleteTarget.id);
       setSuccessMsg('Subscription deleted successfully.');
@@ -201,7 +208,11 @@ export default function NotificationSubscriptionsPage() {
                 </TableCell>
                 <TableCell>{new Date(sub.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell align="right">
+                  <IconButton aria-label="Details" onClick={() => setDetailsId(sub.id)}>
+                    <InfoIcon />
+                  </IconButton>
                   <IconButton
+                    aria-label="Delete"
                     color="error"
                     onClick={() => setDeleteTarget(sub)}
                     disabled={deleteSubscription.isPending}
@@ -221,6 +232,30 @@ export default function NotificationSubscriptionsPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {detailsId !== null && (
+        <Paper sx={{ p: 2, mt: 3 }} data-testid="subscription-details">
+          <Typography variant="h6" gutterBottom>
+            Subscription details
+          </Typography>
+          {details.isLoading && <CircularProgress size={20} />}
+          {details.error && <Alert severity="error">{details.error.message}</Alert>}
+          {details.data && (
+            <>
+              <Typography variant="body2">
+                Id: <span data-testid="subscription-details-id">{details.data.id}</span>
+              </Typography>
+              <Typography variant="body2">
+                Name: <span data-testid="subscription-details-name">{details.data.name ?? '(unnamed)'}</span>
+              </Typography>
+              <Typography variant="body2">
+                Topics: <span data-testid="subscription-details-topics">{details.data.topics.join(', ')}</span>
+              </Typography>
+              <Typography variant="body2">Active: {details.data.isActive ? 'yes' : 'no'}</Typography>
+            </>
+          )}
+        </Paper>
+      )}
 
       <ConfirmDialog
         open={deleteTarget !== null}

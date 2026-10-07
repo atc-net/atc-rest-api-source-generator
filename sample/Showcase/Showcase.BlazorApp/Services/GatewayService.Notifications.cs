@@ -55,6 +55,31 @@ public sealed partial class GatewayService
     }
 
     /// <summary>
+    /// Stream the notifications over HTTP (one response the server keeps writing - no SignalR).
+    /// </summary>
+    public async IAsyncEnumerable<NotificationEvent> ListNotificationsAsync(
+        string? topics = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var result = await listNotificationsEndpoint
+            .ExecuteAsync(new ListNotificationsParameters(Topics: topics), cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!result.IsSuccess || result.Content is null)
+        {
+            yield break;
+        }
+
+        await foreach (var item in result.Content.WithCancellation(cancellationToken).ConfigureAwait(false))
+        {
+            if (item is not null)
+            {
+                yield return item;
+            }
+        }
+    }
+
+    /// <summary>
     /// Delete a subscription by ID.
     /// </summary>
     public async Task<bool> DeleteSubscriptionAsync(

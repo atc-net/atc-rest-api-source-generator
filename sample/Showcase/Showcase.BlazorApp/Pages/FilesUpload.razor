@@ -93,14 +93,8 @@
 
     <MudTabPanel Text="Multiple Files with Metadata">
         <MudText Typo="Typo.h6" Class="mb-4">Upload Multiple Files with Metadata</MudText>
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="batchItemName" Label="Item Name" Variant="Variant.Outlined" Required="true" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="batchItemsText" Label="Items (comma-separated)" Variant="Variant.Outlined" HelperText="e.g., tag1, tag2, tag3" />
-            </MudItem>
-        </MudGrid>
+        @* The request model (FilesAsFormDataRequest) is the files: a model whose one property is an array of files *@
+        <MudText Typo="Typo.body2" Class="mb-2">The files are the <code>files</code> property of a <code>FilesAsFormDataRequest</code> model.</MudText>
         <MudFileUpload T="IReadOnlyList<IBrowserFile>" @bind-Files="batchFiles" Class="mt-4" SuppressOnChangeWhenInvalid="false">
             <SelectedTemplate>
                 @if (context is not null && context.Count > 0)

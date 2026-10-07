@@ -114,8 +114,11 @@ export function useDeleteUser() {
         result.response,
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
+    onSuccess: (_, userId) => {
+      // The deleted user is gone: its details are marked stale but not read again now (that would be a 404 on the
+      // page that just deleted it) - only the lists are refreshed
+      queryClient.invalidateQueries({ queryKey: userKeys.detail(userId), refetchType: 'none' });
+      queryClient.invalidateQueries({ queryKey: [...userKeys.all, 'list'] });
     },
   });
 }

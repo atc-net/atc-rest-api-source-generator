@@ -61,7 +61,9 @@ else
                 @(context.LastNotificationAt?.ToLocalTime().ToString("g") ?? "-")
             </MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" aria-label="Details"
+                               OnClick="() => ShowDetailsAsync(context.Id)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" aria-label="Delete"
                                OnClick="() => DeleteSubscriptionAsync(context.Id)" />
             </MudTd>
         </RowTemplate>
@@ -72,11 +74,40 @@ else
     Refresh
 </MudButton>
 
+@if (details is not null)
+{
+    @* The subscription read on its own (getSubscriptionById) *@
+    <MudPaper Class="pa-4 mt-4" data-testid="subscription-details">
+        <MudText Typo="Typo.h6" Class="mb-2">Subscription details</MudText>
+        <MudText Typo="Typo.body2">Id: <span data-testid="subscription-details-id">@details.Id</span></MudText>
+        <MudText Typo="Typo.body2">Name: <span data-testid="subscription-details-name">@(details.Name ?? "(unnamed)")</span></MudText>
+        <MudText Typo="Typo.body2">Topics: <span data-testid="subscription-details-topics">@string.Join(", ", details.Topics)</span></MudText>
+        <MudText Typo="Typo.body2">Active: @(details.IsActive ? "yes" : "no")</MudText>
+    </MudPaper>
+}
+
 @code {
     private List<Subscription> subscriptions = [];
     private string? newSubscriptionName;
     private IReadOnlyCollection<NotificationType> selectedTopics = new List<NotificationType> { NotificationType.System, NotificationType.Alert };
     private bool isLoading;
+    private Subscription? details;
+
+    private async Task ShowDetailsAsync(Guid id)
+    {
+        try
+        {
+            details = await Gateway.GetSubscriptionByIdAsync(id);
+            if (details is null)
+            {
+                Snackbar.Add("Subscription not found", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error reading the subscription: {ex.Message}", Severity.Error);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,6 +178,11 @@ else
             if (success)
             {
                 subscriptions.RemoveAll(s => s.Id == id);
+                if (details?.Id == id)
+                {
+                    details = null;
+                }
+
                 Snackbar.Add("Subscription deleted", Severity.Info);
             }
             else

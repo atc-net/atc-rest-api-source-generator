@@ -24,8 +24,6 @@ public partial class FilesUpload
 
     // Batch files with metadata
     private IReadOnlyList<IBrowserFile>? batchFiles;
-    private string batchItemName = string.Empty;
-    private string batchItemsText = string.Empty;
 
     private async Task OnMultipleFilesSelected()
     {
@@ -171,12 +169,6 @@ public partial class FilesUpload
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(batchItemName))
-        {
-            Snackbar.Add("Item Name is required", Severity.Warning);
-            return;
-        }
-
         isLoading = true;
         try
         {
@@ -193,9 +185,7 @@ public partial class FilesUpload
                 files.Add((ms, file.Name, file.ContentType));
             }
 
-            var items = batchItemsText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-            await Gateway.UploadSingleObjectWithMultipleFilesAsync(files, batchItemName, items);
+            await Gateway.UploadSingleObjectWithMultipleFilesAsync(files);
 
             foreach (var ms in memoryStreams)
             {
@@ -204,8 +194,6 @@ public partial class FilesUpload
 
             Snackbar.Add($"Uploaded {batchFiles.Count} files with metadata", Severity.Success);
             batchFiles = null;
-            batchItemName = string.Empty;
-            batchItemsText = string.Empty;
         }
         catch (Exception ex)
         {

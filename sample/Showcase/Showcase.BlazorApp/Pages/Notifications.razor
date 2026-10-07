@@ -48,6 +48,8 @@
     </MudStack>
 </MudPaper>
 
+<NotificationsStream />
+
 <MudText Typo="Typo.subtitle1" Class="mb-2">
     Notifications (@notifications.Count)
 </MudText>
@@ -74,7 +76,7 @@ else
     <MudStack Spacing="2">
         @foreach (var notification in notifications.TakeLast(50).Reverse())
         {
-            <MudCard Outlined="true">
+            <MudCard Outlined="true" data-testid="notification-item">
                 <MudCardContent>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@GetNotificationIcon(notification.Type)" Color="@GetSeverityColor(notification.Severity)" />

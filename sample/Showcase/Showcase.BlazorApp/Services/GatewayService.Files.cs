@@ -100,14 +100,10 @@ public sealed partial class GatewayService
     }
 
     /// <summary>
-    /// Upload multiple files with metadata (item name and items).
-    /// Note: The FilesAsFormDataRequest only takes Files array.
-    /// ItemName and Items metadata are not part of this request type.
+    /// Upload multiple files as the files of a FilesAsFormDataRequest model (its one property).
     /// </summary>
     public async Task UploadSingleObjectWithMultipleFilesAsync(
         IEnumerable<(Stream Stream, string FileName, string ContentType)> files,
-        string itemName,
-        string[] items,
         CancellationToken cancellationToken = default)
     {
         var request = new FilesAsFormDataRequest([..files.Select(f => (Atc.Rest.Client.IFileContent)new StreamFileContent(f.Stream, f.FileName, f.ContentType))]);
