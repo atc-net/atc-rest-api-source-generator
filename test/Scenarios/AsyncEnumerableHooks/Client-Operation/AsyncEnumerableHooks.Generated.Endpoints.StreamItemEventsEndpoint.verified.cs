@@ -50,17 +50,17 @@ public sealed class StreamItemEventsEndpoint : IStreamItemEventsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/api/v1/items/events");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return new StreamingEndpointResponse<Item>(false, response.StatusCode, content: null, errorContent, response);
         }
 
         try
         {
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             var content = StreamReaders.ReadServerSentEventsAsync<Item>(stream, contractSerializer, cancellationToken);
             return new StreamingEndpointResponse<Item>(true, response.StatusCode, content, errorContent: null, response);
         }

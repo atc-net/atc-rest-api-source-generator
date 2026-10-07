@@ -7,6 +7,24 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class HttpClientExtractor
 {
     /// <summary>
+    /// The typed client's serializer defaults, as the members of a <c>JsonSerializerOptions</c> object initializer
+    /// (one per line, each ending in a comma): the client's own default options and the generated
+    /// <c>ApiClientJsonOptions</c> the DI registration starts from are built from the same list.
+    /// </summary>
+    public static IReadOnlyList<string> DefaultJsonSerializerOptionsInitializers(
+        OpenApiDocument openApiDoc,
+        string projectName)
+        =>
+        [
+            "PropertyNamingPolicy = JsonNamingPolicy.CamelCase,",
+            "PropertyNameCaseInsensitive = true,",
+            "AllowOutOfOrderMetadataProperties = true,",
+            EnumWireConverterExtractor.HasEnums(openApiDoc)
+                ? $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}(), new JsonStringEnumConverter() }},"
+                : "Converters = { new JsonStringEnumConverter() },",
+        ];
+
+    /// <summary>
     /// Extracts HTTP client class from OpenAPI document paths and operations.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
@@ -294,14 +312,9 @@ public static class HttpClientExtractor
         {
             "private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions",
             "{",
-            "    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,",
-            "    PropertyNameCaseInsensitive = true,",
-            "    AllowOutOfOrderMetadataProperties = true,",
-            EnumWireConverterExtractor.HasEnums(openApiDoc)
-                ? $"    Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}(), new JsonStringEnumConverter() }},"
-                : "    Converters = { new JsonStringEnumConverter() },",
-            "};",
         };
+        additionalFieldDeclarations.AddRange(DefaultJsonSerializerOptionsInitializers(openApiDoc, projectName).Select(member => "    " + member));
+        additionalFieldDeclarations.Add("};");
 
         var constructor1Params = new List<ConstructorParameterBaseParameters>
         {
@@ -1116,15 +1129,15 @@ public static class HttpClientExtractor
 
             AppendSend(
                 builder,
-                "using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);",
+                "using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);",
                 resilienceStamp("requestMessage"),
                 "HttpMethod.Get",
                 contentExpression: null,
                 responseHeadersRead: true,
                 disposeResponse: true);
-            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine();
-            builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+            builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
             builder.AppendLine();
 
             // Server-Sent Events, JSON Lines and JSON Text Sequence use the emitted StreamReaders
@@ -1133,26 +1146,26 @@ public static class HttpClientExtractor
             // (JsonArray, ...) keep the legacy DeserializeAsyncEnumerable brace-scan path byte-for-byte.
             if (streamingFraming == StreamingFraming.ServerSentEvents)
             {
-                builder.AppendLine($"await foreach (var item in StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
+                builder.AppendLine($"await foreach (var item in StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
             }
             else if (streamingFraming == StreamingFraming.JsonLines)
             {
-                builder.AppendLine($"await foreach (var item in StreamReaders.ReadJsonLinesAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
+                builder.AppendLine($"await foreach (var item in StreamReaders.ReadJsonLinesAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
             }
             else if (streamingFraming == StreamingFraming.JsonSequence)
             {
-                builder.AppendLine($"await foreach (var item in StreamReaders.ReadJsonSequenceAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
+                builder.AppendLine($"await foreach (var item in StreamReaders.ReadJsonSequenceAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
             }
             else if (streamingFraming == StreamingFraming.MultipartMixed)
             {
                 builder.AppendLine("var boundary = response.Content.Headers.ContentType?.Parameters");
                 builder.AppendLine(4, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
                 builder.AppendLine(4, "?? throw new global::System.IO.InvalidDataException(\"A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.\");");
-                builder.AppendLine($"await foreach (var item in StreamReaders.ReadMultipartMixedAsync<{streamingItemType}>(stream, boundary, jsonSerializerOptions, cancellationToken))");
+                builder.AppendLine($"await foreach (var item in StreamReaders.ReadMultipartMixedAsync<{streamingItemType}>(stream, boundary, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
             }
             else if (streamingFraming == StreamingFraming.JsonArray)
             {
-                builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
+                builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
             }
             else
             {
@@ -1174,20 +1187,20 @@ public static class HttpClientExtractor
         else if (hasReturnType && returnType == "DownloadedFile")
         {
             // Binary content download - use ReadAsByteArrayAsync
-            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
             AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Binary, returnType, isLastStatement: true);
         }
         else if (hasReturnType && returnType == "string")
         {
             // Text content - use ReadAsStringAsync
-            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
             AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Text, returnType, isLastStatement: true);
         }
         else
         {
             // No GetFromJsonAsync shortcut for the Throw style: its exception drops the error body, whereas
             // EnsureSuccessAsync (emitted by AppendResponseCompletion) keeps it in the message.
-            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null, accept: xmlRead?.Accept);
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null, accept: xmlRead?.Accept);
 
             AppendResponseCompletion(
                 builder,
@@ -1218,7 +1231,7 @@ public static class HttpClientExtractor
     {
         AppendSend(
             builder,
-            "var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);",
+            "var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);",
             resilienceStamp,
             "HttpMethod.Get",
             contentExpression: null,
@@ -1226,14 +1239,14 @@ public static class HttpClientExtractor
         builder.AppendLine();
         builder.AppendLine("if (!response.IsSuccessStatusCode)");
         builder.AppendLine("{");
-        builder.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);");
+        builder.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
         builder.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(false, response.StatusCode, content: null, errorContent, response);");
         builder.AppendLine("}");
         builder.AppendLine();
 
         // Until the envelope owns the response, a failure (the body cannot be opened, no multipart boundary) disposes it
         var reader = new StringBuilder();
-        reader.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+        reader.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
         reader.AppendLine();
         AppendMultipartBoundaryIfNeeded(reader, streamingFraming);
         reader.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming)};");
@@ -1357,7 +1370,7 @@ public static class HttpClientExtractor
         }
 
         builder.AppendLine();
-        builder.AppendLine("using var response = await httpClient.SendAsync(requestMessage, cancellationToken);");
+        builder.AppendLine("using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);");
 
         AppendResponseCompletion(
             builder,
@@ -1443,25 +1456,25 @@ public static class HttpClientExtractor
             }
 
             builder.AppendLine();
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");
         }
         else if (schemaBasedMultipartSchema is not null && hasParameters)
         {
             // Schema-based multipart/form-data with object containing file properties
             GenerateSchemaBasedMultipartFormData(builder, schemaBasedMultipartSchema, requestAccess);
             builder.AppendLine();
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");
         }
         else if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema && hasParameters)
         {
             // A URL-encoded form: the model's fields
             GenerateUrlEncodedForm(builder, formSchema, requestAccess);
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");
         }
         else if (xmlRead?.RequestContent is not null)
         {
             // An XML body: the model's XML with its media type
-            AppendSend(builder, $"var response = await httpClient.PostAsync(url, {xmlRead.RequestContent}, cancellationToken);", resilienceStamp, "HttpMethod.Post", xmlRead.RequestContent, accept: xmlRead.Accept);
+            AppendSend(builder, $"var response = await httpClient.PostAsync(url, {xmlRead.RequestContent}, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", xmlRead.RequestContent, accept: xmlRead.Accept);
         }
         else if (hasJsonBody)
         {
@@ -1469,8 +1482,8 @@ public static class HttpClientExtractor
             AppendSend(
                 builder,
                 IsPlainJson(operation)
-                    ? $"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
-                    : $"var response = await httpClient.PostAsync(url, {jsonContent}, cancellationToken);",
+                    ? $"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);"
+                    : $"var response = await httpClient.PostAsync(url, {jsonContent}, cancellationToken).ConfigureAwait(false);",
                 resilienceStamp,
                 "HttpMethod.Post",
                 jsonContent,
@@ -1478,7 +1491,7 @@ public static class HttpClientExtractor
         }
         else
         {
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, null, cancellationToken);", resilienceStamp, "HttpMethod.Post", contentExpression: null, accept: xmlRead?.Accept);
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, null, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", contentExpression: null, accept: xmlRead?.Accept);
         }
 
         if (hasLocationHeader)
@@ -1486,11 +1499,11 @@ public static class HttpClientExtractor
             // Return the Location header as Uri
             if (resultStyle == TypedClientResultStyleType.Result)
             {
-                builder.Append("return await BuildLocationResponseAsync(response, cancellationToken);");
+                builder.Append("return await BuildLocationResponseAsync(response, cancellationToken).ConfigureAwait(false);");
             }
             else
             {
-                builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+                builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);");
                 builder.Append("return response.Headers.Location!;");
             }
         }
@@ -1523,14 +1536,14 @@ public static class HttpClientExtractor
         if (xmlRead?.RequestContent is not null)
         {
             // An XML body: the model's XML with its media type
-            AppendSend(builder, $"var response = await httpClient.PutAsync(url, {xmlRead.RequestContent}, cancellationToken);", resilienceStamp, "HttpMethod.Put", xmlRead.RequestContent, accept: xmlRead.Accept);
+            AppendSend(builder, $"var response = await httpClient.PutAsync(url, {xmlRead.RequestContent}, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Put", xmlRead.RequestContent, accept: xmlRead.Accept);
         }
         else if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema && hasParameters)
         {
             // A URL-encoded form: the model's fields
             builder.AppendLine();
             GenerateUrlEncodedForm(builder, formSchema, requestAccess);
-            AppendSend(builder, "var response = await httpClient.PutAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Put", "content");
+            AppendSend(builder, "var response = await httpClient.PutAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Put", "content");
         }
         else
         {
@@ -1539,9 +1552,9 @@ public static class HttpClientExtractor
                 builder,
                 hasJsonBody
                     ? IsPlainJson(operation)
-                        ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
-                        : $"var response = await httpClient.PutAsync(url, {jsonContent}, cancellationToken);"
-                    : "var response = await httpClient.PutAsync(url, null, cancellationToken);",
+                        ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);"
+                        : $"var response = await httpClient.PutAsync(url, {jsonContent}, cancellationToken).ConfigureAwait(false);"
+                    : "var response = await httpClient.PutAsync(url, null, cancellationToken).ConfigureAwait(false);",
                 resilienceStamp,
                 "HttpMethod.Put",
                 jsonContent,
@@ -1565,7 +1578,7 @@ public static class HttpClientExtractor
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null)
     {
-        AppendSend(builder, "var response = await httpClient.DeleteAsync(url, cancellationToken);", resilienceStamp, "HttpMethod.Delete", contentExpression: null, accept: xmlRead?.Accept);
+        AppendSend(builder, "var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Delete", contentExpression: null, accept: xmlRead?.Accept);
 
         AppendResponseCompletion(
             builder,
@@ -1641,7 +1654,7 @@ public static class HttpClientExtractor
 
         var completion = responseHeadersRead ? "HttpCompletionOption.ResponseHeadersRead, " : string.Empty;
         var declaration = disposeResponse ? "using var" : "var";
-        builder.AppendLine($"{declaration} response = await httpClient.SendAsync(requestMessage, {completion}cancellationToken);");
+        builder.AppendLine($"{declaration} response = await httpClient.SendAsync(requestMessage, {completion}cancellationToken).ConfigureAwait(false);");
     }
 
     /// <summary>
@@ -2232,12 +2245,12 @@ public static class HttpClientExtractor
             builder.AppendLine("{");
             if (resultStyle == TypedClientResultStyleType.Result)
             {
-                builder.AppendLine(4, "var xmlBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
-                builder.AppendLine(4, $"return new EndpointResponse<{returnType}>(true, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken), xmlBytes.Length > 0 ? {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(xmlBytes)) : null, ReadHeaders(response));");
+                builder.AppendLine(4, "var xmlBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);");
+                builder.AppendLine(4, $"return new EndpointResponse<{returnType}>(true, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false), xmlBytes.Length > 0 ? {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(xmlBytes)) : null, ReadHeaders(response));");
             }
             else
             {
-                builder.AppendLine(4, $"return {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));");
+                builder.AppendLine(4, $"return {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false)));");
             }
 
             builder.AppendLine("}");
@@ -2252,14 +2265,14 @@ public static class HttpClientExtractor
             // encoding declaration is honoured (a string read would decode by the charset parameter or UTF-8 only)
             if (resultStyle == TypedClientResultStyleType.Result)
             {
-                builder.AppendLine("var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
-                builder.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+                builder.AppendLine("var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);");
+                builder.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
                 AppendStatement(builder, $"return new EndpointResponse<{returnType}>(response.IsSuccessStatusCode, response.StatusCode, content, response.IsSuccessStatusCode && bytes.Length > 0 ? {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(bytes)) : null, ReadHeaders(response));", isLastStatement);
                 return;
             }
 
-            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-            AppendStatement(builder, $"return {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));", isLastStatement);
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);");
+            AppendStatement(builder, $"return {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false)));", isLastStatement);
             return;
         }
 
@@ -2267,10 +2280,10 @@ public static class HttpClientExtractor
         {
             var call = payloadKind switch
             {
-                ResponsePayloadKind.Json => $"return await BuildJsonResponseAsync<{returnType}>(response, jsonSerializerOptions, cancellationToken);",
-                ResponsePayloadKind.Binary => "return await BuildBinaryResponseAsync(response, cancellationToken);",
-                ResponsePayloadKind.Text => "return await BuildTextResponseAsync(response, cancellationToken);",
-                _ => "return await BuildEmptyResponseAsync(response, cancellationToken);",
+                ResponsePayloadKind.Json => $"return await BuildJsonResponseAsync<{returnType}>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);",
+                ResponsePayloadKind.Binary => "return await BuildBinaryResponseAsync(response, cancellationToken).ConfigureAwait(false);",
+                ResponsePayloadKind.Text => "return await BuildTextResponseAsync(response, cancellationToken).ConfigureAwait(false);",
+                _ => "return await BuildEmptyResponseAsync(response, cancellationToken).ConfigureAwait(false);",
             };
 
             AppendStatement(builder, call, isLastStatement);
@@ -2279,24 +2292,24 @@ public static class HttpClientExtractor
 
         if (payloadKind == ResponsePayloadKind.None)
         {
-            AppendStatement(builder, "await EnsureSuccessAsync(response, cancellationToken);", isLastStatement);
+            AppendStatement(builder, "await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);", isLastStatement);
             return;
         }
 
-        builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+        builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);");
 
         if (payloadKind == ResponsePayloadKind.Json)
         {
             // A success without a body (a 204, an empty 200) is null, not a JsonException
-            builder.AppendLine("var json = await response.Content.ReadAsStringAsync(cancellationToken);");
+            builder.AppendLine("var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
             AppendStatement(builder, $"return json.Length == 0 ? default! : JsonSerializer.Deserialize<{returnType}>(json, jsonSerializerOptions)!;", isLastStatement);
             return;
         }
 
         var read = payloadKind switch
         {
-            ResponsePayloadKind.Binary => "return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);",
-            _ => "return await response.Content.ReadAsStringAsync(cancellationToken);",
+            ResponsePayloadKind.Binary => "return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);",
+            _ => "return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);",
         };
 
         AppendStatement(builder, read, isLastStatement);
@@ -2322,24 +2335,24 @@ public static class HttpClientExtractor
         {
             builder.AppendLine("if (response.IsSuccessStatusCode && DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))");
             builder.AppendLine("{");
-            builder.AppendLine(4, "var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);");
+            builder.AppendLine(4, "var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine(4, $"return new EndpointResponse<{returnType}>(true, response.StatusCode, string.Empty, {returnType}.FromFile(file), ReadHeaders(response));");
             builder.AppendLine("}");
             builder.AppendLine();
-            builder.AppendLine("var modelResponse = await ReadContentAsync();");
+            builder.AppendLine("var modelResponse = await ReadContentAsync().ConfigureAwait(false);");
             builder.AppendLine($"return new EndpointResponse<{returnType}>(modelResponse.IsSuccess, modelResponse.StatusCode, modelResponse.Content, modelResponse.IsSuccess && modelResponse.ContentObject is {modelType} content ? {returnType}.FromContent(content) : null, ReadHeaders(response));");
             builder.AppendLine();
             builder.AppendLine($"async Task<EndpointResponse<{modelType}>> ReadContentAsync()");
         }
         else
         {
-            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine("if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))");
             builder.AppendLine("{");
-            builder.AppendLine(4, $"return {returnType}.FromFile(await DownloadedFile.FromHttpResponseAsync(response, cancellationToken));");
+            builder.AppendLine(4, $"return {returnType}.FromFile(await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false));");
             builder.AppendLine("}");
             builder.AppendLine();
-            builder.AppendLine($"return {returnType}.FromContent(await ReadContentAsync());");
+            builder.AppendLine($"return {returnType}.FromContent(await ReadContentAsync().ConfigureAwait(false));");
             builder.AppendLine();
             builder.AppendLine($"async Task<{modelType}> ReadContentAsync()");
         }
@@ -2348,7 +2361,7 @@ public static class HttpClientExtractor
         var modelBody = model.ToString();
         if (resultStyle != TypedClientResultStyleType.Result)
         {
-            modelBody = modelBody.Replace("await EnsureSuccessAsync(response, cancellationToken);" + Environment.NewLine, string.Empty);
+            modelBody = modelBody.Replace("await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);" + Environment.NewLine, string.Empty);
         }
 
         builder.AppendLine("{");
@@ -2398,11 +2411,11 @@ public static class HttpClientExtractor
 
         // At most 4 KB of the error body in the message: a proxy's 10 MB HTML page is not read whole into it
         sb.AppendLine("const int MaxErrorBytes = 4096;");
-        sb.AppendLine("using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+        sb.AppendLine("using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
         sb.AppendLine("var errorBuffer = new byte[MaxErrorBytes + 1];");
         sb.AppendLine("var errorLength = 0;");
         sb.AppendLine("int errorRead;");
-        sb.AppendLine("while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)");
+        sb.AppendLine("while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)");
         sb.AppendLine("{");
         sb.AppendLine(4, "errorLength += errorRead;");
         sb.AppendLine("}");
@@ -2509,7 +2522,7 @@ public static class HttpClientExtractor
     private static MethodParameters CreateBuildEmptyResponseMethod()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
         sb.AppendLine();
         sb.AppendLine("return new EndpointResponse(");
         sb.AppendLine(4, "response.IsSuccessStatusCode,");
@@ -2524,7 +2537,7 @@ public static class HttpClientExtractor
     private static MethodParameters CreateBuildJsonResponseMethod()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
         sb.AppendLine();
         sb.AppendLine("object? contentObject = null;");
         sb.AppendLine("var isSuccess = response.IsSuccessStatusCode;");
@@ -2557,11 +2570,11 @@ public static class HttpClientExtractor
         sb.AppendLine("// The file on success; on an error status the error body, as text, in Content.");
         sb.AppendLine("if (response.IsSuccessStatusCode)");
         sb.AppendLine("{");
-        sb.AppendLine(4, "var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);");
+        sb.AppendLine(4, "var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);");
         sb.AppendLine(4, "return new EndpointResponse<DownloadedFile>(true, response.StatusCode, string.Empty, file, ReadHeaders(response));");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine("var errorBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
         sb.Append("return new EndpointResponse<DownloadedFile>(false, response.StatusCode, errorBody, null, ReadHeaders(response));");
 
         return CreateBuildResponseMethod("BuildBinaryResponseAsync", "EndpointResponse<DownloadedFile>", genericName: null, includeSerializerOptions: false, sb.ToString());
@@ -2570,7 +2583,7 @@ public static class HttpClientExtractor
     private static MethodParameters CreateBuildTextResponseMethod()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
         sb.AppendLine();
         sb.AppendLine("return new EndpointResponse<string>(");
         sb.AppendLine(4, "response.IsSuccessStatusCode,");
@@ -2585,7 +2598,7 @@ public static class HttpClientExtractor
     private static MethodParameters CreateBuildLocationResponseMethod()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
         sb.AppendLine();
         sb.AppendLine("return new EndpointResponse<Uri>(");
         sb.AppendLine(4, "response.IsSuccessStatusCode,");

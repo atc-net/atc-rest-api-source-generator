@@ -45,7 +45,7 @@ public sealed class DeleteNotesEndpoint : IDeleteNotesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/notes");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse(HttpStatusCode.NoContent);
@@ -53,6 +53,6 @@ public sealed class DeleteNotesEndpoint : IDeleteNotesEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DeleteNotesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteNotesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

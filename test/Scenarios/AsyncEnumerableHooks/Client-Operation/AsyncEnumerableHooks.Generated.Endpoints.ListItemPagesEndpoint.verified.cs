@@ -51,9 +51,9 @@ public sealed class ListItemPagesEndpoint : IListItemPagesEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<ListItemPagesResponse>(cancellationToken);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<ListItemPagesResponse>(cancellationToken).ConfigureAwait(false);
     }
 }

@@ -49,13 +49,13 @@ public sealed class ListLogsEndpoint : IListLogsEndpoint
         requestBuilder.WithQueryParameter("continuation", parameters.Continuation);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<LogPage>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListLogsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListLogsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

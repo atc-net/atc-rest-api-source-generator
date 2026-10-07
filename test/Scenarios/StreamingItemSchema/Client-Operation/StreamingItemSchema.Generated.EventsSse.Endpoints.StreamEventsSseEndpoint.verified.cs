@@ -50,17 +50,17 @@ public sealed class StreamEventsSseEndpoint : IStreamEventsSseEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/events-sse");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return new StreamingEndpointResponse<Event>(false, response.StatusCode, content: null, errorContent, response);
         }
 
         try
         {
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             var content = StreamReaders.ReadServerSentEventsAsync<Event>(stream, contractSerializer, cancellationToken);
             return new StreamingEndpointResponse<Event>(true, response.StatusCode, content, errorContent: null, response);
         }

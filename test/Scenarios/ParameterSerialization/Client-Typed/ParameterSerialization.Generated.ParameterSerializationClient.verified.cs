@@ -92,9 +92,9 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             requestMessage.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
         }
 
-        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Item>>(json, jsonSerializerOptions)!;
     }
 
@@ -109,9 +109,9 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             url += (url.Contains('?') ? "&" : "?") + parameters.RawFilter;
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Item>>(json, jsonSerializerOptions)!;
     }
 
@@ -125,11 +125,11 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }

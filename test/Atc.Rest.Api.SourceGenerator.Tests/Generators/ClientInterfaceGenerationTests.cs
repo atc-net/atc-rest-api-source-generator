@@ -197,7 +197,7 @@ public class ClientInterfaceGenerationTests
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "new PetStoreSimpleClient(httpClient)",
+            "new PetStoreSimpleClient(",
             diSource.Source,
             StringComparison.Ordinal);
 
@@ -258,9 +258,9 @@ public class ClientInterfaceGenerationTests
         Assert.NotEmpty(diSources);
         var combined = string.Join("\n", diSources);
         Assert.Contains("AddHttpClient<IAccountsClient>", combined, StringComparison.Ordinal);
-        Assert.Contains("new AccountsClient(httpClient)", combined, StringComparison.Ordinal);
+        Assert.Contains("new AccountsClient(", combined, StringComparison.Ordinal);
         Assert.Contains("AddHttpClient<ITasksClient>", combined, StringComparison.Ordinal);
-        Assert.Contains("new TasksClient(httpClient)", combined, StringComparison.Ordinal);
+        Assert.Contains("new TasksClient(", combined, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -300,7 +300,7 @@ public class ClientInterfaceGenerationTests
 
         // Act
         var services = new ServiceCollection();
-        addMethod!.Invoke(null, [services, null]);
+        addMethod!.Invoke(null, [services, null, null]);
 
         using var provider = services.BuildServiceProvider(validateScopes: true);
 

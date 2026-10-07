@@ -45,7 +45,7 @@ public sealed class GetCurrentUserEndpoint : IGetCurrentUserEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/me");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<UserProfile>(HttpStatusCode.OK);
@@ -53,6 +53,6 @@ public sealed class GetCurrentUserEndpoint : IGetCurrentUserEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetCurrentUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetCurrentUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

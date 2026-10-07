@@ -41,9 +41,9 @@ public sealed class ReportsClient : IReportsClient
     public async Task<string> GetTextReportAsync(CancellationToken cancellationToken = default)
     {
         var url = "reports/text";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        return await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -56,11 +56,11 @@ public sealed class ReportsClient : IReportsClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }

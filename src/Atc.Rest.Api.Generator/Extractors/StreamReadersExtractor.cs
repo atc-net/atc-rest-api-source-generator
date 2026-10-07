@@ -135,7 +135,7 @@ public static class StreamReadersExtractor
         }
 
         sb.AppendLine();
-        sb.AppendLine("        await foreach (var item in parser.EnumerateAsync(cancellationToken))");
+        sb.AppendLine("        await foreach (var item in parser.EnumerateAsync(cancellationToken).ConfigureAwait(false))");
         sb.AppendLine("        {");
         sb.AppendLine("            if (item.Data.IsItem)");
         sb.AppendLine("            {");
@@ -182,7 +182,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("    {");
             sb.AppendLine("        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
             sb.AppendLine("        string? line;");
-            sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)");
+            sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)");
             sb.AppendLine("        {");
             sb.AppendLine("            if (line.Length == 0)");
             sb.AppendLine("            {");
@@ -236,7 +236,7 @@ public static class StreamReadersExtractor
         sb.AppendLine("        var buffer = new byte[4096];");
         sb.AppendLine("        using var record = new MemoryStream();");
         sb.AppendLine("        int read;");
-        sb.AppendLine("        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)");
+        sb.AppendLine("        while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)");
         sb.AppendLine("        {");
         sb.AppendLine("            for (var i = 0; i < read; i++)");
         sb.AppendLine("            {");
@@ -305,7 +305,7 @@ public static class StreamReadersExtractor
         sb.AppendLine("        var inHeaders = false;");
         sb.AppendLine("        var body = new StringBuilder();");
         sb.AppendLine("        string? line;");
-        sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)");
+        sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)");
         sb.AppendLine("        {");
         sb.AppendLine("            if (line.StartsWith(delimiter, StringComparison.Ordinal))");
         sb.AppendLine("            {");

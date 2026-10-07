@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AllOfMultiLevel.Generated.Employees.Client;
 
@@ -20,27 +22,31 @@ public static class EmployeesClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::AllOfMultiLevel.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddEmployeesClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<IEmployeesClient>()
-                .AddTypedClient<IEmployeesClient>(
-                    static (httpClient, _) => new EmployeesClient(httpClient));
+            services.Configure<global::AllOfMultiLevel.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<IEmployeesClient>(configureClient)
-            .AddTypedClient<IEmployeesClient>(
-                static (httpClient, _) => new EmployeesClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<IEmployeesClient>()
+            : services.AddHttpClient<IEmployeesClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<IEmployeesClient>(
+            static (httpClient, serviceProvider) => new EmployeesClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::AllOfMultiLevel.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

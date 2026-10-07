@@ -55,7 +55,7 @@ public sealed class LoginUserEndpoint : ILoginUserEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<string>(HttpStatusCode.OK);
@@ -67,6 +67,6 @@ public sealed class LoginUserEndpoint : ILoginUserEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new LoginUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new LoginUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

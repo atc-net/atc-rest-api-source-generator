@@ -45,8 +45,8 @@ public sealed class DeviceApiClient : IDeviceApiClient
     public async Task<EndpointResponse<List<Device>>> ListDevicesAsync(CancellationToken cancellationToken = default)
     {
         var url = "devices";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        return await BuildJsonResponseAsync<List<Device>>(response, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        return await BuildJsonResponseAsync<List<Device>>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<EndpointResponse<Device>> CreateDeviceAsync(
@@ -54,8 +54,8 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = "devices";
-        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<EndpointResponse<Device>> GetDeviceByIdAsync(
@@ -63,8 +63,8 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<EndpointResponse<Device>> UpdateDeviceAsync(
@@ -72,8 +72,8 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
-        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<EndpointResponse> DeleteDeviceAsync(
@@ -81,8 +81,8 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
-        using var response = await httpClient.DeleteAsync(url, cancellationToken);
-        return await BuildEmptyResponseAsync(response, cancellationToken);
+        using var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);
+        return await BuildEmptyResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<EndpointResponse<DownloadedFile>> DownloadFirmwareAsync(
@@ -90,8 +90,8 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}/firmware";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        return await BuildBinaryResponseAsync(response, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        return await BuildBinaryResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<EndpointResponse<string>> GetDeviceLogAsync(
@@ -99,8 +99,8 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}/log";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        return await BuildTextResponseAsync(response, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        return await BuildTextResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -113,11 +113,11 @@ public sealed class DeviceApiClient : IDeviceApiClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }
@@ -152,7 +152,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         return new EndpointResponse(
             response.IsSuccessStatusCode,
@@ -167,7 +167,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         JsonSerializerOptions jsonSerializerOptions,
         CancellationToken cancellationToken)
     {
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         object? contentObject = null;
         var isSuccess = response.IsSuccessStatusCode;
@@ -199,11 +199,11 @@ public sealed class DeviceApiClient : IDeviceApiClient
         // The file on success; on an error status the error body, as text, in Content.
         if (response.IsSuccessStatusCode)
         {
-            var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
+            var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
             return new EndpointResponse<DownloadedFile>(true, response.StatusCode, string.Empty, file, ReadHeaders(response));
         }
 
-        var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        var errorBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return new EndpointResponse<DownloadedFile>(false, response.StatusCode, errorBody, null, ReadHeaders(response));
     }
 
@@ -211,7 +211,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         return new EndpointResponse<string>(
             response.IsSuccessStatusCode,
@@ -225,7 +225,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         return new EndpointResponse<Uri>(
             response.IsSuccessStatusCode,

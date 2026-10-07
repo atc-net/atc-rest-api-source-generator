@@ -48,9 +48,9 @@ public sealed class OrdersClient : IOrdersClient
         var url = "orders";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
-        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Order>>(json, jsonSerializerOptions)!;
     }
 
@@ -62,9 +62,9 @@ public sealed class OrdersClient : IOrdersClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.OrdersFast);
-        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
     }
 
@@ -75,9 +75,9 @@ public sealed class OrdersClient : IOrdersClient
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
-        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
     }
 
@@ -88,8 +88,8 @@ public sealed class OrdersClient : IOrdersClient
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersDelete);
-        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -102,11 +102,11 @@ public sealed class OrdersClient : IOrdersClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }

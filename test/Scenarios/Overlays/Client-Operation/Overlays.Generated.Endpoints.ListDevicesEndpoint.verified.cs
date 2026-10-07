@@ -45,13 +45,13 @@ public sealed class ListDevicesEndpoint : IListDevicesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/devices");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<IEnumerable<Device>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.ServiceUnavailable);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListDevicesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListDevicesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

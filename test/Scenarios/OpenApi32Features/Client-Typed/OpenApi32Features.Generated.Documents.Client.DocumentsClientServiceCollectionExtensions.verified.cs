@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace OpenApi32Features.Generated.Documents.Client;
 
@@ -20,27 +22,31 @@ public static class DocumentsClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::OpenApi32Features.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddDocumentsClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<IDocumentsClient>()
-                .AddTypedClient<IDocumentsClient>(
-                    static (httpClient, _) => new DocumentsClient(httpClient));
+            services.Configure<global::OpenApi32Features.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<IDocumentsClient>(configureClient)
-            .AddTypedClient<IDocumentsClient>(
-                static (httpClient, _) => new DocumentsClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<IDocumentsClient>()
+            : services.AddHttpClient<IDocumentsClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<IDocumentsClient>(
+            static (httpClient, serviceProvider) => new DocumentsClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::OpenApi32Features.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

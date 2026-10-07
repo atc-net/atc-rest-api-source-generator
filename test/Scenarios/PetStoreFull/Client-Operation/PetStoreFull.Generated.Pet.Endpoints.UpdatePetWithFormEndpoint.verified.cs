@@ -57,7 +57,7 @@ public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
         requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
@@ -80,6 +80,6 @@ public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new UpdatePetWithFormEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new UpdatePetWithFormEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);
     }
 }

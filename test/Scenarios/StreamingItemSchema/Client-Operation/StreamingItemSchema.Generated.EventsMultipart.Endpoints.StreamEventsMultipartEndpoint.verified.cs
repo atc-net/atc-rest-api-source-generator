@@ -52,17 +52,17 @@ public sealed class StreamEventsMultipartEndpoint : IStreamEventsMultipartEndpoi
         var requestBuilder = httpMessageFactory.FromTemplate("/events-multipart");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return new StreamingEndpointResponse<Event>(false, response.StatusCode, content: null, errorContent, response);
         }
 
         try
         {
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             var boundary = response.Content.Headers.ContentType?.Parameters
                 .FirstOrDefault(p => string.Equals(p.Name, "boundary", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('"')
                 ?? throw new global::System.IO.InvalidDataException("A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.");

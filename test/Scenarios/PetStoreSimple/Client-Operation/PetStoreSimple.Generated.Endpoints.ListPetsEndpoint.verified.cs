@@ -51,7 +51,7 @@ public sealed class ListPetsEndpoint : IListPetsEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
@@ -68,6 +68,6 @@ public sealed class ListPetsEndpoint : IListPetsEndpoint
             responseBuilder.AddErrorResponse<Error>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new ListPetsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListPetsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

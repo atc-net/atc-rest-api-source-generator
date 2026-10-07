@@ -45,7 +45,7 @@ public sealed class GetInventoryEndpoint : IGetInventoryEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/store/inventory");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<object>(HttpStatusCode.OK);
@@ -57,6 +57,6 @@ public sealed class GetInventoryEndpoint : IGetInventoryEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetInventoryEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetInventoryEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

@@ -50,7 +50,7 @@ public sealed class ProcessPaymentEndpoint : IProcessPaymentEndpoint
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.ExternalService);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<PaymentResult>(HttpStatusCode.OK);
@@ -59,6 +59,6 @@ public sealed class ProcessPaymentEndpoint : IProcessPaymentEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ProcessPaymentEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ProcessPaymentEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

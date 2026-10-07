@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ModelsAndProperties.Generated.Persons.Client;
 
@@ -20,27 +22,31 @@ public static class PersonsClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::ModelsAndProperties.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddPersonsClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<IPersonsClient>()
-                .AddTypedClient<IPersonsClient>(
-                    static (httpClient, _) => new PersonsClient(httpClient));
+            services.Configure<global::ModelsAndProperties.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<IPersonsClient>(configureClient)
-            .AddTypedClient<IPersonsClient>(
-                static (httpClient, _) => new PersonsClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<IPersonsClient>()
+            : services.AddHttpClient<IPersonsClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<IPersonsClient>(
+            static (httpClient, serviceProvider) => new PersonsClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

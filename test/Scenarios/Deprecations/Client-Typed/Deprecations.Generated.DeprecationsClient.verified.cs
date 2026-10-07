@@ -64,9 +64,9 @@ public sealed class DeprecationsClient : IDeprecationsClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Pet>>(json, jsonSerializerOptions)!;
     }
 
@@ -75,17 +75,17 @@ public sealed class DeprecationsClient : IDeprecationsClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     [Obsolete("Deprecated in the OpenAPI specification.")]
     public async Task<List<LegacyPet>> ListLegacyPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets/legacy";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<LegacyPet>>(json, jsonSerializerOptions)!;
     }
 
@@ -94,8 +94,8 @@ public sealed class DeprecationsClient : IDeprecationsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(parameters.PetId)}/photo";
-        using var response = await httpClient.PutAsync(url, null, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.PutAsync(url, null, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -108,11 +108,11 @@ public sealed class DeprecationsClient : IDeprecationsClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }

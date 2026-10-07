@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ModelsAndProperties.Generated.Nullables.Client;
 
@@ -20,27 +22,31 @@ public static class NullablesClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::ModelsAndProperties.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddNullablesClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<INullablesClient>()
-                .AddTypedClient<INullablesClient>(
-                    static (httpClient, _) => new NullablesClient(httpClient));
+            services.Configure<global::ModelsAndProperties.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<INullablesClient>(configureClient)
-            .AddTypedClient<INullablesClient>(
-                static (httpClient, _) => new NullablesClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<INullablesClient>()
+            : services.AddHttpClient<INullablesClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<INullablesClient>(
+            static (httpClient, serviceProvider) => new NullablesClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

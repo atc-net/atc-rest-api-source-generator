@@ -162,7 +162,7 @@ public static class OAuthTokenProviderExtractor
         contentBuilder.AppendLine(4, "public async Task<string> RefreshTokenAsync(CancellationToken cancellationToken = default)");
         contentBuilder.AppendLine(8, "var parameters = new Dictionary<string, string>");
         contentBuilder.AppendLine(8, "using var content = new FormUrlEncodedContent(parameters);");
-        contentBuilder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken);");
+        contentBuilder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);");
         contentBuilder.AppendLine("}");
         var content = contentBuilder.ToString();
 
@@ -210,7 +210,7 @@ public static class OAuthTokenProviderExtractor
         builder.AppendLine(8, "}");
         builder.AppendLine();
         builder.AppendLine(8, "// Slow path: need to refresh token");
-        builder.AppendLine(8, "return await RefreshTokenAsync(cancellationToken);");
+        builder.AppendLine(8, "return await RefreshTokenAsync(cancellationToken).ConfigureAwait(false);");
         builder.AppendLine(4, "}");
         builder.AppendLine();
 
@@ -218,7 +218,7 @@ public static class OAuthTokenProviderExtractor
         builder.AppendLine(4, "/// <inheritdoc />");
         builder.AppendLine(4, "public async Task<string> RefreshTokenAsync(CancellationToken cancellationToken = default)");
         builder.AppendLine(4, "{");
-        builder.AppendLine(8, "await _refreshLock.WaitAsync(cancellationToken);");
+        builder.AppendLine(8, "await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);");
         builder.AppendLine(8, "try");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "// Double-check after acquiring lock");
@@ -238,18 +238,18 @@ public static class OAuthTokenProviderExtractor
             builder.AppendLine(12, "// Try refresh token first if available");
             builder.AppendLine(12, "if (!string.IsNullOrEmpty(_refreshToken) && !string.IsNullOrEmpty(opts.RefreshUrl))");
             builder.AppendLine(12, "{");
-            builder.AppendLine(16, "tokenResponse = await RequestTokenWithRefreshTokenAsync(opts, cancellationToken);");
+            builder.AppendLine(16, "tokenResponse = await RequestTokenWithRefreshTokenAsync(opts, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine(12, "}");
             builder.AppendLine(12, "else");
             builder.AppendLine(12, "{");
             builder.AppendLine(16, "// Fall back to Client Credentials");
-            builder.AppendLine(16, "tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken);");
+            builder.AppendLine(16, "tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine(12, "}");
         }
         else
         {
             builder.AppendLine(12, "// Request token using Client Credentials");
-            builder.AppendLine(12, "tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken);");
+            builder.AppendLine(12, "tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);");
         }
 
         builder.AppendLine();
@@ -299,11 +299,11 @@ public static class OAuthTokenProviderExtractor
         builder.AppendLine(8, "}");
         builder.AppendLine();
         builder.AppendLine(8, "using var content = new FormUrlEncodedContent(parameters);");
-        builder.AppendLine(8, "using var response = await _httpClient.PostAsync(opts.TokenUrl, content, cancellationToken);");
+        builder.AppendLine(8, "using var response = await _httpClient.PostAsync(opts.TokenUrl, content, cancellationToken).ConfigureAwait(false);");
         builder.AppendLine();
         builder.AppendLine(8, "response.EnsureSuccessStatusCode();");
         builder.AppendLine();
-        builder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken);");
+        builder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);");
         builder.AppendLine(4, "}");
 
         // Add refresh token method if supported
@@ -329,16 +329,16 @@ public static class OAuthTokenProviderExtractor
             builder.AppendLine(8, "};");
             builder.AppendLine();
             builder.AppendLine(8, "using var content = new FormUrlEncodedContent(parameters);");
-            builder.AppendLine(8, "using var response = await _httpClient.PostAsync(refreshUrl, content, cancellationToken);");
+            builder.AppendLine(8, "using var response = await _httpClient.PostAsync(refreshUrl, content, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine();
             builder.AppendLine(8, "// If refresh fails, try client credentials as fallback");
             builder.AppendLine(8, "if (!response.IsSuccessStatusCode)");
             builder.AppendLine(8, "{");
             builder.AppendLine(12, "_refreshToken = null;");
-            builder.AppendLine(12, "return await RequestTokenWithClientCredentialsAsync(opts, cancellationToken);");
+            builder.AppendLine(12, "return await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine(8, "}");
             builder.AppendLine();
-            builder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken);");
+            builder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);");
             builder.AppendLine(4, "}");
         }
 

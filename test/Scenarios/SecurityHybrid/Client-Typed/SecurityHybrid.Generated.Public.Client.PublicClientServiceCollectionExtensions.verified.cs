@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace SecurityHybrid.Generated.Public.Client;
 
@@ -20,27 +22,31 @@ public static class PublicClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::SecurityHybrid.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddPublicClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<IPublicClient>()
-                .AddTypedClient<IPublicClient>(
-                    static (httpClient, _) => new PublicClient(httpClient));
+            services.Configure<global::SecurityHybrid.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<IPublicClient>(configureClient)
-            .AddTypedClient<IPublicClient>(
-                static (httpClient, _) => new PublicClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<IPublicClient>()
+            : services.AddHttpClient<IPublicClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<IPublicClient>(
+            static (httpClient, serviceProvider) => new PublicClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::SecurityHybrid.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

@@ -48,7 +48,7 @@ public sealed class DeleteTaskByIdEndpoint : IDeleteTaskByIdEndpoint
         requestBuilder.WithPathParameter("taskId", parameters.TaskId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse(HttpStatusCode.NoContent);
@@ -56,6 +56,6 @@ public sealed class DeleteTaskByIdEndpoint : IDeleteTaskByIdEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DeleteTaskByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteTaskByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

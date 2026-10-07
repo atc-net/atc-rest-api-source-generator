@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace NonJsonContent.Generated.Reports.Client;
 
@@ -20,27 +22,31 @@ public static class ReportsClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::NonJsonContent.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddReportsClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<IReportsClient>()
-                .AddTypedClient<IReportsClient>(
-                    static (httpClient, _) => new ReportsClient(httpClient));
+            services.Configure<global::NonJsonContent.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<IReportsClient>(configureClient)
-            .AddTypedClient<IReportsClient>(
-                static (httpClient, _) => new ReportsClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<IReportsClient>()
+            : services.AddHttpClient<IReportsClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<IReportsClient>(
+            static (httpClient, serviceProvider) => new ReportsClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::NonJsonContent.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

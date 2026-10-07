@@ -57,7 +57,7 @@ public sealed class ListOrgDevicesEndpoint : IListOrgDevicesEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
@@ -75,6 +75,6 @@ public sealed class ListOrgDevicesEndpoint : IListOrgDevicesEndpoint
             responseBuilder.AddErrorResponse<Problem>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new ListOrgDevicesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListOrgDevicesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

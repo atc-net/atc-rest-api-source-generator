@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Pagination.Generated.Metrics.Client;
 
@@ -20,27 +22,31 @@ public static class MetricsClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::Pagination.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddMetricsClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<IMetricsClient>()
-                .AddTypedClient<IMetricsClient>(
-                    static (httpClient, _) => new MetricsClient(httpClient));
+            services.Configure<global::Pagination.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<IMetricsClient>(configureClient)
-            .AddTypedClient<IMetricsClient>(
-                static (httpClient, _) => new MetricsClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<IMetricsClient>()
+            : services.AddHttpClient<IMetricsClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<IMetricsClient>(
+            static (httpClient, serviceProvider) => new MetricsClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

@@ -45,15 +45,15 @@ public sealed class EventsMultipartClient : IEventsMultipartClient
     public async IAsyncEnumerable<Event> StreamEventsMultipartAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var url = "events-multipart";
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
         var boundary = response.Content.Headers.ContentType?.Parameters
             .FirstOrDefault(p => string.Equals(p.Name, "boundary", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('"')
             ?? throw new global::System.IO.InvalidDataException("A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.");
-        await foreach (var item in StreamReaders.ReadMultipartMixedAsync<Event>(stream, boundary, jsonSerializerOptions, cancellationToken))
+        await foreach (var item in StreamReaders.ReadMultipartMixedAsync<Event>(stream, boundary, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))
         {
             if (item is not null)
             {
@@ -72,11 +72,11 @@ public sealed class EventsMultipartClient : IEventsMultipartClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }

@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Demo.Generated.Tests.Client;
 
@@ -20,27 +22,31 @@ public static class TestsClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::Demo.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddTestsClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<ITestsClient>()
-                .AddTypedClient<ITestsClient>(
-                    static (httpClient, _) => new TestsClient(httpClient));
+            services.Configure<global::Demo.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<ITestsClient>(configureClient)
-            .AddTypedClient<ITestsClient>(
-                static (httpClient, _) => new TestsClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<ITestsClient>()
+            : services.AddHttpClient<ITestsClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<ITestsClient>(
+            static (httpClient, serviceProvider) => new TestsClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::Demo.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

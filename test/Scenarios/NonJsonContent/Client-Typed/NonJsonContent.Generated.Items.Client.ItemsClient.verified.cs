@@ -45,9 +45,9 @@ public sealed class ItemsClient : IItemsClient
     public async Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default)
     {
         var url = "items";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Item>>(json, jsonSerializerOptions)!;
     }
 
@@ -58,18 +58,18 @@ public sealed class ItemsClient : IItemsClient
         var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}/sheet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/pdf, application/problem+json");
-        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))
         {
-            return ContentOrFile<Item>.FromFile(await DownloadedFile.FromHttpResponseAsync(response, cancellationToken));
+            return ContentOrFile<Item>.FromFile(await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false));
         }
 
-        return ContentOrFile<Item>.FromContent(await ReadContentAsync());
+        return ContentOrFile<Item>.FromContent(await ReadContentAsync().ConfigureAwait(false));
 
         async Task<Item> ReadContentAsync()
         {
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return json.Length == 0 ? default! : JsonSerializer.Deserialize<Item>(json, jsonSerializerOptions)!;
         }
     }
@@ -84,11 +84,11 @@ public sealed class ItemsClient : IItemsClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }

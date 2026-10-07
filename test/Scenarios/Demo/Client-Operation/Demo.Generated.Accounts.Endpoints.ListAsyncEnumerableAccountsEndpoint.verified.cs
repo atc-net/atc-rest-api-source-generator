@@ -45,9 +45,9 @@ public sealed class ListAsyncEnumerableAccountsEndpoint : IListAsyncEnumerableAc
         var requestBuilder = httpMessageFactory.FromTemplate("/accounts/async-enumerable");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Account>(cancellationToken);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Account>(cancellationToken).ConfigureAwait(false);
     }
 }

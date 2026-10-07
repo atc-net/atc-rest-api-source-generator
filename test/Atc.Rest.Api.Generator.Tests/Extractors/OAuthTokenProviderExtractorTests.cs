@@ -54,8 +54,8 @@ public class OAuthTokenProviderExtractorTests
         Assert.Contains("public sealed class OAuthTokenProvider : IOAuthTokenProvider, IDisposable", result, StringComparison.Ordinal);
         Assert.Contains("public OAuthTokenProvider(HttpClient httpClient, IOptions<OAuthClientOptions> options)", result, StringComparison.Ordinal);
         Assert.Contains("[\"grant_type\"] = \"client_credentials\",", result, StringComparison.Ordinal);
-        Assert.Contains("tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken);", result, StringComparison.Ordinal);
-        Assert.Contains("return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken);", result, StringComparison.Ordinal);
+        Assert.Contains("tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);", result, StringComparison.Ordinal);
+        Assert.Contains("return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);", result, StringComparison.Ordinal);
 
         // No refresh-token path without an Authorization Code refresh URL.
         Assert.DoesNotContain("RequestTokenWithRefreshTokenAsync", result, StringComparison.Ordinal);
@@ -79,12 +79,12 @@ public class OAuthTokenProviderExtractorTests
 
         Assert.NotNull(result);
         Assert.Contains("if (!string.IsNullOrEmpty(_refreshToken) && !string.IsNullOrEmpty(opts.RefreshUrl))", result, StringComparison.Ordinal);
-        Assert.Contains("tokenResponse = await RequestTokenWithRefreshTokenAsync(opts, cancellationToken);", result, StringComparison.Ordinal);
+        Assert.Contains("tokenResponse = await RequestTokenWithRefreshTokenAsync(opts, cancellationToken).ConfigureAwait(false);", result, StringComparison.Ordinal);
         Assert.Contains("private async Task<OAuthTokenResponse?> RequestTokenWithRefreshTokenAsync(", result, StringComparison.Ordinal);
         Assert.Contains("[\"grant_type\"] = \"refresh_token\",", result, StringComparison.Ordinal);
 
         // A failed refresh clears the stored refresh token and falls back to Client Credentials.
         Assert.Contains("_refreshToken = null;", result, StringComparison.Ordinal);
-        Assert.Contains("return await RequestTokenWithClientCredentialsAsync(opts, cancellationToken);", result, StringComparison.Ordinal);
+        Assert.Contains("return await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);", result, StringComparison.Ordinal);
     }
 }

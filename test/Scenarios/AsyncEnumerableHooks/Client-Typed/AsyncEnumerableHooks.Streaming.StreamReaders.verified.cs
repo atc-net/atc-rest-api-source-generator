@@ -32,7 +32,7 @@ internal static class StreamReaders
             stream,
             (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize<T>(data, options)));
 
-        await foreach (var item in parser.EnumerateAsync(cancellationToken))
+        await foreach (var item in parser.EnumerateAsync(cancellationToken).ConfigureAwait(false))
         {
             if (item.Data.IsItem)
             {
@@ -75,7 +75,7 @@ internal static class StreamReaders
         var buffer = new byte[4096];
         using var record = new MemoryStream();
         int read;
-        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+        while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
         {
             for (var i = 0; i < read; i++)
             {
@@ -123,7 +123,7 @@ internal static class StreamReaders
         var inHeaders = false;
         var body = new StringBuilder();
         string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)
         {
             if (line.StartsWith(delimiter, StringComparison.Ordinal))
             {

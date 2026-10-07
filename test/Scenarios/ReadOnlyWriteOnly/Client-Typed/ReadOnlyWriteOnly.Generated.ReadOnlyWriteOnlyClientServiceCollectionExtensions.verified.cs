@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ReadOnlyWriteOnly.Generated;
 
@@ -20,27 +22,31 @@ public static class ReadOnlyWriteOnlyClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::ReadOnlyWriteOnly.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddReadOnlyWriteOnlyClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<IReadOnlyWriteOnlyClient>()
-                .AddTypedClient<IReadOnlyWriteOnlyClient>(
-                    static (httpClient, _) => new ReadOnlyWriteOnlyClient(httpClient));
+            services.Configure<global::ReadOnlyWriteOnly.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<IReadOnlyWriteOnlyClient>(configureClient)
-            .AddTypedClient<IReadOnlyWriteOnlyClient>(
-                static (httpClient, _) => new ReadOnlyWriteOnlyClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<IReadOnlyWriteOnlyClient>()
+            : services.AddHttpClient<IReadOnlyWriteOnlyClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<IReadOnlyWriteOnlyClient>(
+            static (httpClient, serviceProvider) => new ReadOnlyWriteOnlyClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::ReadOnlyWriteOnly.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

@@ -36,11 +36,11 @@ public sealed class OAuthAuthenticationHandler : DelegatingHandler
         CancellationToken cancellationToken)
     {
         // Get access token and set Authorization header
-        var token = await _tokenProvider.GetAccessTokenAsync(cancellationToken);
+        var token = await _tokenProvider.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // Send the request
-        var response = await base.SendAsync(request, cancellationToken);
+        var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
         // Handle 401 Unauthorized - refresh token and retry once
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -49,14 +49,14 @@ public sealed class OAuthAuthenticationHandler : DelegatingHandler
             response.Dispose();
 
             // Force token refresh
-            token = await _tokenProvider.RefreshTokenAsync(cancellationToken);
+            token = await _tokenProvider.RefreshTokenAsync(cancellationToken).ConfigureAwait(false);
 
             // Clone the request (original may have been read)
-            using var retryRequest = await CloneRequestAsync(request);
+            using var retryRequest = await CloneRequestAsync(request).ConfigureAwait(false);
             retryRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Retry the request
-            response = await base.SendAsync(retryRequest, cancellationToken);
+            response = await base.SendAsync(retryRequest, cancellationToken).ConfigureAwait(false);
         }
 
         return response;
@@ -78,7 +78,7 @@ public sealed class OAuthAuthenticationHandler : DelegatingHandler
         // Copy content if present
         if (request.Content is not null)
         {
-            var contentBytes = await request.Content.ReadAsByteArrayAsync();
+            var contentBytes = await request.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
             clone.Content = new ByteArrayContent(contentBytes);
 
             // Copy content headers

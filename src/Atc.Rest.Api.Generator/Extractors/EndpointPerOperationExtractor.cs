@@ -1302,11 +1302,11 @@ public static class EndpointPerOperationExtractor
         // disposed here either (StreamBinaryEndpointResponse disposes the stream).
         if ((isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint)
         {
-            sb.AppendLine("var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
+            sb.AppendLine("var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);");
         }
         else
         {
-            sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken);");
+            sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);");
         }
 
         sb.AppendLine();
@@ -1333,7 +1333,7 @@ public static class EndpointPerOperationExtractor
             AppendResponseRegistrations(sb, responses, defaultResponse);
             sb.AppendLine("try");
             sb.AppendLine("{");
-            sb.AppendLine(4, "var streamed = await responseBuilder.BuildStreamBinaryResponseAsync(cancellationToken);");
+            sb.AppendLine(4, "var streamed = await responseBuilder.BuildStreamBinaryResponseAsync(cancellationToken).ConfigureAwait(false);");
             sb.AppendLine(4, "if (!streamed.IsSuccess)");
             sb.AppendLine(4, "{");
             sb.AppendLine(8, "response.Dispose();");
@@ -1358,7 +1358,7 @@ public static class EndpointPerOperationExtractor
             var isMultipart = streamFraming == StreamingFraming.MultipartMixed;
             sb.AppendLine("if (!response.IsSuccessStatusCode)");
             sb.AppendLine("{");
-            sb.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);");
+            sb.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
             sb.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(false, response.StatusCode, content: null, errorContent, response);");
             sb.AppendLine("}");
             sb.AppendLine();
@@ -1367,7 +1367,7 @@ public static class EndpointPerOperationExtractor
             // disposes it
             sb.AppendLine("try");
             sb.AppendLine("{");
-            sb.AppendLine(4, "var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+            sb.AppendLine(4, "var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
             if (isMultipart)
             {
                 sb.AppendLine(4, "var boundary = response.Content.Headers.ContentType?.Parameters");
@@ -1393,7 +1393,7 @@ public static class EndpointPerOperationExtractor
             // For streaming endpoints, use BuildStreamingEndpointResponseAsync directly.
             // This returns a StreamingEndpointResponse<T> that manages the response lifecycle
             // and allows proper streaming enumeration.
-            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}>(cancellationToken);");
+            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}>(cancellationToken).ConfigureAwait(false);");
         }
         else
         {
@@ -1401,8 +1401,8 @@ public static class EndpointPerOperationExtractor
 
             // An operation with an XML answer may get its errors as application/problem+xml: read into the typed problem
             sb.Append(responses.Any(r => r.Xml is not null)
-                ? $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken);"
-                : $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);");
+                ? $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);"
+                : $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);");
         }
 
         return sb.ToString();

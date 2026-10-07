@@ -49,7 +49,7 @@ public sealed class GetPetByIdEndpoint : IGetPetByIdEndpoint
         requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
@@ -72,6 +72,6 @@ public sealed class GetPetByIdEndpoint : IGetPetByIdEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetPetByIdEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetPetByIdEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);
     }
 }

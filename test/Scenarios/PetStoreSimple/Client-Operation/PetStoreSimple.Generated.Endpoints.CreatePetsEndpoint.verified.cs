@@ -45,7 +45,7 @@ public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/pets");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
-        using var response = await client.SendAsync(requestMessage, cancellationToken);
+        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
@@ -62,6 +62,6 @@ public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
             responseBuilder.AddErrorResponse<Error>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new CreatePetsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new CreatePetsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

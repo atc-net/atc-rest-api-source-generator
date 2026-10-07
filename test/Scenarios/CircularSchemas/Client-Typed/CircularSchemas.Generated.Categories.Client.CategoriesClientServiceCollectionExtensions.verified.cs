@@ -5,7 +5,9 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CircularSchemas.Generated.Categories.Client;
 
@@ -20,27 +22,31 @@ public static class CategoriesClientServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options (<see cref="global::CircularSchemas.Generated.ApiClientJsonOptions"/>), which start from the client's defaults.</param>
     public static IHttpClientBuilder AddCategoriesClient(
         this IServiceCollection services,
-        Action<HttpClient>? configureClient = null)
+        Action<HttpClient>? configureClient = null,
+        Action<JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         if (services is null)
         {
             throw new ArgumentNullException(nameof(services));
         }
 
-        // An explicit factory is used because the generated client exposes both a
-        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which
-        // ActivatorUtilities cannot disambiguate on its own.
-        if (configureClient is null)
+        if (configureJsonSerializerOptions is not null)
         {
-            return services.AddHttpClient<ICategoriesClient>()
-                .AddTypedClient<ICategoriesClient>(
-                    static (httpClient, _) => new CategoriesClient(httpClient));
+            services.Configure<global::CircularSchemas.Generated.ApiClientJsonOptions>(o => configureJsonSerializerOptions(o.SerializerOptions));
         }
 
-        return services.AddHttpClient<ICategoriesClient>(configureClient)
-            .AddTypedClient<ICategoriesClient>(
-                static (httpClient, _) => new CategoriesClient(httpClient));
+        var builder = configureClient is null
+            ? services.AddHttpClient<ICategoriesClient>()
+            : services.AddHttpClient<ICategoriesClient>(configureClient);
+
+        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
+        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
+        return builder.AddTypedClient<ICategoriesClient>(
+            static (httpClient, serviceProvider) => new CategoriesClient(
+                httpClient,
+                serviceProvider.GetRequiredService<IOptions<global::CircularSchemas.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
     }
 }

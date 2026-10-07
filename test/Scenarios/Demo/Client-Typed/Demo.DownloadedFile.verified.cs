@@ -28,7 +28,7 @@ public sealed record DownloadedFile(
         System.Net.Http.HttpResponseMessage response,
         System.Threading.CancellationToken cancellationToken = default)
     {
-        var content = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        var content = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         return FromHeaders(content, response.Content.Headers);
     }
 

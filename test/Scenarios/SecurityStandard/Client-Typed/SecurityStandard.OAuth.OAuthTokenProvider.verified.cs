@@ -49,13 +49,13 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider, IDisposable
         }
 
         // Slow path: need to refresh token
-        return await RefreshTokenAsync(cancellationToken);
+        return await RefreshTokenAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<string> RefreshTokenAsync(CancellationToken cancellationToken = default)
     {
-        await _refreshLock.WaitAsync(cancellationToken);
+        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Double-check after acquiring lock
@@ -69,7 +69,7 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider, IDisposable
             OAuthTokenResponse? tokenResponse;
 
             // Request token using Client Credentials
-            tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken);
+            tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);
 
             if (tokenResponse is null || string.IsNullOrEmpty(tokenResponse.AccessToken))
             {
@@ -115,11 +115,11 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider, IDisposable
         }
 
         using var content = new FormUrlEncodedContent(parameters);
-        using var response = await _httpClient.PostAsync(opts.TokenUrl, content, cancellationToken);
+        using var response = await _httpClient.PostAsync(opts.TokenUrl, content, cancellationToken).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken);
+        return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

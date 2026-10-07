@@ -46,9 +46,9 @@ public sealed class FilesClient : IFilesClient
         CancellationToken cancellationToken = default)
     {
         var url = $"files/{Uri.EscapeDataString(parameters.Id)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     public async System.Threading.Tasks.Task UploadFormDataFileAsync(
@@ -84,8 +84,8 @@ public sealed class FilesClient : IFilesClient
         }
 
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     public async System.Threading.Tasks.Task UploadFormDataFilesAsync(
@@ -111,8 +111,8 @@ public sealed class FilesClient : IFilesClient
         }
 
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     public async System.Threading.Tasks.Task UploadSingleFileAsFormDataAsync(
@@ -124,8 +124,8 @@ public sealed class FilesClient : IFilesClient
         using var content = new StreamContent(parameters.File!.OpenReadStream());
         content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     public async System.Threading.Tasks.Task UploadMultiFilesAsFormDataAsync(
@@ -149,8 +149,8 @@ public sealed class FilesClient : IFilesClient
             content.Add(streamContent, "files", fileItem.FileName);
         }
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
@@ -163,11 +163,11 @@ public sealed class FilesClient : IFilesClient
         }
 
         const int MaxErrorBytes = 4096;
-        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var errorStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var errorBuffer = new byte[MaxErrorBytes + 1];
         var errorLength = 0;
         int errorRead;
-        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken)) > 0)
+        while (errorLength < errorBuffer.Length && (errorRead = await errorStream.ReadAsync(errorBuffer.AsMemory(errorLength), cancellationToken).ConfigureAwait(false)) > 0)
         {
             errorLength += errorRead;
         }
