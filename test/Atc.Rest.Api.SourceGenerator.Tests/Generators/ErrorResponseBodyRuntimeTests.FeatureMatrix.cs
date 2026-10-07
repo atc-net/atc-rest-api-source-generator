@@ -10,13 +10,16 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// mid-stream, and cancelled by the client
 /// (the server must see the cancellation); a paginated read walked by its continuation; a <c>oneOf</c> with a
 /// discriminator and a three-level <c>allOf</c> round-tripped through the client; an enum by its value and an
-/// unknown value from the server; a date and a date-time round-tripped; a conditional 304; and a read the client
-/// cancels (the server must see the cancellation).
+/// unknown value from the server; a date and a date-time round-tripped; a conditional 304; a read the client
+/// cancels before the response and one it cancels mid-body (the server must see the cancellation); the wire failures -
+/// a connection reset mid-body, a server that never answers (the client's own timeout and the operation's
+/// x-retry-timeout-seconds), a body that stalls after the headers - and a handler that throws a ValidationException.
 /// </summary>
 /// <remarks>
 /// Not exercised: a browser runtime (the hooks render with
 /// React on jsdom in Node); the React Query and SWR hooks on a 304 (a browser cache sends the condition, not a
-/// hook); a cancelled SWR read (SWR hands its fetcher no signal); webhooks and output caching.
+/// hook); a cancelled SWR read (SWR hands its fetcher no signal); the hooks with a timeout of the caller's own (a hook
+/// takes no signal); a refused connection; webhooks and output caching.
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
@@ -141,6 +144,46 @@ public partial class ErrorResponseBodyRuntimeTests
               operationId: featureSlow
               responses:
                 '200': { description: A thing after three seconds, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/net/reset:
+            get:
+              operationId: featureReset
+              responses:
+                '200': { description: Half a thing and then a connection reset, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/net/hang:
+            get:
+              operationId: featureHang
+              responses:
+                '200': { description: Never answered, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/net/stall:
+            get:
+              operationId: featureStall
+              responses:
+                '200': { description: Headers and half a thing and then nothing, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/net/timeout:
+            get:
+              operationId: featureTimeout
+              x-retry-policy: one-second
+              x-retry-enabled: false
+              x-retry-timeout-seconds: 1
+              responses:
+                '200': { description: Never answered, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/net/stall-timeout:
+            get:
+              operationId: featureStallTimeout
+              x-retry-enabled: false
+              x-retry-timeout-seconds: 1
+              responses:
+                '200': { description: Headers and half a thing and then nothing, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/invalid:
+            post:
+              operationId: featureInvalid
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema: { $ref: '#/components/schemas/Thing' }
+              responses:
+                '200': { description: Never - the handler rejects the thing, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
         components:
           schemas:
             Thing:
@@ -357,6 +400,97 @@ public partial class ErrorResponseBodyRuntimeTests
             }
         }
 
+        // The wire failures, answered in front of the generated endpoints (which never see these requests): a body cut
+        // off by a connection reset, a request never answered, and headers with half a body and then nothing. A held
+        // request is recorded like the slow read: started once the server holds it, cancelled when the client goes.
+        public static class WireFailure
+        {
+            public static async System.Threading.Tasks.Task<bool> TryHandleAsync(HttpContext context)
+            {
+                switch (context.Request.Path.Value)
+                {
+                    case "/feature/net/reset":
+                        await WriteHalfAsync(context);
+                        context.Abort();
+                        return true;
+                    case "/feature/net/hang" or "/feature/net/timeout":
+                        await HoldAsync(context);
+                        context.Abort();
+                        return true;
+                    case "/feature/net/stall" or "/feature/net/stall-timeout":
+                        await WriteHalfAsync(context);
+                        await HoldAsync(context);
+                        context.Abort();
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            // A 200 that promises 64 bytes of JSON and sends the first 12
+            private static async System.Threading.Tasks.Task WriteHalfAsync(HttpContext context)
+            {
+                context.Response.StatusCode = 200;
+                context.Response.ContentType = "application/json";
+                context.Response.ContentLength = 64;
+                await context.Response.WriteAsync("{\"name\":\"cut");
+                await context.Response.Body.FlushAsync();
+            }
+
+            // Until the client goes; thirty seconds at most (hang protection: then the connection is reset)
+            private static async System.Threading.Tasks.Task HoldAsync(HttpContext context)
+            {
+                var probe = context.Request.Headers["X-Probe"].ToString();
+                FeatureLog.Started[probe] = true;
+                try
+                {
+                    await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(30), context.RequestAborted);
+                }
+                catch (OperationCanceledException)
+                {
+                    FeatureLog.Cancelled[probe] = true;
+                }
+            }
+        }
+
+        // The wire-failure operations are answered by WireFailure; their handlers only complete the registration
+        public sealed class FeatureResetHandlerImpl : IFeatureResetHandler
+        {
+            public System.Threading.Tasks.Task<FeatureResetResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
+
+        public sealed class FeatureHangHandlerImpl : IFeatureHangHandler
+        {
+            public System.Threading.Tasks.Task<FeatureHangResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
+
+        public sealed class FeatureStallHandlerImpl : IFeatureStallHandler
+        {
+            public System.Threading.Tasks.Task<FeatureStallResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
+
+        public sealed class FeatureTimeoutHandlerImpl : IFeatureTimeoutHandler
+        {
+            public System.Threading.Tasks.Task<FeatureTimeoutResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
+
+        public sealed class FeatureStallTimeoutHandlerImpl : IFeatureStallTimeoutHandler
+        {
+            public System.Threading.Tasks.Task<FeatureStallTimeoutResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
+
+        // A handler that validates the thing itself and rejects it, as a FluentValidation validator does
+        public sealed class FeatureInvalidHandlerImpl : IFeatureInvalidHandler
+        {
+            public System.Threading.Tasks.Task<FeatureInvalidResult> ExecuteAsync(FeatureInvalidParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => throw new FluentValidation.ValidationException([new FluentValidation.Results.ValidationFailure("Name", "'Name' must be a known thing.")]);
+        }
+
         // Answers GET /__started?probe=... with 200 once the slow handler holds that probe's read, else 404
         public sealed class StartedProbeFilter : Microsoft.AspNetCore.Hosting.IStartupFilter
         {
@@ -368,6 +502,18 @@ public partial class ErrorResponseBodyRuntimeTests
                         if (context.Request.Path == "/__started")
                         {
                             context.Response.StatusCode = FeatureLog.Started.ContainsKey(context.Request.Query["probe"].ToString()) ? 200 : 404;
+                            return;
+                        }
+
+                        // GET /__cancelled?probe=...: 200 once the server saw that probe's request cancelled, else 404
+                        if (context.Request.Path == "/__cancelled")
+                        {
+                            context.Response.StatusCode = FeatureLog.Cancelled.ContainsKey(context.Request.Query["probe"].ToString()) ? 200 : 404;
+                            return;
+                        }
+
+                        if (await WireFailure.TryHandleAsync(context))
+                        {
                             return;
                         }
 
@@ -395,6 +541,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IFeatureColorHandler, FeatureColorHandlerImpl>();
                 services.AddScoped<IFeatureDatesHandler, FeatureDatesHandlerImpl>();
                 services.AddScoped<IFeatureEtagHandler, FeatureEtagHandlerImpl>();
+                services.AddScoped<IFeatureResetHandler, FeatureResetHandlerImpl>();
+                services.AddScoped<IFeatureHangHandler, FeatureHangHandlerImpl>();
+                services.AddScoped<IFeatureStallHandler, FeatureStallHandlerImpl>();
+                services.AddScoped<IFeatureTimeoutHandler, FeatureTimeoutHandlerImpl>();
+                services.AddScoped<IFeatureStallTimeoutHandler, FeatureStallTimeoutHandlerImpl>();
+                services.AddScoped<IFeatureInvalidHandler, FeatureInvalidHandlerImpl>();
             }
         }
         """";
@@ -434,6 +586,11 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
+            // The HttpClient with a one-second HttpClient.Timeout, and the one with the generated resilience handler
+            // (each operation's x-retry-*), whose own HttpClient.Timeout is longer than any operation's timeout
+            private const string ShortTimeoutClient = "short-timeout";
+            private const string ResilientClient = "resilient";
+
             private static string serverAddress = string.Empty;
 
             public static async System.Threading.Tasks.Task<Dictionary<string, string>> RunAsync(string baseAddress, string casesJson, bool typed, string clientId)
@@ -444,6 +601,16 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddTransient<ProbeStampHandler>();
                 var httpClientName = Register(services);
                 services.AddHttpClient(httpClientName, c => c.BaseAddress = new Uri(baseAddress)).AddHttpMessageHandler<ProbeStampHandler>();
+                services.AddHttpClient(ShortTimeoutClient, c =>
+                {
+                    c.BaseAddress = new Uri(baseAddress);
+                    c.Timeout = TimeSpan.FromSeconds(1);
+                }).AddHttpMessageHandler<ProbeStampHandler>();
+                services.AddHttpClient(ResilientClient, c =>
+                {
+                    c.BaseAddress = new Uri(baseAddress);
+                    c.Timeout = TimeSpan.FromSeconds(15);
+                }).AddHttpMessageHandler<ProbeStampHandler>().AddApiResilience(ResiliencePolicies.OneSecond);
 
                 using var provider = services.BuildServiceProvider();
                 foreach (var item in JsonNode.Parse(casesJson)!.AsArray())
@@ -526,10 +693,70 @@ public partial class ErrorResponseBodyRuntimeTests
                     await running;
                     return new JsonObject { ["kind"] = "completed" };
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException ex)
                 {
-                    return new JsonObject { ["kind"] = "cancelled" };
+                    return new JsonObject { ["kind"] = "cancelled", ["type"] = ex.GetType().Name, ["callerToken"] = ex.CancellationToken == cts.Token };
                 }
+            }
+
+            // Runs a call that fails on the wire (or that the caller cancels once the server holds it, mid-body) through
+            // the client its scenario names, and records how it ended: the exception, its inner exception, whether it is
+            // an HttpRequestException, and whether a cancellation carries the caller's token. A call still running after
+            // twenty seconds is recorded as hung (hang protection; the server resets a held request after thirty).
+            private static async System.Threading.Tasks.Task<JsonObject> NetAsync(JsonObject c, string httpClientName, Func<string, System.Threading.CancellationToken, System.Threading.Tasks.Task<JsonObject>> call)
+            {
+                var scenario = (string)c["scenario"]!;
+                var clientName = scenario switch
+                {
+                    "client-timeout" => ShortTimeoutClient,
+                    "retry-timeout" or "stall-timeout" => ResilientClient,
+                    _ => httpClientName,
+                };
+
+                using var cts = new System.Threading.CancellationTokenSource();
+                var running = call(clientName, cts.Token);
+                if (scenario == "cancel-mid-body")
+                {
+                    await WaitStartedAsync(ProbeStampHandler.Current["X-Probe"]);
+                    await cts.CancelAsync();
+                }
+
+                if (await System.Threading.Tasks.Task.WhenAny(running, System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(20))) != running)
+                {
+                    return new JsonObject { ["kind"] = "hung" };
+                }
+
+                try
+                {
+                    return await running;
+                }
+                catch (Exception ex)
+                {
+                    return new JsonObject
+                    {
+                        ["kind"] = "threw",
+                        ["type"] = ex.GetType().Name,
+                        ["inner"] = ex.InnerException?.GetType().Name,
+                        ["httpRequestException"] = ex is HttpRequestException,
+                        ["callerToken"] = ex is OperationCanceledException oce && cts.IsCancellationRequested && oce.CancellationToken == cts.Token,
+                        ["error"] = ex.GetType().Name + ": " + Short(ex.Message),
+                    };
+                }
+            }
+
+            // A rejected request: the status, and the error body's detail and field errors (a ProblemDetails or a
+            // ValidationProblemDetails), as the client exposes them
+            private static JsonObject Rejected(int status, string? body)
+            {
+                var result = new JsonObject { ["kind"] = "error", ["status"] = status, ["error"] = Short(body ?? string.Empty) };
+                var start = body?.IndexOf('{', StringComparison.Ordinal) ?? -1;
+                if (start >= 0 && JsonNode.Parse(body![start..]) is JsonObject problem)
+                {
+                    result["detail"] = (string?)problem["detail"];
+                    result["errors"] = problem["errors"] is JsonObject errors ? new JsonArray([.. errors.Select(e => (JsonNode)e.Key)]) : new JsonArray();
+                }
+
+                return result;
             }
 
             private static JsonObject Value(object? value)
@@ -667,6 +894,49 @@ public partial class ErrorResponseBodyRuntimeTests
                     case "slow":
                         return await CancelAsync(ct => provider.GetRequiredService<IFeatureSlowEndpoint>().ExecuteAsync(httpClientName, ct));
 
+                    case "net":
+                        return await NetAsync(c, httpClientName, async (name, ct) =>
+                        {
+                            switch (operation)
+                            {
+                                case "FeatureReset":
+                                {
+                                    var r = await provider.GetRequiredService<IFeatureResetEndpoint>().ExecuteAsync(name, ct);
+                                    return r.IsSuccess ? Value(r.OkContent) : Error((int)r.StatusCode, r.Content);
+                                }
+
+                                case "FeatureHang":
+                                {
+                                    var r = await provider.GetRequiredService<IFeatureHangEndpoint>().ExecuteAsync(name, ct);
+                                    return r.IsSuccess ? Value(r.OkContent) : Error((int)r.StatusCode, r.Content);
+                                }
+
+                                case "FeatureStall":
+                                {
+                                    var r = await provider.GetRequiredService<IFeatureStallEndpoint>().ExecuteAsync(name, ct);
+                                    return r.IsSuccess ? Value(r.OkContent) : Error((int)r.StatusCode, r.Content);
+                                }
+
+                                case "FeatureTimeout":
+                                {
+                                    var r = await provider.GetRequiredService<IFeatureTimeoutEndpoint>().ExecuteAsync(name, ct);
+                                    return r.IsSuccess ? Value(r.OkContent) : Error((int)r.StatusCode, r.Content);
+                                }
+
+                                default:
+                                {
+                                    var r = await provider.GetRequiredService<IFeatureStallTimeoutEndpoint>().ExecuteAsync(name, ct);
+                                    return r.IsSuccess ? Value(r.OkContent) : Error((int)r.StatusCode, r.Content);
+                                }
+                            }
+                        });
+
+                    case "invalid":
+                    {
+                        var r = await provider.GetRequiredService<IFeatureInvalidEndpoint>().ExecuteAsync(new FeatureInvalidParameters(new Thing("bad")), httpClientName);
+                        return r.IsSuccess ? Value(r.OkContent) : Rejected((int)r.StatusCode, r.Content);
+                    }
+
                     default:
                         throw new InvalidOperationException("unknown case kind " + kind);
                 }
@@ -774,6 +1044,172 @@ public partial class ErrorResponseBodyRuntimeTests
                     case "slow":
                         return await CancelAsync(ct => client.FeatureSlowAsync(ct));
 
+                    case "net":
+                        return await NetAsync(c, httpClientName, async (name, ct) =>
+                        {
+                            var named = new ErrorBodiesClient(provider.GetRequiredService<IHttpClientFactory>().CreateClient(name));
+                            var r = operation switch
+                            {
+                                "FeatureReset" => await named.FeatureResetAsync(ct),
+                                "FeatureHang" => await named.FeatureHangAsync(ct),
+                                "FeatureStall" => await named.FeatureStallAsync(ct),
+                                "FeatureTimeout" => await named.FeatureTimeoutAsync(ct),
+                                _ => await named.FeatureStallTimeoutAsync(ct),
+                            };
+                            return r.IsSuccess ? Value(r.SuccessContent) : Error((int)r.StatusCode, r.Content);
+                        });
+
+                    case "invalid":
+                    {
+                        var r = await client.FeatureInvalidAsync(new FeatureInvalidParameters(new Thing("bad")));
+                        return r.IsSuccess ? Value(r.SuccessContent) : Rejected((int)r.StatusCode, r.Content);
+                    }
+
+                    default:
+                        throw new InvalidOperationException("unknown case kind " + kind);
+                }
+            }
+        }
+        """";
+
+    /// <summary>
+    /// The typed-client side of the probe in its Throw style (the default): a method per operation that returns the
+    /// value and throws an <c>HttpRequestException</c> for an error status; it exposes no headers.
+    /// </summary>
+    private const string FeatureProbeThrowSource = """"
+        using System.Net.Http;
+        using System.Text.Json;
+        using System.Text.Json.Nodes;
+        using Microsoft.Extensions.DependencyInjection;
+
+        namespace ErrorBodies.RuntimeTest;
+
+        public static partial class FeatureProbe
+        {
+            private static string Register(ServiceCollection services)
+                => "typed";
+
+            // The names streamed until the end, the handler's failure, or the client's own stop (as StreamAsync)
+            private static async System.Threading.Tasks.Task<JsonObject> StreamItemsAsync(Func<System.Threading.CancellationToken, IAsyncEnumerable<Thing>> start, int? cancelAfter)
+            {
+                var names = new List<string>();
+                string? error = null;
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30));
+                try
+                {
+                    await foreach (var thing in start(cts.Token).WithCancellation(cts.Token))
+                    {
+                        names.Add(thing.Name);
+                        if (cancelAfter is { } stop && names.Count >= stop)
+                        {
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    error = ex.GetType().Name + ": " + Short(ex.Message);
+                }
+
+                return new JsonObject { ["kind"] = "items", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["error"] = error };
+            }
+
+            private static async System.Threading.Tasks.Task<JsonObject> CallAsync(ServiceProvider provider, string httpClientName, JsonObject c)
+            {
+                var http = provider.GetRequiredService<IHttpClientFactory>().CreateClient(httpClientName);
+                var client = new ErrorBodiesClient(http);
+                var kind = (string)c["kind"]!;
+                var operation = (string)c["operation"]!;
+                switch (kind)
+                {
+                    case "stream":
+                    {
+                        var count = (int)c["count"]!;
+                        int? failAfter = c["failAfter"] is { } f ? (int)f : null;
+                        return await StreamItemsAsync(
+                            operation switch
+                            {
+                                "FeatureSse" => ct => client.FeatureSseAsync(new FeatureSseParameters(count, failAfter), ct),
+                                "FeatureLines" => ct => client.FeatureLinesAsync(new FeatureLinesParameters(count, failAfter), ct),
+                                "FeatureSeq" => ct => client.FeatureSeqAsync(new FeatureSeqParameters(count, failAfter), ct),
+                                "FeatureMixed" => ct => client.FeatureMixedAsync(new FeatureMixedParameters(count, failAfter), ct),
+                                _ => ct => client.FeatureArrayAsync(new FeatureArrayParameters(count, failAfter), ct),
+                            },
+                            c["cancelAfter"] is { } ca ? (int)ca : null);
+                    }
+
+                    case "page":
+                    {
+                        var names = new List<string>();
+                        var pages = 0;
+                        string? continuation = null;
+                        do
+                        {
+                            var page = await client.FeaturePageAsync(new FeaturePageParameters(continuation, (int)c["pageSize"]!));
+                            names.AddRange(page.Results.Select(t => t.Name));
+                            pages++;
+                            continuation = page.Continuation;
+                        }
+                        while (!string.IsNullOrEmpty(continuation) && pages < 10);
+
+                        return new JsonObject { ["kind"] = "items", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["pages"] = pages };
+                    }
+
+                    case "shape":
+                        return Value(await client.FeatureShapeAsync(new FeatureShapeParameters(JsonSerializer.Deserialize<Shape>(c["body"]!.ToJsonString(), Json)!)));
+
+                    case "nested":
+                        return Value(await client.FeatureNestedAsync(new FeatureNestedParameters(JsonSerializer.Deserialize<Leaf>(c["body"]!.ToJsonString(), Json)!)));
+
+                    case "color":
+                        return Value(await client.FeatureColorAsync(new FeatureColorParameters(JsonSerializer.Deserialize<Color>("\"" + (string)c["color"]! + "\"", Json))));
+
+                    case "dates":
+                        return Value(await client.FeatureDatesAsync(new FeatureDatesParameters(JsonSerializer.Deserialize<Moment>(c["body"]!.ToJsonString(), Json)!)));
+
+                    case "etag":
+                    {
+                        try
+                        {
+                            var result = Value(await client.FeatureEtagAsync(new FeatureEtagParameters((string?)c["ifNoneMatch"])));
+                            result["status"] = 200;
+                            return result;
+                        }
+                        catch (HttpRequestException ex) when (ex.StatusCode is { } status)
+                        {
+                            return new JsonObject { ["kind"] = "status", ["status"] = (int)status, ["notModified"] = status == System.Net.HttpStatusCode.NotModified, ["error"] = Short(ex.Message) };
+                        }
+                    }
+
+                    case "slow":
+                        return await CancelAsync(ct => client.FeatureSlowAsync(ct));
+
+                    case "net":
+                        return await NetAsync(c, httpClientName, async (name, ct) =>
+                        {
+                            var named = new ErrorBodiesClient(provider.GetRequiredService<IHttpClientFactory>().CreateClient(name));
+                            return Value(operation switch
+                            {
+                                "FeatureReset" => await named.FeatureResetAsync(ct),
+                                "FeatureHang" => await named.FeatureHangAsync(ct),
+                                "FeatureStall" => await named.FeatureStallAsync(ct),
+                                "FeatureTimeout" => await named.FeatureTimeoutAsync(ct),
+                                _ => await named.FeatureStallTimeoutAsync(ct),
+                            });
+                        });
+
+                    case "invalid":
+                    {
+                        try
+                        {
+                            return Value(await client.FeatureInvalidAsync(new FeatureInvalidParameters(new Thing("bad"))));
+                        }
+                        catch (HttpRequestException ex) when (ex.StatusCode is { } status)
+                        {
+                            return Rejected((int)status, ex.Message);
+                        }
+                    }
+
                     default:
                         throw new InvalidOperationException("unknown case kind " + kind);
                 }
@@ -803,24 +1239,62 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         const { ApiService } = await import(`./${which}/client/ApiService.ts`);
+        const { ApiError } = await import(`./${which}/errors/ApiError.ts`);
         const hookModule: any = hooks ? await import(`./${which}/hooks/index.ts`) : null;
         const names = (items: any[]) => items.map((t) => t.name);
         const WAIT = { timeout: 20000, interval: 25 };
+        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        // Only the x-retry-timeout-seconds cases run the ApiClient's retry policy; every other case is sent once,
+        // without a policy timeout, as before the feature specification had an x-retry operation
+        const usesRetry = (c: any) => c.scenario === 'retry-timeout' || c.scenario === 'stall-timeout';
+        const optionsFor = (c: any, headers: Record<string, string>) => usesRetry(c) ? { defaultHeaders: headers } : { defaultHeaders: headers, retryPolicy: false };
+
+        // How a call failed: the error's name, class, code and cause, and whether it is the client's ApiError
+        const describe = (e: any) => ({ kind: 'threw', errorName: e?.name ?? null, ctor: e?.constructor?.name ?? null, code: e?.code ?? null, cause: e?.cause?.code ?? e?.cause?.name ?? null, isApiError: e instanceof ApiError, isAxiosError: e?.isAxiosError === true, error: `${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}` });
+
+        // A rejected request as the client exposes it: the status, the error's class, its message and field errors
+        const rejectedOf = (e: any, arm: string | null) => ({ kind: 'error', arm, status: e?.status ?? 0, errorName: e?.name ?? null, detail: e?.detail ?? null, errors: Object.keys(e?.errors ?? {}), error: String(e?.message ?? e).slice(0, 300) });
 
         // Until the server holds the probe's slow read (at most ten seconds): a cancel is sent only then
         async function waitStarted(probe: string) {
           for (let attempt = 0; attempt < 400; attempt++) {
             const answer = await fetch(new URL('__started?probe=' + encodeURIComponent(probe), baseUrl));
             if (answer.ok) return;
-            await new Promise((resolve) => setTimeout(resolve, 25));
+            await sleep(25);
           }
         }
 
-        function wrapperFor(headers: Record<string, string>) {
+        // Until the server saw the probe's request cancelled (at most five seconds), while this process still holds it
+        async function waitCancelled(probe: string): Promise<boolean> {
+          for (let attempt = 0; attempt < 200; attempt++) {
+            const answer = await fetch(new URL('__cancelled?probe=' + encodeURIComponent(probe), baseUrl));
+            if (answer.ok) return true;
+            await sleep(25);
+          }
+
+          return false;
+        }
+
+        // The call's outcome; still pending after twenty seconds it is hung (hang protection)
+        async function settle(pending: Promise<any>): Promise<Record<string, unknown>> {
+          pending.catch(() => {});
+          const hung = Symbol('hung');
+          try {
+            const r = await Promise.race([pending, sleep(20000).then(() => hung)]);
+            if (r === hung) return { kind: 'hung' };
+            return r.status === 'ok' ? { kind: 'value', value: r.data } : { ...errorOf(r), arm: r.status };
+          } catch (e: any) {
+            return describe(e);
+          }
+        }
+
+        function wrapperFor(c: any, headers: Record<string, string>) {
           const { ApiProvider } = hookModule;
           const queryClient = hooks === 'reactquery' ? new QueryClient({ defaultOptions: { queries: { retry: false } } }) : null;
+          const options = optionsFor(c, headers);
           return ({ children }: any) => {
-            const inner = React.createElement(ApiProvider, { baseUrl, options: { defaultHeaders: headers } }, children);
+            const inner = React.createElement(ApiProvider, { baseUrl, options }, children);
             if (hooks === 'reactquery') return React.createElement(QueryClientProvider, { client: queryClient }, inner);
             return React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0 } }, inner);
           };
@@ -873,12 +1347,27 @@ public partial class ErrorResponseBodyRuntimeTests
                 return e?.name === 'AbortError' || e?.name === 'CanceledError' ? { kind: 'cancelled' } : { kind: 'threw', error: `${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}` };
               }
             }
+            case 'net': {
+              // The client's own timeout is, in TypeScript, the caller's AbortSignal.timeout: the clients have no other
+              const controller = new AbortController();
+              const pending = f[m](c.scenario === 'client-timeout' ? AbortSignal.timeout(1000) : controller.signal);
+              if (c.scenario === 'cancel-mid-body') {
+                await waitStarted(`ts-${which}|${c.name}`);
+                controller.abort();
+              }
+
+              return settle(pending);
+            }
+            case 'invalid': {
+              const r = await f.featureInvalid({ name: 'bad' });
+              return r.status === 'ok' ? { kind: 'value', value: r.data } : rejectedOf(r.error, r.status);
+            }
           }
           throw new Error('unknown kind ' + c.kind);
         }
 
         async function viaHooks(c: any): Promise<Record<string, unknown>> {
-          const wrapper = wrapperFor({ ...c.headers, 'X-Probe': `ts-${which}|${c.name}` });
+          const wrapper = wrapperFor(c, { ...c.headers, 'X-Probe': `ts-${which}|${c.name}` });
           const H = hookModule;
           switch (c.kind) {
             case 'stream': {
@@ -941,6 +1430,35 @@ public partial class ErrorResponseBodyRuntimeTests
               await new Promise((resolve) => setTimeout(resolve, 3500));
               return { kind: completed ? 'completed' : 'cancelled' };
             }
+            case 'net': {
+              const hook = H['use' + c.operation];
+              if (c.scenario === 'client-timeout') return { kind: 'na', why: 'a hook takes no AbortSignal of its own: its timeout is the operation\'s x-retry-timeout-seconds' };
+              if (c.scenario === 'cancel-mid-body') {
+                if (hooks === 'swr') return { kind: 'na', why: 'SWR hands its fetcher no AbortSignal' };
+                const { unmount } = renderHook(() => hook(), { wrapper });
+                await waitStarted(`ts-${which}|${c.name}`);
+                unmount();
+                // Cancelled only when the server sees it while this process still holds the connection
+                return { kind: (await waitCancelled(`ts-${which}|${c.name}`)) ? 'cancelled' : 'completed' };
+              }
+
+              const { result } = renderHook(() => hook(), { wrapper });
+              await waitFor(() => { if (result.current.data === undefined && !result.current.error) throw new Error('waiting'); }, WAIT);
+              return result.current.error ? describe(result.current.error) : { kind: 'value', value: result.current.data };
+            }
+            case 'invalid': {
+              const { result } = renderHook(() => H.useFeatureInvalid(), { wrapper });
+              let failure: any = null;
+              let data: any;
+              await act(async () => {
+                try {
+                  data = hooks === 'reactquery' ? await result.current.mutateAsync({ name: 'bad' }) : await result.current.trigger({ name: 'bad' });
+                } catch (e) {
+                  failure = e;
+                }
+              });
+              return failure ? rejectedOf(failure, null) : { kind: 'value', value: data };
+            }
           }
           throw new Error('unknown kind ' + c.kind);
         }
@@ -955,7 +1473,7 @@ public partial class ErrorResponseBodyRuntimeTests
             if (hooks) {
               record = { ...record, ...(await viaHooks(c)) };
             } else {
-              const api: any = new ApiService(baseUrl, { defaultHeaders: { ...c.headers, 'X-Probe': `ts-${which}|${c.name}` } });
+              const api: any = new ApiService(baseUrl, optionsFor(c, { ...c.headers, 'X-Probe': `ts-${which}|${c.name}` }));
               record = { ...record, ...(await viaClient(api, c)) };
             }
           } catch (err: any) {
@@ -1025,6 +1543,12 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("conditional: If-None-Match matches, 304", "conditional", "FeatureEtag", "etag", new JsonObject { ["ifNoneMatch"] = "\"v1\"" }));
         cases.Add(new("conditional: no condition, 200 with an ETag", "conditional", "FeatureEtag", "etag", new JsonObject()));
         cases.Add(new("cancellation: a read the client cancels stops on the server", "cancellation", "FeatureSlow", "slow", new JsonObject()));
+        cases.Add(new("cancellation: the caller cancels mid-body, after the headers", "cancellation", "FeatureStall", "net", new JsonObject { ["scenario"] = "cancel-mid-body" }));
+        cases.Add(new("network: the connection resets mid-body", "network", "FeatureReset", "net", new JsonObject { ["scenario"] = "reset" }));
+        cases.Add(new("network: no answer, the client's own timeout (C#: HttpClient.Timeout; TypeScript: the caller's AbortSignal.timeout)", "network", "FeatureHang", "net", new JsonObject { ["scenario"] = "client-timeout" }));
+        cases.Add(new("network: no answer, the operation's x-retry-timeout-seconds", "network", "FeatureTimeout", "net", new JsonObject { ["scenario"] = "retry-timeout" }));
+        cases.Add(new("network: headers, then a body that stalls, the operation's x-retry-timeout-seconds", "network", "FeatureStallTimeout", "net", new JsonObject { ["scenario"] = "stall-timeout" }));
+        cases.Add(new("validation: the handler throws FluentValidation's ValidationException", "validation", "FeatureInvalid", "invalid", new JsonObject()));
         return cases;
     }
 
@@ -1033,6 +1557,7 @@ public partial class ErrorResponseBodyRuntimeTests
         ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false, null),
         ("cs-epo-classic-enums", "C# EndpointPerOperation", "extensibleEnums: false (the classic enum)", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails", "extensibleEnums": false }""", false, null),
         ("cs-typed", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true, null),
+        ("cs-typed-throw", "C# TypedClient", "typedClientResultStyle: Throw (the default)", """{ "generationMode": "TypedClient" }""", true, null),
         ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false, "fetch"),
         ("ts-axios", "TypeScript", "Axios client", string.Empty, false, "axios"),
         ("ts-fetch-zod", "TypeScript", "Fetch client, Zod runtime validation", string.Empty, false, "fetch-zod"),
@@ -1045,10 +1570,32 @@ public partial class ErrorResponseBodyRuntimeTests
     /// passes fails the test asking to be removed. The matrix started with 124 red (a discriminated union whose
     /// variants declare the discriminator could not start the server; a three-level allOf lost its base; the typed
     /// client wrote PascalCase; Zod refused a date-time with an offset; a C# client threw on an enum value the server
-    /// added later, fixed by the extensible enums) - all fixed.
+    /// added later, fixed by the extensible enums) - all fixed. The network, timeout and validation cases came in with
+    /// 15 red.
     /// </summary>
     private static readonly HashSet<string> KnownFeatureFailures = new(StringComparer.Ordinal)
     {
+        // The Axios client's per-operation timeout rejects with axios' CanceledError - what the caller's own abort rejects with
+        "network: no answer, the operation's x-retry-timeout-seconds [ts-axios]",
+        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [ts-axios]",
+
+        // The C# resilience handler's timeout ends with the headers: a body that stalls runs into HttpClient.Timeout
+        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-epo]",
+        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-epo-classic-enums]",
+        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-typed]",
+        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-typed-throw]",
+
+        // Atc.Rest.MinimalApi answers a ValidationException with a ProblemDetails, not a ValidationProblemDetails: its
+        // field errors are lost on the way (to be fixed in Atc.Rest.MinimalApi)
+        "validation: the handler throws FluentValidation's ValidationException [cs-epo]",
+        "validation: the handler throws FluentValidation's ValidationException [cs-epo-classic-enums]",
+        "validation: the handler throws FluentValidation's ValidationException [cs-typed]",
+        "validation: the handler throws FluentValidation's ValidationException [cs-typed-throw]",
+        "validation: the handler throws FluentValidation's ValidationException [ts-fetch]",
+        "validation: the handler throws FluentValidation's ValidationException [ts-axios]",
+        "validation: the handler throws FluentValidation's ValidationException [ts-fetch-zod]",
+        "validation: the handler throws FluentValidation's ValidationException [ts-fetch-reactquery]",
+        "validation: the handler throws FluentValidation's ValidationException [ts-fetch-swr]",
     };
 
     /// <summary>
@@ -1171,10 +1718,70 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(current, client, ok, cancelled: false)["verdict"]);
 
         var slow = cases.Single(c => c.Kind == "slow");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled" }, cancelled: true)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["callerToken"] = true }, cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["callerToken"] = true }, cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "completed" }, cancelled: false)["verdict"]);
         Assert.Equal(VerdictNotApplicable, (string?)FeatureVerdict(slow, FeatureClients.Single(c => c.Id == "ts-fetch-swr"), new JsonObject { ["kind"] = "na", ["why"] = "SWR" }, cancelled: false)["verdict"]);
+
+        // A C# cancellation must carry the caller's token
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["type"] = "TaskCanceledException", ["callerToken"] = false }, cancelled: true)["verdict"]);
+
+        var tsAxios = FeatureClients.Single(c => c.Id == "ts-axios");
+        JsonObject Threw(
+            string type,
+            string? inner = null,
+            bool callerToken = false,
+            bool httpRequestException = false)
+            => new() { ["kind"] = "threw", ["type"] = type, ["inner"] = inner, ["callerToken"] = callerToken, ["httpRequestException"] = httpRequestException, ["error"] = type + ": message" };
+        JsonObject TsThrew(
+            string errorName,
+            string? code = null,
+            bool isAxiosError = false,
+            bool isApiError = false)
+            => new() { ["kind"] = "threw", ["errorName"] = errorName, ["code"] = code, ["isAxiosError"] = isAxiosError, ["isApiError"] = isApiError, ["error"] = errorName + ": message" };
+        FeatureCase Net(string scenario)
+            => cases.Single(c => (string?)c.Arguments["scenario"] == scenario);
+
+        // A reset: the transport's network error - an HttpRequestException, fetch's TypeError, an AxiosError (named
+        // after the socket error it came from) - never an ApiError or a cancellation
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), client, Threw("HttpIOException", "IOException", httpRequestException: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), client, Threw("JsonException"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), tsFetch, TsThrew("TypeError"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), tsFetch, TsThrew("ApiError", isApiError: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("Error", "ECONNRESET", isAxiosError: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), client, new JsonObject { ["kind"] = "hung" }, cancelled: false)["verdict"]);
+
+        // HttpClient.Timeout: a TaskCanceledException with an inner TimeoutException, not the caller's token
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("client-timeout"), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("client-timeout"), client, Threw("TaskCanceledException", callerToken: true), cancelled: false)["verdict"]);
+
+        // The operation's timeout is a timeout, never what the caller's own abort rejects with - also for a stalled body
+        foreach (var scenario in (string[])["retry-timeout", "stall-timeout"])
+        {
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), client, Threw("TimeoutRejectedException", "TaskCanceledException"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsAxios, TsThrew("TimeoutError", "23"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: false)["verdict"]);
+        }
+
+        // The caller's cancellation mid-body: a cancellation with the caller's token, which reaches the server
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("TaskCanceledException", callerToken: true), cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("TaskCanceledException", callerToken: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("HttpRequestException", httpRequestException: true), cancelled: true)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("cancel-mid-body"), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), tsFetch, TsThrew("TypeError"), cancelled: true)["verdict"]);
+
+        // A ValidationException: a 400 with the validator's message and its field error (a ValidationError in TypeScript)
+        var invalid = cases.Single(c => c.Kind == "invalid");
+        JsonObject Rejected(
+            string? errorName,
+            params string[] errors)
+            => new() { ["kind"] = "error", ["status"] = 400, ["errorName"] = errorName, ["detail"] = "'Name' must be a known thing.", ["errors"] = new JsonArray([.. errors.Select(e => (JsonNode)e)]) };
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, client, Rejected(null, "name"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, client, Rejected(null), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ValidationError", "name"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ApiError", "name"), cancelled: false)["verdict"]);
     }
 
     /// <summary>
@@ -1350,6 +1957,11 @@ public partial class ErrorResponseBodyRuntimeTests
                     return Cell(VerdictFail, $"{kind}: {(string?)observed["error"]}", $"{status}");
                 }
 
+                if (client.Id == "cs-typed-throw")
+                {
+                    return Cell(VerdictPass, "the current version (the Throw style returns the body, no headers)", $"{status}");
+                }
+
                 if (!isHooks && (string?)observed["etag"] != "\"v1\"")
                 {
                     return Cell(VerdictFail, $"ETag '{(string?)observed["etag"] ?? "(none)"}' exposed, expected \"v1\"", $"{status}");
@@ -1370,9 +1982,44 @@ public partial class ErrorResponseBodyRuntimeTests
                     return Cell(VerdictFail, $"{kind}: {(string?)observed["error"]}", "-");
                 }
 
+                if (isCSharp && (bool?)observed["callerToken"] != true)
+                {
+                    return Cell(VerdictFail, $"a {(string?)observed["type"]} that does not carry the caller's token", "cancelled");
+                }
+
                 return cancelled
                     ? Cell(VerdictPass, "the client cancelled and the server saw the cancellation", "cancelled")
                     : Cell(VerdictFail, "the server never saw the cancellation: the request kept running", "cancelled");
+            }
+
+            case "net":
+                return NetVerdict((string)arguments["scenario"]!, client.Id, isCSharp, observed, cancelled);
+
+            case "invalid":
+            {
+                // The handler's ValidationException is the caller's mistake: a 400 whose message and field errors
+                // reach the caller as the client exposes any 400 (a ValidationError in TypeScript)
+                var status = (int?)observed["status"];
+                var errors = observed["errors"] is JsonArray keys ? keys.Select(k => (string?)k).ToList() : [];
+                var summary = $"{status} {(string?)observed["errorName"] ?? string.Empty} errors [{string.Join(",", errors)}]".Replace("  ", " ", StringComparison.Ordinal);
+                if (kind != "error" || status != 400)
+                {
+                    return Cell(VerdictFail, $"{kind} {status}: expected a 400 ({(string?)observed["error"]})", summary);
+                }
+
+                if (!((string?)observed["detail"] ?? (string?)observed["error"] ?? string.Empty).Contains("must be a known thing", StringComparison.Ordinal))
+                {
+                    return Cell(VerdictFail, "the validator's message did not reach the caller: " + (string?)observed["error"], summary);
+                }
+
+                if (!client.Id.StartsWith("cs-", StringComparison.Ordinal) && ((string?)observed["errorName"] != "ValidationError" || (string?)observed["arm"] is not (null or "badRequest")))
+                {
+                    return Cell(VerdictFail, $"{(string?)observed["arm"]} {(string?)observed["errorName"]}: expected the badRequest arm's ValidationError", summary);
+                }
+
+                return errors.Contains("name", StringComparer.OrdinalIgnoreCase)
+                    ? Cell(VerdictPass, "a 400 with the validator's message and its field error", summary)
+                    : Cell(VerdictFail, "a 400 with the validator's message, but without its field error: the server wrote a ProblemDetails, not a ValidationProblemDetails", summary);
             }
 
             default:
@@ -1381,6 +2028,121 @@ public partial class ErrorResponseBodyRuntimeTests
 
         static JsonNode? Normalize(JsonNode? node)
             => node is JsonValue v && v.TryGetValue<double>(out var d) ? JsonValue.Create(d) : node;
+    }
+
+    /// <summary>
+    /// A wire failure's verdict. Nothing reached the caller as a response, so no client returns a result (the C#
+    /// Result style and the TypeScript result union describe responses): every client throws, and what it throws
+    /// says what happened. A broken connection is the transport's own network error (C#: an
+    /// <c>HttpRequestException</c>; TypeScript: fetch's <c>TypeError</c>, Axios' <c>AxiosError</c>). A timeout is a
+    /// timeout, never the caller's cancellation (C#: <c>HttpClient.Timeout</c> a <c>TaskCanceledException</c> with an
+    /// inner <c>TimeoutException</c>, the resilience handler's timeout Polly's <c>TimeoutRejectedException</c>;
+    /// TypeScript: a <c>TimeoutError</c>), also when the headers arrived and the body stalls. The caller's
+    /// cancellation is a cancellation (C#: an <c>OperationCanceledException</c> with the caller's token; TypeScript:
+    /// an <c>AbortError</c>, Axios' <c>CanceledError</c>) that reaches the server.
+    /// </summary>
+    private static JsonObject NetVerdict(
+        string scenario,
+        string clientId,
+        bool isCSharp,
+        JsonObject observed,
+        bool cancelled)
+    {
+        var kind = (string?)observed["kind"];
+        var type = isCSharp ? (string?)observed["type"] : (string?)observed["errorName"];
+        var summary = isCSharp
+            ? $"{type}{((string?)observed["inner"] is { } inner ? " (" + inner + ")" : string.Empty)}"
+            : $"{type}{(observed["code"] is { } code ? " " + code : string.Empty)}{(observed["cause"] is { } cause ? " (" + cause + ")" : string.Empty)}";
+        if (kind == "hung")
+        {
+            return Cell(VerdictFail, "the call never ended (twenty seconds)", "hung");
+        }
+
+        if (scenario == "cancel-mid-body" && kind == "cancelled")
+        {
+            // The React Query hook: unmounted once the server held the read
+            return cancelled
+                ? Cell(VerdictPass, "the hook cancelled and the server saw the cancellation", "cancelled")
+                : Cell(VerdictFail, "the server never saw the cancellation: the read kept running", "-");
+        }
+
+        if (kind != "threw")
+        {
+            return Cell(VerdictFail, $"{kind}: the call ended without an error ({observed["value"]?.ToJsonString() ?? (string?)observed["error"]})", kind ?? "-");
+        }
+
+        var error = (string?)observed["error"];
+        if (!isCSharp && (bool?)observed["isApiError"] == true)
+        {
+            return Cell(VerdictFail, "an ApiError, which stands for an error response, for a request that got none: " + error, summary);
+        }
+
+        var isAxios = clientId == "ts-axios";
+        switch (scenario)
+        {
+            case "reset":
+                if (isCSharp)
+                {
+                    return (bool?)observed["httpRequestException"] == true
+                        ? Cell(VerdictPass, "an HttpRequestException: the connection broke", summary)
+                        : Cell(VerdictFail, "expected an HttpRequestException, got " + error, summary);
+                }
+
+                // An AxiosError made from a socket error keeps that error's name ("Error"): it is told by isAxiosError
+                var isNetworkError = isAxios
+                    ? (bool?)observed["isAxiosError"] == true && observed["code"]?.ToString() is not "ERR_CANCELED"
+                    : type == "TypeError";
+                return isNetworkError
+                    ? Cell(VerdictPass, "the transport's network error: the connection broke", summary)
+                    : Cell(VerdictFail, "expected the transport's network error, got " + error, summary);
+
+            case "client-timeout":
+                if (isCSharp)
+                {
+                    return type == "TaskCanceledException" && (string?)observed["inner"] == "TimeoutException" && (bool?)observed["callerToken"] != true
+                        ? Cell(VerdictPass, "HttpClient.Timeout: a TaskCanceledException with an inner TimeoutException, not the caller's token", summary)
+                        : Cell(VerdictFail, "expected HttpClient.Timeout's TaskCanceledException with an inner TimeoutException, got " + error, summary);
+                }
+
+                // The caller's own signal: its abort, as any abort the caller makes (Axios: its CanceledError)
+                return type == (isAxios ? "CanceledError" : "TimeoutError")
+                    ? Cell(VerdictPass, isAxios ? "the caller's signal aborted: a CanceledError, as any caller abort with Axios" : "the caller's AbortSignal.timeout: its TimeoutError", summary)
+                    : Cell(VerdictFail, $"expected {(isAxios ? "a CanceledError" : "a TimeoutError")}, got " + error, summary);
+
+            case "retry-timeout":
+            case "stall-timeout":
+            {
+                var where = scenario == "retry-timeout" ? "no answer" : "a body that stalls after the headers";
+                if (isCSharp)
+                {
+                    return type == "TimeoutRejectedException"
+                        ? Cell(VerdictPass, $"{where}: the operation's timeout (Polly's TimeoutRejectedException)", summary)
+                        : Cell(VerdictFail, $"{where}: expected the operation's timeout (TimeoutRejectedException), got " + error, summary);
+                }
+
+                return type == "TimeoutError"
+                    ? Cell(VerdictPass, $"{where}: the operation's timeout, a TimeoutError", summary)
+                    : Cell(VerdictFail, $"{where}: expected the operation's timeout (a TimeoutError), got " + error, summary);
+            }
+
+            case "cancel-mid-body":
+            {
+                var isCancellation = isCSharp
+                    ? type is "TaskCanceledException" or "OperationCanceledException" && (bool?)observed["callerToken"] == true
+                    : type == (isAxios ? "CanceledError" : "AbortError");
+                if (!isCancellation)
+                {
+                    return Cell(VerdictFail, "expected the caller's cancellation" + (isCSharp ? " (an OperationCanceledException with the caller's token)" : string.Empty) + ", got " + error, summary);
+                }
+
+                return cancelled
+                    ? Cell(VerdictPass, "the caller's cancellation, and the server saw it", summary)
+                    : Cell(VerdictFail, "the caller's cancellation, but the server never saw it", summary);
+            }
+
+            default:
+                return Cell(VerdictFail, "unknown network scenario " + scenario, "-");
+        }
     }
 
     private static async Task<JsonObject> CollectFeatureMatrixAsync()
@@ -1418,7 +2180,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 .Select(ns => $"global using {ns};");
             var globalUsings = string.Join(Environment.NewLine, usings) + Environment.NewLine;
             sources.Add(("FeatureProbe.cs", globalUsings + FeatureProbeSource));
-            sources.Add(("FeatureProbe.Mode.cs", globalUsings + (client.Typed ? FeatureProbeTypedSource : FeatureProbeEndpointSource)));
+            sources.Add(("FeatureProbe.Mode.cs", globalUsings + (client.Id == "cs-typed-throw" ? FeatureProbeThrowSource : client.Typed ? FeatureProbeTypedSource : FeatureProbeEndpointSource)));
             var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
             var run = (Task<Dictionary<string, string>>)assembly.GetType("ErrorBodies.RuntimeTest.FeatureProbe", throwOnError: true)!
                 .GetMethod("RunAsync")!
@@ -1432,8 +2194,8 @@ public partial class ErrorResponseBodyRuntimeTests
         var cancelledType = host.Assembly.GetType("ErrorBodies.RuntimeTest.FeatureLog", throwOnError: true)!;
         var cancelled = (System.Collections.Concurrent.ConcurrentDictionary<string, bool>)cancelledType.GetProperty("Cancelled")!.GetValue(null)!;
         var cancelProbes = cases
-            .Where(c => c.Arguments["cancelAfter"] is not null || c.Kind == "slow")
-            .SelectMany(c => FeatureClients.Where(cl => c.Kind != "slow" || cl.Id != "ts-fetch-swr").Select(cl => cl.Id + "|" + c.Name))
+            .Where(c => c.Arguments["cancelAfter"] is not null || c.Kind == "slow" || (string?)c.Arguments["scenario"] == "cancel-mid-body")
+            .SelectMany(c => FeatureClients.Where(cl => c.Arguments["cancelAfter"] is not null || cl.Id != "ts-fetch-swr").Select(cl => cl.Id + "|" + c.Name))
             .ToList();
         for (var waited = 0; waited < 100 && cancelProbes.Any(p => !cancelled.ContainsKey(p)); waited++)
         {
