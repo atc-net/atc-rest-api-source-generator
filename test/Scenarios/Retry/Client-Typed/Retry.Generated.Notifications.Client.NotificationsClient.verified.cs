@@ -50,7 +50,7 @@ public sealed class NotificationsClient : INotificationsClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.NotificationsConstant);
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

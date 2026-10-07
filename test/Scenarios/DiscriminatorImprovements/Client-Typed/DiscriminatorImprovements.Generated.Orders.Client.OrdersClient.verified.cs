@@ -45,7 +45,7 @@ public sealed class OrdersClient : IOrdersClient
         CancellationToken cancellationToken = default)
     {
         var url = "orders";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
@@ -56,7 +56,7 @@ public sealed class OrdersClient : IOrdersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"orders/{parameters.OrderId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;

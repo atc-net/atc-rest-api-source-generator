@@ -44,7 +44,7 @@ public sealed class StoreClient : IStoreClient
     public async Task<object> GetInventoryAsync(CancellationToken cancellationToken = default)
     {
         var url = "store/inventory";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<object>(json, jsonSerializerOptions)!;
@@ -55,7 +55,7 @@ public sealed class StoreClient : IStoreClient
         CancellationToken cancellationToken = default)
     {
         var url = "store/order";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
@@ -68,7 +68,7 @@ public sealed class StoreClient : IStoreClient
         var url = $"store/order/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
             return OrderXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
@@ -84,7 +84,7 @@ public sealed class StoreClient : IStoreClient
         CancellationToken cancellationToken = default)
     {
         var url = $"store/order/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

@@ -44,7 +44,7 @@ public sealed class EmployeesClient : IEmployeesClient
     public async Task<List<Employee>> ListEmployeesAsync(CancellationToken cancellationToken = default)
     {
         var url = "employees";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Employee>>(json, jsonSerializerOptions)!;

@@ -50,7 +50,7 @@ public sealed class ExternalClient : IExternalClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.ExternalService);
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<PaymentResult>(json, jsonSerializerOptions)!;

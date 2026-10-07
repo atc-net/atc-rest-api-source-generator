@@ -44,7 +44,7 @@ public sealed class NullableTypeArraysClient : INullableTypeArraysClient
     public async Task<List<Profile>> ListProfilesAsync(CancellationToken cancellationToken = default)
     {
         var url = "profiles";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Profile>>(json, jsonSerializerOptions)!;
@@ -55,7 +55,7 @@ public sealed class NullableTypeArraysClient : INullableTypeArraysClient
         CancellationToken cancellationToken = default)
     {
         var url = "profiles";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Profile>(json, jsonSerializerOptions)!;
@@ -66,7 +66,7 @@ public sealed class NullableTypeArraysClient : INullableTypeArraysClient
         CancellationToken cancellationToken = default)
     {
         var url = $"profiles/{Uri.EscapeDataString(parameters.Id)}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Profile>(json, jsonSerializerOptions)!;

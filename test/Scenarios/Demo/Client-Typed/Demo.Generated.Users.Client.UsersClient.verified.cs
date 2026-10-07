@@ -78,7 +78,7 @@ public sealed class UsersClient : IUsersClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<User>>(json, jsonSerializerOptions)!;
@@ -89,7 +89,7 @@ public sealed class UsersClient : IUsersClient
         CancellationToken cancellationToken = default)
     {
         var url = "users";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<User>(json, jsonSerializerOptions)!;
@@ -100,7 +100,7 @@ public sealed class UsersClient : IUsersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"users/{parameters.UserId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<User>(json, jsonSerializerOptions)!;
@@ -111,7 +111,7 @@ public sealed class UsersClient : IUsersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"users/{parameters.UserId}";
-        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<User>(json, jsonSerializerOptions)!;
@@ -122,7 +122,7 @@ public sealed class UsersClient : IUsersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"users/{parameters.UserId}";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

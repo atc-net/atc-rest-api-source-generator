@@ -48,7 +48,7 @@ public sealed class OrdersClient : IOrdersClient
         var url = "orders";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Order>>(json, jsonSerializerOptions)!;
@@ -62,7 +62,7 @@ public sealed class OrdersClient : IOrdersClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.OrdersFast);
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
@@ -75,7 +75,7 @@ public sealed class OrdersClient : IOrdersClient
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;
@@ -88,7 +88,7 @@ public sealed class OrdersClient : IOrdersClient
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersDelete);
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

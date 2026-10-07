@@ -46,7 +46,7 @@ public sealed class DocumentsClient : IDocumentsClient
         CancellationToken cancellationToken = default)
     {
         var url = "documents";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<DocumentResponse>(json, jsonSerializerOptions)!;

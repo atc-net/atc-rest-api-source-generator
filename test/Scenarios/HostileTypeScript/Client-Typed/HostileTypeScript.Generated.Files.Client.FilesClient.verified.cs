@@ -45,7 +45,7 @@ public sealed class FilesClient : IFilesClient
         CancellationToken cancellationToken = default)
     {
         var url = "files";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<ApiResult>(json, jsonSerializerOptions)!;

@@ -44,7 +44,7 @@ public sealed class AddressesClient : IAddressesClient
     public async Task<List<Address>> ListAddressesAsync(CancellationToken cancellationToken = default)
     {
         var url = "addresses";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Address>>(json, jsonSerializerOptions)!;
@@ -55,7 +55,7 @@ public sealed class AddressesClient : IAddressesClient
         CancellationToken cancellationToken = default)
     {
         var url = "addresses";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Address>(json, jsonSerializerOptions)!;

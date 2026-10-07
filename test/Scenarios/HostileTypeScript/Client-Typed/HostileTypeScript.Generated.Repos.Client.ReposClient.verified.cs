@@ -64,7 +64,7 @@ public sealed class ReposClient : IReposClient
             requestMessage.Headers.Add("default", headerDefault);
         }
 
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Response>>(json, jsonSerializerOptions)!;
@@ -75,7 +75,7 @@ public sealed class ReposClient : IReposClient
         CancellationToken cancellationToken = default)
     {
         var url = $"repos/{Uri.EscapeDataString(parameters.Package)}/{Uri.EscapeDataString(parameters.Function)}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Response>(json, jsonSerializerOptions)!;

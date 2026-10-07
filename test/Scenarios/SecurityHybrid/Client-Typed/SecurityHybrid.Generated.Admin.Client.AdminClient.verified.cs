@@ -43,7 +43,7 @@ public sealed class AdminClient : IAdminClient
     public async Task<AdminSettings> GetAdminSettingsAsync(CancellationToken cancellationToken = default)
     {
         var url = "admin/settings";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<AdminSettings>(json, jsonSerializerOptions)!;
@@ -54,7 +54,7 @@ public sealed class AdminClient : IAdminClient
         CancellationToken cancellationToken = default)
     {
         var url = "admin/settings";
-        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<AdminSettings>(json, jsonSerializerOptions)!;

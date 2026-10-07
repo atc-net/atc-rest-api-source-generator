@@ -57,7 +57,7 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Pet>>(json, jsonSerializerOptions)!;
@@ -66,7 +66,7 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
     public async Task CreatePetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        var response = await httpClient.PostAsync(url, null, cancellationToken);
+        using var response = await httpClient.PostAsync(url, null, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -75,7 +75,7 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(parameters.PetId)}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;

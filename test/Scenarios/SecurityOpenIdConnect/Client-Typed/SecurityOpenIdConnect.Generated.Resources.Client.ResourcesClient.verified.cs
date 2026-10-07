@@ -44,7 +44,7 @@ public sealed class ResourcesClient : IResourcesClient
     public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         var url = "resources";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Resource>>(json, jsonSerializerOptions)!;
@@ -55,7 +55,7 @@ public sealed class ResourcesClient : IResourcesClient
         CancellationToken cancellationToken = default)
     {
         var url = "resources";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Resource>(json, jsonSerializerOptions)!;
@@ -66,7 +66,7 @@ public sealed class ResourcesClient : IResourcesClient
         CancellationToken cancellationToken = default)
     {
         var url = $"resources/{parameters.ResourceId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Resource>(json, jsonSerializerOptions)!;
@@ -77,7 +77,7 @@ public sealed class ResourcesClient : IResourcesClient
         CancellationToken cancellationToken = default)
     {
         var url = $"resources/{parameters.ResourceId}";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

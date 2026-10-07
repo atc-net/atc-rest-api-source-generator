@@ -45,7 +45,7 @@ public sealed class PetsClient : IPetsClient
     public async Task<List<pet>> ListPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<pet>>(json, jsonSerializerOptions)!;
@@ -56,7 +56,7 @@ public sealed class PetsClient : IPetsClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<pet>(json, jsonSerializerOptions)!;

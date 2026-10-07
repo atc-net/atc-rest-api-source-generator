@@ -42,7 +42,7 @@ public sealed class MeClient : IMeClient
     public async Task<UserProfile> GetCurrentUserAsync(CancellationToken cancellationToken = default)
     {
         var url = "me";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<UserProfile>(json, jsonSerializerOptions)!;
@@ -51,7 +51,7 @@ public sealed class MeClient : IMeClient
     public async Task<UserProfile> GetCurrentUserProfileAsync(CancellationToken cancellationToken = default)
     {
         var url = "me/profile";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<UserProfile>(json, jsonSerializerOptions)!;

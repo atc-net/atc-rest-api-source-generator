@@ -44,7 +44,7 @@ public sealed class CoordinatesClient : ICoordinatesClient
     public async Task<Coordinate> GetCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "coordinates";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Coordinate>(json, jsonSerializerOptions)!;
@@ -53,7 +53,7 @@ public sealed class CoordinatesClient : ICoordinatesClient
     public async Task<List<Coordinate>> ListCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "coordinates/list";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Coordinate>>(json, jsonSerializerOptions)!;

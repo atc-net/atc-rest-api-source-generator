@@ -58,7 +58,7 @@ public sealed class PetsClient : IPetsClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Pet>>(json, jsonSerializerOptions)!;
@@ -69,7 +69,7 @@ public sealed class PetsClient : IPetsClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;
@@ -80,7 +80,7 @@ public sealed class PetsClient : IPetsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{parameters.PetId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;
@@ -91,7 +91,7 @@ public sealed class PetsClient : IPetsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{parameters.PetId}";
-        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;
@@ -102,7 +102,7 @@ public sealed class PetsClient : IPetsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{parameters.PetId}";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

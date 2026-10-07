@@ -42,7 +42,7 @@ public sealed class HealthClient : IHealthClient
     public async Task<HealthStatus> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         var url = "health";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<HealthStatus>(json, jsonSerializerOptions)!;

@@ -45,7 +45,7 @@ public sealed class NotificationsClient : INotificationsClient
         CancellationToken cancellationToken = default)
     {
         var url = "notifications";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

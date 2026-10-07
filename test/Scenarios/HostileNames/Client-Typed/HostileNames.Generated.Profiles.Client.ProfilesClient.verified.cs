@@ -60,7 +60,7 @@ public sealed class ProfilesClient : IProfilesClient
 
         using var content = new FormUrlEncodedContent(fields);
 
-        var response = await httpClient.PostAsync(url, content, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<user_profile>(json, jsonSerializerOptions)!;

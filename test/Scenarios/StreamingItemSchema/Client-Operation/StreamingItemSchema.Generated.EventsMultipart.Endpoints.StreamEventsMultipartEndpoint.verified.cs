@@ -60,11 +60,19 @@ public sealed class StreamEventsMultipartEndpoint : IStreamEventsMultipartEndpoi
             return new StreamingEndpointResponse<Event>(false, response.StatusCode, content: null, errorContent, response);
         }
 
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var boundary = response.Content.Headers.ContentType?.Parameters
-            .FirstOrDefault(p => string.Equals(p.Name, "boundary", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('"')
-            ?? throw new global::System.IO.InvalidDataException("A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.");
-        var content = StreamReaders.ReadMultipartMixedAsync<Event>(stream, boundary, contractSerializer, cancellationToken);
-        return new StreamingEndpointResponse<Event>(true, response.StatusCode, content, errorContent: null, response);
+        try
+        {
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var boundary = response.Content.Headers.ContentType?.Parameters
+                .FirstOrDefault(p => string.Equals(p.Name, "boundary", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('"')
+                ?? throw new global::System.IO.InvalidDataException("A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.");
+            var content = StreamReaders.ReadMultipartMixedAsync<Event>(stream, boundary, contractSerializer, cancellationToken);
+            return new StreamingEndpointResponse<Event>(true, response.StatusCode, content, errorContent: null, response);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 }

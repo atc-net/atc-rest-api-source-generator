@@ -63,7 +63,7 @@ public sealed class HostileSchemasClient : IHostileSchemasClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Ticket>>(json, jsonSerializerOptions)!;
@@ -74,7 +74,7 @@ public sealed class HostileSchemasClient : IHostileSchemasClient
         CancellationToken cancellationToken = default)
     {
         var url = "tickets";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Ticket>(json, jsonSerializerOptions)!;

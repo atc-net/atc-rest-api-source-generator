@@ -45,7 +45,7 @@ public sealed class ItemsClient : IItemsClient
     public async Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default)
     {
         var url = "items";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Item>>(json, jsonSerializerOptions)!;
@@ -58,7 +58,7 @@ public sealed class ItemsClient : IItemsClient
         var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}/sheet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/pdf, application/problem+json");
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))
         {

@@ -42,7 +42,7 @@ public sealed class ThingsClient : IThingsClient
     public async Task<movie> Op1stThingAsync(CancellationToken cancellationToken = default)
     {
         var url = "things";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<movie>(json, jsonSerializerOptions)!;

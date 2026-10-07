@@ -57,7 +57,7 @@ public sealed class OrgsClient : IOrgsClient
             requestMessage.Headers.Add("x-tenant", headerTenant);
         }
 
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<DevicePage>(json, jsonSerializerOptions)!;

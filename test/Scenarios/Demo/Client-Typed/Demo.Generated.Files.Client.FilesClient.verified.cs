@@ -46,7 +46,7 @@ public sealed class FilesClient : IFilesClient
         CancellationToken cancellationToken = default)
     {
         var url = $"files/{Uri.EscapeDataString(parameters.Id)}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
     }
@@ -84,7 +84,7 @@ public sealed class FilesClient : IFilesClient
         }
 
 
-        var response = await httpClient.PostAsync(url, content, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -111,7 +111,7 @@ public sealed class FilesClient : IFilesClient
         }
 
 
-        var response = await httpClient.PostAsync(url, content, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -124,7 +124,7 @@ public sealed class FilesClient : IFilesClient
         using var content = new StreamContent(parameters.File!.OpenReadStream());
         content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
 
-        var response = await httpClient.PostAsync(url, content, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -149,7 +149,7 @@ public sealed class FilesClient : IFilesClient
             content.Add(streamContent, "files", fileItem.FileName);
         }
 
-        var response = await httpClient.PostAsync(url, content, cancellationToken);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

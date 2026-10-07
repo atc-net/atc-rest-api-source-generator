@@ -277,7 +277,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // A TypedClient download returns a DownloadedFile (without the Atc.Rest.Client-based FromResponse), and a
         // model or a file a ContentOrFile<T>
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation && HasBufferedFileDownload(openApiDoc))
+        if (config.GenerationMode != GenerationModeType.EndpointPerOperation && HasBufferedFileDownload(openApiDoc, streamedDownloadsAreBuffered: true))
         {
             GenerateDownloadedFile(generatedContext, projectName, includeEndpointResponse: false);
             if (HasModelOrFileResponse(openApiDoc))
@@ -1423,16 +1423,15 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates a ProblemDetails record for RFC 7807 error responses.
-    /// This type is shared across all path segments and used by endpoint result classes for error content.
+    /// Whether any operation downloads a file into memory: in EndpointPerOperation mode not the streamed
+    /// <c>x-return-stream</c> opt-in, which the TypedClient reads into memory like any other download.
     /// </summary>
-    /// <summary>
-    /// Whether any operation downloads a file into memory (not the streamed <c>x-return-stream</c> opt-in).
-    /// </summary>
-    private static bool HasBufferedFileDownload(OpenApiDocument openApiDoc)
+    private static bool HasBufferedFileDownload(
+        OpenApiDocument openApiDoc,
+        bool streamedDownloadsAreBuffered = false)
         => openApiDoc.Paths.Values
             .SelectMany(path => path.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
-            .Any(operation => (operation.HasFileDownload() && !operation.IsStreamedDownloadOperation()) || operation.GetModelOrFileMediaTypes().Count > 0);
+            .Any(operation => (operation.HasFileDownload() && (streamedDownloadsAreBuffered || !operation.IsStreamedDownloadOperation())) || operation.GetModelOrFileMediaTypes().Count > 0);
 
     /// <summary>
     /// Whether any operation answers a model or a file (a 200 that declares both).

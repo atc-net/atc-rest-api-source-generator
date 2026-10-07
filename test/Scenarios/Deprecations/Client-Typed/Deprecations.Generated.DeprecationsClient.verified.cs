@@ -64,7 +64,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Pet>>(json, jsonSerializerOptions)!;
@@ -75,7 +75,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -83,7 +83,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
     public async Task<List<LegacyPet>> ListLegacyPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets/legacy";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<LegacyPet>>(json, jsonSerializerOptions)!;
@@ -94,7 +94,7 @@ public sealed class DeprecationsClient : IDeprecationsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(parameters.PetId)}/photo";
-        var response = await httpClient.PutAsync(url, null, cancellationToken);
+        using var response = await httpClient.PutAsync(url, null, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

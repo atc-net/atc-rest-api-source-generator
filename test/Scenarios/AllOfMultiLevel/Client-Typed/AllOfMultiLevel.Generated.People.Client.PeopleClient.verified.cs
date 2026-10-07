@@ -44,7 +44,7 @@ public sealed class PeopleClient : IPeopleClient
     public async Task<List<Person>> ListPeopleAsync(CancellationToken cancellationToken = default)
     {
         var url = "people";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Person>>(json, jsonSerializerOptions)!;
@@ -55,7 +55,7 @@ public sealed class PeopleClient : IPeopleClient
         CancellationToken cancellationToken = default)
     {
         var url = "people";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Person>(json, jsonSerializerOptions)!;

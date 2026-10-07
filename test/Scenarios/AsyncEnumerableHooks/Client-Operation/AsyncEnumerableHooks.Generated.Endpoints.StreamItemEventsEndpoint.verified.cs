@@ -58,8 +58,16 @@ public sealed class StreamItemEventsEndpoint : IStreamItemEventsEndpoint
             return new StreamingEndpointResponse<Item>(false, response.StatusCode, content: null, errorContent, response);
         }
 
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var content = StreamReaders.ReadServerSentEventsAsync<Item>(stream, contractSerializer, cancellationToken);
-        return new StreamingEndpointResponse<Item>(true, response.StatusCode, content, errorContent: null, response);
+        try
+        {
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var content = StreamReaders.ReadServerSentEventsAsync<Item>(stream, contractSerializer, cancellationToken);
+            return new StreamingEndpointResponse<Item>(true, response.StatusCode, content, errorContent: null, response);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 }

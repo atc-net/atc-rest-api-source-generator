@@ -50,7 +50,7 @@ public sealed class UserClient : IUserClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
             return PetStoreFull.Generated.User.Models.UserXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
@@ -69,7 +69,7 @@ public sealed class UserClient : IUserClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
             return PetStoreFull.Generated.User.Models.UserXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
@@ -102,7 +102,7 @@ public sealed class UserClient : IUserClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
@@ -110,7 +110,7 @@ public sealed class UserClient : IUserClient
     public async Task LogoutUserAsync(CancellationToken cancellationToken = default)
     {
         var url = "user/logout";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -121,7 +121,7 @@ public sealed class UserClient : IUserClient
         var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
             return PetStoreFull.Generated.User.Models.UserXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
@@ -137,7 +137,7 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
-        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -146,7 +146,7 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

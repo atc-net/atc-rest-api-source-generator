@@ -45,7 +45,7 @@ public sealed class ExportsClient : IExportsClient
         CancellationToken cancellationToken = default)
     {
         var url = "exports";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<ExportJob>(json, jsonSerializerOptions)!;

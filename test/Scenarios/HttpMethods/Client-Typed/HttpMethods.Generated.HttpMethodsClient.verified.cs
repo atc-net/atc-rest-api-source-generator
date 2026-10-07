@@ -45,7 +45,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
     public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         var url = "resources";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Resource>>(json, jsonSerializerOptions)!;
@@ -60,7 +60,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Query, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
 
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Resource>>(json, jsonSerializerOptions)!;
@@ -72,7 +72,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
 
         using var requestMessage = new HttpRequestMessage(new HttpMethod("LINK"), url);
 
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

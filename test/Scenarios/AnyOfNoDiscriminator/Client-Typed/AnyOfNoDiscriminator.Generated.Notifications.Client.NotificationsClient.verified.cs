@@ -43,7 +43,7 @@ public sealed class NotificationsClient : INotificationsClient
     public async Task<List<Notification>> ListNotificationsAsync(CancellationToken cancellationToken = default)
     {
         var url = "notifications";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Notification>>(json, jsonSerializerOptions)!;

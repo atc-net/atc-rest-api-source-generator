@@ -1230,14 +1230,36 @@ public static class HttpClientExtractor
         builder.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(false, response.StatusCode, content: null, errorContent, response);");
         builder.AppendLine("}");
         builder.AppendLine();
-        builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
-        builder.AppendLine();
 
-        AppendMultipartBoundaryIfNeeded(builder, streamingFraming);
+        // Until the envelope owns the response, a failure (the body cannot be opened, no multipart boundary) disposes it
+        var reader = new StringBuilder();
+        reader.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+        reader.AppendLine();
+        AppendMultipartBoundaryIfNeeded(reader, streamingFraming);
+        reader.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming)};");
+        reader.AppendLine();
+        reader.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
 
-        builder.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming)};");
-        builder.AppendLine();
-        builder.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
+        builder.AppendLine("try");
+        builder.AppendLine("{");
+        foreach (var line in reader.ToString().Split(["\r\n", "\n"], StringSplitOptions.None))
+        {
+            if (line.Length == 0)
+            {
+                builder.AppendLine();
+            }
+            else
+            {
+                builder.AppendLine(4, line);
+            }
+        }
+
+        builder.AppendLine("}");
+        builder.AppendLine("catch");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "response.Dispose();");
+        builder.AppendLine(4, "throw;");
+        builder.Append('}');
     }
 
     /// <summary>
@@ -1335,7 +1357,7 @@ public static class HttpClientExtractor
         }
 
         builder.AppendLine();
-        builder.AppendLine("var response = await httpClient.SendAsync(requestMessage, cancellationToken);");
+        builder.AppendLine("using var response = await httpClient.SendAsync(requestMessage, cancellationToken);");
 
         AppendResponseCompletion(
             builder,
@@ -1586,9 +1608,14 @@ public static class HttpClientExtractor
         bool disposeResponse = false,
         string? accept = null)
     {
+        // A buffered response is read in full before the method returns, so the method disposes it; only a streamed
+        // response the caller takes over (the Result style's streaming envelope) is left undisposed
+        disposeResponse |= !responseHeadersRead;
         if (resilienceStamp is null && accept is null)
         {
-            builder.AppendLine(plainSendStatement);
+            builder.AppendLine(disposeResponse && plainSendStatement.StartsWith("var response", StringComparison.Ordinal)
+                ? "using " + plainSendStatement
+                : plainSendStatement);
             return;
         }
 

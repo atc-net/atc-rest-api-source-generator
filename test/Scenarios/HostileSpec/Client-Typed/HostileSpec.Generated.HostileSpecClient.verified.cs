@@ -78,7 +78,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Note>>(json, jsonSerializerOptions)!;
@@ -87,7 +87,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
     public async Task DeleteNotesAsync(CancellationToken cancellationToken = default)
     {
         var url = "notes";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var response = await httpClient.DeleteAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -96,7 +96,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
         CancellationToken cancellationToken = default)
     {
         var url = "notes";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Note>(json, jsonSerializerOptions)!;

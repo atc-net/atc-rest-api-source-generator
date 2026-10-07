@@ -43,7 +43,7 @@ public sealed class ArraysClient : IArraysClient
     public async Task<ArrayTypes> GetArrayTypesAsync(CancellationToken cancellationToken = default)
     {
         var url = "arrays";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<ArrayTypes>(json, jsonSerializerOptions)!;

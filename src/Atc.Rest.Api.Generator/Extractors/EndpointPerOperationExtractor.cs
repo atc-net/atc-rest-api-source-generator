@@ -1329,15 +1329,23 @@ public static class EndpointPerOperationExtractor
         {
             // A streamed download: the open content stream on success; on an error the body is read as text (typed as
             // the registered error in ErrorContentObject), so the response is no longer needed and is disposed - the
-            // builder does not own it.
+            // builder does not own it. A build that throws disposes it too.
             AppendResponseRegistrations(sb, responses, defaultResponse);
-            sb.AppendLine("var streamed = await responseBuilder.BuildStreamBinaryResponseAsync(cancellationToken);");
-            sb.AppendLine("if (!streamed.IsSuccess)");
+            sb.AppendLine("try");
+            sb.AppendLine("{");
+            sb.AppendLine(4, "var streamed = await responseBuilder.BuildStreamBinaryResponseAsync(cancellationToken);");
+            sb.AppendLine(4, "if (!streamed.IsSuccess)");
+            sb.AppendLine(4, "{");
+            sb.AppendLine(8, "response.Dispose();");
+            sb.AppendLine(4, "}");
+            sb.AppendLine();
+            sb.AppendLine(4, "return streamed;");
+            sb.AppendLine("}");
+            sb.AppendLine("catch");
             sb.AppendLine("{");
             sb.AppendLine(4, "response.Dispose();");
-            sb.AppendLine("}");
-            sb.AppendLine();
-            sb.Append("return streamed;");
+            sb.AppendLine(4, "throw;");
+            sb.Append('}');
         }
         else if (usesStreamReaders)
         {
@@ -1354,20 +1362,31 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(false, response.StatusCode, content: null, errorContent, response);");
             sb.AppendLine("}");
             sb.AppendLine();
-            sb.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+
+            // Until the envelope owns the response, a failure (the body cannot be opened, no multipart boundary)
+            // disposes it
+            sb.AppendLine("try");
+            sb.AppendLine("{");
+            sb.AppendLine(4, "var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
             if (isMultipart)
             {
-                sb.AppendLine("var boundary = response.Content.Headers.ContentType?.Parameters");
-                sb.AppendLine(4, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
-                sb.AppendLine(4, "?? throw new global::System.IO.InvalidDataException(\"A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.\");");
-                sb.AppendLine($"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, boundary, contractSerializer, cancellationToken);");
+                sb.AppendLine(4, "var boundary = response.Content.Headers.ContentType?.Parameters");
+                sb.AppendLine(8, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
+                sb.AppendLine(8, "?? throw new global::System.IO.InvalidDataException(\"A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.\");");
+                sb.AppendLine(4, $"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, boundary, contractSerializer, cancellationToken);");
             }
             else
             {
-                sb.AppendLine($"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, contractSerializer, cancellationToken);");
+                sb.AppendLine(4, $"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, contractSerializer, cancellationToken);");
             }
 
-            sb.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
+            sb.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
+            sb.AppendLine("}");
+            sb.AppendLine("catch");
+            sb.AppendLine("{");
+            sb.AppendLine(4, "response.Dispose();");
+            sb.AppendLine(4, "throw;");
+            sb.Append('}');
         }
         else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {

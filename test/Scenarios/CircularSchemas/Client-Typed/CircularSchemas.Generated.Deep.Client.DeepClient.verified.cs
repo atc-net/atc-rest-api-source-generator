@@ -42,7 +42,7 @@ public sealed class DeepClient : IDeepClient
     public async Task<Level1> GetDeepChainAsync(CancellationToken cancellationToken = default)
     {
         var url = "deep";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Level1>(json, jsonSerializerOptions)!;

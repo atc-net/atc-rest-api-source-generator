@@ -44,7 +44,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
     public async Task<List<Pet>> ListPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Pet>>(json, jsonSerializerOptions)!;
@@ -55,7 +55,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;
@@ -66,7 +66,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Pet>(json, jsonSerializerOptions)!;
@@ -77,7 +77,7 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}/photo";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
     }

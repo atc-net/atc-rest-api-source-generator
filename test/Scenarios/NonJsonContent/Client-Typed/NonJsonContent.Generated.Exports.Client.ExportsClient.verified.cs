@@ -41,7 +41,7 @@ public sealed class ExportsClient : IExportsClient
     public async Task<string> ExportCsvAsync(CancellationToken cancellationToken = default)
     {
         var url = "exports/csv";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }

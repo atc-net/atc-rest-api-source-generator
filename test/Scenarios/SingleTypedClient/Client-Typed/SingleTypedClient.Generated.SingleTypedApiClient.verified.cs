@@ -44,7 +44,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
     public async Task<List<Account>> ListAccountsAsync(CancellationToken cancellationToken = default)
     {
         var url = "accounts";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Account>>(json, jsonSerializerOptions)!;
@@ -55,7 +55,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"accounts/{Uri.EscapeDataString(parameters.AccountId)}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Account>(json, jsonSerializerOptions)!;
@@ -64,7 +64,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "orders";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Order>>(json, jsonSerializerOptions)!;
@@ -75,7 +75,7 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         CancellationToken cancellationToken = default)
     {
         var url = "orders";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Order>(json, jsonSerializerOptions)!;

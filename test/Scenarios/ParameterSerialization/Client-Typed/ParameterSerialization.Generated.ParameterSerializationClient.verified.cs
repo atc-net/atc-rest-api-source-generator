@@ -92,7 +92,7 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             requestMessage.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
         }
 
-        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Item>>(json, jsonSerializerOptions)!;
@@ -109,7 +109,7 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             url += (url.Contains('?') ? "&" : "?") + parameters.RawFilter;
         }
 
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Item>>(json, jsonSerializerOptions)!;

@@ -43,7 +43,7 @@ public sealed class UsersClient : IUsersClient
     public async Task<List<User>> ListUsersAsync(CancellationToken cancellationToken = default)
     {
         var url = "users";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<User>>(json, jsonSerializerOptions)!;
@@ -54,7 +54,7 @@ public sealed class UsersClient : IUsersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"users/{parameters.UserId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<User>(json, jsonSerializerOptions)!;

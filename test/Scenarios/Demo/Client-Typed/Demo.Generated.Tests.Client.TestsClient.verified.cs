@@ -45,7 +45,7 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-model";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<TestItem>(json, jsonSerializerOptions)!;
@@ -56,7 +56,7 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-location-header";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return response.Headers.Location!;
     }
@@ -66,7 +66,7 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-location-body";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<Uri>(json, jsonSerializerOptions)!;
@@ -77,7 +77,7 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-empty";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

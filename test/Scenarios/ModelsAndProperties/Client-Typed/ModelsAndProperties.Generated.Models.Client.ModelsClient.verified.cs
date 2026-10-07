@@ -45,7 +45,7 @@ public sealed class ModelsClient : IModelsClient
     public async Task<List<ComprehensiveModel>> ListModelsAsync(CancellationToken cancellationToken = default)
     {
         var url = "models";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<ComprehensiveModel>>(json, jsonSerializerOptions)!;
@@ -56,7 +56,7 @@ public sealed class ModelsClient : IModelsClient
         CancellationToken cancellationToken = default)
     {
         var url = "models";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<ComprehensiveModel>(json, jsonSerializerOptions)!;
@@ -67,7 +67,7 @@ public sealed class ModelsClient : IModelsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"models/{parameters.ModelId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<ComprehensiveModel>(json, jsonSerializerOptions)!;
