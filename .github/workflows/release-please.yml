@@ -8,7 +8,7 @@ on:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60
     permissions:
       contents: read
       id-token: write  # required for NuGet Trusted Publishing (OIDC)
@@ -44,6 +44,12 @@ jobs:
       - name: 🛠️ Build solution
         if: ${{ steps.release.outputs.release_created }}
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore /p:UseSourceLink=true
+
+      # Nothing reaches nuget.org untested: the tag runs the whole suite, which packs the generator and builds a consumer
+      # from that package (PackageInstallTests) - the path the project references of the samples never take
+      - name: 🧪 Run tests
+        if: ${{ steps.release.outputs.release_created }}
+        run: dotnet test --solution Atc.Rest.Api.SourceGenerator.slnx -c Release --no-build
 
       # The three packages share a single <Version> in Directory.Build.props, so they are
       # always packed and published together from one release-please tag.
