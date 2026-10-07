@@ -65,6 +65,14 @@ public class TypeScriptClientConfig
     public bool ConvertDates { get; set; }
 
     /// <summary>
+    /// Ask for XML first for an operation that offers its response as JSON and XML, and send a request body offered as
+    /// JSON and XML as XML (<c>--prefer-xml</c>). Default: false. The same setting as <c>preferXml</c> in the C# client
+    /// marker: by default the client sends <c>Accept: application/json, application/problem+json</c> and a JSON body;
+    /// either way it reads whatever <c>Content-Type</c> comes back.
+    /// </summary>
+    public bool PreferXml { get; set; }
+
+    /// <summary>
     /// Generate mutable model properties (omit readonly modifier). Default: false.
     /// </summary>
     public bool MutableModels { get; set; }

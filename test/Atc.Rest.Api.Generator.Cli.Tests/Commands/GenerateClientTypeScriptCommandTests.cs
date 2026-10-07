@@ -835,6 +835,30 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task PreferXml_AsksForXmlFirst()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("PetStoreFull");
+        var outputPath = Path.Combine(tempOutputDir, "PetStoreTsPreferXml");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --prefer-xml";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var petClient = await File.ReadAllTextAsync(
+            Path.Combine(outputPath, "client", "PetClient.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("accept: 'application/xml", petClient, StringComparison.Ordinal);
+        Assert.DoesNotContain("accept: 'application/json, application/problem+json'", petClient, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task NoReadonly_OmitsReadonlyModifier()
     {
         // Arrange

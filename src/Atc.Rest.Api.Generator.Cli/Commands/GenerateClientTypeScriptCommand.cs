@@ -294,6 +294,11 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             config.ConvertDates = true;
         }
 
+        if (settings.PreferXml)
+        {
+            config.PreferXml = true;
+        }
+
         if (settings.NoReadonly)
         {
             config.MutableModels = true;

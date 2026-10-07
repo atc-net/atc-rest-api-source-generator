@@ -14,6 +14,20 @@ public sealed class TypeScriptXmlGateTests
 {
     [Fact]
     public void GeneratedClients_XmlBodies_AreReadAndWrittenByTheModelMapping()
+        => RunGate(SpecYaml, preferXml: false, Harness);
+
+    /// <summary>
+    /// With <c>PreferXml</c> (<c>--prefer-xml</c>), an operation offering JSON and XML asks for XML first and sends
+    /// its request body as XML - the same as the C# client's <c>preferXml</c>.
+    /// </summary>
+    [Fact]
+    public void GeneratedClients_PreferXml_AskForAndSendXmlFirst()
+        => RunGate(PreferXmlSpecYaml, preferXml: true, PreferXmlHarness);
+
+    private static void RunGate(
+        string specYaml,
+        bool preferXml,
+        string harness)
     {
         if (!NodeToolchain.IsAvailable(out var skipReason))
         {
@@ -25,7 +39,7 @@ public sealed class TypeScriptXmlGateTests
             Assert.Skip(skipReason);
         }
 
-        Assert.True(OpenApiDocumentHelper.TryParseYaml(SpecYaml, "XmlBodies.yaml", out var doc));
+        Assert.True(OpenApiDocumentHelper.TryParseYaml(specYaml, "XmlBodies.yaml", out var doc));
 
         var workDir = Path.Combine(Path.GetTempPath(), "atc-xml-gate", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(workDir);
@@ -42,12 +56,13 @@ public sealed class TypeScriptXmlGateTests
                     HooksStyle = TypeScriptHooksStyle.None,
                     GenerateFileHeaders = true,
                     Scaffold = false,
+                    PreferXml = preferXml,
                 });
             }
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
-            File.WriteAllText(Path.Combine(workDir, "harness.mts"), Harness);
+            File.WriteAllText(Path.Combine(workDir, "harness.mts"), harness);
 
             NodeWorkspace.Link(workDir);
 
@@ -359,5 +374,136 @@ public sealed class TypeScriptXmlGateTests
         }
 
         console.log('xml gate: all checks passed');
+        """;
+
+    private const string PreferXmlSpecYaml = """
+        openapi: 3.0.3
+        info:
+          title: PreferXml
+          version: 1.0.0
+        paths:
+          /pets:
+            post:
+              operationId: addPet
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Pet'
+                  application/xml:
+                    schema:
+                      $ref: '#/components/schemas/Pet'
+              responses:
+                '201':
+                  description: Created
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Pet'
+                    application/xml:
+                      schema:
+                        $ref: '#/components/schemas/Pet'
+          /pets/{id}:
+            get:
+              operationId: getPet
+              parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: integer
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Pet'
+                    application/xml:
+                      schema:
+                        $ref: '#/components/schemas/Pet'
+        components:
+          schemas:
+            Pet:
+              type: object
+              required: [id, name]
+              properties:
+                id:
+                  type: integer
+                  format: int64
+                  xml:
+                    attribute: true
+                name:
+                  type: string
+              xml:
+                name: pet
+        """;
+
+    private const string PreferXmlHarness = """
+        import axios from 'axios';
+        import { DOMParser } from '@xmldom/xmldom';
+        import { ApiClient as FetchApiClient } from './fetch/client/ApiClient';
+        import { PetsClient as FetchPets } from './fetch/client/PetsClient';
+        import { setXmlParser as setFetchParser } from './fetch/helpers/xml';
+        import { ApiClient as AxiosApiClient } from './axios/client/ApiClient';
+        import { PetsClient as AxiosPets } from './axios/client/PetsClient';
+        import { setXmlParser as setAxiosParser } from './axios/helpers/xml';
+
+        setFetchParser(() => new DOMParser() as any);
+        setAxiosParser(() => new DOMParser() as any);
+
+        const failures: string[] = [];
+        const check = (name: string, cond: boolean, detail: string) => { if (!cond) failures.push(name + ': ' + detail); };
+        const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+        let sent: { accept: string; contentType: string; body: string } = { accept: '', contentType: '', body: '' };
+
+        // The server answers in XML when the client asks for XML first.
+        function answer(method: string): { status: number; contentType: string; body: string } {
+          const xmlFirst = sent.accept.startsWith('application/xml');
+          const status = method.toUpperCase() === 'POST' ? 201 : 200;
+          return xmlFirst
+            ? { status, contentType: 'application/xml; charset=utf-8', body: '<pet id="1"><name>Rex</name></pet>' }
+            : { status, contentType: 'application/json; charset=utf-8', body: '{"id":1,"name":"Rex"}' };
+        }
+
+        (globalThis as any).fetch = async (input: any, init: any) => {
+          const headers = new Headers(init?.headers);
+          sent = { accept: headers.get('Accept') ?? '', contentType: headers.get('Content-Type') ?? '', body: typeof init?.body === 'string' ? init.body : '' };
+          const a = answer(init?.method ?? 'GET');
+          return new Response(a.body, { status: a.status, headers: { 'content-type': a.contentType } });
+        };
+
+        axios.defaults.adapter = (async (config: any) => {
+          const headers = config.headers ?? {};
+          const get = (name: string) => String((typeof headers.get === 'function' ? headers.get(name) : headers[name]) ?? '');
+          const body = typeof config.data === 'string' ? config.data : '';
+          sent = { accept: get('Accept'), contentType: get('Content-Type'), body };
+          const a = answer(config.method);
+          const data = config.transformResponse ? [].concat(config.transformResponse).reduce((d: any, fn: any) => fn.call(config, d, { 'content-type': a.contentType }), a.body) : a.body;
+          return { data, status: a.status, statusText: String(a.status), headers: { 'content-type': a.contentType }, config, request: {} };
+        }) as any;
+
+        async function run(label: string, pets: any): Promise<void> {
+          const pet = await pets.getPet(1);
+          check(label + ' accept', sent.accept === 'application/xml, application/problem+xml;q=0.9, application/problem+json;q=0.8', 'accept ' + sent.accept);
+          check(label + ' xml-answer', pet.status === 'ok' && same(pet.data, { id: 1, name: 'Rex' }), pet.status + ' ' + JSON.stringify(pet.data ?? pet.error?.message));
+
+          const created = await pets.addPet({ id: 3, name: 'Fido & co' });
+          check(label + ' xml-body', sent.body === '<pet id="3"><name>Fido &amp; co</name></pet>', 'body ' + sent.body);
+          check(label + ' xml-body-type', sent.contentType.startsWith('application/xml'), 'content-type ' + sent.contentType);
+          check(label + ' created', created.status === 'created' && same(created.data, { id: 1, name: 'Rex' }), created.status + ' ' + JSON.stringify(created.data ?? created.error?.message));
+        }
+
+        await run('fetch', new FetchPets(new FetchApiClient('http://stub')));
+        await run('axios', new AxiosPets(new AxiosApiClient('http://stub')));
+
+        if (failures.length > 0) {
+          console.error(failures.join('\n'));
+          process.exit(1);
+        }
+
+        console.log('prefer-xml gate: all checks passed');
         """;
 }

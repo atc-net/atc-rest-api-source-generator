@@ -88,6 +88,14 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     public bool ConvertDates { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether an operation offering JSON and XML asks for XML first and sends its body as XML.
+    /// </summary>
+    [CommandOption("--prefer-xml")]
+    [Description("Ask for XML first, and send XML, for an operation that offers its body as JSON and XML.")]
+    [DefaultValue(false)]
+    public bool PreferXml { get; init; }
+
+    /// <summary>
     /// Gets a value indicating whether model properties are emitted without the <c>readonly</c> modifier.
     /// </summary>
     [CommandOption("--no-readonly")]

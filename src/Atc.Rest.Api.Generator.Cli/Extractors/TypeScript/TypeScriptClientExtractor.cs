@@ -23,7 +23,8 @@ public static class TypeScriptClientExtractor
         HashSet<string>? writableSchemas = null,
         bool brandedIds = false,
         bool zodRuntimeValidate = false,
-        TypeScriptWireNames? wireNames = null)
+        TypeScriptWireNames? wireNames = null,
+        bool preferXml = false)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -41,7 +42,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate, wireNames);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, preferXml);
             results.Add((className, content));
         }
 
@@ -60,7 +61,8 @@ public static class TypeScriptClientExtractor
         HashSet<string> writableSchemas,
         bool brandedIds,
         bool zodRuntimeValidate,
-        TypeScriptWireNames wireNames)
+        TypeScriptWireNames wireNames,
+        bool preferXml)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -284,7 +286,7 @@ public static class TypeScriptClientExtractor
             bodySb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpArms.TryGetValue(operation, out var armsOption);
-            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions);
+            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions, preferXml);
         }
 
         bodySb.AppendLine("}");
@@ -432,11 +434,13 @@ public static class TypeScriptClientExtractor
 
     /// <summary>
     /// The <c>xml</c> request option of an operation with an XML body: the read function of an XML (or JSON+XML)
-    /// success response with the Accept to send, and the write function of an XML-only request body.
+    /// success response with the Accept to send, and the write function of an XML-only request body - or, with
+    /// <paramref name="preferXml"/>, of a body offered as JSON and XML.
     /// </summary>
     private static string? BuildXmlOption(
         OpenApiOperation operation,
-        ISet<string>? xmlFunctions)
+        ISet<string>? xmlFunctions,
+        bool preferXml)
     {
         var parts = new List<string>();
         var success = operation.Responses?
@@ -452,11 +456,11 @@ public static class TypeScriptClientExtractor
             var read = responseXml.IsList ? names.ReadList : names.Read;
             xmlFunctions?.Add(read);
             parts.Add("read: " + read);
-            parts.Add("accept: '" + XmlBodyHelper.AcceptFor([responseXml], XmlBodyHelper.ErrorMediaTypes(operation), preferXml: false, operation.GetModelOrFileMediaTypes()) + "'");
+            parts.Add("accept: '" + XmlBodyHelper.AcceptFor([responseXml], XmlBodyHelper.ErrorMediaTypes(operation), preferXml, operation.GetModelOrFileMediaTypes()) + "'");
         }
 
         var requestContent = operation.RequestBody?.Content;
-        if (XmlBodyHelper.FindXmlOnlyBody(requestContent) is { } requestXml &&
+        if (XmlBodyHelper.ClientRequestBody(operation, preferXml) is { } requestXml &&
             ModelKey(requestContent![requestXml.MediaType].Schema, requestXml.IsList) is { } requestKey)
         {
             var names = TypeScriptXmlHelperExtractor.FunctionNames(requestKey);
@@ -512,7 +516,8 @@ public static class TypeScriptClientExtractor
         bool brandedIds,
         bool zodRuntimeValidate,
         TypeScriptWireNames wireNames,
-        ISet<string>? xmlFunctions = null)
+        ISet<string>? xmlFunctions = null,
+        bool preferXml = false)
     {
         var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
@@ -577,12 +582,12 @@ public static class TypeScriptClientExtractor
 
             // A model or a file: read by the answer's Content-Type, asking for the model's and the file's media types
             var modelOrFileAccept = operation.GetModelOrFileMediaTypes() is { Count: > 0 } fileMediaTypes
-                ? XmlBodyHelper.AcceptFor(XmlBodyHelper.FindXmlOnlyBody(operation.Responses?["200"]?.Content) is { } xmlOnly ? [xmlOnly] : [], XmlBodyHelper.ErrorMediaTypes(operation), preferXml: false, fileMediaTypes)
+                ? XmlBodyHelper.AcceptFor(XmlBodyHelper.FindXmlOnlyBody(operation.Responses?["200"]?.Content) is { } xmlOnly ? [xmlOnly] : [], XmlBodyHelper.ErrorMediaTypes(operation), preferXml, fileMediaTypes)
                 : null;
 
             // A raw file upload: the media types the request body declares
             var rawUploadMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList();
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions), modelOrFileAccept, rawUploadMediaTypes);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes);
         }
     }
 
