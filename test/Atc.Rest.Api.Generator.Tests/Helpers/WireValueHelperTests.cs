@@ -26,6 +26,7 @@ public class WireValueHelperTests
             When: { type: string, format: date-time }
             Ratio: { type: number, format: double }
             Count: { type: integer, format: int32 }
+            Flag: { type: boolean }
             Filter:
               type: object
               properties:
@@ -139,8 +140,30 @@ public class WireValueHelperTests
     }
 
     [Theory]
-    [InlineData("string")]
     [InlineData("bool")]
+    [InlineData("bool?")]
+    public void TryBuildWireExpression_CSharpType_Boolean_IsLowercase(
+        string csharpType)
+    {
+        // bool.ToString() writes True/False; the wire (JSON, OpenAPI's form style) writes true/false
+        var result = WireValueHelper.TryBuildWireExpression("parameters.IsActive", csharpType);
+
+        Assert.Equal("((bool?)parameters.IsActive) switch { true => \"true\", false => \"false\", _ => null }", result);
+    }
+
+    [Fact]
+    public void TryBuildWireExpression_Schema_Boolean_IsLowercase()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(Yaml);
+        var schema = document.Components!.Schemas!["Flag"];
+
+        var result = WireValueHelper.TryBuildWireExpression("parameters.Printable", schema);
+
+        Assert.Equal("((bool?)parameters.Printable) switch { true => \"true\", false => \"false\", _ => null }", result);
+    }
+
+    [Theory]
+    [InlineData("string")]
     [InlineData("Guid")]
     [InlineData("Color")]
     public void TryBuildWireExpression_CSharpType_TypesWithoutCulture_ReturnNull(

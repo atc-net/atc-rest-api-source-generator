@@ -1142,6 +1142,68 @@ public class EndpointPerOperationExtractorTests
     }
 
     [Fact]
+    public void Extract_BooleanQueryAndHeaderParameters_AreSentLowercase()
+    {
+        // Arrange - bool.ToString() writes True/False; the wire writes true/false
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: printable
+                                      in: query
+                                      required: false
+                                      schema:
+                                        type: boolean
+                                    - name: isActive
+                                      in: query
+                                      required: true
+                                      schema:
+                                        type: boolean
+                                    - name: x-dry-run
+                                      in: header
+                                      required: false
+                                      schema:
+                                        type: boolean
+                                  responses:
+                                    '204':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        var content = Assert.Single(files).EndpointClassContent;
+        Assert.NotNull(content);
+        Assert.Contains(
+            "requestBuilder.WithQueryParameter(\"printable\", ((bool?)parameters.Printable) switch { true => \"true\", false => \"false\", _ => null });",
+            content,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "requestBuilder.WithQueryParameter(\"isActive\", ((bool?)parameters.IsActive) switch { true => \"true\", false => \"false\", _ => null });",
+            content,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "((bool?)parameters.DryRun) switch { true => \"true\", false => \"false\", _ => null }",
+            content,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_MixedParameters_GeneratesAllParameterTypes()
     {
         // Arrange - path, query, and header parameters combined

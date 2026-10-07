@@ -64,6 +64,15 @@ public static class WireValueHelper
         => $"(global::System.Text.RegularExpressions.Regex.Replace(global::System.Uri.EscapeDataString({valueExpression}), \"%(3A|2F|3F|5B|5D|40|21|24|26|27|28|29|2A|2B|2C|3B|3D)\", m => global::System.Uri.UnescapeDataString(m.Value), global::System.Text.RegularExpressions.RegexOptions.None, global::System.TimeSpan.FromSeconds(1)))";
 
     /// <summary>
+    /// A C# expression of type <c>string?</c> that writes a boolean as the wire does: <c>true</c> / <c>false</c>, where
+    /// <c>bool.ToString()</c> writes <c>True</c> / <c>False</c> (a server that compares the text sees neither).
+    /// </summary>
+    /// <param name="accessExpression">The expression that reads the value, nullable or not.</param>
+    /// <returns>The expression.</returns>
+    public static string BooleanWireExpression(string accessExpression)
+        => $"((bool?){accessExpression}) switch {{ true => \"true\", false => \"false\", _ => null }}";
+
+    /// <summary>
     /// Returns a C# expression that formats a parameter value for the wire from its schema, or
     /// <see langword="null"/> when the schema needs no culture-independent formatting. The expression
     /// works for a nullable and a non-nullable property alike and is of type <c>string?</c>.
@@ -84,6 +93,11 @@ public static class WireValueHelper
         if (actualSchema is null || actualSchema.Enum is { Count: > 0 })
         {
             return null;
+        }
+
+        if (actualSchema.IsOfType(JsonSchemaType.Boolean))
+        {
+            return BooleanWireExpression(accessExpression);
         }
 
         string? format;
@@ -116,7 +130,8 @@ public static class WireValueHelper
 
     /// <summary>
     /// Returns a C# expression that formats the value for the wire, or <see langword="null"/> when the
-    /// type needs no culture-independent formatting (strings, integers, booleans, GUIDs, enums, models).
+    /// type needs no culture-independent formatting (strings, GUIDs, enums, models). A boolean is <c>true</c> /
+    /// <c>false</c>, never <c>bool.ToString()</c>'s <c>True</c> / <c>False</c>.
     /// </summary>
     /// <param name="accessExpression">The expression that reads the value, e.g. <c>parameters.From</c>.</param>
     /// <param name="csharpType">The C# type of the value, e.g. <c>DateOnly?</c>.</param>
@@ -128,6 +143,11 @@ public static class WireValueHelper
         if (csharpType is null)
         {
             throw new ArgumentNullException(nameof(csharpType));
+        }
+
+        if (csharpType.TrimEnd('?') == "bool")
+        {
+            return BooleanWireExpression(accessExpression);
         }
 
         var arguments = csharpType.TrimEnd('?') switch
