@@ -17,10 +17,20 @@ export function useNotificationHub(callbacks: NotificationHubCallbacks) {
   const [connectionState, setConnectionState] = useState<ConnectionState>('Disconnected');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const connectionRef = useRef<HubConnection | null>(null);
+  // The start of the current connection: a stop waits for it (stopping during the negotiation fails the start)
+  const startRef = useRef<Promise<void> | null>(null);
+  // The id the hub gave the subscription - Unsubscribe names it
+  const subscriptionIdRef = useRef<string | null>(null);
   const callbacksRef = useRef(callbacks);
   callbacksRef.current = callbacks;
 
   const isConnected = connectionState === 'Connected';
+
+  // Stops a connection once its start has settled (React's StrictMode unmounts a component right after mounting it)
+  const stopWhenStarted = useCallback(async (connection: HubConnection, start: Promise<void> | null) => {
+    await start?.catch(() => undefined);
+    await connection.stop();
+  }, []);
 
   const connect = useCallback(async () => {
     if (connectionRef.current) return;
@@ -32,9 +42,14 @@ export function useNotificationHub(callbacks: NotificationHubCallbacks) {
       .withAutomaticReconnect()
       .build();
 
-    connection.onreconnecting(() => setConnectionState('Reconnecting'));
-    connection.onreconnected(() => setConnectionState('Connected'));
+    // Only the current connection updates the state: one that was replaced (or stopped by an unmount) is history
+    const isCurrent = () => connectionRef.current === connection;
+    connection.onreconnecting(() => isCurrent() && setConnectionState('Reconnecting'));
+    connection.onreconnected(() => isCurrent() && setConnectionState('Connected'));
     connection.onclose(() => {
+      if (!isCurrent()) return;
+      connectionRef.current = null;
+      subscriptionIdRef.current = null;
       setConnectionState('Disconnected');
       setIsSubscribed(false);
     });
@@ -52,16 +67,16 @@ export function useNotificationHub(callbacks: NotificationHubCallbacks) {
     });
 
     connectionRef.current = connection;
+    const start = connection.start();
+    startRef.current = start;
 
     try {
-      await connection.start();
-      // Only update state if this connection is still the current one
-      // (StrictMode cleanup may have replaced it while start() was in-flight)
-      if (connectionRef.current === connection) {
+      await start;
+      if (isCurrent()) {
         setConnectionState('Connected');
       }
     } catch {
-      if (connectionRef.current === connection) {
+      if (isCurrent()) {
         setConnectionState('Disconnected');
         connectionRef.current = null;
       }
@@ -73,36 +88,43 @@ export function useNotificationHub(callbacks: NotificationHubCallbacks) {
     if (!connection) return;
 
     connectionRef.current = null;
+    subscriptionIdRef.current = null;
     setIsSubscribed(false);
     try {
-      await connection.stop();
+      await stopWhenStarted(connection, startRef.current);
     } finally {
       setConnectionState('Disconnected');
     }
-  }, []);
+  }, [stopWhenStarted]);
 
   const subscribe = useCallback(async (topics: string[]) => {
     const connection = connectionRef.current;
     if (!connection || connection.state !== HubConnectionState.Connected) return;
 
-    await connection.invoke<string>('Subscribe', topics);
+    subscriptionIdRef.current = await connection.invoke<string>('Subscribe', topics);
     setIsSubscribed(true);
   }, []);
 
   const unsubscribe = useCallback(async () => {
     const connection = connectionRef.current;
-    if (!connection || connection.state !== HubConnectionState.Connected) return;
+    const subscriptionId = subscriptionIdRef.current;
+    if (!connection || connection.state !== HubConnectionState.Connected || !subscriptionId) return;
 
-    await connection.invoke('Unsubscribe');
+    await connection.invoke('Unsubscribe', subscriptionId);
+    subscriptionIdRef.current = null;
     setIsSubscribed(false);
   }, []);
 
   useEffect(() => {
     return () => {
-      connectionRef.current?.stop();
+      const connection = connectionRef.current;
       connectionRef.current = null;
+      subscriptionIdRef.current = null;
+      if (connection) {
+        void stopWhenStarted(connection, startRef.current);
+      }
     };
-  }, []);
+  }, [stopWhenStarted]);
 
   return {
     connectionState,
