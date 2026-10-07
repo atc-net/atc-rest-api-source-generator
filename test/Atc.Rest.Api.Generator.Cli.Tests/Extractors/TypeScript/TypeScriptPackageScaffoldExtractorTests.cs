@@ -150,7 +150,7 @@ public class TypeScriptPackageScaffoldExtractorTests
 
         Assert.Contains("const api = new ApiClient('https://api.example.com');", readme, StringComparison.Ordinal);
         Assert.Contains("getAccessToken: () => getToken(),", readme, StringComparison.Ordinal);
-        Assert.Contains("defaultHeaders: { 'X-Api-Key': apiKey },", readme, StringComparison.Ordinal);
+        Assert.Contains("apiKeys: { ApiKeyAuth: apiKey },", readme, StringComparison.Ordinal);
         Assert.DoesNotContain("new ApiClient({", readme, StringComparison.Ordinal);
         Assert.DoesNotContain("defaultHeaders: () =>", readme, StringComparison.Ordinal);
     }

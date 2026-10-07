@@ -21,6 +21,7 @@ export class HealthClient {
     return this.api.request<HealthStatus>('GET', '/health', {
       responseType: 'json',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<GetHealthResult>;
   }

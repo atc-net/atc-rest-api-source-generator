@@ -54,6 +54,7 @@ export class ResourcesClient {
     return this.api.request<Resource[]>('GET', '/resources', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListResourcesResult>;
   }
@@ -64,6 +65,7 @@ export class ResourcesClient {
       body,
       responseType: 'json',
       arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateResourceResult>;
   }
@@ -73,6 +75,7 @@ export class ResourcesClient {
     return this.api.request<Resource>('GET', `/resources/${encodeURIComponent(resourceId)}`, {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'notFound', 'badRequest', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetResourceByIdResult>;
   }
@@ -81,6 +84,7 @@ export class ResourcesClient {
   async deleteResource(resourceId: string, signal?: AbortSignal): Promise<DeleteResourceResult> {
     return this.api.request<void>('DELETE', `/resources/${encodeURIComponent(resourceId)}`, {
       arms: ['noContent', 'unauthorized', 'forbidden', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<DeleteResourceResult>;
   }

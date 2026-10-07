@@ -122,6 +122,7 @@ export class PetClient {
       body,
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unprocessableEntity', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UpdatePetResult>;
   }
@@ -132,6 +133,7 @@ export class PetClient {
       body,
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<AddPetResult>;
   }
@@ -144,6 +146,7 @@ export class PetClient {
       },
       xml: { read: readPetList, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<FindPetsByStatusResult>;
   }
@@ -156,6 +159,7 @@ export class PetClient {
       },
       xml: { read: readPetList, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<FindPetsByTagsResult>;
   }
@@ -165,6 +169,7 @@ export class PetClient {
     return this.api.request<Pet>('GET', `/pet/${encodeURIComponent(petId)}`, {
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'apiKey', scheme: 'api_key', in: 'header', name: 'api_key' }, { type: 'bearer' }],
       signal,
     }) as Promise<GetPetByIdResult>;
   }
@@ -178,6 +183,7 @@ export class PetClient {
       },
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UpdatePetWithFormResult>;
   }
@@ -189,6 +195,7 @@ export class PetClient {
         'api_key': headers?.['api_key'],
       },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<DeletePetResult>;
   }
@@ -203,6 +210,7 @@ export class PetClient {
       },
       responseType: 'json',
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadFileResult>;
   }

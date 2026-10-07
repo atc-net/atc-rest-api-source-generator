@@ -12,8 +12,20 @@ class UnparseableBody {
 export type AxiosRequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>;
 export type AxiosResponseInterceptor = (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>;
 
+/**
+ * A security scheme of an operation (the generated client passes them): a bearer token - http bearer, OAuth2, OpenID
+ * Connect - from getAccessToken, or an API key from apiKeys (by the scheme's name in components.securitySchemes),
+ * sent in the header, query parameter or cookie the scheme declares.
+ */
+export type SecurityScheme =
+  | { readonly type: 'bearer' }
+  | { readonly type: 'apiKey'; readonly scheme: string; readonly in: 'header' | 'query' | 'cookie'; readonly name: string };
+
 export interface ApiClientOptions {
+  /** The access token, sent as a bearer token with the operations that require one (http bearer, OAuth2, OpenID Connect). */
   getAccessToken?: () => string | Promise<string>;
+  /** The API keys of the specification's apiKey security schemes, by scheme name: sent with the operations that require them. */
+  apiKeys?: Record<string, string | (() => string | undefined | Promise<string | undefined>)>;
   defaultHeaders?: Record<string, string>;
   requestInterceptors?: AxiosRequestInterceptor[];
   responseInterceptors?: AxiosResponseInterceptor[];
@@ -23,6 +35,11 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;
   headers?: Record<string, string | number | boolean | undefined>;
+  /**
+   * The operation's security schemes (the generated client passes them): [] for an anonymous operation, which sends
+   * no credentials. Without it (a specification that declares no security) the access token is sent when there is one.
+   */
+  security?: readonly SecurityScheme[];
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
   /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */
@@ -238,15 +255,6 @@ export class ApiClient {
       }
     }
 
-    if (this.options.getAccessToken) {
-      const getToken = this.options.getAccessToken;
-      this.client.interceptors.request.use(async (config) => {
-        const token = await getToken();
-        config.headers.Authorization = `Bearer ${token}`;
-        return config;
-      });
-    }
-
     for (const interceptor of this.options.requestInterceptors ?? []) {
       this.client.interceptors.request.use(interceptor);
     }
@@ -280,6 +288,12 @@ export class ApiClient {
       }
     }
 
+    for (const [key, value] of Object.entries(await this.credentials(options?.security, 'headers'))) {
+      headers[key] = value;
+    }
+
+    const params = { ...options?.query, ...(await this.credentials(options?.security, 'query')) };
+
     if (options?.headers) {
       for (const [key, value] of Object.entries(options.headers)) {
         if (value !== undefined) {
@@ -292,7 +306,7 @@ export class ApiClient {
       method,
       url: path,
       data,
-      params: options?.query,
+      params,
       headers,
       signal: options?.signal,
       responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,
@@ -314,6 +328,12 @@ export class ApiClient {
   // ReadableStream (axios 1.7 or later).
   async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
     const headers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(await this.credentials(options?.security, 'headers'))) {
+      headers[key] = value;
+    }
+
+    const params = { ...options?.query, ...(await this.credentials(options?.security, 'query')) };
+
     if (options?.headers) {
       for (const [key, value] of Object.entries(options.headers)) {
         if (value !== undefined) {
@@ -332,7 +352,7 @@ export class ApiClient {
       method,
       url: path,
       data,
-      params: options?.query,
+      params,
       headers,
       signal: options?.signal,
       adapter: 'fetch',
@@ -425,6 +445,48 @@ export class ApiClient {
     } else {
       yield* parseJsonArrayStream<T>(reader, decoder);
     }
+  }
+
+  /**
+   * The credentials of an operation's security schemes that go in the headers (the access token as a bearer token, API
+   * keys in a header or a cookie) or in the query. Without security schemes - a specification that declares no security -
+   * the access token is sent when there is one; an anonymous operation ([]) sends none. A cookie API key is a Cookie
+   * header, which browsers do not let a script set (there the browser sends its own cookies): Node only.
+   */
+  private async credentials(security: readonly SecurityScheme[] | undefined, place: 'headers' | 'query'): Promise<Record<string, string>> {
+    const values: Record<string, string> = {};
+    const cookies: string[] = [];
+    for (const scheme of security ?? [{ type: 'bearer' } as const]) {
+      if (scheme.type === 'bearer') {
+        if (place === 'headers' && this.options.getAccessToken) {
+          values['Authorization'] = `Bearer ${await this.options.getAccessToken()}`;
+        }
+
+        continue;
+      }
+
+      if ((scheme.in === 'query') !== (place === 'query')) {
+        continue;
+      }
+
+      const key = this.options.apiKeys?.[scheme.scheme];
+      const value = typeof key === 'function' ? await key() : key;
+      if (value === undefined) {
+        continue;
+      }
+
+      if (scheme.in === 'cookie') {
+        cookies.push(`${scheme.name}=${encodeURIComponent(value)}`);
+      } else {
+        values[scheme.name] = value;
+      }
+    }
+
+    if (cookies.length > 0) {
+      values['Cookie'] = cookies.join('; ');
+    }
+
+    return values;
   }
 
   private async handleResponse<T>(response: AxiosResponse<T>): Promise<ApiResult<T>> {

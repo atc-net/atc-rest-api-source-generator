@@ -68,6 +68,7 @@ export class StoreClient {
     return this.api.request<unknown>('GET', '/store/inventory', {
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'apiKey', scheme: 'api_key', in: 'header', name: 'api_key' }],
       signal,
     }) as Promise<GetInventoryResult>;
   }
@@ -78,6 +79,7 @@ export class StoreClient {
       body,
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<PlaceOrderResult>;
   }
@@ -87,6 +89,7 @@ export class StoreClient {
     return this.api.request<Order>('GET', `/store/order/${encodeURIComponent(orderId)}`, {
       xml: { read: readOrder, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<GetOrderByIdResult>;
   }
@@ -95,6 +98,7 @@ export class StoreClient {
   async deleteOrder(orderId: number, signal?: AbortSignal): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/store/order/${encodeURIComponent(orderId)}`, {
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<DeleteOrderResult>;
   }

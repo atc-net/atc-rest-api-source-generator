@@ -109,6 +109,7 @@ export class UserClient {
       body,
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<CreateUserResult>;
   }
@@ -119,6 +120,7 @@ export class UserClient {
       body,
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<CreateUsersWithListInputResult>;
   }
@@ -132,6 +134,7 @@ export class UserClient {
       },
       responseType: 'text',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<LoginUserResult>;
   }
@@ -140,6 +143,7 @@ export class UserClient {
   async logoutUser(signal?: AbortSignal): Promise<LogoutUserResult> {
     return this.api.request<void>('GET', '/user/logout', {
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<LogoutUserResult>;
   }
@@ -149,6 +153,7 @@ export class UserClient {
     return this.api.request<User>('GET', `/user/${encodeURIComponent(username)}`, {
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<GetUserByNameResult>;
   }
@@ -158,6 +163,7 @@ export class UserClient {
     return this.api.request<void>('PUT', `/user/${encodeURIComponent(username)}`, {
       body,
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<UpdateUserResult>;
   }
@@ -166,6 +172,7 @@ export class UserClient {
   async deleteUser(username: string, signal?: AbortSignal): Promise<DeleteUserResult> {
     return this.api.request<void>('DELETE', `/user/${encodeURIComponent(username)}`, {
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<DeleteUserResult>;
   }

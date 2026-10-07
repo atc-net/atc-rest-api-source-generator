@@ -281,12 +281,14 @@ public static class TypeScriptClientExtractor
 
         // Generate methods (the helpers/xml.ts functions the operations with an XML body use are collected)
         var xmlFunctions = new SortedSet<string>(StringComparer.Ordinal);
+        var declaresSecurity = TypeScriptSecurity.DeclaresSecurity(openApiDoc);
         foreach (var (path, method, operation) in operations)
         {
             bodySb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpArms.TryGetValue(operation, out var armsOption);
-            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions, preferXml);
+            var securityOption = TypeScriptSecurity.BuildOption(operation, path, openApiDoc, declaresSecurity);
+            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions, preferXml, securityOption);
         }
 
         bodySb.AppendLine("}");
@@ -519,7 +521,8 @@ public static class TypeScriptClientExtractor
         bool zodRuntimeValidate,
         TypeScriptWireNames wireNames,
         ISet<string>? xmlFunctions = null,
-        bool preferXml = false)
+        bool preferXml = false,
+        string? securityOption = null)
     {
         var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
@@ -571,7 +574,7 @@ public static class TypeScriptClientExtractor
             };
 
             var streamBodyType = !isFileUpload && bodySchema is not null ? BodyTypeOf(bodySchema, writableSchemas) : null;
-            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, bodyContentType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption);
+            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, bodyContentType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption, securityOption);
         }
         else
         {
@@ -589,7 +592,7 @@ public static class TypeScriptClientExtractor
 
             // A raw file upload: the media types the request body declares
             var rawUploadMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList();
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption);
         }
     }
 
@@ -703,7 +706,8 @@ public static class TypeScriptClientExtractor
         string? wireOption = null,
         string? xmlOption = null,
         string? modelOrFileAccept = null,
-        IReadOnlyList<string>? rawUploadMediaTypes = null)
+        IReadOnlyList<string>? rawUploadMediaTypes = null,
+        string? securityOption = null)
     {
         // Build parameter list
         var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -842,6 +846,12 @@ public static class TypeScriptClientExtractor
             sb.Append("      arms: ").Append(armsOption).AppendLine(",");
         }
 
+        // The credentials the operation requires ([] for an anonymous one)
+        if (securityOption is not null)
+        {
+            sb.Append("      security: ").Append(securityOption).AppendLine(",");
+        }
+
         sb.AppendLine(signalName == "signal" ? "      signal," : "      signal: " + signalName + ",");
         sb.Append("    })").Append(castSuffix).AppendLine(";");
 
@@ -863,7 +873,8 @@ public static class TypeScriptClientExtractor
         bool convertDates,
         bool brandedIds,
         string? streamFramingArg = null,
-        string? wireOption = null)
+        string? wireOption = null,
+        string? securityOption = null)
     {
         // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
@@ -930,13 +941,21 @@ public static class TypeScriptClientExtractor
                 sb.Append("      wire: ").Append(wireOption).AppendLine(",");
             }
 
+            if (securityOption is not null)
+            {
+                sb.Append("      security: ").Append(securityOption).AppendLine(",");
+            }
+
             sb.AppendLine(streamFramingArg is null
                 ? "    });"
                 : $"    }}, {streamFramingArg});");
         }
         else
         {
-            var options = wireOption is null ? "{ " + signalOption + " }" : "{ " + signalOption + ", wire: " + wireOption + " }";
+            var options = "{ " + signalOption +
+                          (wireOption is null ? string.Empty : ", wire: " + wireOption) +
+                          (securityOption is null ? string.Empty : ", security: " + securityOption) +
+                          " }";
             sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">(").Append(method).Append(", ").Append(interpolatedPath);
             sb.AppendLine(streamFramingArg is null
                 ? $", {options});"

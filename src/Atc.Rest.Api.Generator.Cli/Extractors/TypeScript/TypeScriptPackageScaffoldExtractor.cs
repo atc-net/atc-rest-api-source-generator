@@ -331,13 +331,17 @@ public static class TypeScriptPackageScaffoldExtractor
 
         sb.AppendLine("## Authentication");
         sb.AppendLine();
-        sb.AppendLine("A bearer token comes from `getAccessToken` (called for every request and sent as `Authorization: Bearer ...`);");
-        sb.AppendLine("any other credential or header goes in `defaultHeaders`:");
+        sb.AppendLine("Each operation sends the credentials its security requirements name: a bearer token from `getAccessToken`");
+        sb.AppendLine("(http bearer, OAuth2, OpenID Connect; sent as `Authorization: Bearer ...`), an API key from `apiKeys` by the scheme's");
+        sb.AppendLine("name (in the header, query parameter or cookie the scheme declares). An anonymous operation (`security: []`) sends");
+        sb.AppendLine("none; a specification that declares no security sends the token with every request. Any other header goes in");
+        sb.AppendLine("`defaultHeaders`:");
         sb.AppendLine();
         sb.AppendLine("```ts");
         sb.AppendLine("const api = new ApiClient('https://api.example.com', {");
         sb.AppendLine("  getAccessToken: () => getToken(),");
-        sb.AppendLine("  defaultHeaders: { 'X-Api-Key': apiKey },");
+        sb.AppendLine("  apiKeys: { ApiKeyAuth: apiKey },");
+        sb.AppendLine("  defaultHeaders: { 'X-Correlation-Id': correlationId },");
         sb.AppendLine("});");
         sb.AppendLine("```");
         sb.AppendLine();

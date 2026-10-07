@@ -24,6 +24,7 @@ export class ReportsClient {
     return this.api.request<Report[]>('GET', '/reports', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListReportsResult>;
   }

@@ -31,6 +31,7 @@ export class UsersClient {
     return this.api.request<User[]>('GET', '/users', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListUsersResult>;
   }
@@ -40,6 +41,7 @@ export class UsersClient {
     return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
       responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetUserByIdResult>;
   }

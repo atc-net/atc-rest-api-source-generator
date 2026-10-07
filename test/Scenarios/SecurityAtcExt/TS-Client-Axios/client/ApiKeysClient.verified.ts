@@ -23,6 +23,7 @@ export class ApiKeysClient {
     return this.api.request<ApiKey[]>('GET', '/api-keys', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListApiKeysResult>;
   }

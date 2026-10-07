@@ -109,8 +109,11 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("export type AxiosRequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>;");
         sb.AppendLine("export type AxiosResponseInterceptor = (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>;");
         sb.AppendLine();
+        TypeScriptSecurity.AppendSecuritySchemeType(sb);
         sb.AppendLine("export interface ApiClientOptions {");
+        sb.AppendLine("  /** The access token, sent as a bearer token with the operations that require one (http bearer, OAuth2, OpenID Connect). */");
         sb.AppendLine("  getAccessToken?: () => string | Promise<string>;");
+        TypeScriptSecurity.AppendApiKeysOption(sb);
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
         sb.AppendLine("  requestInterceptors?: AxiosRequestInterceptor[];");
         sb.AppendLine("  responseInterceptors?: AxiosResponseInterceptor[];");
@@ -136,6 +139,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  body?: unknown;");
         sb.AppendLine("  query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;");
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
+        TypeScriptSecurity.AppendSecurityRequestOption(sb);
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
         sb.AppendLine("  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */");
@@ -210,6 +214,7 @@ public static class TypeScriptAxiosApiClientExtractor
         }
 
         AppendRequestStreamMethod(sb, hasWireNames);
+        TypeScriptSecurity.AppendCredentialsMethod(sb);
         AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames, hasXml);
 
         sb.AppendLine("}");
@@ -278,15 +283,6 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    if (this.options.getAccessToken) {");
-        sb.AppendLine("      const getToken = this.options.getAccessToken;");
-        sb.AppendLine("      this.client.interceptors.request.use(async (config) => {");
-        sb.AppendLine("        const token = await getToken();");
-        sb.AppendLine("        config.headers.Authorization = `Bearer ${token}`;");
-        sb.AppendLine("        return config;");
-        sb.AppendLine("      });");
-        sb.AppendLine("    }");
-        sb.AppendLine();
         sb.AppendLine("    for (const interceptor of this.options.requestInterceptors ?? []) {");
         sb.AppendLine("      this.client.interceptors.request.use(interceptor);");
         sb.AppendLine("    }");
@@ -340,6 +336,10 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
 
+        // The credentials the operation's security schemes require - set on the request, not by an interceptor, so the
+        // request interceptors see them - then the operation's headers.
+        AppendCredentials(sb);
+
         // Skip undefined values — the generated client method passes optional header
         // params verbatim, and axios should not see literal undefined in the headers map.
         sb.AppendLine("    if (options?.headers) {");
@@ -367,7 +367,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      method,");
             sb.AppendLine("      url: path,");
             sb.AppendLine("      data,");
-            sb.AppendLine("      params: options?.query,");
+            sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
             sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,");
@@ -402,7 +402,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      method,");
             sb.AppendLine("      url: path,");
             sb.AppendLine("      data,");
-            sb.AppendLine("      params: options?.query,");
+            sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
             sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,");
@@ -435,6 +435,20 @@ public static class TypeScriptAxiosApiClientExtractor
         }
 
         sb.AppendLine("  }");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Emits the credentials of the operation's security schemes into the <c>headers</c> record and the <c>params</c>
+    /// (the query, with an API key that goes in the query).
+    /// </summary>
+    private static void AppendCredentials(StringBuilder sb)
+    {
+        sb.AppendLine("    for (const [key, value] of Object.entries(await this.credentials(options?.security, 'headers'))) {");
+        sb.AppendLine("      headers[key] = value;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    const params = { ...options?.query, ...(await this.credentials(options?.security, 'query')) };");
         sb.AppendLine();
     }
 
@@ -481,6 +495,7 @@ public static class TypeScriptAxiosApiClientExtractor
             ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {"
             : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
         sb.AppendLine("    const headers: Record<string, string> = {};");
+        AppendCredentials(sb);
         sb.AppendLine("    if (options?.headers) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(options.headers)) {");
         sb.AppendLine("        if (value !== undefined) {");
@@ -501,7 +516,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      method,");
         sb.AppendLine("      url: path,");
         sb.AppendLine("      data,");
-        sb.AppendLine("      params: options?.query,");
+        sb.AppendLine("      params,");
         sb.AppendLine("      headers,");
         sb.AppendLine("      signal: options?.signal,");
         sb.AppendLine("      adapter: 'fetch',");

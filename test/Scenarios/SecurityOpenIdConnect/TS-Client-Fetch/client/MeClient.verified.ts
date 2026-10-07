@@ -31,6 +31,7 @@ export class MeClient {
     return this.api.request<UserProfile>('GET', '/me', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetCurrentUserResult>;
   }
@@ -40,6 +41,7 @@ export class MeClient {
     return this.api.request<UserProfile>('GET', '/me/profile', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetCurrentUserProfileResult>;
   }

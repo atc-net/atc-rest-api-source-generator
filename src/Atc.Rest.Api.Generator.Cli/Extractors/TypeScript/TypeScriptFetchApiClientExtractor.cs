@@ -98,8 +98,11 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;");
         sb.AppendLine("export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;");
         sb.AppendLine();
+        TypeScriptSecurity.AppendSecuritySchemeType(sb);
         sb.AppendLine("export interface ApiClientOptions {");
+        sb.AppendLine("  /** The access token, sent as a bearer token with the operations that require one (http bearer, OAuth2, OpenID Connect). */");
         sb.AppendLine("  getAccessToken?: () => string | Promise<string>;");
+        TypeScriptSecurity.AppendApiKeysOption(sb);
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
         sb.AppendLine("  requestInterceptors?: FetchRequestInterceptor[];");
         sb.AppendLine("  responseInterceptors?: FetchResponseInterceptor[];");
@@ -125,6 +128,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  body?: unknown;");
         sb.AppendLine("  query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;");
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
+        TypeScriptSecurity.AppendSecurityRequestOption(sb);
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
         sb.AppendLine("  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */");
@@ -258,8 +262,8 @@ public static class TypeScriptFetchApiClientExtractor
         var stringify = $"JSON.stringify({body})";
 
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
-        sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
-        sb.AppendLine("    const headers = await this.getHeaders(options?.headers);");
+        sb.AppendLine("    const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });");
+        sb.AppendLine("    const headers = await this.getHeaders(options?.headers, options?.security);");
         if (hasXml)
         {
             sb.AppendLine("    if (options?.xml?.accept) {");
@@ -389,8 +393,8 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine(hasWireNames
             ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {"
             : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
-        sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
-        sb.AppendLine("    const headers = await this.getHeaders(options?.headers);");
+        sb.AppendLine("    const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });");
+        sb.AppendLine("    const headers = await this.getHeaders(options?.headers, options?.security);");
         sb.AppendLine();
         TypeScriptOperationHelper.AppendStreamRequestBody(sb, hasWireNames);
         sb.AppendLine("    let init: RequestInit = {");
@@ -506,12 +510,11 @@ public static class TypeScriptFetchApiClientExtractor
         // header params verbatim), so skip those entries — Headers.set rejects undefined.
         // Non-string scalars (number / boolean) are coerced to string to match how
         // headers travel on the wire.
-        sb.AppendLine("  async getHeaders(extra?: Record<string, string | number | boolean | undefined>): Promise<Headers> {");
+        sb.AppendLine("  async getHeaders(extra?: Record<string, string | number | boolean | undefined>, security?: readonly SecurityScheme[]): Promise<Headers> {");
         sb.AppendLine("    const headers = new Headers(this.options.defaultHeaders);");
         sb.AppendLine();
-        sb.AppendLine("    if (this.options.getAccessToken) {");
-        sb.AppendLine("      const token = await this.options.getAccessToken();");
-        sb.AppendLine("      headers.set('Authorization', `Bearer ${token}`);");
+        sb.AppendLine("    for (const [key, value] of Object.entries(await this.credentials(security, 'headers'))) {");
+        sb.AppendLine("      headers.set(key, value);");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (extra) {");
@@ -525,6 +528,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    return headers;");
         sb.AppendLine("  }");
         sb.AppendLine();
+        TypeScriptSecurity.AppendCredentialsMethod(sb);
     }
 
     private static void AppendHandleResponseMethod(

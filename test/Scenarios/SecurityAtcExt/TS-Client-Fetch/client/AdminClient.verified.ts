@@ -33,6 +33,7 @@ export class AdminClient {
     return this.api.request<AdminSettings>('GET', '/admin/settings', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetAdminSettingsResult>;
   }
@@ -43,6 +44,7 @@ export class AdminClient {
       body,
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UpdateAdminSettingsResult>;
   }

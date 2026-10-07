@@ -60,6 +60,7 @@ export class OrdersClient {
     return this.api.request<Order[]>('GET', '/orders', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListOrdersResult>;
   }
@@ -70,6 +71,7 @@ export class OrdersClient {
       body,
       responseType: 'json',
       arms: ['created', 'badRequest', 'unauthorized', 'conflict', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateOrderResult>;
   }
@@ -79,6 +81,7 @@ export class OrdersClient {
     return this.api.request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`, {
       responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetOrderByIdResult>;
   }
@@ -87,6 +90,7 @@ export class OrdersClient {
   async deleteOrder(orderId: string, signal?: AbortSignal): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/orders/${encodeURIComponent(orderId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<DeleteOrderResult>;
   }
@@ -96,6 +100,7 @@ export class OrdersClient {
     return this.api.request<TrackingInfo>('GET', `/orders/${encodeURIComponent(orderId)}/tracking`, {
       responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<GetOrderTrackingResult>;
   }

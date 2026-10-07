@@ -22,6 +22,7 @@ export class DataClient {
     return this.api.request<unknown>('GET', '/data', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'apiKey', scheme: 'api_key', in: 'header', name: 'X-API-Key' }, { type: 'bearer' }],
       signal,
     }) as Promise<GetDataResult>;
   }

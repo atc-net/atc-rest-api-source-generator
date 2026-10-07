@@ -33,6 +33,7 @@ export class ProductsClient {
     return this.api.request<Product[]>('GET', '/products', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListProductsResult>;
   }
@@ -42,6 +43,7 @@ export class ProductsClient {
     return this.api.request<Product>('GET', `/products/${encodeURIComponent(productId)}`, {
       responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetProductByIdResult>;
   }
