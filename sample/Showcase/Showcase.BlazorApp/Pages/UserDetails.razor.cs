@@ -18,7 +18,7 @@ public partial class UserDetails
     private IDialogService DialogService { get; set; } = null!;
 
     [Inject]
-    private IHttpClientFactory HttpClientFactory { get; set; } = null!;
+    private IGetUserByIdEndpoint GetUserById { get; set; } = null!;
 
     private User? user;
     private string? userXml;
@@ -40,18 +40,16 @@ public partial class UserDetails
     }
 
     /// <summary>
-    /// Asks for the user as XML (the generated server negotiates by Accept) and reads it with the generated mapping.
+    /// The user through the generated endpoint, which asks for XML (this client prefers XML where an operation offers
+    /// it; the generated server negotiates by Accept) and reads it with the generated mapping.
     /// </summary>
     private async Task ViewAsXmlAsync()
     {
-        var client = HttpClientFactory.CreateClient(Constants.HttpClientName);
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/users/{UserId}");
-        request.Headers.Accept.ParseAdd("application/xml");
-        using var response = await client.SendAsync(request);
-        userXml = await response.Content.ReadAsStringAsync();
-        userFromXml = response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType)
-            ? UserXml.Read(XmlModelSupport.Parse(userXml))
-            : null;
+        var result = await GetUserById.ExecuteAsync(new GetUserByIdParameters(Guid.Parse(UserId)));
+        userFromXml = result.IsOk ? result.OkContent : null;
+        userXml = string.IsNullOrEmpty(result.Content) && userFromXml is not null
+            ? UserXml.ToXml(userFromXml)
+            : result.Content;
     }
 
     private async Task LoadUserAsync()

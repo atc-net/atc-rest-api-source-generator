@@ -1,13 +1,14 @@
 namespace Showcase.BlazorApp.Shared;
 
 /// <summary>
-/// Imports a list of users as one XML document: the generated <c>CreateUserRequestXml</c> writes it, the generated
-/// server binds the list by its Content-Type.
+/// Imports a list of users as one XML document: the generated <c>CreateUserRequestXml</c> writes and reads it, the
+/// generated endpoint sends it as XML (this client prefers XML where an operation offers it), and the generated server
+/// binds the list by its Content-Type.
 /// </summary>
 public partial class UsersImport
 {
     [Inject]
-    private IHttpClientFactory HttpClientFactory { get; set; } = null!;
+    private IImportUsersEndpoint ImportUsers { get; set; } = null!;
 
     private string xml = string.Empty;
     private string? status;
@@ -45,26 +46,23 @@ public partial class UsersImport
         isImporting = true;
         try
         {
-            var client = HttpClientFactory.CreateClient(Constants.HttpClientName);
-            using var content = new StringContent(xml, System.Text.Encoding.UTF8, "application/xml");
-            using var response = await client.PostAsync(new Uri("/api/v1/users/import", UriKind.Relative), content);
-            var body = await response.Content.ReadAsStringAsync();
-            using var document = JsonDocument.Parse(body);
-            if (response.IsSuccessStatusCode)
+            // The edited document, read by the generated mapping and sent by the generated endpoint
+            var requests = CreateUserRequestXml.ListFromXml(xml);
+            var result = await ImportUsers.ExecuteAsync(new ImportUsersParameters(requests));
+            if (result.IsOk)
             {
-                imported = document.RootElement
-                    .EnumerateArray()
-                    .Select(u => $"{u.GetProperty("firstName").GetString()} {u.GetProperty("lastName").GetString()} · {u.GetProperty("email").GetString()}")
+                imported = result.OkContent
+                    .Select(u => $"{u.FirstName} {u.LastName} · {u.Email}")
                     .ToList();
                 status = $"Imported {imported.Count} users from XML";
             }
             else
             {
                 imported = [];
-                status = $"{(int)response.StatusCode}: {ProblemText(document.RootElement)}";
+                status = $"{(int)result.StatusCode}: {ProblemText(result.ContentObject)}";
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        catch (Exception ex) when (ex is HttpRequestException or System.Xml.XmlException or FormatException or InvalidOperationException)
         {
             imported = [];
             status = $"Import failed: {ex.Message}";
@@ -78,8 +76,12 @@ public partial class UsersImport
     /// <summary>
     /// A ProblemDetails as one line: each validation error's key and first message, else the title.
     /// </summary>
-    private static string ProblemText(JsonElement problem)
-        => problem.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Object
-            ? string.Join("; ", errors.EnumerateObject().Select(e => $"{e.Name}: {e.Value.EnumerateArray().FirstOrDefault().GetString()}"))
-            : problem.TryGetProperty("title", out var title) ? title.GetString() ?? string.Empty : string.Empty;
+    private static string ProblemText(object? problem)
+        => problem switch
+        {
+            ValidationProblemDetails { Errors.Count: > 0 } validation
+                => string.Join("; ", validation.Errors.Select(e => $"{e.Key}: {e.Value.FirstOrDefault()}")),
+            ProblemDetails details => details.Title ?? details.Detail ?? string.Empty,
+            _ => string.Empty,
+        };
 }

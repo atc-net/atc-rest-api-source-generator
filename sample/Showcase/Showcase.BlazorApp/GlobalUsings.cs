@@ -35,4 +35,5 @@ global using Showcase.Generated.Notifications.Models;
 global using Showcase.Generated.Resilience;
 global using Showcase.Generated.Tasks.Client;
 global using Showcase.Generated.Users.Client;
+global using Showcase.Generated.Users.Endpoints.Interfaces;
 global using Showcase.Generated.Users.Models;

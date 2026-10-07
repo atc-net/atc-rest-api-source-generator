@@ -3,5 +3,6 @@
     "validateSpecificationStrategy": "Standard",
     "includeDeprecated": false,
     "generationMode": "EndpointPerOperation",
-    "strictRequiredProperties": true
+    "strictRequiredProperties": true,
+    "preferXml": true
 }
