@@ -89,7 +89,11 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 // SHOWCASE API MIDDLEWARE AND ENDPOINTS - Simplified pipeline
 // ============================================
 // Configures: rate limiter, auth, error handling, and maps all endpoints
-app.MapShowcaseApi();
+// The end-to-end tests (test/Showcase.E2ETests) drive three apps at once against this API, from one IP address and
+// as the one demo identity: the per-minute limits of the specification (50 user requests, 10 uploads) would answer
+// a full run with 429s. That run sets Showcase__DisableRateLimiter=true; the policies stay registered either way.
+var disableRateLimiter = app.Configuration.GetValue<bool>("Showcase:DisableRateLimiter");
+app.MapShowcaseApi(options => options.UseRateLimiter = !disableRateLimiter);
 
 // Map webhook endpoints (receives external webhook calls)
 app.MapShowcaseWebhooks();

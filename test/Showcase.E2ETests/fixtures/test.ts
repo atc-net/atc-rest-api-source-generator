@@ -25,10 +25,11 @@ type ExpectedError = { pattern: RegExp; reason: string };
 // Noise of an app that is not a bug in it. Keep these lists short, and say why each entry is here.
 const expectedFor: Record<AppType, ExpectedError[]> = {
   blazor: [
-    // The WebAssembly HttpClient streams a response, and releases one without a body (a 204 or a 304) by aborting its
-    // fetch once the response is disposed - Chromium reports that as a cancelled request although the call succeeded.
-    // Only a bodiless success: a cancelled request with a body, or one that never got an answer, still fails the test.
-    { pattern: /^requestfailed \S+ \S+ net::ERR_ABORTED \(after (204|304)\)$/, reason: 'a bodiless 204/304 released by the WebAssembly HttpClient' },
+    // The WebAssembly HttpClient streams a response, and releases one without a body (a 204, a 304, a 200 with no
+    // content) by aborting its fetch once the response is disposed - Chromium reports that as a cancelled request
+    // although the call succeeded. Only a bodiless answer: a cancelled request with a body, or one that never got an
+    // answer, still fails the test.
+    { pattern: /^requestfailed \S+ \S+ net::ERR_ABORTED \(after \d{3}, no body\)$/, reason: 'a bodiless answer released by the WebAssembly HttpClient' },
   ],
   react: [],
 };
@@ -43,7 +44,8 @@ const describeConsole = (message: ConsoleMessage) => {
 const describeFailedRequest = async (request: Request) => {
   // A request can fail after its answer arrived (its body was cancelled): the status says which
   const response = await request.response().catch(() => null);
-  const after = response ? ` (after ${response.status()})` : '';
+  const bodiless = response && (response.status() === 204 || response.status() === 304 || (await response.headerValue('content-length').catch(() => null)) === '0');
+  const after = response ? ` (after ${response.status()}${bodiless ? ', no body' : ''})` : '';
   return `requestfailed ${request.method()} ${request.url()} ${request.failure()?.errorText ?? ''}${after}`;
 };
 

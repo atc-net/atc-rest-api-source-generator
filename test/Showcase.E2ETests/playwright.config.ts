@@ -63,6 +63,9 @@ export default defineConfig({
       port: API_PORT,
       reuseExistingServer,
       timeout: 300_000,
+      // Three apps at once, from one IP address and as one identity, would exceed the API's per-minute rate limits
+      // (Program.cs): the run is a test of the apps and their clients, not of the limiter
+      env: { Showcase__DisableRateLimiter: 'true' },
     },
     {
       command: 'dotnet run --project ../../sample/Showcase/Showcase.BlazorApp',

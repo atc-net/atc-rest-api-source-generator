@@ -11,11 +11,37 @@ The same test specs run against all three apps using Playwright's multi-project 
 ## Architecture
 
 ```
-fixtures/test.ts       Custom base test exposing appType ('blazor' | 'react') and appVariant ('fetch' | 'axios')
-page-objects/*.ts      Thin page wrappers with role-based selectors
-specs/*.ts             Test specs (each runs once per project automatically)
-playwright.config.ts   Three projects (blazor/react-fetch/react-axios) with different baseURLs
+fixtures/test.ts           Base test: appType ('blazor' | 'react'), appVariant ('fetch' | 'axios'), browserErrors
+fixtures/api.ts            Direct API reads as the demo identity, and unique names for the data a test creates
+fixtures/webhooks.ts       Calls the API's webhook endpoints, as the external system that sends them
+fixtures/name-tag-crud.ts  The create/update/delete spec shared by accounts and tasks
+page-objects/*.ts          Thin page wrappers with role-based selectors
+specs/*.ts                 Test specs (each runs once per project automatically)
+playwright.config.ts       Three projects (blazor/react-fetch/react-axios) with different baseURLs
 ```
+
+### Browser errors fail a test
+
+Every test watches its page (the automatic `browserErrors` fixture): an uncaught exception (`pageerror`), a console
+error, or a failed request (`requestfailed`) fails it. A test that causes an error on purpose says so, and why:
+
+```ts
+test('an unknown id shows the error', async ({ page, browserErrors }) => {
+  browserErrors.expectStatus(404, '/api/v1/tasks/987654321', 'the lookup asks for an unknown id on purpose');
+  // ...
+});
+```
+
+`expectStatus(status, urlFragment, reason)` covers Chromium's console error for an error response, `expectAborted(urlFragment, reason)`
+a request the test cancels (a stream it stops), and `expect(pattern, reason)` anything else. The only noise expected everywhere is in
+`fixtures/test.ts`: on Blazor, a bodiless answer (204, 304, a 200 without content) that the WebAssembly HttpClient releases by aborting its fetch.
+
+### Shared data
+
+The API is in memory, and one run of all three projects shares it. A test that creates data names it uniquely (`unique()` in
+`fixtures/api.ts`), looks only at its own rows, and checks the outcome against the API - never against a global count. The run starts
+the API with `Showcase__DisableRateLimiter=true`: three apps from one IP address and one demo identity would exceed the specification's
+per-minute limits (50 user requests, 10 uploads).
 
 Both MudBlazor and MUI render semantic HTML, so role-based selectors (`getByRole`, `getByText`) work across all apps. Only the navigation page object branches on `appType` since Blazor renders nav links and React renders nav buttons. The two React projects share identical page logic; only the generated `src/api/` and `src/api-swr/` differ (fetch vs axios). `specs/swr-tasks.spec.ts` (SWR hooks) and `specs/accounts-infinite.spec.ts` (React Query and SWR infinite hooks) cover React-only pages and skip on Blazor. They share the same `appType: 'react'` so existing branching in page objects continues to work for both.
 
@@ -60,22 +86,29 @@ npx playwright test --debug                         # step-by-step debugger
 
 ## Test Coverage
 
-20 spec files covering all Showcase pages, run once per project (68 tests per project × 3 projects = 204 tests total):
+21 spec files, run once per project (63 tests per project × 3 projects = 189 tests; the React-only and the Blazor-only
+tests skip on the other projects):
 
 | Spec | Route | What it tests |
 |------|-------|---------------|
-| home | `/` | Dashboard cards, navigation to sections |
-| accounts | `/accounts` | CRUD: create, load, delete accounts |
-| accounts-paginated | `/accounts/paginated` | Page size, load, pagination controls |
-| accounts-streaming | `/accounts/async-enumerable` | Start/cancel/clear streaming |
-| tasks | `/tasks` | CRUD: create, load tasks |
-| users | `/users` | Search, filters, user list |
-| user-form | `/users/create` | Form fields, submit, cancel |
-| user-details | `/users/:id` | Profile display, edit/delete buttons |
-| files | `/files` | File cards, preview dialog |
-| files-upload | `/files/upload` | 4 upload tabs, upload buttons |
-| notifications | `/notifications` | Connect/disconnect, status display |
-| notification-subscriptions | `/notifications/subscriptions` | Create subscription form |
-| webhook-demo | `/webhooks/demo` | Trigger buttons, connection state |
-| exception-testing | `/testing/exceptions` | Run all tests, verify results |
+| home | `/` | Dashboard cards, a section reached through the app's navigation |
 | navigation | sidebar | Nav items visible, click navigates |
+| accounts | `/accounts` | Create, rename and delete an account (createAccount, listAccounts, updateAccountById, getAccountById, deleteAccountById), each step read back from the page and the API |
+| accounts-paginated | `/accounts/paginated` | Page size, load, pagination controls |
+| accounts-streaming | `/accounts/async-enumerable` | Start/cancel streaming |
+| accounts-infinite | `/accounts/infinite` | React Query and SWR infinite hooks follow the continuation token (React only) |
+| tasks | `/tasks` | Create, rename and delete a task (createTask ... deleteTaskById), read back from the page and the API |
+| swr-tasks | `/tasks/swr` | The SWR hooks (React only) |
+| users | `/users` | Search, filters, user list |
+| users-crud | `/users/create`, `/users/:id`, `/users/:id/edit` | Create a user through the form, its details page, edit, delete (createUser, getUserById, updateUserById, deleteUserById) - and the API agrees at every step |
+| users-query | `/users` | queryUsers: the HTTP QUERY request carries the ids in its body; an unknown id is skipped |
+| users-import | `/users` | importUsers: a list of users as XML, validated per item |
+| user-xml | `/users/:id` | getUserById as XML, read back into the model |
+| auth | API | 401 without a token; 403 for createUser/deleteUserById with a token that lacks the users:write and admin scopes; 201 with both |
+| files | `/files` | File cards, preview dialog |
+| files-upload | `/files/upload` | The four uploads: the request's media type, the 200, the page's message, and the file the API stored (read back with getFileById) |
+| documents | `/documents` | Raw-body upload, download, summary as JSON/PDF, 303 and 304 |
+| notifications | `/notifications` | SignalR: connect, subscribe, receive a notification sent through a webhook, none after unsubscribing; listNotifications: the HTTP stream's events |
+| notification-subscriptions | `/notifications/subscriptions` | Create a subscription, read it on its own, delete it (createSubscription, listSubscriptions, getSubscriptionById, deleteSubscription), checked against the API |
+| webhook-demo | `/webhooks/demo` | The three webhooks, called by the test, reach the page over SignalR; on Blazor the trigger buttons too |
+| exception-testing | `/testing/exceptions` | Run all tests, ProblemDetails, validation errors, Retry-After |
