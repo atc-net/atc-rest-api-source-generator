@@ -1,24 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
+import { API_PORT, BLAZOR_PORT, REACT_AXIOS_PORT, REACT_FETCH_PORT } from './ports';
 
-const API_PORT = 15046;
-const BLAZOR_PORT = 5048;
-const REACT_FETCH_PORT = 5173;
-const REACT_AXIOS_PORT = 5174;
+// A server already on a port is reused only when asked (PW_REUSE=1): otherwise an old build, an Aspire or an IDE run
+// would be tested silently, and the run fails loudly on the taken port instead.
+const reuseExistingServer = !process.env.CI && process.env.PW_REUSE === '1';
 
 export default defineConfig({
   testDir: './specs',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // No retries: a test that fails once is reported as failing, not hidden as passed-on-retry
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
   // The JSON file feeds the Playwright tab of the test-suite report (Report_EndToEndErrorBodyMatrix)
   reporter: [['html', { open: 'never' }], ['json', { outputFile: 'test-results/results.json' }]],
 
   use: {
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-
   projects: [
     {
       name: 'blazor',
@@ -56,27 +56,27 @@ export default defineConfig({
     {
       command: 'dotnet run --project ../../sample/Showcase/Showcase.Api',
       port: API_PORT,
-      reuseExistingServer: true,
-      timeout: 60_000,
+      reuseExistingServer,
+      timeout: 300_000,
     },
     {
       command: 'dotnet run --project ../../sample/Showcase/Showcase.BlazorApp',
       port: BLAZOR_PORT,
-      reuseExistingServer: true,
-      timeout: 120_000,
+      reuseExistingServer,
+      timeout: 300_000,
     },
     {
       command: 'npm run dev --prefix ../../sample/Showcase/Showcase.ReactApp.Fetch',
       port: REACT_FETCH_PORT,
-      reuseExistingServer: true,
-      timeout: 30_000,
+      reuseExistingServer,
+      timeout: 120_000,
       env: { PORT: String(REACT_FETCH_PORT) },
     },
     {
       command: 'npm run dev --prefix ../../sample/Showcase/Showcase.ReactApp.Axios',
       port: REACT_AXIOS_PORT,
-      reuseExistingServer: true,
-      timeout: 30_000,
+      reuseExistingServer,
+      timeout: 120_000,
       env: { PORT: String(REACT_AXIOS_PORT) },
     },
   ],

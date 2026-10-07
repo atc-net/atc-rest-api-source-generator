@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/test';
+import { apiBaseUrl } from '../ports';
 
-const apiBaseUrl = 'http://localhost:15046/api/v1';
 const demoToken = 'demo';
 
 test.describe('User as XML', () => {
