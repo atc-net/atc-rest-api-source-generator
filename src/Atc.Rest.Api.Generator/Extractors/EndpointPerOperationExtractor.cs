@@ -1211,9 +1211,9 @@ public static class EndpointPerOperationExtractor
                 var contentType = operation.GetFileUploadContentType();
                 if (OpenApiOperationExtensions.IsRawFileUploadContentType(contentType))
                 {
-                    // A raw file body (octet-stream, PDF, PNG, an Office document, ...): the file's bytes with its content
-                    // type, else the declared media type
-                    sb.AppendLine($"requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), parameters.File.ContentType ?? \"{contentType}\");");
+                    // A raw file body (octet-stream, PDF, PNG, an Office document, ...): the file's bytes, as the one media
+                    // type the operation declares - else as the file's own of the several it declares
+                    sb.AppendLine($"requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), {RawFileBodyHelper.ContentTypeExpression(operation, "parameters.File", contentType!)});");
                 }
                 else if (contentType is "multipart/form-data")
                 {

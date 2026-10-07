@@ -223,7 +223,7 @@ public sealed class PetClient : IPetClient
 
 
         using var content = new StreamContent(parameters.File!.OpenReadStream());
-        content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
         using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

@@ -1467,6 +1467,44 @@ public class EndpointPerOperationExtractorTests
     }
 
     [Fact]
+    public void Extract_RawFileBodyOfOneMediaType_IsSentAsThatMediaType()
+    {
+        // The operation accepts application/octet-stream only: a text file sent as text/plain was a 415
+        var document = ParseYaml(RawFileBodySpecs.Yaml("application/octet-stream"));
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "upload", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains("requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), \"application/octet-stream\");", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_RawFileBodyOfSeveralMediaTypes_IsSentAsTheFilesMediaType()
+    {
+        // A PDF or a PNG: the file's own media type says which
+        var document = ParseYaml(RawFileBodySpecs.Yaml("application/pdf", "image/png"));
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "upload", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains("requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), parameters.File.ContentType ?? \"application/pdf\");", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_RawFileBodyOfAMediaTypeRange_IsSentAsTheFilesMediaType()
+    {
+        var document = ParseYaml(RawFileBodySpecs.Yaml("image/*"));
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "upload", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains("requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), parameters.File.ContentType ?? \"image/*\");", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_UrlEncodedFormBody_SendsTheFieldsAsAFormUrlEncodedBody()
     {
         // The endpoint called WithBody(parameters.Request) on a record without a Request: the client did not compile.

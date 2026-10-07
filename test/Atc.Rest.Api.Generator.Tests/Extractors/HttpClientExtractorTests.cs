@@ -352,6 +352,33 @@ public class HttpClientExtractorTests
 
     // ========== JSON Serializer Options Tests ==========
     [Fact]
+    public void Extract_RawFileBodyOfOneMediaType_IsSentAsThatMediaType()
+    {
+        // The operation accepts application/octet-stream only: a text file sent as text/plain was a 415
+        var document = ParseYaml(RawFileBodySpecs.Yaml("application/octet-stream"));
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        var content = clientClass!.Methods![0].Content;
+        Assert.NotNull(content);
+        Assert.Contains("content.Headers.ContentType = new MediaTypeHeaderValue(\"application/octet-stream\");", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_RawFileBodyOfSeveralMediaTypes_IsSentAsTheFilesMediaType()
+    {
+        var document = ParseYaml(RawFileBodySpecs.Yaml("application/pdf", "image/png"));
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        var content = clientClass!.Methods![0].Content;
+        Assert.NotNull(content);
+        Assert.Contains("content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? \"application/pdf\");", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_GeneratesDefaultJsonSerializerOptionsStaticField()
     {
         // Arrange

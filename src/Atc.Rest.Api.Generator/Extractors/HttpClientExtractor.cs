@@ -1456,7 +1456,7 @@ public static class HttpClientExtractor
             {
                 // application/octet-stream or image/* content types
                 builder.AppendLine("using var content = new StreamContent(parameters.File!.OpenReadStream());");
-                builder.AppendLine($"content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? \"{fileUploadContentType ?? "application/octet-stream"}\");");
+                builder.AppendLine($"content.Headers.ContentType = new MediaTypeHeaderValue({RawFileBodyHelper.ContentTypeExpression(operation, "parameters.File", fileUploadContentType ?? "application/octet-stream")});");
             }
 
             builder.AppendLine();

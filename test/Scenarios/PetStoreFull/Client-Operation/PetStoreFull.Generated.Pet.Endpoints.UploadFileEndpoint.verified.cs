@@ -50,7 +50,7 @@ public sealed class UploadFileEndpoint : IUploadFileEndpoint
         {
             requestBuilder.WithQueryParameter("additionalMetadata", parameters.AdditionalMetadata);
         }
-        requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), parameters.File.ContentType ?? "application/octet-stream");
+        requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), "application/octet-stream");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
