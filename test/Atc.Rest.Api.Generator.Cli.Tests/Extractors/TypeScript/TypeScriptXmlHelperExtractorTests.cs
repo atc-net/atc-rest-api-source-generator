@@ -121,34 +121,44 @@ public class TypeScriptXmlHelperExtractorTests
             () => TypeScriptXmlHelperExtractor.Generate(null!, headerContent: null, TypeScriptNamingStrategy.CamelCase, convertDates: false));
 
     [Fact]
-    public void AugmentApiClient_FetchClient_ImportsTheHelperAndAddsTheXmlOption()
+    public void FetchApiClient_WithXml_ImportsTheHelperAndAddsTheXmlOption()
     {
-        var client = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+        var client = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasXml: true);
 
-        var augmented = TypeScriptXmlHelperExtractor.AugmentApiClient(client, isAxios: false);
-
-        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xml';", augmented, StringComparison.Ordinal);
-        Assert.Contains("  xml?: XmlOptions;", augmented, StringComparison.Ordinal);
-        Assert.Contains("options.xml.read(parseXml(", augmented, StringComparison.Ordinal);
-        Assert.Contains("readProblemXml(parseXml(", augmented, StringComparison.Ordinal);
+        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xml';", client, StringComparison.Ordinal);
+        Assert.Contains("  xml?: XmlOptions;", client, StringComparison.Ordinal);
+        Assert.Contains("headers.set('Accept', options.xml.accept);", client, StringComparison.Ordinal);
+        Assert.Contains("fetchBody = options.xml.write(options.body as never);", client, StringComparison.Ordinal);
+        Assert.Contains("options.xml.read(parseXml(", client, StringComparison.Ordinal);
+        Assert.Contains("return fitToArms(withResponse(serverResponse, await this.handleResponse<T>(", client, StringComparison.Ordinal);
+        Assert.Contains("readProblemXml(parseXml(", client, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AugmentApiClient_AxiosClient_WritesXmlBodiesAndSetsAccept()
+    public void AxiosApiClient_WithXml_WritesXmlBodiesAndSetsAccept()
     {
-        var client = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
+        var client = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, hasXml: true);
 
-        var augmented = TypeScriptXmlHelperExtractor.AugmentApiClient(client, isAxios: true);
-
-        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xml';", augmented, StringComparison.Ordinal);
-        Assert.Contains("  xml?: XmlOptions;", augmented, StringComparison.Ordinal);
-        Assert.Contains("data = options.xml.write(options.body as never);", augmented, StringComparison.Ordinal);
-        Assert.Contains("headers['Accept'] = options.xml.accept;", augmented, StringComparison.Ordinal);
-        Assert.Contains("errorContentType.includes('application/problem+xml')", augmented, StringComparison.Ordinal);
+        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xml';", client, StringComparison.Ordinal);
+        Assert.Contains("  xml?: XmlOptions;", client, StringComparison.Ordinal);
+        Assert.Contains("data = options.xml.write(options.body as never);", client, StringComparison.Ordinal);
+        Assert.Contains("headers['Accept'] = options.xml.accept;", client, StringComparison.Ordinal);
+        Assert.Contains("return fitToArms(await this.handleResponse<T>(response, options?.xml), options?.arms);", client, StringComparison.Ordinal);
+        Assert.Contains("xml.read(parseXml(response.data))", client, StringComparison.Ordinal);
+        Assert.Contains("errorContentType.includes('application/problem+xml')", client, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void AugmentApiClient_AnchorMissing_Throws()
-        => Assert.Throws<InvalidOperationException>(
-            () => TypeScriptXmlHelperExtractor.AugmentApiClient("export class ApiClient {}", isAxios: false));
+    [Theory]
+    [InlineData(TypeScriptHttpClient.Fetch)]
+    [InlineData(TypeScriptHttpClient.Axios)]
+    public void ApiClient_WithoutXml_HasNoXmlSupport(TypeScriptHttpClient httpClient)
+    {
+        var client = httpClient == TypeScriptHttpClient.Axios
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent: null)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.DoesNotContain("helpers/xml", client, StringComparison.Ordinal);
+        Assert.DoesNotContain("XmlOptions", client, StringComparison.Ordinal);
+        Assert.DoesNotContain("problem+xml", client, StringComparison.Ordinal);
+    }
 }

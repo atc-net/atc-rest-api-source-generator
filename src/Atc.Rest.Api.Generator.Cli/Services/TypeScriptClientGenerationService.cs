@@ -546,21 +546,17 @@ public static class TypeScriptClientGenerationService
 
         var clientDir = Path.Combine(outputPath, "client");
 
-        // Write base ApiClient (fetch or axios)
+        // Write base ApiClient (fetch or axios); with XML bodies: the xml request option, XML responses and
+        // application/problem+xml errors
+        var hasXml = XmlBodyReachability.Collect(openApiDoc).Count > 0;
         var apiClientContent = httpClient == TypeScriptHttpClient.Axios
-            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates)
-            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates);
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates, hasXml)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates, hasXml);
 
-        // A model or a file: the modelOrFile request option (before the XML edits, which read an XML model after it)
+        // A model or a file: the modelOrFile request option
         if (TypeScriptModelOrFileExtractor.HasModelOrFile(openApiDoc))
         {
             apiClientContent = TypeScriptModelOrFileExtractor.AugmentApiClient(apiClientContent, httpClient == TypeScriptHttpClient.Axios);
-        }
-
-        // XML bodies: the xml request option, XML responses and application/problem+xml errors
-        if (XmlBodyReachability.Collect(openApiDoc).Count > 0)
-        {
-            apiClientContent = TypeScriptXmlHelperExtractor.AugmentApiClient(apiClientContent, httpClient == TypeScriptHttpClient.Axios);
         }
 
         WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);

@@ -634,6 +634,25 @@ public static class TypeScriptOperationHelper
         => string.Equals(schema?.Format, "date", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Emits the <c>xml</c> member of <c>RequestOptions</c> when the specification has XML bodies (shared by the Fetch
+    /// and Axios ApiClient extractors).
+    /// </summary>
+    /// <param name="sb">The ApiClient being written.</param>
+    /// <param name="hasXml">Whether the specification has XML bodies.</param>
+    internal static void AppendXmlRequestOption(
+        StringBuilder sb,
+        bool hasXml)
+    {
+        if (!hasXml)
+        {
+            return;
+        }
+
+        sb.AppendLine("  /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */");
+        sb.AppendLine("  xml?: XmlOptions;");
+    }
+
+    /// <summary>
     /// Emits <c>dateOnly</c>: a Date as the calendar day it is in the caller's time zone (<c>yyyy-MM-dd</c>), for the
     /// <c>format: date</c> parameters and form fields of the generated clients (with <c>--convert-dates</c>).
     /// </summary>

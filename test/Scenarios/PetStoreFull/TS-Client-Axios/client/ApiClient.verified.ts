@@ -316,26 +316,7 @@ export class ApiClient {
         : new TextDecoder().decode(bytes);
     }
 
-    // An XML body: read by the operation's mapping (no JSON handling)
-    const responseContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
-    const readXmlError = options?.xml?.errors?.[String(response.status)] ?? options?.xml?.errors?.['default'];
-    if (readXmlError && (response.status < 200 || response.status >= 300) && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
-      try {
-        (response as { data: unknown }).data = readXmlError(parseXml(response.data));
-      } catch {
-        // Not the declared model: the error arm gets the text
-      }
-    }
-
-    if (options?.xml?.read && response.status >= 200 && response.status < 300 && response.status !== 204 && response.status !== 205 && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
-      try {
-        return fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(response.data)) as T, response } as ApiResult<T>, options.arms);
-      } catch (parseError) {
-        return fitToArms({ status: 'parseError', error: parseError as Error, response }, options.arms);
-      }
-    }
-
-    return fitToArms(await this.handleResponse<T>(response), options?.arms);
+    return fitToArms(await this.handleResponse<T>(response, options?.xml), options?.arms);
   }
 
   // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.
@@ -487,7 +468,26 @@ export class ApiClient {
     return url.toString();
   }
 
-  private async handleResponse<T>(response: AxiosResponse<T>): Promise<ApiResult<T>> {
+  private async handleResponse<T>(response: AxiosResponse<T>, xml?: XmlOptions): Promise<ApiResult<T>> {
+    // An XML body: read by the operation's mapping (no JSON handling)
+    const responseContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
+    const readXmlError = xml?.errors?.[String(response.status)] ?? xml?.errors?.['default'];
+    if (readXmlError && (response.status < 200 || response.status >= 300) && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
+      try {
+        (response as { data: unknown }).data = readXmlError(parseXml(response.data));
+      } catch {
+        // Not the declared model: the error arm gets the text
+      }
+    }
+
+    if (xml?.read && response.status >= 200 && response.status < 300 && response.status !== 204 && response.status !== 205 && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
+      try {
+        return { status: xmlSuccessArm(response.status), data: xml.read(parseXml(response.data)) as T, response } as ApiResult<T>;
+      } catch (parseError) {
+        return { status: 'parseError', error: parseError as Error, response };
+      }
+    }
+
     // 204 and 205 never carry a body; 304 neither (RFC 9110).
     if (response.status === 204 || response.status === 205) {
       return { status: 'noContent', response };
