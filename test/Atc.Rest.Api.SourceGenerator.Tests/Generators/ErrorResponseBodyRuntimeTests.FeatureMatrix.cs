@@ -223,6 +223,10 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             public static System.Collections.Concurrent.ConcurrentDictionary<string, bool> Cancelled { get; } = new(StringComparer.Ordinal);
 
+            // The slow reads the handler holds: a client cancels once its probe is here (GET /__started?probe=...),
+            // not after a fixed delay a cold client could spend before its request reaches the server
+            public static System.Collections.Concurrent.ConcurrentDictionary<string, bool> Started { get; } = new(StringComparer.Ordinal);
+
             public static string Probe(IHttpContextAccessor accessor)
                 => accessor.HttpContext?.Request.Headers["X-Probe"].ToString() ?? string.Empty;
 
@@ -338,6 +342,7 @@ public partial class ErrorResponseBodyRuntimeTests
             public async System.Threading.Tasks.Task<FeatureSlowResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
             {
                 var probe = FeatureLog.Probe(accessor);
+                FeatureLog.Started[probe] = true;
                 try
                 {
                     await System.Threading.Tasks.Task.Delay(3_000, cancellationToken);
@@ -352,10 +357,31 @@ public partial class ErrorResponseBodyRuntimeTests
             }
         }
 
+        // Answers GET /__started?probe=... with 200 once the slow handler holds that probe's read, else 404
+        public sealed class StartedProbeFilter : Microsoft.AspNetCore.Hosting.IStartupFilter
+        {
+            public Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> Configure(Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> next)
+                => app =>
+                {
+                    Microsoft.AspNetCore.Builder.UseExtensions.Use(app, async (context, nextMiddleware) =>
+                    {
+                        if (context.Request.Path == "/__started")
+                        {
+                            context.Response.StatusCode = FeatureLog.Started.ContainsKey(context.Request.Query["probe"].ToString()) ? 200 : 404;
+                            return;
+                        }
+
+                        await nextMiddleware(context);
+                    });
+                    next(app);
+                };
+        }
+
         public static class FeatureRegistration
         {
             public static void Register(IServiceCollection services)
             {
+                services.AddTransient<Microsoft.AspNetCore.Hosting.IStartupFilter, StartedProbeFilter>();
                 services.AddScoped<IFeatureSlowHandler, FeatureSlowHandlerImpl>();
                 services.AddHttpContextAccessor();
                 services.AddScoped<IFeatureSseHandler, FeatureSseHandlerImpl>();
@@ -408,8 +434,11 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
+            private static string serverAddress = string.Empty;
+
             public static async System.Threading.Tasks.Task<Dictionary<string, string>> RunAsync(string baseAddress, string casesJson, bool typed, string clientId)
             {
+                serverAddress = baseAddress;
                 var results = new Dictionary<string, string>(StringComparer.Ordinal);
                 var services = new ServiceCollection();
                 services.AddTransient<ProbeStampHandler>();
@@ -469,13 +498,32 @@ public partial class ErrorResponseBodyRuntimeTests
                 return new JsonObject { ["kind"] = "items", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["error"] = error };
             }
 
-            // Starts the slow read, cancels it once the server holds it, and records how the call ended.
-            private static async System.Threading.Tasks.Task<JsonObject> CancelAsync(Func<System.Threading.CancellationToken, System.Threading.Tasks.Task> call, int cancelAfterMs)
+            // Waits (at most ten seconds) until the server holds the probe's slow read.
+            private static async System.Threading.Tasks.Task WaitStartedAsync(string probe)
             {
-                using var cts = new System.Threading.CancellationTokenSource(cancelAfterMs);
+                using var http = new HttpClient { BaseAddress = new Uri(serverAddress) };
+                for (var attempt = 0; attempt < 400; attempt++)
+                {
+                    using var answer = await http.GetAsync("__started?probe=" + Uri.EscapeDataString(probe));
+                    if (answer.IsSuccessStatusCode)
+                    {
+                        return;
+                    }
+
+                    await System.Threading.Tasks.Task.Delay(25);
+                }
+            }
+
+            // Starts the slow read, cancels it once the server holds it, and records how the call ended.
+            private static async System.Threading.Tasks.Task<JsonObject> CancelAsync(Func<System.Threading.CancellationToken, System.Threading.Tasks.Task> call)
+            {
+                using var cts = new System.Threading.CancellationTokenSource();
+                var running = call(cts.Token);
+                await WaitStartedAsync(ProbeStampHandler.Current["X-Probe"]);
+                await cts.CancelAsync();
                 try
                 {
-                    await call(cts.Token);
+                    await running;
                     return new JsonObject { ["kind"] = "completed" };
                 }
                 catch (OperationCanceledException)
@@ -617,7 +665,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     }
 
                     case "slow":
-                        return await CancelAsync(ct => provider.GetRequiredService<IFeatureSlowEndpoint>().ExecuteAsync(httpClientName, ct), (int)c["cancelAfterMs"]!);
+                        return await CancelAsync(ct => provider.GetRequiredService<IFeatureSlowEndpoint>().ExecuteAsync(httpClientName, ct));
 
                     default:
                         throw new InvalidOperationException("unknown case kind " + kind);
@@ -724,7 +772,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     }
 
                     case "slow":
-                        return await CancelAsync(ct => client.FeatureSlowAsync(ct), (int)c["cancelAfterMs"]!);
+                        return await CancelAsync(ct => client.FeatureSlowAsync(ct));
 
                     default:
                         throw new InvalidOperationException("unknown case kind " + kind);
@@ -758,6 +806,15 @@ public partial class ErrorResponseBodyRuntimeTests
         const hookModule: any = hooks ? await import(`./${which}/hooks/index.ts`) : null;
         const names = (items: any[]) => items.map((t) => t.name);
         const WAIT = { timeout: 20000, interval: 25 };
+
+        // Until the server holds the probe's slow read (at most ten seconds): a cancel is sent only then
+        async function waitStarted(probe: string) {
+          for (let attempt = 0; attempt < 400; attempt++) {
+            const answer = await fetch(new URL('__started?probe=' + encodeURIComponent(probe), baseUrl));
+            if (answer.ok) return;
+            await new Promise((resolve) => setTimeout(resolve, 25));
+          }
+        }
 
         function wrapperFor(headers: Record<string, string>) {
           const { ApiProvider } = hookModule;
@@ -805,14 +862,15 @@ public partial class ErrorResponseBodyRuntimeTests
             }
             case 'slow': {
               const controller = new AbortController();
-              const timer = setTimeout(() => controller.abort(), c.cancelAfterMs);
+              const pending = f.featureSlow(controller.signal);
+              pending.catch(() => {});
+              await waitStarted(`ts-${which}|${c.name}`);
+              controller.abort();
               try {
-                const r = await f.featureSlow(controller.signal);
+                const r = await pending;
                 return { kind: 'completed', arm: r.status };
               } catch (e: any) {
                 return e?.name === 'AbortError' || e?.name === 'CanceledError' ? { kind: 'cancelled' } : { kind: 'threw', error: `${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}` };
-              } finally {
-                clearTimeout(timer);
               }
             }
           }
@@ -875,7 +933,7 @@ public partial class ErrorResponseBodyRuntimeTests
               // React Query cancels a query nobody observes any more, when its queryFn took the signal
               if (hooks === 'swr') return { kind: 'na', why: 'SWR hands its fetcher no AbortSignal' };
               const { result, unmount } = renderHook(() => H.useFeatureSlow(), { wrapper });
-              await new Promise((resolve) => setTimeout(resolve, c.cancelAfterMs));
+              await waitStarted(`ts-${which}|${c.name}`);
               const completed = result.current.data !== undefined;
               unmount();
               // Stay until a request that was not cancelled has ended, so the harness exiting (which closes the
@@ -966,7 +1024,7 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("dates: a date and a date-time round-trip", "values", "FeatureDates", "dates", new JsonObject { ["body"] = new JsonObject { ["day"] = "2026-03-04", ["at"] = "2026-03-04T05:06:07+02:00" } }));
         cases.Add(new("conditional: If-None-Match matches, 304", "conditional", "FeatureEtag", "etag", new JsonObject { ["ifNoneMatch"] = "\"v1\"" }));
         cases.Add(new("conditional: no condition, 200 with an ETag", "conditional", "FeatureEtag", "etag", new JsonObject()));
-        cases.Add(new("cancellation: a read the client cancels stops on the server", "cancellation", "FeatureSlow", "slow", new JsonObject { ["cancelAfterMs"] = 500 }));
+        cases.Add(new("cancellation: a read the client cancels stops on the server", "cancellation", "FeatureSlow", "slow", new JsonObject()));
         return cases;
     }
 

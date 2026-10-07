@@ -137,22 +137,22 @@ public class PathFilterHelperTests
     }
 
     [Fact]
-    public void MatchesPattern_PathologicalDoubleStars_TerminatesQuickly()
+    public async Task MatchesPattern_PathologicalDoubleStars_TerminatesQuickly()
     {
         // Regression guard for Copilot review item: the recursive backtracking matcher
         // was worst-case exponential on patterns with many ** against paths missing the
-        // literal anchors. The DP matcher should evaluate each (i, j) state once.
-        const string pattern = "/**/a/**/b/**/c/**/d/**/e";
-        var path = "/" + string.Join("/", Enumerable.Repeat("x", 30));
+        // literal anchors. The DP matcher evaluates each (i, j) state once: about 3,400 states here, against some
+        // 10^13 steps for backtracking. With that margin on both sides the 10-second bound cannot flake under coverage
+        // instrumentation or a busy machine, and a regression fails instead of hanging the run.
+        const string pattern = "/**/a/**/b/**/c/**/d/**/e/**/f/**/g/**/h";
+        var path = "/" + string.Join("/", Enumerable.Repeat("x", 200));
 
-        var sw = Stopwatch.StartNew();
-        var result = PathFilterHelper.MatchesPattern(path, pattern);
-        sw.Stop();
+        // A TimeoutException here suggests a backtracking regression
+        var result = await Task
+            .Run(() => PathFilterHelper.MatchesPattern(path, pattern), TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         Assert.False(result);
-        Assert.True(
-            sw.ElapsedMilliseconds < 500,
-            $"Matcher took {sw.ElapsedMilliseconds}ms — suggests backtracking regression.");
     }
 
     [Theory]

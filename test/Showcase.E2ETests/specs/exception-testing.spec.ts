@@ -41,11 +41,16 @@ test.describe('Exception Testing Page', () => {
 
   // /testing is x-retry-enabled: false in the spec, so its 5xx and 429 answers are not retried
   // (with retries, "Run All" waited for the back-off of every 500/501/504 - about a minute).
-  test('runs all exception tests without retrying them', async () => {
-    const started = Date.now();
+  // Counted, not timed: a retried call is a second request for the same URL.
+  test('runs all exception tests without retrying them', async ({ page }) => {
+    const calls: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() !== 'OPTIONS' && request.url().includes('/api/v1/testing/')) calls.push(request.url());
+    });
     await exceptionPage.runAllTests();
-    await expect(exceptionPage.page.getByText('12/12 passed')).toBeVisible({ timeout: 15_000 });
-    expect(Date.now() - started).toBeLessThan(15_000);
+    await expect(exceptionPage.page.getByText('12/12 passed')).toBeVisible({ timeout: 60_000 });
+    expect(calls.length).toBeGreaterThan(0);
+    expect(new Set(calls).size).toBe(calls.length);
   });
 
   // A 400 that declares its own model (TestingProblem, no errors): the C# EndpointPerOperation client keeps the
