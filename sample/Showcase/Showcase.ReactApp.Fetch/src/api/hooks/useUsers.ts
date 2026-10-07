@@ -96,8 +96,8 @@ export function useQueryUsers(body: UserQuery, options?: Omit<UseQueryOptions<Us
   const api = useApiService();
   return useQuery({
     ...usersQueries.queryUsers(api, body),
-    enabled: !!body,
     ...options,
+    enabled: body != null && (options?.enabled ?? true),
   });
 }
 
@@ -122,9 +122,9 @@ export function useCreateUser(options?: Omit<UseMutationOptions<User, ApiError, 
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: usersKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -150,9 +150,9 @@ export function useImportUsers(options?: Omit<UseMutationOptions<Users, ApiError
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: usersKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -162,8 +162,8 @@ export function useGetUserById(userId: string, options?: Omit<UseQueryOptions<Us
   const api = useApiService();
   return useQuery({
     ...usersQueries.getUserById(api, userId),
-    enabled: !!userId,
     ...options,
+    enabled: userId != null && (options?.enabled ?? true),
   });
 }
 
@@ -188,9 +188,9 @@ export function useUpdateUserById(userId: string, options?: Omit<UseMutationOpti
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: usersKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -216,9 +216,9 @@ export function useDeleteUserById(options?: Omit<UseMutationOptions<void, ApiErr
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: usersKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }

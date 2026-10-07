@@ -73,7 +73,7 @@ export function useCreateTask(config?: SWRMutationConfiguration<Task, ApiError, 
 export function useGetTaskById(taskId: string, config?: SWRConfiguration<Task, ApiError>) {
   const api = useApiService();
   return useSWR<Task, ApiError>(
-    taskId ? tasksKeys.taskById(taskId) : null,
+    taskId != null ? tasksKeys.taskById(taskId) : null,
     async () => {
       const result = await api.tasks.getTaskById(taskId);
       if (result.status === 'ok') {

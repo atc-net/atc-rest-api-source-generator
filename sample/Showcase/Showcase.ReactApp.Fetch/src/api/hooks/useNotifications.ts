@@ -93,9 +93,9 @@ export function useCreateSubscription(options?: Omit<UseMutationOptions<Subscrip
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -105,8 +105,8 @@ export function useGetSubscriptionById(subscriptionId: string, options?: Omit<Us
   const api = useApiService();
   return useQuery({
     ...notificationsQueries.getSubscriptionById(api, subscriptionId),
-    enabled: !!subscriptionId,
     ...options,
+    enabled: subscriptionId != null && (options?.enabled ?? true),
   });
 }
 
@@ -131,9 +131,9 @@ export function useDeleteSubscription(options?: Omit<UseMutationOptions<void, Ap
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -197,7 +197,7 @@ export function useListNotificationsStream(query?: { topics?: string /* default:
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, keyDep]);
+  }, [enabled, api, keyDep]);
 
   return { items, status, error, cancel, reset };
 }

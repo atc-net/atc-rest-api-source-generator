@@ -80,6 +80,7 @@ export class AccountsClient {
       responseType: 'json',
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListAccountsResult>;
   }
@@ -91,6 +92,7 @@ export class AccountsClient {
       responseType: 'json',
       retry: { policy: retryPolicies.accountsFast, enabled: false },
       arms: ['created', 'conflict', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateAccountResult>;
   }
@@ -101,6 +103,7 @@ export class AccountsClient {
       responseType: 'json',
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetAccountByIdResult>;
   }
@@ -110,6 +113,7 @@ export class AccountsClient {
     return this.api.request<void>('DELETE', `/accounts/${encodeURIComponent(accountId)}`, {
       retry: { policy: retryPolicies.accountsFast },
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<DeleteAccountByIdResult>;
   }
@@ -121,6 +125,7 @@ export class AccountsClient {
       responseType: 'json',
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UpdateAccountByIdResult>;
   }
@@ -136,12 +141,13 @@ export class AccountsClient {
       },
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListPaginatedAccountsResult>;
   }
 
   /** List all accounts async-enumerable */
   async *listAsyncEnumerableAccounts(signal?: AbortSignal): AsyncGenerator<Account> {
-    yield* this.api.requestStream<Account>('GET', '/accounts/async-enumerable', { signal });
+    yield* this.api.requestStream<Account>('GET', '/accounts/async-enumerable', { signal, security: [{ type: 'bearer' }] });
   }
 }

@@ -25,7 +25,7 @@ export interface User {
   readonly dateOfBirth: string;
 
   /** Calculated age based on date of birth */
-  readonly age?: number;
+  readonly age?: number | null;
 
   /** Short biography */
   readonly bio?: string | null;
@@ -34,15 +34,15 @@ export interface User {
   readonly avatarUrl?: string | null;
 
   /** Whether the user account is active */
-  readonly isActive?: boolean;
+  readonly isActive?: boolean | null;
 
   readonly role: UserRole;
 
   readonly address: Address;
 
   /** When the user was created */
-  readonly createdAt?: string;
+  readonly createdAt?: string | null;
 
   /** When the user was last updated */
-  readonly updatedAt?: string;
+  readonly updatedAt?: string | null;
 }

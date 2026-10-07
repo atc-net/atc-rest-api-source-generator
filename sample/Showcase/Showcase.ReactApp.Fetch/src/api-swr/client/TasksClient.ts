@@ -68,6 +68,7 @@ export class TasksClient {
       },
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListTasksResult>;
   }
@@ -78,6 +79,7 @@ export class TasksClient {
       body,
       responseType: 'json',
       arms: ['created', 'conflict', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateTaskResult>;
   }
@@ -87,6 +89,7 @@ export class TasksClient {
     return this.api.request<Task>('GET', `/tasks/${encodeURIComponent(taskId)}`, {
       responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetTaskByIdResult>;
   }
@@ -95,6 +98,7 @@ export class TasksClient {
   async deleteTaskById(taskId: string, signal?: AbortSignal): Promise<DeleteTaskByIdResult> {
     return this.api.request<void>('DELETE', `/tasks/${encodeURIComponent(taskId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<DeleteTaskByIdResult>;
   }
@@ -105,6 +109,7 @@ export class TasksClient {
       body,
       responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UpdateTaskByIdResult>;
   }

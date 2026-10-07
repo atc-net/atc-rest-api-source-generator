@@ -74,7 +74,7 @@ export function useCreateSubscription(config?: SWRMutationConfiguration<Subscrip
 export function useGetSubscriptionById(subscriptionId: string, config?: SWRConfiguration<Subscription, ApiError>) {
   const api = useApiService();
   return useSWR<Subscription, ApiError>(
-    subscriptionId ? notificationsKeys.subscriptionById(subscriptionId) : null,
+    subscriptionId != null ? notificationsKeys.subscriptionById(subscriptionId) : null,
     async () => {
       const result = await api.notifications.getSubscriptionById(subscriptionId);
       if (result.status === 'ok') {
@@ -185,7 +185,7 @@ export function useListNotificationsStream(query?: { topics?: string /* default:
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, keyDep]);
+  }, [enabled, api, keyDep]);
 
   return { items, status, error, cancel, reset };
 }

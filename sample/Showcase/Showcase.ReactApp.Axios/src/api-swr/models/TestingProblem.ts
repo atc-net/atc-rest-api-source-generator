@@ -2,14 +2,14 @@
 /** The API's own 400 body - a problem without field errors */
 export interface TestingProblem {
   /** A URI reference that identifies the problem type */
-  readonly type?: string;
+  readonly type?: string | null;
 
   /** A short summary of the problem */
-  readonly title?: string;
+  readonly title?: string | null;
 
   /** The HTTP status code */
-  readonly status?: number;
+  readonly status?: number | null;
 
   /** An explanation specific to this occurrence */
-  readonly detail?: string;
+  readonly detail?: string | null;
 }

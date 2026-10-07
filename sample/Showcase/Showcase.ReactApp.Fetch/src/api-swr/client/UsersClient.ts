@@ -97,6 +97,7 @@ export class UsersClient {
       responseType: 'json',
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListUsersResult>;
   }
@@ -108,6 +109,7 @@ export class UsersClient {
       responseType: 'json',
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<QueryUsersResult>;
   }
@@ -119,6 +121,7 @@ export class UsersClient {
       responseType: 'json',
       retry: { policy: retryPolicies.users, enabled: false },
       arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateUserResult>;
   }
@@ -129,6 +132,7 @@ export class UsersClient {
       body,
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ImportUsersResult>;
   }
@@ -139,6 +143,7 @@ export class UsersClient {
       retry: { policy: retryPolicies.users },
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetUserByIdResult>;
   }
@@ -150,6 +155,7 @@ export class UsersClient {
       responseType: 'json',
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'notFound', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UpdateUserByIdResult>;
   }
@@ -159,6 +165,7 @@ export class UsersClient {
     return this.api.request<void>('DELETE', `/users/${encodeURIComponent(userId)}`, {
       retry: { policy: retryPolicies.users },
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<DeleteUserByIdResult>;
   }

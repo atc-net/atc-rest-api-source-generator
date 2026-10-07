@@ -31,9 +31,9 @@ export function useGetFileById(options?: Omit<UseMutationOptions<Blob, ApiError,
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: filesKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: filesKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -59,9 +59,9 @@ export function useUploadSingleObjectWithFileAsFormData(options?: Omit<UseMutati
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: filesKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: filesKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -87,9 +87,9 @@ export function useUploadSingleObjectWithFilesAsFormData(options?: Omit<UseMutat
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: filesKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: filesKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -115,9 +115,9 @@ export function useUploadSingleFileAsFormData(options?: Omit<UseMutationOptions<
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: filesKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: filesKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -143,9 +143,9 @@ export function useUploadMultiFilesAsFormData(options?: Omit<UseMutationOptions<
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: filesKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: filesKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }

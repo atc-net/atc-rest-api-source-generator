@@ -5,5 +5,5 @@ export interface DeclaredBadRequestTestRequest {
   readonly name: string;
 
   /** An age of 0-150 */
-  readonly age?: number;
+  readonly age?: number | null;
 }

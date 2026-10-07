@@ -42,7 +42,7 @@ export function useListUsers(query?: { search?: string; country?: string; role?:
 export function useQueryUsers(body: UserQuery, config?: SWRConfiguration<Users, ApiError>) {
   const api = useApiService();
   return useSWR<Users, ApiError>(
-    body ? usersKeys.query(body) : null,
+    body != null ? usersKeys.query(body) : null,
     async () => {
       const result = await api.users.queryUsers(body);
       if (result.status === 'ok') {
@@ -130,7 +130,7 @@ export function useImportUsers(config?: SWRMutationConfiguration<Users, ApiError
 export function useGetUserById(userId: string, config?: SWRConfiguration<User, ApiError>) {
   const api = useApiService();
   return useSWR<User, ApiError>(
-    userId ? usersKeys.userById(userId) : null,
+    userId != null ? usersKeys.userById(userId) : null,
     async () => {
       const result = await api.users.getUserById(userId);
       if (result.status === 'ok') {

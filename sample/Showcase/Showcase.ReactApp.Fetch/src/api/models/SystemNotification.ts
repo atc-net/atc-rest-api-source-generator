@@ -10,7 +10,7 @@ export interface SystemNotification {
 
   readonly type: NotificationType;
 
-  readonly severity?: NotificationSeverity;
+  readonly severity?: NotificationSeverity | null;
 
   /** When the event occurred */
   readonly timestamp: string;
@@ -21,5 +21,5 @@ export interface SystemNotification {
   /** Additional event-specific data as JSON string */
   readonly data?: string | null;
 
-  readonly metrics?: SystemMetrics;
+  readonly metrics?: SystemMetrics | null;
 }

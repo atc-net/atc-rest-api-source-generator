@@ -98,7 +98,7 @@ const accountsQueries = {
       );
     },
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.continuation || undefined,
+    getNextPageParam: (lastPage, _allPages, lastPageParam) => { const next = lastPage.continuation || undefined; return next !== lastPageParam ? next : undefined; },
     retry: false,
   }),
 };
@@ -135,9 +135,9 @@ export function useCreateAccount(options?: Omit<UseMutationOptions<Account, ApiE
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: accountsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: accountsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -147,8 +147,8 @@ export function useGetAccountById(accountId: string, options?: Omit<UseQueryOpti
   const api = useApiService();
   return useQuery({
     ...accountsQueries.getAccountById(api, accountId),
-    enabled: !!accountId,
     ...options,
+    enabled: accountId != null && (options?.enabled ?? true),
   });
 }
 
@@ -173,9 +173,9 @@ export function useDeleteAccountById(options?: Omit<UseMutationOptions<void, Api
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: accountsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: accountsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -201,9 +201,9 @@ export function useUpdateAccountById(accountId: string, options?: Omit<UseMutati
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: accountsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: accountsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -284,7 +284,7 @@ export function useListAsyncEnumerableAccountsStream(options?: { enabled?: boole
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, api]);
 
   return { items, status, error, cancel, reset };
 }

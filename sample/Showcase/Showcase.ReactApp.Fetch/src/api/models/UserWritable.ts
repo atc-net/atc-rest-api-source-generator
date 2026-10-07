@@ -31,7 +31,7 @@ export interface UserWritable {
   readonly avatarUrl?: string | null;
 
   /** Whether the user account is active */
-  readonly isActive?: boolean;
+  readonly isActive?: boolean | null;
 
   readonly role: UserRole;
 

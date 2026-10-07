@@ -2,20 +2,20 @@
 /** Real-time system metrics */
 export interface SystemMetrics {
   /** CPU usage percentage */
-  readonly cpuUsage?: number;
+  readonly cpuUsage?: number | null;
 
   /** Memory usage percentage */
-  readonly memoryUsage?: number;
+  readonly memoryUsage?: number | null;
 
   /** Number of active connections */
-  readonly activeConnections?: number;
+  readonly activeConnections?: number | null;
 
   /** Current requests per second */
-  readonly requestsPerSecond?: number;
+  readonly requestsPerSecond?: number | null;
 
   /** Average response time in milliseconds */
-  readonly averageResponseTime?: number;
+  readonly averageResponseTime?: number | null;
 
   /** System uptime duration (e.g., "2d 5h 30m") */
-  readonly uptime?: string;
+  readonly uptime?: string | null;
 }

@@ -11,11 +11,11 @@ export interface NotificationEvent {
 
   readonly type: NotificationType;
 
-  readonly severity?: NotificationSeverity;
+  readonly severity?: NotificationSeverity | null;
 
   readonly timestamp: string;
 
   readonly message?: string | null;
 
-  readonly payload?: SystemNotification | UserActivityEvent | DataChangeEvent;
+  readonly payload?: SystemNotification | UserActivityEvent | DataChangeEvent | null;
 }

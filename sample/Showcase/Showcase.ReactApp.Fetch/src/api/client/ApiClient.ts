@@ -10,8 +10,20 @@ import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';
 export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;
 export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;
 
+/**
+ * A security scheme of an operation (the generated client passes them): a bearer token - http bearer, OAuth2, OpenID
+ * Connect - from getAccessToken, or an API key from apiKeys (by the scheme's name in components.securitySchemes),
+ * sent in the header, query parameter or cookie the scheme declares.
+ */
+export type SecurityScheme =
+  | { readonly type: 'bearer' }
+  | { readonly type: 'apiKey'; readonly scheme: string; readonly in: 'header' | 'query' | 'cookie'; readonly name: string };
+
 export interface ApiClientOptions {
+  /** The access token, sent as a bearer token with the operations that require one (http bearer, OAuth2, OpenID Connect). */
   getAccessToken?: () => string | Promise<string>;
+  /** The API keys of the specification's apiKey security schemes, by scheme name: sent with the operations that require them. */
+  apiKeys?: Record<string, string | (() => string | undefined | Promise<string | undefined>)>;
   defaultHeaders?: Record<string, string>;
   requestInterceptors?: FetchRequestInterceptor[];
   responseInterceptors?: FetchResponseInterceptor[];
@@ -23,16 +35,21 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;
   headers?: Record<string, string | number | boolean | undefined>;
+  /**
+   * The operation's security schemes (the generated client passes them): [] for an anonymous operation, which sends
+   * no credentials. Without it (a specification that declares no security) the access token is sent when there is one.
+   */
+  security?: readonly SecurityScheme[];
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
   /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */
   contentType?: string;
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
-  /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */
-  xml?: XmlOptions;
   /** A model or a file (the generated client passes it): a file answer (neither JSON nor XML) is a Blob, a model's is the model. */
   modelOrFile?: boolean;
+  /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */
+  xml?: XmlOptions;
   /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
   retry?: RequestRetry;
 }
@@ -60,16 +77,130 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
         const rawEvent = buffer.substring(0, sep);
         buffer = buffer.substring(sep + 2);
-        const data = rawEvent
-          .split('\n')
+        const lines = rawEvent.split('\n');
+        const eventLine = lines.find((l) => l.startsWith('event:'));
+        const eventType = eventLine ? eventLine.slice(6).trim() : 'message';
+        const data = lines
           .filter((l) => l.startsWith('data:'))
           .map((l) => l.slice(5).trimStart())
           .join('\n');
-        if (data.length > 0) {
-          yield JSON.parse(data, reviver) as T;
+        // An event without data is no item; a named event whose data is no JSON (a heartbeat, a control frame) is
+        // skipped; an unnamed event - the item event - must be one
+        if (data.trim().length === 0) continue;
+        let item: T;
+        try {
+          item = JSON.parse(data, reviver) as T;
+        } catch (e) {
+          if (eventType !== 'message') continue;
+          throw e;
         }
+        yield item;
       }
     }
+  } finally {
+    await releaseReader(reader, finished);
+  }
+}
+
+/** The end (exclusive) of the JSON value that starts at `start`, or -1 while the text holds only part of it. A number or a literal at the text's end is complete only when the stream is. */
+function scanJsonValue(text: string, start: number, atEnd: boolean): number {
+  const first = text.charAt(start);
+  if (first === '{' || first === '[') {
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i++) {
+      const ch = text.charAt(i);
+      if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') inStr = true;
+      else if (ch === '{' || ch === '[') depth++;
+      else if (ch === '}' || ch === ']') { depth--; if (depth === 0) return i + 1; }
+    }
+    return -1;
+  }
+  if (first === '"') {
+    let esc = false;
+    for (let i = start + 1; i < text.length; i++) {
+      const ch = text.charAt(i);
+      if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') return i + 1;
+    }
+    return -1;
+  }
+  let i = start;
+  while (i < text.length && !' \t\r\n,]}'.includes(text.charAt(i))) i++;
+  return i < text.length || atEnd ? i : -1;
+}
+
+/** Reads a JSON array one element at a time; values that are not wrapped in an array are read one after the other. */
+async function* parseJsonArrayStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  let pos = 0;
+  let finished = false;
+  let inArray: boolean | undefined;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) finished = true; else buffer += decoder.decode(value, { stream: true });
+      let ended = false;
+      while (true) {
+        while (pos < buffer.length && ' \t\r\n,'.includes(buffer.charAt(pos))) pos++;
+        if (pos >= buffer.length) break;
+        if (inArray === undefined) { inArray = buffer.charAt(pos) === '['; if (inArray) { pos++; continue; } }
+        if (inArray && buffer.charAt(pos) === ']') { ended = true; break; }
+        const end = scanJsonValue(buffer, pos, done);
+        if (end === -1) break;
+        yield JSON.parse(buffer.substring(pos, end)) as T;
+        pos = end;
+      }
+      if (ended || done) break;
+      if (pos > 0) { buffer = buffer.substring(pos); pos = 0; }
+    }
+  } finally {
+    await releaseReader(reader, finished);
+  }
+}
+
+/** Reads JSON Lines: one value per line, blank lines skipped, a last line without its newline included. */
+async function* parseJsonLinesStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  let finished = false;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { finished = true; break; }
+      buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.substring(0, nl).trim();
+        buffer = buffer.substring(nl + 1);
+        if (line.length > 0) yield JSON.parse(line) as T;
+      }
+    }
+    const rest = buffer.trim();
+    if (rest.length > 0) yield JSON.parse(rest) as T;
+  } finally {
+    await releaseReader(reader, finished);
+  }
+}
+
+/** Reads a JSON Text Sequence (RFC 7464): each record is a record separator (0x1E), the JSON text and a newline. */
+async function* parseJsonSeqStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  let finished = false;
+  const parse = (record: string): T | undefined => { const text = record.replace(/\x1e/g, '').trim(); return text.length > 0 ? JSON.parse(text) as T : undefined; };
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { finished = true; break; }
+      buffer += decoder.decode(value, { stream: true });
+      let rs: number;
+      while ((rs = buffer.indexOf('\x1e', 1)) !== -1) {
+        const item = parse(buffer.substring(0, rs));
+        buffer = buffer.substring(rs);
+        if (item !== undefined) yield item;
+      }
+      if (buffer.endsWith('\n')) { const item = parse(buffer); buffer = ''; if (item !== undefined) yield item; }
+    }
+    const last = parse(buffer);
+    if (last !== undefined) yield last;
   } finally {
     await releaseReader(reader, finished);
   }
@@ -114,8 +245,8 @@ export class ApiClient {
   }
 
   async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {
-    const url = this.buildUrl(path, options?.query);
-    const headers = await this.getHeaders(options?.headers);
+    const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });
+    const headers = await this.getHeaders(options?.headers, options?.security);
     if (options?.xml?.accept) {
       headers.set('Accept', options.xml.accept);
     }
@@ -199,8 +330,8 @@ export class ApiClient {
   }
 
   async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
-    const url = this.buildUrl(path, options?.query);
-    const headers = await this.getHeaders(options?.headers);
+    const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });
+    const headers = await this.getHeaders(options?.headers, options?.security);
 
     const streamBody = options?.body !== undefined ? JSON.stringify(options.body) : undefined;
     if (streamBody !== undefined) {
@@ -218,7 +349,11 @@ export class ApiClient {
       init = await interceptor(url, init);
     }
 
-    const response = await fetch(url, init);
+    // The same pipeline as any request: the response interceptors see the stream's response (a 401 refresh applies)
+    let response = await fetch(url, init);
+    for (const interceptor of this.options.responseInterceptors ?? []) {
+      response = await interceptor(response);
+    }
 
     if (!response.ok) {
       const result = await this.handleResponse<T>(response);
@@ -234,7 +369,6 @@ export class ApiClient {
     }
 
     const decoder = new TextDecoder();
-    let buffer = '';
 
     if (framing === 'sse') {
       yield* parseEventStream<T>(reader, decoder);
@@ -244,23 +378,42 @@ export class ApiClient {
     if (framing === 'multipart') {
       const contentType = response.headers.get('content-type') ?? '';
       const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
-      const delimiter = '--' + (m ? m[2] : '');
+      // Without a boundary the parts cannot be found: an error, not a guess
+      if (!m) throw new Error('A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.');
+      const delimiter = '--' + m[2];
       let buf = '';
       let finished = false;
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) { finished = true; break; }
+          if (done) {
+            finished = true;
+            // A last part the stream ended on without its closing boundary (the server failed mid-stream): what it sent is yielded
+            if (buf.startsWith(delimiter)) {
+              const tail = buf.substring(delimiter.length).replace(/^\r\n/, '');
+              const sep = tail.indexOf('\r\n\r\n');
+              const bodyText = sep === -1 || tail.startsWith('--') ? '' : tail.substring(sep + 4).trim();
+              if (bodyText.length > 0 && scanJsonValue(bodyText, 0, true) === bodyText.length) yield JSON.parse(bodyText) as T;
+            }
+            break;
+          }
           buf += decoder.decode(value, { stream: true });
           // Discard preamble (everything before the first delimiter boundary).
           const first = buf.indexOf(delimiter);
-          if (first === -1) { buf = ''; continue; }
+          if (first === -1) { if (buf.length > delimiter.length) buf = buf.substring(buf.length - delimiter.length); continue; }
           if (first > 0) buf = buf.substring(first);
           // Yield each complete part; buf always starts at a delimiter after this loop.
           while (buf.startsWith(delimiter)) {
             const partStart = delimiter.length;
             const next = buf.indexOf(delimiter, partStart);
-            if (next === -1) break;
+            if (next === -1) {
+              // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one
+              const pending = buf.substring(partStart).replace(/^\r\n/, '');
+              const pendingSep = pending.indexOf('\r\n\r\n');
+              const pendingBody = pendingSep === -1 || pending.startsWith('--') ? '' : pending.substring(pendingSep + 4).trim();
+              if (pendingBody.length > 0 && pending.endsWith('\r\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }
+              break;
+            }
             const part = buf.substring(partStart, next);
             buf = buf.substring(next);
             const trimmed = part.replace(/^\r\n/, '');
@@ -277,49 +430,22 @@ export class ApiClient {
       return;
     }
 
-    let finished = false;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { finished = true; break; }
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Extract complete JSON objects from buffer.
-        // Handles JSON array ([{...},{...}]) and NDJSON ({...}\n{...}).
-        while (true) {
-          const objStart = buffer.indexOf('{');
-          if (objStart === -1) { buffer = ''; break; }
-
-          let depth = 0, inStr = false, esc = false, objEnd = -1;
-          for (let i = objStart; i < buffer.length; i++) {
-            const ch = buffer[i];
-            if (esc) { esc = false; continue; }
-            if (ch === '\\' && inStr) { esc = true; continue; }
-            if (ch === '"') { inStr = !inStr; continue; }
-            if (inStr) continue;
-            if (ch === '{') depth++;
-            if (ch === '}') { depth--; if (depth === 0) { objEnd = i; break; } }
-          }
-
-          if (objEnd === -1) {
-            buffer = buffer.substring(objStart);
-            break;
-          }
-
-          yield JSON.parse(buffer.substring(objStart, objEnd + 1)) as T;
-          buffer = buffer.substring(objEnd + 1);
-        }
-      }
-    } finally {
-      await releaseReader(reader, finished);
+    // JSON Lines, JSON Text Sequence, or a JSON array read one element at a time
+    if (framing === 'json-lines') {
+      yield* parseJsonLinesStream<T>(reader, decoder);
+    } else if (framing === 'json-seq') {
+      yield* parseJsonSeqStream<T>(reader, decoder);
+    } else {
+      yield* parseJsonArrayStream<T>(reader, decoder);
     }
   }
 
   buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {
-    // A relative base URL ('/api', or an empty one) resolves against the origin of the page
+    // A relative base URL ('/api', or an empty one) resolves against the origin of the page; without a page
+    // (server-side rendering, Node) it stays relative
+    const relativeOrigin = 'http://relative.invalid';
     const origin = (globalThis as { location?: { origin?: string } }).location?.origin;
-    const url = new URL(`${this.baseUrl}${path}`, origin);
+    const url = new URL(`${this.baseUrl}${path}`, origin ?? relativeOrigin);
     if (query) {
       for (const [key, value] of Object.entries(query)) {
         if (value === undefined) {
@@ -336,15 +462,14 @@ export class ApiClient {
     }
     // Note: URL.searchParams always percent-encodes values.
     // OpenAPI allowReserved cannot be honoured via this path.
-    return url.toString();
+    return url.origin === relativeOrigin ? `${url.pathname}${url.search}${url.hash}` : url.toString();
   }
 
-  async getHeaders(extra?: Record<string, string | number | boolean | undefined>): Promise<Headers> {
+  async getHeaders(extra?: Record<string, string | number | boolean | undefined>, security?: readonly SecurityScheme[]): Promise<Headers> {
     const headers = new Headers(this.options.defaultHeaders);
 
-    if (this.options.getAccessToken) {
-      const token = await this.options.getAccessToken();
-      headers.set('Authorization', `Bearer ${token}`);
+    for (const [key, value] of Object.entries(await this.credentials(security, 'headers'))) {
+      headers.set(key, value);
     }
 
     if (extra) {
@@ -356,6 +481,48 @@ export class ApiClient {
     }
 
     return headers;
+  }
+
+  /**
+   * The credentials of an operation's security schemes that go in the headers (the access token as a bearer token, API
+   * keys in a header or a cookie) or in the query. Without security schemes - a specification that declares no security -
+   * the access token is sent when there is one; an anonymous operation ([]) sends none. A cookie API key is a Cookie
+   * header, which browsers do not let a script set (there the browser sends its own cookies): Node only.
+   */
+  private async credentials(security: readonly SecurityScheme[] | undefined, place: 'headers' | 'query'): Promise<Record<string, string>> {
+    const values: Record<string, string> = {};
+    const cookies: string[] = [];
+    for (const scheme of security ?? [{ type: 'bearer' } as const]) {
+      if (scheme.type === 'bearer') {
+        if (place === 'headers' && this.options.getAccessToken) {
+          values['Authorization'] = `Bearer ${await this.options.getAccessToken()}`;
+        }
+
+        continue;
+      }
+
+      if ((scheme.in === 'query') !== (place === 'query')) {
+        continue;
+      }
+
+      const key = this.options.apiKeys?.[scheme.scheme];
+      const value = typeof key === 'function' ? await key() : key;
+      if (value === undefined) {
+        continue;
+      }
+
+      if (scheme.in === 'cookie') {
+        cookies.push(`${scheme.name}=${encodeURIComponent(value)}`);
+      } else {
+        values[scheme.name] = value;
+      }
+    }
+
+    if (cookies.length > 0) {
+      values['Cookie'] = cookies.join('; ');
+    }
+
+    return values;
   }
 
   private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {
@@ -439,7 +606,7 @@ export class ApiClient {
       errorBody = undefined;
     }
 
-    const message = errorMessage(response.status, response.statusText, errorBody);
+    const message = errorMessage(response.status, response.statusText, errorBody, contentType);
 
     if (response.status === 400) {
       // Always badRequest: a 400 without validation errors carries an empty errors map.

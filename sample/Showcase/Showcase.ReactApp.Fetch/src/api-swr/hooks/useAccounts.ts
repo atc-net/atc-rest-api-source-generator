@@ -82,7 +82,7 @@ export function useCreateAccount(config?: SWRMutationConfiguration<Account, ApiE
 export function useGetAccountById(accountId: string, config?: SWRConfiguration<Account, ApiError>) {
   const api = useApiService();
   return useSWR<Account, ApiError>(
-    accountId ? accountsKeys.accountById(accountId) : null,
+    accountId != null ? accountsKeys.accountById(accountId) : null,
     async () => {
       const result = await api.accounts.getAccountById(accountId);
       if (result.status === 'ok') {
@@ -289,7 +289,7 @@ export function useListAsyncEnumerableAccountsStream(options?: { enabled?: boole
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, api]);
 
   return { items, status, error, cancel, reset };
 }

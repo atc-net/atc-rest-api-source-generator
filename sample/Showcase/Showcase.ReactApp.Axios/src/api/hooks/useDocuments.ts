@@ -92,9 +92,9 @@ export function useUploadDocument(query: { fileName: string }, options?: Omit<Us
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: documentsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: documentsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -120,9 +120,9 @@ export function useGetDocument(options?: Omit<UseMutationOptions<Blob, ApiError,
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: documentsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: documentsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -132,8 +132,8 @@ export function useGetDocumentSummary(documentId: string, query?: { printable?: 
   const api = useApiService();
   return useQuery({
     ...documentsQueries.getDocumentSummary(api, documentId, query, headers),
-    enabled: !!documentId,
     ...options,
+    enabled: documentId != null && (options?.enabled ?? true),
   });
 }
 
@@ -158,9 +158,9 @@ export function useCopyDocument(options?: Omit<UseMutationOptions<void, ApiError
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: documentsKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: documentsKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }

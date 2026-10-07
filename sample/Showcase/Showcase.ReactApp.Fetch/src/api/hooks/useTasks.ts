@@ -92,9 +92,9 @@ export function useCreateTask(options?: Omit<UseMutationOptions<Task, ApiError, 
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: tasksKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -104,8 +104,8 @@ export function useGetTaskById(taskId: string, options?: Omit<UseQueryOptions<Ta
   const api = useApiService();
   return useQuery({
     ...tasksQueries.getTaskById(api, taskId),
-    enabled: !!taskId,
     ...options,
+    enabled: taskId != null && (options?.enabled ?? true),
   });
 }
 
@@ -130,9 +130,9 @@ export function useDeleteTaskById(options?: Omit<UseMutationOptions<void, ApiErr
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: tasksKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -158,9 +158,9 @@ export function useUpdateTaskById(taskId: string, options?: Omit<UseMutationOpti
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: tasksKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }

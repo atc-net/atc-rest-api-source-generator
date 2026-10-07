@@ -65,6 +65,7 @@ export class FilesClient {
       responseType: 'blob',
       retry: { policy: retryPolicies.files },
       arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<GetFileByIdResult>;
   }
@@ -81,6 +82,7 @@ export class FilesClient {
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
       arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadSingleObjectWithFileAsFormDataResult>;
   }
@@ -95,6 +97,7 @@ export class FilesClient {
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
       arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadSingleObjectWithFilesAsFormDataResult>;
   }
@@ -106,6 +109,7 @@ export class FilesClient {
       contentType: 'application/octet-stream',
       retry: { enabled: false, timeoutMs: 300000 },
       arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadSingleFileAsFormDataResult>;
   }
@@ -122,6 +126,7 @@ export class FilesClient {
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
       arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadMultiFilesAsFormDataResult>;
   }

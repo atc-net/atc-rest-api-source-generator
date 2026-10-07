@@ -54,6 +54,7 @@ export class NotificationsClient {
     return this.api.request<Subscriptions>('GET', '/notifications/subscriptions', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListSubscriptionsResult>;
   }
@@ -64,6 +65,7 @@ export class NotificationsClient {
       body,
       responseType: 'json',
       arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateSubscriptionResult>;
   }
@@ -73,6 +75,7 @@ export class NotificationsClient {
     return this.api.request<Subscription>('GET', `/notifications/subscriptions/${encodeURIComponent(subscriptionId)}`, {
       responseType: 'json',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetSubscriptionByIdResult>;
   }
@@ -81,6 +84,7 @@ export class NotificationsClient {
   async deleteSubscription(subscriptionId: string, signal?: AbortSignal): Promise<DeleteSubscriptionResult> {
     return this.api.request<void>('DELETE', `/notifications/subscriptions/${encodeURIComponent(subscriptionId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<DeleteSubscriptionResult>;
   }
@@ -92,6 +96,7 @@ export class NotificationsClient {
         topics: query?.topics,
       },
       signal,
+      security: [{ type: 'bearer' }],
     });
   }
 }

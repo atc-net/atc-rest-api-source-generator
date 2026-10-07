@@ -105,7 +105,7 @@ export function useGetDocument(config?: SWRMutationConfiguration<Blob, ApiError,
 export function useGetDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, headers?: { 'If-None-Match'?: string }, config?: SWRConfiguration<DocumentSummary | Blob, ApiError>) {
   const api = useApiService();
   return useSWR<DocumentSummary | Blob, ApiError>(
-    documentId ? documentsKeys.getDocumentSummary(documentId, query) : null,
+    documentId != null ? documentsKeys.getDocumentSummary(documentId, query) : null,
     async () => {
       const result = await api.documents.getDocumentSummary(documentId, query, headers);
       if (result.status === 'ok') {

@@ -45,6 +45,7 @@ export class TestingClient {
       responseType: 'json',
       retry: { enabled: false },
       arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<GetExceptionTestResult>;
   }
@@ -53,6 +54,7 @@ export class TestingClient {
   async getErrorResponseTest(status: number, signal?: AbortSignal): Promise<GetErrorResponseTestResult> {
     return this.api.request<void>('POST', `/testing/error-responses/${encodeURIComponent(status)}`, {
       arms: ['noContent', 'badRequest', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<GetErrorResponseTestResult>;
   }
@@ -62,6 +64,7 @@ export class TestingClient {
     return this.api.request<void>('POST', '/testing/declared-bad-request', {
       body,
       arms: ['noContent', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [],
       signal,
     }) as Promise<PostDeclaredBadRequestTestResult>;
   }

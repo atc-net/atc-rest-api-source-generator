@@ -16,7 +16,7 @@ export { testingKeys };
 export function useGetExceptionTest(code: number, config?: SWRConfiguration<ExceptionTestResponse, ApiError>) {
   const api = useApiService();
   return useSWR<ExceptionTestResponse, ApiError>(
-    code ? testingKeys.getExceptionTest(code) : null,
+    code != null ? testingKeys.getExceptionTest(code) : null,
     async () => {
       const result = await api.testing.getExceptionTest(code);
       if (result.status === 'ok') {

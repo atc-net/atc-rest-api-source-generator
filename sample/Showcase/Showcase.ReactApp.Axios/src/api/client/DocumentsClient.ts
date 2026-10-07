@@ -67,6 +67,7 @@ export class DocumentsClient {
     return this.api.request<Document[]>('GET', '/documents', {
       responseType: 'json',
       arms: ['ok', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ListDocumentsResult>;
   }
@@ -81,6 +82,7 @@ export class DocumentsClient {
       },
       responseType: 'json',
       arms: ['created', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadDocumentResult>;
   }
@@ -90,6 +92,7 @@ export class DocumentsClient {
     return this.api.request<Blob>('GET', `/documents/${encodeURIComponent(documentId)}`, {
       responseType: 'blob',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetDocumentResult>;
   }
@@ -106,6 +109,7 @@ export class DocumentsClient {
       },
       modelOrFile: true,
       arms: ['ok', 'notModified', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetDocumentSummaryResult>;
   }
@@ -114,6 +118,7 @@ export class DocumentsClient {
   async copyDocument(documentId: string, signal?: AbortSignal): Promise<CopyDocumentResult> {
     return this.api.request<void>('POST', `/documents/${encodeURIComponent(documentId)}/copy`, {
       arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CopyDocumentResult>;
   }

@@ -47,8 +47,8 @@ export function useGetExceptionTest(code: number, options?: Omit<UseQueryOptions
   const api = useApiService();
   return useQuery({
     ...testingQueries.getExceptionTest(api, code),
-    enabled: !!code,
     ...options,
+    enabled: code != null && (options?.enabled ?? true),
   });
 }
 
@@ -73,9 +73,9 @@ export function useGetErrorResponseTest(options?: Omit<UseMutationOptions<void, 
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: testingKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: testingKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
@@ -101,9 +101,9 @@ export function usePostDeclaredBadRequestTest(options?: Omit<UseMutationOptions<
       );
     },
     ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: testingKeys.all });
-      options?.onSuccess?.(data, variables, onMutateResult, context);
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: testingKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }
