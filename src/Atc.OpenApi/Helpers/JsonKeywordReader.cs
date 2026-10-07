@@ -12,7 +12,15 @@ internal static class JsonKeywordReader
     /// <param name="node">The keyword's value, or <see langword="null"/> when the keyword is absent.</param>
     /// <returns>The string, or <see langword="null"/>.</returns>
     public static string? StringOrNull(JsonNode? node)
-        => node is JsonValue value && value.GetValueKind() == JsonValueKind.String
-            ? value.GetValue<string>()
-            : null;
+    {
+        if (node is not JsonValue value || value.GetValueKind() != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        // A value made in code may hold a Guid, a date or a char - a string in JSON, but not a .NET string
+        return value.TryGetValue<string>(out var text)
+            ? text
+            : JsonSerializer.Deserialize<string>(value.ToJsonString());
+    }
 }
