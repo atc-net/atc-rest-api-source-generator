@@ -95,7 +95,7 @@ public sealed class TypedClientBoundsTests
         Assert.InRange(length, 1, 5000);
     }
 
-    private static async Task<string> RunAsync(
+    private static Task<string> RunAsync(
         int status,
         string? fileName,
         int bodyLength)
@@ -104,6 +104,6 @@ public sealed class TypedClientBoundsTests
         sources.Add(("BoundsProbe.cs", ProbeSource));
         var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
 
-        return await (Task<string>)assembly.GetType("ErrorBodies.RuntimeTest.BoundsProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [status, fileName, bodyLength])!;
+        return (Task<string>)assembly.GetType("ErrorBodies.RuntimeTest.BoundsProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [status, fileName, bodyLength])!;
     }
 }

@@ -179,8 +179,7 @@ public sealed class ArraySerializationWireTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Clients_SendEachStyleAsDeclared(
-        bool typedClient)
+    public async Task Clients_SendEachStyleAsDeclared(bool typedClient)
     {
         var marker = typedClient
             ? """{ "generationMode": "TypedClient" }"""

@@ -103,7 +103,8 @@ public class WireValueHelperTests
     [Theory]
     [InlineData("Level")]
     [InlineData("Rank")]
-    public void TryBuildWireExpression_Schema_IntegerEnum_IsItsNumber(string schemaName)
+    public void TryBuildWireExpression_Schema_IntegerEnum_IsItsNumber(
+        string schemaName)
     {
         // The member's name is a C# name; the specification's value is the number - also for an enum without a type
         var document = OpenApiDocumentHelper.ParseYaml(Yaml);

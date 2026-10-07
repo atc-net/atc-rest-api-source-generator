@@ -180,7 +180,8 @@ public sealed class PolymorphismWireTests
     [InlineData("""{"radius":1,"sideLength":2}""")]
     [InlineData("""{"size":2}""")]
     [InlineData("""[1]""")]
-    public async Task OneOfWithoutDiscriminator_ABodyThatFitsNoVariant_IsA400(string body)
+    public async Task OneOfWithoutDiscriminator_ABodyThatFitsNoVariant_IsA400(
+        string body)
     {
         await using var host = await XmlTestHost.StartAsync(Yaml, HandlerSource, "ErrorBodies.RuntimeTest.PolymorphismRegistration");
 

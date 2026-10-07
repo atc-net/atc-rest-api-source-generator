@@ -73,7 +73,7 @@ public class ApiEndpointInjectionGeneratorTests
             """;
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
-            [CSharpSyntaxTree.ParseText(source)],
+            [CSharpSyntaxTree.ParseText(source, cancellationToken: TestContext.Current.CancellationToken)],
             CompilationVerificationHarness.GetMinimalReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         var additionalTexts = ImmutableArray.Create<AdditionalText>(

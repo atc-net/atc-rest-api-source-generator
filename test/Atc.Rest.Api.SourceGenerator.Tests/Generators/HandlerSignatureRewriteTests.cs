@@ -69,6 +69,11 @@ public sealed class HandlerSignatureRewriteTests : IDisposable
 
         var rewritten = File.ReadAllText(path);
         Assert.Contains("public static Task<ListPetsResult> ExecuteAsync(CancellationToken cancellationToken) => throw", rewritten, StringComparison.Ordinal);
-        Assert.Equal(1, Regex.Matches(rewritten, "ListPetsParameters parameters").Count);
+        Assert.Equal(1, CountOf(rewritten, "ListPetsParameters parameters"));
     }
+
+    private static int CountOf(
+        string text,
+        string value)
+        => text.Split(value).Length - 1;
 }

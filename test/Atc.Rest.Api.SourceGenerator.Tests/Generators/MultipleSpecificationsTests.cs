@@ -30,8 +30,7 @@ public sealed class MultipleSpecificationsTests
     [InlineData(".atc-rest-api-client")]
     [InlineData(".atc-rest-api-server")]
     [InlineData(".atc-rest-api-server-handlers")]
-    public void Generator_ABaseWithItsParts_IsNoGEN021(
-        string markerFileName)
+    public void Generator_ABaseWithItsParts_IsNoGEN021(string markerFileName)
     {
         var (diagnostics, generated) = Run(
             markerFileName,

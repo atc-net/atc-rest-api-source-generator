@@ -109,7 +109,7 @@ public sealed class AntiforgeryOptionWireTests
         // A file upload (bound by the framework, not field by field) the same way
         using var client = new HttpClient { BaseAddress = host.BaseAddress };
         using var upload = new MultipartFormDataContent { { new ByteArrayContent([1, 2, 3]), "file", "a.bin" } };
-        using var uploaded = await client.PostAsync("/files", upload, TestContext.Current.CancellationToken);
+        using var uploaded = await client.PostAsync(new Uri("/files", UriKind.Relative), upload, TestContext.Current.CancellationToken);
         Assert.True((int)uploaded.StatusCode == expectedStatus, $"{(int)uploaded.StatusCode}: {await uploaded.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
     }
 }

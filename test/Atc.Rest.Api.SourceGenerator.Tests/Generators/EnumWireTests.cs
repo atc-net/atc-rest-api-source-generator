@@ -244,7 +244,8 @@ public sealed class EnumWireTests
         Assert.Equal("\"active\"", wire[3]);
     }
 
-    private static Task<XmlTestHost> StartAsync(bool hostWideStringEnumConverter)
+    private static Task<XmlTestHost> StartAsync(
+        bool hostWideStringEnumConverter)
         => XmlTestHost.StartAsync(
             Yaml,
             HandlerSource,

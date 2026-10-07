@@ -139,7 +139,7 @@ public sealed class TypedClientEmptyBodyTests
         Assert.Contains("Task<Pet?> GetPetAsync(", client, StringComparison.Ordinal);
     }
 
-    private static async Task<string> RunAsync(
+    private static Task<string> RunAsync(
         string resultStyle,
         int status,
         string? body,
@@ -150,6 +150,6 @@ public sealed class TypedClientEmptyBodyTests
         sources.Add(("EmptyBodyProbe.cs", ProbeSource));
         var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
 
-        return await (Task<string>)assembly.GetType("ErrorBodies.RuntimeTest.EmptyBodyProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [status, body, mediaType])!;
+        return (Task<string>)assembly.GetType("ErrorBodies.RuntimeTest.EmptyBodyProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [status, body, mediaType])!;
     }
 }

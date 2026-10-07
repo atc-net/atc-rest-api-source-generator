@@ -50,7 +50,7 @@ public class StreamingWireFramingTests
 
         var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
 
-        Assert.Equal(["a", "b"], items.Select(i => i.GetProperty("id").GetString()));
+        Assert.Equal(["a", "b"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
     }
 
     /// <summary>

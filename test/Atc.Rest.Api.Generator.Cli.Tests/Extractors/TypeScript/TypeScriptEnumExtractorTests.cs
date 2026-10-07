@@ -60,7 +60,8 @@ public class TypeScriptEnumExtractorTests
     [Theory]
     [InlineData(TypeScriptEnumStyle.Enum)]
     [InlineData(TypeScriptEnumStyle.Union)]
-    public void Extract_StringEnum_DuplicateValueIsOneMember_CaseVariantsKeepTheirValues(TypeScriptEnumStyle style)
+    public void Extract_StringEnum_DuplicateValueIsOneMember_CaseVariantsKeepTheirValues(
+        TypeScriptEnumStyle style)
     {
         const string yaml = """
                             openapi: 3.0.0
@@ -79,9 +80,9 @@ public class TypeScriptEnumExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { EnumStyle = style }));
 
-        Assert.Equal(1, Regex.Matches(content, "'archived'").Count);
-        Assert.Equal(1, Regex.Matches(content, "'active'").Count);
-        Assert.Equal(1, Regex.Matches(content, "'Active'").Count);
+        Assert.Equal(1, CountOf(content, "'archived'"));
+        Assert.Equal(1, CountOf(content, "'active'"));
+        Assert.Equal(1, CountOf(content, "'Active'"));
         Assert.DoesNotContain("Archived2", content, StringComparison.Ordinal);
     }
 
@@ -303,4 +304,9 @@ public class TypeScriptEnumExtractorTests
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    private static int CountOf(
+        string text,
+        string value)
+        => text.Split(value).Length - 1;
 }

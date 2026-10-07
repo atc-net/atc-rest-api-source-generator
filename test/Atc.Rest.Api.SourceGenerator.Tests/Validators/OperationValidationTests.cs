@@ -2586,7 +2586,8 @@ public class OperationValidationTests
     [Theory]
     [InlineData("- { name: q, in: query, schema: { type: string } }")]
     [InlineData("- { name: other, in: querystring, content: { application/x-www-form-urlencoded: { schema: { type: string } } } }")]
-    public void Validate_QueryStringWithAQueryParameterOrASecondQueryString_ReportsOPR036Error(string secondParameter)
+    public void Validate_QueryStringWithAQueryParameterOrASecondQueryString_ReportsOPR036Error(
+        string secondParameter)
     {
         var yaml = $$"""
                      openapi: 3.2.0

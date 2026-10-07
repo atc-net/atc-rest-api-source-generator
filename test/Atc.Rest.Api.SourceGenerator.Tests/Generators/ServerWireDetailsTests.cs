@@ -193,7 +193,7 @@ public sealed class ServerWireDetailsTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(expectedMediaType, response.Content.Headers.ContentType?.MediaType);
-        Assert.Contains("Accept", response.Headers.Vary);
+        Assert.Contains("Accept", response.Headers.Vary, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -312,9 +312,10 @@ public sealed class ServerWireDetailsTests
         await using var host = await XmlTestHost.StartAsync(LocationYaml, LocationHandlerSource, "ErrorBodies.RuntimeTest.LocationRegistration");
         using var client = new HttpClient { BaseAddress = host.BaseAddress };
 
+        using var content = body is null ? null : new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await client.PostAsync(
-            path,
-            body is null ? null : new StringContent(body, Encoding.UTF8, "application/json"),
+            new Uri(path, UriKind.Relative),
+            content,
             TestContext.Current.CancellationToken);
 
         Assert.Equal(expectedStatus, (int)response.StatusCode);

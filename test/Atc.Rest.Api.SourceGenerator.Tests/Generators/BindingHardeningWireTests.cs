@@ -205,9 +205,13 @@ public sealed class BindingHardeningWireTests
     {
         await using var host = await XmlTestHost.StartAsync(Yaml, HandlerSource, "ErrorBodies.RuntimeTest.BindingRegistration");
         using var client = new HttpClient { BaseAddress = host.BaseAddress };
-        using var form = new MultipartFormDataContent();
-        form.Add(new ByteArrayContent("hello"u8.ToArray()), "upload_file", "a.txt");
-        form.Add(new StringContent("a note"), "note");
+        using var file = new ByteArrayContent("hello"u8.ToArray());
+        using var note = new StringContent("a note");
+        using var form = new MultipartFormDataContent
+        {
+            { file, "upload_file", "a.txt" },
+            { note, "note" },
+        };
 
         using var response = await client.PostAsync(new Uri("/uploads", UriKind.Relative), form, TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

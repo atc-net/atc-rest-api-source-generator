@@ -16,7 +16,7 @@ public class HarnessVerdictTests
         {
             var records = ErrorResponseBodyRuntimeTests.ReadHarnessResults(work, "fetch", 1, "TypeError: fetch failed\n    at node:internal\nError: boom", ["a/one", "b/two"]);
 
-            Assert.Equal(["a/one", "b/two"], records.Keys.Order(StringComparer.Ordinal));
+            Assert.Equal(["a/one", "b/two"], records.Keys.Order(StringComparer.Ordinal), StringComparer.Ordinal);
             var cell = ErrorResponseBodyRuntimeTests.HarnessCell(records["a/one"]);
             Assert.NotNull(cell);
             Assert.Equal(ErrorResponseBodyRuntimeTests.VerdictHarness, (string?)cell["verdict"]);
