@@ -28,6 +28,9 @@ export default defineConfig({
         navigationTimeout: 30_000,
         actionTimeout: 15_000,
       },
+      // Every page load boots the .NET WebAssembly runtime before the first render: with every worker loading at
+      // once, that takes longer than the default 5 s an assertion waits
+      expect: { timeout: 15_000 },
       metadata: { appType: 'blazor' },
     },
     {
@@ -35,7 +38,9 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: `http://localhost:${REACT_FETCH_PORT}`,
-        navigationTimeout: 10_000,
+        // The Vite dev server transforms a module on its first request: under every worker at once, a first load
+        // can take longer than 10 s
+        navigationTimeout: 30_000,
         actionTimeout: 10_000,
       },
       metadata: { appType: 'react', appVariant: 'fetch' },
@@ -45,7 +50,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: `http://localhost:${REACT_AXIOS_PORT}`,
-        navigationTimeout: 10_000,
+        navigationTimeout: 30_000,
         actionTimeout: 10_000,
       },
       metadata: { appType: 'react', appVariant: 'axios' },

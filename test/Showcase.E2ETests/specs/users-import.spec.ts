@@ -10,7 +10,8 @@ const usersXml = (stamp: string, secondFirstName: string) => `<users>
 </users>`;
 
 test.describe('Users import', () => {
-  test('imports a list of users sent as XML, and the server validates every user', async ({ page, request }, testInfo) => {
+  test('imports a list of users sent as XML, and the server validates every user', async ({ page, request, browserErrors }, testInfo) => {
+    browserErrors.expectStatus(400, '/api/v1/users/import', 'the last import sends an invalid user on purpose');
     await page.goto('/users');
     const xml = page.getByTestId('users-import-xml');
     const status = page.getByTestId('users-import-status');

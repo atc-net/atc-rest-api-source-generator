@@ -20,7 +20,8 @@ test.describe('Tasks Page (SWR hooks)', () => {
     await expect(page.getByTestId('swr-tasks-table').getByRole('cell', { name, exact: true })).toBeVisible();
   });
 
-  test('an unknown id shows the ApiError after exactly one request', async ({ page }) => {
+  test('an unknown id shows the ApiError after exactly one request', async ({ page, browserErrors }) => {
+    browserErrors.expectStatus(404, '/api/v1/tasks/987654321', 'the lookup asks for an unknown id on purpose');
     const byIdRequests: string[] = [];
     page.on('request', (request) => {
       if (/\/api\/v1\/tasks\/[^/?]+/.test(request.url()) && request.method() === 'GET') {

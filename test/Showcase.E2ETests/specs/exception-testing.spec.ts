@@ -4,7 +4,12 @@ import { ExceptionTestingPage } from '../page-objects/exception-testing.page';
 test.describe('Exception Testing Page', () => {
   let exceptionPage: ExceptionTestingPage;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browserErrors }) => {
+    // The page asks the /testing endpoints for their errors on purpose: each error response is logged by Chromium
+    browserErrors.expect(
+      /^console\.error Failed to load resource: the server responded with a status of \d{3}\b.*\(\S*\/api\/v1\/testing\/\S*\)$/,
+      'the exception testing page requests error responses on purpose',
+    );
     exceptionPage = new ExceptionTestingPage(page);
     await exceptionPage.goto();
   });
