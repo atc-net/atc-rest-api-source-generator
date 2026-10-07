@@ -1562,8 +1562,8 @@ public partial class ErrorResponseBodyRuntimeTests
     /// the status (and the generated union must list exactly the specification's named arms); an <c>ApiError</c>
     /// (<c>ValidationError</c> for 400) whose <c>body</c> is read by the actual Content-Type, whose
     /// <c>type</c>/<c>title</c>/<c>detail</c>/<c>instance</c> are the body's string fields, and whose
-    /// <c>message</c> follows the documented precedence (string body, detail, title, message, status text,
-    /// <c>HTTP {status}</c>).
+    /// <c>message</c> follows the documented precedence (a short text/plain or JSON string body, detail, title,
+    /// message, status text, <c>HTTP {status}</c>).
     /// </summary>
     private static JsonObject TypeScriptVerdict(
         ProbeCase probeCase,
@@ -1670,12 +1670,16 @@ public partial class ErrorResponseBodyRuntimeTests
             }
         }
 
-        // message precedence.
+        // message precedence: a short text/plain body or JSON string (a page - HTML, XML - or a long text is no message),
+        // then the ProblemDetails detail / title / a message property, then the status text, then HTTP {status}.
         var statusText = (string?)result["statusText"];
+        var mediaType = media.Split(';')[0].Trim();
+        var isMessageText = mediaType is "" or "text/plain" or "application/json" || mediaType.EndsWith("+json", StringComparison.Ordinal);
         string expectedMessage;
-        if (expectedBody is JsonValue s && s.GetValueKind() == JsonValueKind.String && ((string?)s)?.Length > 0)
+        if (expectedBody is JsonValue s && s.GetValueKind() == JsonValueKind.String &&
+            ((string?)s)?.Trim() is { Length: > 0 and <= 200 } text && isMessageText)
         {
-            expectedMessage = (string)s!;
+            expectedMessage = text;
         }
         else if (expectedBody is JsonObject o && FirstString(o, "detail", "title", "message") is { } fromBody)
         {
