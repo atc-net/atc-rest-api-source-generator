@@ -65,7 +65,7 @@ public sealed class UsersClient : IUsersClient
 
         if (parameters.IsActive.HasValue)
         {
-            queryParams.Add($"isActive={parameters.IsActive}");
+            queryParams.Add($"isActive={Uri.EscapeDataString(((bool?)parameters.IsActive) switch { true => "true", false => "false", _ => null } ?? string.Empty)}");
         }
 
         if (parameters.Limit.HasValue)

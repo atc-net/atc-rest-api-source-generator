@@ -59,7 +59,7 @@ public sealed class ListUsersEndpoint : IListUsersEndpoint
         }
         if (parameters.IsActive is not null)
         {
-            requestBuilder.WithQueryParameter("isActive", parameters.IsActive);
+            requestBuilder.WithQueryParameter("isActive", ((bool?)parameters.IsActive) switch { true => "true", false => "false", _ => null });
         }
         if (parameters.Limit is not null)
         {
