@@ -21,6 +21,7 @@ public static class TypeScriptAxiosApiClientExtractor
     /// success body read by the operation's mapping in <c>helpers/xml.ts</c> (no JSON handling), a declared XML error
     /// model, and an <c>application/problem+xml</c> error read into a ProblemDetails object.
     /// </param>
+    /// <param name="hasModelOrFile">When true, an operation answers a model or a file: the <c>modelOrFile</c> request option, asked for as bytes, a model answer read back as text.</param>
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
@@ -28,7 +29,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool zodRuntimeValidate = false,
         bool hasWireNames = false,
         bool convertDates = false,
-        bool hasXml = false)
+        bool hasXml = false,
+        bool hasModelOrFile = false)
     {
         var sb = new StringBuilder();
 
@@ -45,9 +47,9 @@ public static class TypeScriptAxiosApiClientExtractor
 
         AppendUnparseableBodyClass(sb);
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
-        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
+        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile);
 
         return sb.ToString();
     }
@@ -133,7 +135,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames,
-        bool hasXml)
+        bool hasXml,
+        bool hasModelOrFile)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -146,6 +149,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  contentType?: string;");
         sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
         sb.AppendLine("  arms?: readonly string[];");
+        TypeScriptModelOrFileExtractor.AppendRequestOption(sb, hasModelOrFile);
         TypeScriptOperationHelper.AppendXmlRequestOption(sb, hasXml);
         if (hasRetry)
         {
@@ -180,7 +184,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames,
-        bool hasXml)
+        bool hasXml,
+        bool hasModelOrFile)
     {
         TypeScriptResultArms.AppendFitToArms(sb);
         sb.AppendLine("export class ApiClient {");
@@ -207,7 +212,7 @@ public static class TypeScriptAxiosApiClientExtractor
             AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
+        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile);
         if (hasWireNames)
         {
             TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
@@ -299,7 +304,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames,
-        bool hasXml)
+        bool hasXml,
+        bool hasModelOrFile)
     {
         var jsonBody = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
@@ -370,7 +376,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,");
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
             sb.AppendLine("    });");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
@@ -405,7 +411,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,");
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
             sb.AppendLine("    });");
         }
 
@@ -423,6 +429,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
 
+        TypeScriptModelOrFileExtractor.AppendAxiosModelBodyRead(sb, hasModelOrFile);
         var wireArgument = hasWireNames ? ", options?.wire" : string.Empty;
         var xmlArgument = hasXml ? ", options?.xml" : string.Empty;
         if (zodRuntimeValidate)

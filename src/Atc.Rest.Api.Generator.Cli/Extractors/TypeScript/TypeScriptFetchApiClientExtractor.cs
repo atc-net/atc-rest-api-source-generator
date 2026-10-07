@@ -22,6 +22,7 @@ public static class TypeScriptFetchApiClientExtractor
     /// renaming, no schema check), a declared XML error model, and an <c>application/problem+xml</c> error read into a
     /// ProblemDetails object.
     /// </param>
+    /// <param name="hasModelOrFile">When true, an operation answers a model or a file: the <c>modelOrFile</c> request option.</param>
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
@@ -29,7 +30,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool zodRuntimeValidate = false,
         bool hasWireNames = false,
         bool convertDates = false,
-        bool hasXml = false)
+        bool hasXml = false,
+        bool hasModelOrFile = false)
     {
         var sb = new StringBuilder();
 
@@ -45,7 +47,7 @@ public static class TypeScriptFetchApiClientExtractor
         }
 
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
         AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
 
@@ -122,7 +124,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames,
-        bool hasXml)
+        bool hasXml,
+        bool hasModelOrFile)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -135,6 +138,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  contentType?: string;");
         sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
         sb.AppendLine("  arms?: readonly string[];");
+        TypeScriptModelOrFileExtractor.AppendRequestOption(sb, hasModelOrFile);
         TypeScriptOperationHelper.AppendXmlRequestOption(sb, hasXml);
         if (hasRetry)
         {

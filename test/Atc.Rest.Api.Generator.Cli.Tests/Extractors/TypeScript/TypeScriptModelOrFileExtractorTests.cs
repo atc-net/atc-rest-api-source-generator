@@ -73,46 +73,34 @@ public class TypeScriptModelOrFileExtractorTests
     }
 
     [Fact]
-    public void AugmentApiClient_FetchClient_AddsTheRequestOptionOnly()
+    public void FetchApiClient_WithModelOrFile_HasTheRequestOptionOnly()
     {
-        var client = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+        var client = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasModelOrFile: true);
 
-        var augmented = TypeScriptModelOrFileExtractor.AugmentApiClient(client, isAxios: false);
-
-        Assert.Contains("  modelOrFile?: boolean;", augmented, StringComparison.Ordinal);
-        Assert.DoesNotContain("response.data instanceof Blob", augmented, StringComparison.Ordinal);
+        Assert.Contains("  modelOrFile?: boolean;", client, StringComparison.Ordinal);
+        Assert.DoesNotContain("response.data instanceof Blob", client, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AugmentApiClient_AxiosClient_AsksForArrayBufferAndReadsModelBodiesBackAsText()
+    public void AxiosApiClient_WithModelOrFile_AsksForArrayBufferAndReadsModelBodiesBackAsText()
     {
-        var client = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
+        var client = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, hasModelOrFile: true);
 
-        var augmented = TypeScriptModelOrFileExtractor.AugmentApiClient(client, isAxios: true);
-
-        Assert.Contains("  modelOrFile?: boolean;", augmented, StringComparison.Ordinal);
-        Assert.Contains("responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer'", augmented, StringComparison.Ordinal);
-        Assert.Contains("if (options?.modelOrFile && response.status >= 200 && response.status < 300", augmented, StringComparison.Ordinal);
-        Assert.Contains("let body: unknown = await response.data.text();", augmented, StringComparison.Ordinal);
+        Assert.Contains("  modelOrFile?: boolean;", client, StringComparison.Ordinal);
+        Assert.Contains("responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer'", client, StringComparison.Ordinal);
+        Assert.Contains("if (options?.modelOrFile && response.status >= 200 && response.status < 300", client, StringComparison.Ordinal);
+        Assert.Contains("let body: unknown = await response.data.text();", client, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void AugmentApiClient_PreservesCrLfLineEndings()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ApiClient_WithoutModelOrFile_HasNoModelOrFileSupport(bool axios)
     {
-        var client = TypeScriptFetchApiClientExtractor.Generate(headerContent: null).Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal);
+        var client = axios
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent: null)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
 
-        var augmented = TypeScriptModelOrFileExtractor.AugmentApiClient(client, isAxios: false);
-
-        Assert.DoesNotMatch("[^\r]\n", augmented);
-        Assert.Contains("  modelOrFile?: boolean;\r\n", augmented, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AugmentApiClient_AnchorMissing_Throws()
-    {
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => TypeScriptModelOrFileExtractor.AugmentApiClient("export class ApiClient {}", isAxios: false));
-
-        Assert.Contains("no longer has exactly one", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("modelOrFile", client, StringComparison.Ordinal);
     }
 }

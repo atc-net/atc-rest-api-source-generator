@@ -549,15 +549,12 @@ public static class TypeScriptClientGenerationService
         // Write base ApiClient (fetch or axios); with XML bodies: the xml request option, XML responses and
         // application/problem+xml errors
         var hasXml = XmlBodyReachability.Collect(openApiDoc).Count > 0;
-        var apiClientContent = httpClient == TypeScriptHttpClient.Axios
-            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates, hasXml)
-            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates, hasXml);
 
         // A model or a file: the modelOrFile request option
-        if (TypeScriptModelOrFileExtractor.HasModelOrFile(openApiDoc))
-        {
-            apiClientContent = TypeScriptModelOrFileExtractor.AugmentApiClient(apiClientContent, httpClient == TypeScriptHttpClient.Axios);
-        }
+        var hasModelOrFile = TypeScriptModelOrFileExtractor.HasModelOrFile(openApiDoc);
+        var apiClientContent = httpClient == TypeScriptHttpClient.Axios
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates, hasXml, hasModelOrFile)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, convertDates, hasXml, hasModelOrFile);
 
         WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);
 
