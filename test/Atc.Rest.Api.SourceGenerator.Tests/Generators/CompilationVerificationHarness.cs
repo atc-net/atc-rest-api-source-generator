@@ -264,27 +264,17 @@ internal static class CompilationVerificationHarness
     {
         var parseOptions = CSharpParseOptions.Default.WithDocumentationMode(documentationMode);
 
-        // Generated code assumes the host project's ImplicitUsings; supply the standard set
-        // so BCL types (Task, IAsyncEnumerable, HttpClient, ...) resolve without per-file usings.
-        const string implicitUsings = """
-            global using System;
-            global using System.Collections.Generic;
-            global using System.IO;
-            global using System.Linq;
-            global using System.Net.Http;
-            global using System.Threading;
-            global using System.Threading.Tasks;
-            """;
-
+        // No implicit usings: a generated file (*.g.cs) compiles in a project with ImplicitUsings off too. A test's own
+        // code beside it (a probe standing in for the consumer's) gets them in its own file only - never global, so
+        // they cannot cover for a generated file
         var trees = generatedSources
             .Select(s => CSharpSyntaxTree.ParseText(
-                SourceText.From(s.Source, Encoding.UTF8),
+                SourceText.From(
+                    s.HintName.EndsWith(".g.cs", StringComparison.Ordinal) ? s.Source : ImplicitUsingsHelper.AddImplicitUsings(s.Source),
+                    Encoding.UTF8),
                 parseOptions,
                 path: s.HintName,
                 TestContext.Current.CancellationToken))
-            .Append(CSharpSyntaxTree.ParseText(
-                SourceText.From(implicitUsings, Encoding.UTF8),
-                cancellationToken: TestContext.Current.CancellationToken))
             .ToList();
 
         return CSharpCompilation.Create(

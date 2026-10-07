@@ -3,6 +3,14 @@
 #pragma warning disable CS1591
 #pragma warning disable CS0618
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Deprecations.Generated.Models;
 
 /// <summary>

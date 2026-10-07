@@ -3,6 +3,13 @@
 #pragma warning disable CS1591
 #pragma warning disable CS0618
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Text.Json;
 using System.Text.Json.Serialization;

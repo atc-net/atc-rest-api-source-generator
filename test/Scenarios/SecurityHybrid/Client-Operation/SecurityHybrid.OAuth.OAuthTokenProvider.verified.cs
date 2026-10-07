@@ -2,6 +2,9 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
+using System.IO;
+using System.Linq;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
