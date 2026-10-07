@@ -7,7 +7,9 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <remarks>
 /// Covers the method rule (POST/PATCH are not retried unless the operation opts in), path- and
 /// operation-level <c>x-retry-enabled</c> / <c>x-retry-policy</c>, the Retry-After cap (a 429 asking for
-/// longer than the policy timeout goes back to the caller), and that "no retry" keeps the timeout.
+/// longer than the policy timeout goes back to the caller), that "no retry" keeps the timeout, and that the
+/// timeout and the retry cover the body: a body that stalls after the headers times out, and one the connection
+/// breaks off is retried.
 /// </remarks>
 public class RetryPolicyRuntimeTests
 {
@@ -155,6 +157,14 @@ public class RetryPolicyRuntimeTests
         ("postOwn", "Own", "503", 5, null),
         ("getWide", "Wide", "503", 5, null),
         ("postWide", "Wide", "503", 1, null),
+
+        // The body is read inside the pipeline: a body that stalls after the headers runs into the policy's timeout
+        // (not HttpClient.Timeout), and a body the connection breaks off is retried like any failed attempt
+        ("getItem", "Items", "stall", 3, "TimeoutRejectedException"),
+        ("getQuiet", "Quiet", "stall", 1, "TimeoutRejectedException"),
+        ("postItem", "Items", "stall", 1, "TimeoutRejectedException"),
+        ("getItem", "Items", "reset", 3, "HttpRequestException"),
+        ("postItem", "Items", "reset", 1, "HttpRequestException"),
     ];
 
     [Theory]
@@ -243,12 +253,20 @@ public class RetryPolicyRuntimeTests
         sb.AppendLine("    public static async Task<string> RunAsync(string baseUrl, string operationId, string mode)");
         sb.AppendLine("    {");
         sb.AppendLine("        var services = new ServiceCollection();");
+
+        // HttpClient.Timeout above every policy's timeout (hang protection): a call that ends with it was not cut by its policy
+        sb.AppendLine("        void Configure(HttpClient c)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            c.BaseAddress = new Uri(baseUrl);");
+        sb.AppendLine("            c.Timeout = TimeSpan.FromSeconds(10);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
         sb.AppendLine("        services");
-        sb.AppendLine("            .AddHttpClient(\"retries\", c => c.BaseAddress = new Uri(baseUrl))");
+        sb.AppendLine("            .AddHttpClient(\"retries\", Configure)");
         sb.AppendLine("            .AddApiResilience(ResiliencePolicies.Standard);");
         if (isOperationMode)
         {
-            sb.AppendLine("        services.AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = new Uri(baseUrl)).AddApiResilience(ResiliencePolicies.Standard);");
+            sb.AppendLine("        services.AddHttpClient(Constants.HttpClientName, Configure).AddApiResilience(ResiliencePolicies.Standard);");
             sb.AppendLine(CultureInfo.InvariantCulture, $"        services.Add{ProjectName}Endpoints();");
         }
 
@@ -280,7 +298,7 @@ public class RetryPolicyRuntimeTests
         sb.AppendLine("        }");
         sb.AppendLine("        catch (Exception ex)");
         sb.AppendLine("        {");
-        sb.AppendLine("            return ex.GetType().Name + \": \" + ex.Message;");
+        sb.AppendLine("            return (ex is HttpRequestException ? \"HttpRequestException \" : string.Empty) + ex.GetType().Name + \": \" + ex.Message;");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -289,7 +307,8 @@ public class RetryPolicyRuntimeTests
 
     /// <summary>
     /// A stub server that counts requests and answers by the last path segment (a status code, "429-short"
-    /// with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds).
+    /// with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds, "stall" headers and part of
+    /// the body and then nothing, "reset" headers and part of the body and then a connection reset).
     /// </summary>
     private sealed class CountingServer : IAsyncDisposable
     {
@@ -342,6 +361,28 @@ public class RetryPolicyRuntimeTests
                         }
 
                         context.Response.StatusCode = StatusCodes.Status204NoContent;
+                        break;
+                    case "stall" or "reset":
+                        // A 200 that promises 64 bytes and sends 12; then "reset" aborts the connection, "stall" holds it
+                        // until the client goes (thirty seconds at most)
+                        context.Response.StatusCode = StatusCodes.Status200OK;
+                        context.Response.ContentType = "application/json";
+                        context.Response.ContentLength = 64;
+                        await context.Response.WriteAsync("{\"name\":\"cut", context.RequestAborted);
+                        await context.Response.Body.FlushAsync(context.RequestAborted);
+                        if (mode == "stall")
+                        {
+                            try
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(30), context.RequestAborted);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                // The client went
+                            }
+                        }
+
+                        context.Abort();
                         break;
                     default:
                         // A status code sweep: "418" answers 418; a 429 comes with Retry-After: 0.

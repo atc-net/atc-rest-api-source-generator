@@ -3,10 +3,12 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Retry.Generated.Health.Models;
+using Retry.Generated.Resilience;
 
 namespace Retry.Generated.Health.Client;
 
@@ -42,7 +44,9 @@ public sealed class HealthClient : IHealthClient
     public async Task<HealthStatus> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         var url = "health";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        ApiResilienceRequest.BufferResponse(requestMessage);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize<HealthStatus>(json, jsonSerializerOptions)!;

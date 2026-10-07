@@ -1064,13 +1064,17 @@ public static class HttpClientExtractor
         // this request, for a given request variable — null when the handler default already matches.
         IOpenApiPathItem? pathItem = null;
         _ = openApiDoc.Paths?.TryGetValue(path, out pathItem);
-        string? Stamp(string requestVariable)
+        string? Stamp(
+            string requestVariable,
+            bool streamed)
         {
-            // What every send has to put on its request: the header and cookie parameters, then the retry stamp
+            // What every send has to put on its request: the header and cookie parameters, then the retry stamp, and
+            // for a response that is not streamed the one that has the resilience handler read its body in the attempt
             var statements = new[]
                 {
                     BuildHeaderAndCookieStatements(headerParams, cookieParams, requestVariable, openApiDoc, parametersClassName, propertyNames),
                     ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, requestVariable),
+                    streamed ? null : ResilienceRequestHelper.BuildBufferStatement(openApiDoc, requestVariable),
                 }
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToList();
@@ -1086,19 +1090,19 @@ public static class HttpClientExtractor
                 GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, resultStyle, Stamp, xmlRead);
                 break;
             case "POST":
-                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage"), xmlRead);
+                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
                 break;
             case "PUT":
-                GeneratePutMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
+                GeneratePutMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
                 break;
             case "DELETE":
-                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
+                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
                 break;
             default:
                 // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
                 // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
                 // so build the request explicitly and dispatch by body/return presence.
-                GenerateGenericMethodBody(httpMethod, operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
+                GenerateGenericMethodBody(httpMethod, operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
                 break;
         }
 
@@ -1115,7 +1119,7 @@ public static class HttpClientExtractor
         bool hasReturnType,
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
-        Func<string, string?> resilienceStamp,
+        Func<string, bool, string?> resilienceStamp,
         XmlReadPlan? xmlRead = null)
     {
         // Special handling for async enumerable streaming
@@ -1123,14 +1127,14 @@ public static class HttpClientExtractor
         {
             if (resultStyle == TypedClientResultStyleType.Result)
             {
-                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming, resilienceStamp("requestMessage"));
+                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming, resilienceStamp("requestMessage", true));
                 return;
             }
 
             AppendSend(
                 builder,
                 "using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);",
-                resilienceStamp("requestMessage"),
+                resilienceStamp("requestMessage", true),
                 "HttpMethod.Get",
                 contentExpression: null,
                 responseHeadersRead: true,
@@ -1187,20 +1191,20 @@ public static class HttpClientExtractor
         else if (hasReturnType && returnType == "DownloadedFile")
         {
             // Binary content download - use ReadAsByteArrayAsync
-            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage", false), "HttpMethod.Get", contentExpression: null);
             AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Binary, returnType, isLastStatement: true);
         }
         else if (hasReturnType && returnType == "string")
         {
             // Text content - use ReadAsStringAsync
-            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage", false), "HttpMethod.Get", contentExpression: null);
             AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Text, returnType, isLastStatement: true);
         }
         else
         {
             // No GetFromJsonAsync shortcut for the Throw style: its exception drops the error body, whereas
             // EnsureSuccessAsync (emitted by AppendResponseCompletion) keeps it in the message.
-            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null, accept: xmlRead?.Accept);
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp("requestMessage", false), "HttpMethod.Get", contentExpression: null, accept: xmlRead?.Accept);
 
             AppendResponseCompletion(
                 builder,

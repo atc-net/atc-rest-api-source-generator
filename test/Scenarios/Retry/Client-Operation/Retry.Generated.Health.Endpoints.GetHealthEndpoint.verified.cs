@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using Retry.Generated;
+using Retry.Generated.Resilience;
 using Retry.Generated.Health.Endpoints.Interfaces;
 using Retry.Generated.Health.Endpoints.Results;
 using Retry.Generated.Health.Models;
@@ -45,6 +46,7 @@ public sealed class GetHealthEndpoint : IGetHealthEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/health");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        ApiResilienceRequest.BufferResponse(requestMessage);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

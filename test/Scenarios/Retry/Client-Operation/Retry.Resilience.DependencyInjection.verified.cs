@@ -7,6 +7,7 @@ using System.CodeDom.Compiler;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
@@ -25,7 +26,9 @@ public static class ResilienceServiceCollectionExtensions
     /// Adds the API resilience handler to the HTTP client builder. Each request runs the policy its
     /// operation declares in the OpenAPI specification (<c>x-retry-*</c>); requests that declare none use
     /// <paramref name="policyName"/>. POST and PATCH are not retried unless their operation opts in,
-    /// and a request that is not retried still gets its policy's timeout and circuit breaker.
+    /// and a request that is not retried still gets its policy's timeout and circuit breaker. The generated
+    /// clients' responses that are not streamed are read inside the pipeline (see
+    /// <see cref="ApiResilienceRequest.BufferResponse"/>), so the timeout and the retry cover the body too.
     /// </summary>
     /// <param name="builder">The HTTP client builder.</param>
     /// <param name="policyName">The default resilience policy (see <see cref="ResiliencePolicies"/>).</param>
@@ -37,6 +40,9 @@ public static class ResilienceServiceCollectionExtensions
         builder
             .AddResilienceHandler("ApiResilience", static (pipeline, context) => ConfigurePipeline(pipeline, context.InstanceName))
             .SelectPipelineBy(_ => request => SelectPipelineKey(request, policyName));
+
+        // Inside the resilience handler: it reads a body within the attempt, with the attempt's timeout
+        builder.AddHttpMessageHandler(static () => new ApiResilienceBufferingHandler());
 
         return builder;
     }
@@ -281,6 +287,21 @@ public static class ApiResilienceRequest
     public static HttpRequestOptionsKey<string> PipelineKey { get; } = new("Atc.Rest.Api.ResiliencePipeline");
 
     /// <summary>
+    /// Gets the request option that has the response's body read inside the resilience pipeline.
+    /// </summary>
+    public static HttpRequestOptionsKey<bool> BufferResponseKey { get; } = new("Atc.Rest.Api.ResilienceBufferResponse");
+
+    /// <summary>
+    /// Reads the response's body inside the resilience pipeline, within the attempt: the policy's timeout covers
+    /// the body (a body that stalls after the headers times out like a request that gets no answer), and a body
+    /// the connection breaks off fails the attempt, which is retried like any failed attempt. The generated
+    /// clients set it for every response they do not stream; never set it for a response read as a stream.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    public static void BufferResponse(HttpRequestMessage request)
+        => request?.Options.Set(BufferResponseKey, true);
+
+    /// <summary>
     /// Runs the request with <paramref name="policyName"/> (the client default when null) and retries it,
     /// also when it is a POST or PATCH.
     /// </summary>
@@ -360,5 +381,45 @@ public static class ApiResilienceRequest
         }
 
         return (parts[0], retry, timeoutSeconds);
+    }
+}
+
+/// <summary>
+/// Reads the body of a response marked with <see cref="ApiResilienceRequest.BufferResponse"/> inside the
+/// resilience pipeline, with the attempt's token: the policy's timeout covers the body, and a body that breaks
+/// off fails the attempt.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class ApiResilienceBufferingHandler : DelegatingHandler
+{
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!request.Options.TryGetValue(ApiResilienceRequest.BufferResponseKey, out var buffer) || !buffer)
+        {
+            return response;
+        }
+
+        try
+        {
+            // Read with the token (LoadIntoBufferAsync takes none before .NET 9) and kept as the response's content
+            var body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            var buffered = new ByteArrayContent(body);
+            foreach (var header in response.Content.Headers)
+            {
+                buffered.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            response.Content.Dispose();
+            response.Content = buffered;
+            return response;
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 }

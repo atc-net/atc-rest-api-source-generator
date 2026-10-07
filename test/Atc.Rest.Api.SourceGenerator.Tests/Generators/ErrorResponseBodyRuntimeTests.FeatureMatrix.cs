@@ -1571,16 +1571,11 @@ public partial class ErrorResponseBodyRuntimeTests
     /// variants declare the discriminator could not start the server; a three-level allOf lost its base; the typed
     /// client wrote PascalCase; Zod refused a date-time with an offset; a C# client threw on an enum value the server
     /// added later, fixed by the extensible enums) - all fixed. The network, timeout and validation cases came in with
-    /// 15 red.
+    /// 15 red: the Axios client's timeout rejected with a CanceledError and the C# resilience handler's timeout did
+    /// not cover a body that stalls - fixed; the field errors of a ValidationException remain.
     /// </summary>
     private static readonly HashSet<string> KnownFeatureFailures = new(StringComparer.Ordinal)
     {
-        // The C# resilience handler's timeout ends with the headers: a body that stalls runs into HttpClient.Timeout
-        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-epo]",
-        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-epo-classic-enums]",
-        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-typed]",
-        "network: headers, then a body that stalls, the operation's x-retry-timeout-seconds [cs-typed-throw]",
-
         // Atc.Rest.MinimalApi answers a ValidationException with a ProblemDetails, not a ValidationProblemDetails: its
         // field errors are lost on the way (to be fixed in Atc.Rest.MinimalApi)
         "validation: the handler throws FluentValidation's ValidationException [cs-epo]",

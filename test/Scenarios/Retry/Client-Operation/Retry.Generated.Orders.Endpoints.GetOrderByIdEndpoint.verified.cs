@@ -50,6 +50,7 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
+        ApiResilienceRequest.BufferResponse(requestMessage);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

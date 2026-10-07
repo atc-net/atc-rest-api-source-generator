@@ -57,4 +57,20 @@ public static class ResilienceRequestHelper
 
         return $"ApiResilienceRequest.DisableRetry({string.Join(", ", arguments)});";
     }
+
+    /// <summary>
+    /// Returns the statement that has the API resilience handler read a response's body inside the attempt
+    /// (<c>ApiResilienceRequest.BufferResponse</c>), so the policy's timeout and retry cover the body too; null when
+    /// the specification has no retry configuration (no resilience handler is generated).
+    /// For every response a generated client reads whole - never for one it streams.
+    /// </summary>
+    /// <param name="document">The OpenAPI document.</param>
+    /// <param name="requestVariable">The name of the <c>HttpRequestMessage</c> variable.</param>
+    /// <returns>The statement (ending in a semicolon), or null.</returns>
+    public static string? BuildBufferStatement(
+        OpenApiDocument document,
+        string requestVariable)
+        => document is not null && document.HasRetryConfiguration()
+            ? $"ApiResilienceRequest.BufferResponse({requestVariable});"
+            : null;
 }

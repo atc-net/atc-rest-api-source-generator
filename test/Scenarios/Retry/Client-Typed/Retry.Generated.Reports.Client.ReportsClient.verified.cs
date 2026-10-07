@@ -50,6 +50,8 @@ public sealed class ReportsClient : IReportsClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, timeoutSeconds: 600);
+        ApiResilienceRequest.BufferResponse(requestMessage);
+
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

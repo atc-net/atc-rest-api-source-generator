@@ -50,6 +50,7 @@ public sealed class CreateOrderEndpoint : ICreateOrderEndpoint
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.OrdersFast);
+        ApiResilienceRequest.BufferResponse(requestMessage);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

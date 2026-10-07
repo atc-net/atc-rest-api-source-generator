@@ -138,6 +138,33 @@ public class ResilienceRequestHelperTests
         Assert.Null(ResilienceRequestHelper.BuildStampStatement(operation, null, document, "POST", "request"));
     }
 
+    [Fact]
+    public void BuildBufferStatement_DocumentWithRetryConfiguration_BuffersTheResponse()
+    {
+        // Every response a client reads whole is read inside the handler's attempt, with its timeout and retry
+        var document = OpenApiDocumentHelper.ParseYaml(RetryYaml);
+
+        Assert.Equal("ApiResilienceRequest.BufferResponse(httpRequest);", ResilienceRequestHelper.BuildBufferStatement(document, "httpRequest"));
+    }
+
+    [Fact]
+    public void BuildBufferStatement_DocumentWithoutRetryConfiguration_ReturnsNull()
+    {
+        // No resilience handler is generated, so there is no ApiResilienceRequest to tell
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /items:
+                get:
+                  operationId: listItems
+                  responses:
+                    '200': { description: OK }
+            """);
+
+        Assert.Null(ResilienceRequestHelper.BuildBufferStatement(document, "request"));
+    }
+
     private static string? Build(
         string path,
         HttpMethod method,

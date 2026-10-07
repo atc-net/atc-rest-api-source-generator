@@ -48,6 +48,8 @@ public sealed class OrdersClient : IOrdersClient
         var url = "orders";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
+        ApiResilienceRequest.BufferResponse(requestMessage);
+
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -62,6 +64,8 @@ public sealed class OrdersClient : IOrdersClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.OrdersFast);
+        ApiResilienceRequest.BufferResponse(requestMessage);
+
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -75,6 +79,8 @@ public sealed class OrdersClient : IOrdersClient
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
+        ApiResilienceRequest.BufferResponse(requestMessage);
+
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -88,6 +94,8 @@ public sealed class OrdersClient : IOrdersClient
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersDelete);
+        ApiResilienceRequest.BufferResponse(requestMessage);
+
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }

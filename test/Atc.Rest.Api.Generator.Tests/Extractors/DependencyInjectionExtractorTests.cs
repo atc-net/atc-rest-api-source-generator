@@ -39,6 +39,40 @@ public class DependencyInjectionExtractorTests
     }
 
     [Fact]
+    public void ResilienceDI_ReadsAMarkedBodyInsideThePipeline()
+    {
+        // HttpClient reads a body after the pipeline has returned, where the policy's timeout no longer applies: a
+        // handler inside the resilience handler reads the body of a marked request with the attempt's token
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            x-retry-policy: standard
+                            x-retry-timeout-seconds: 5
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var result = ResilienceDependencyInjectionExtractor.Extract(OpenApiDocumentHelper.ParseYaml(yaml), "TestApi");
+
+        Assert.NotNull(result);
+        Assert.Contains("public static void BufferResponse(HttpRequestMessage request)", result, StringComparison.Ordinal);
+        Assert.Contains("internal sealed class ApiResilienceBufferingHandler : DelegatingHandler", result, StringComparison.Ordinal);
+        Assert.Contains("await response.Content.ReadAsByteArrayAsync(cancellationToken)", result, StringComparison.Ordinal);
+
+        // Added after the resilience handler: the inner handler, which runs within each attempt
+        var resilienceHandler = result.IndexOf(".AddResilienceHandler(", StringComparison.Ordinal);
+        var bufferingHandler = result.IndexOf("builder.AddHttpMessageHandler(static () => new ApiResilienceBufferingHandler());", StringComparison.Ordinal);
+        Assert.True(resilienceHandler >= 0 && bufferingHandler > resilienceHandler, "the buffering handler must be added after (inside) the resilience handler");
+    }
+
+    [Fact]
     public void ResilienceDI_WithoutRetryExtensions_ReturnsNull()
     {
         // Arrange

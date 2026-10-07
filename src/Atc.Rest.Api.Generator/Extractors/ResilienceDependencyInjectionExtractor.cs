@@ -56,6 +56,7 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine("using System.Globalization;");
         builder.AppendLine("using System.Net;");
         builder.AppendLine("using System.Net.Http;");
+        builder.AppendLine("using System.Threading;");
         builder.AppendLine("using System.Threading.Tasks;");
         builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
         builder.AppendLine("using Microsoft.Extensions.Http.Resilience;");
@@ -68,6 +69,8 @@ public static class ResilienceDependencyInjectionExtractor
         AppendServiceCollectionExtensions(builder, sortedPolicies);
         builder.AppendLine();
         AppendRequestHelper(builder);
+        builder.AppendLine();
+        AppendBufferingHandler(builder);
 
         return builder.ToString();
     }
@@ -86,7 +89,9 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(4, "/// Adds the API resilience handler to the HTTP client builder. Each request runs the policy its");
         builder.AppendLine(4, "/// operation declares in the OpenAPI specification (<c>x-retry-*</c>); requests that declare none use");
         builder.AppendLine(4, "/// <paramref name=\"policyName\"/>. POST and PATCH are not retried unless their operation opts in,");
-        builder.AppendLine(4, "/// and a request that is not retried still gets its policy's timeout and circuit breaker.");
+        builder.AppendLine(4, "/// and a request that is not retried still gets its policy's timeout and circuit breaker. The generated");
+        builder.AppendLine(4, "/// clients' responses that are not streamed are read inside the pipeline (see");
+        builder.AppendLine(4, "/// <see cref=\"ApiResilienceRequest.BufferResponse\"/>), so the timeout and the retry cover the body too.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"builder\">The HTTP client builder.</param>");
         builder.AppendLine(4, "/// <param name=\"policyName\">The default resilience policy (see <see cref=\"ResiliencePolicies\"/>).</param>");
@@ -98,6 +103,9 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(8, "builder");
         builder.AppendLine(12, ".AddResilienceHandler(\"ApiResilience\", static (pipeline, context) => ConfigurePipeline(pipeline, context.InstanceName))");
         builder.AppendLine(12, ".SelectPipelineBy(_ => request => SelectPipelineKey(request, policyName));");
+        builder.AppendLine();
+        builder.AppendLine(8, "// Inside the resilience handler: it reads a body within the attempt, with the attempt's timeout");
+        builder.AppendLine(8, "builder.AddHttpMessageHandler(static () => new ApiResilienceBufferingHandler());");
         builder.AppendLine();
         builder.AppendLine(8, "return builder;");
         builder.AppendLine(4, "}");
@@ -283,6 +291,21 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(4, "public static HttpRequestOptionsKey<string> PipelineKey { get; } = new(\"Atc.Rest.Api.ResiliencePipeline\");");
         builder.AppendLine();
         builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Gets the request option that has the response's body read inside the resilience pipeline.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "public static HttpRequestOptionsKey<bool> BufferResponseKey { get; } = new(\"Atc.Rest.Api.ResilienceBufferResponse\");");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Reads the response's body inside the resilience pipeline, within the attempt: the policy's timeout covers");
+        builder.AppendLine(4, "/// the body (a body that stalls after the headers times out like a request that gets no answer), and a body");
+        builder.AppendLine(4, "/// the connection breaks off fails the attempt, which is retried like any failed attempt. The generated");
+        builder.AppendLine(4, "/// clients set it for every response they do not stream; never set it for a response read as a stream.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"request\">The request.</param>");
+        builder.AppendLine(4, "public static void BufferResponse(HttpRequestMessage request)");
+        builder.AppendLine(8, "=> request?.Options.Set(BufferResponseKey, true);");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, "/// Runs the request with <paramref name=\"policyName\"/> (the client default when null) and retries it,");
         builder.AppendLine(4, "/// also when it is a POST or PATCH.");
         builder.AppendLine(4, "/// </summary>");
@@ -364,6 +387,55 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(8, "}");
         builder.AppendLine();
         builder.AppendLine(8, "return (parts[0], retry, timeoutSeconds);");
+        builder.AppendLine(4, "}");
+        builder.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Generates <c>ApiResilienceBufferingHandler</c>: the handler inside the resilience handler that reads the
+    /// body of a request marked with <c>ApiResilienceRequest.BufferResponse</c> with the attempt's token. Without
+    /// it <c>HttpClient</c> reads the body after the pipeline has returned, where only <c>HttpClient.Timeout</c>
+    /// covers it.
+    /// </summary>
+    private static void AppendBufferingHandler(StringBuilder builder)
+    {
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// Reads the body of a response marked with <see cref=\"ApiResilienceRequest.BufferResponse\"/> inside the");
+        builder.AppendLine("/// resilience pipeline, with the attempt's token: the policy's timeout covers the body, and a body that breaks");
+        builder.AppendLine("/// off fails the attempt.");
+        builder.AppendLine("/// </summary>");
+        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        builder.AppendLine("internal sealed class ApiResilienceBufferingHandler : DelegatingHandler");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "protected override async Task<HttpResponseMessage> SendAsync(");
+        builder.AppendLine(8, "HttpRequestMessage request,");
+        builder.AppendLine(8, "CancellationToken cancellationToken)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);");
+        builder.AppendLine(8, "if (!request.Options.TryGetValue(ApiResilienceRequest.BufferResponseKey, out var buffer) || !buffer)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "return response;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "try");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "// Read with the token (LoadIntoBufferAsync takes none before .NET 9) and kept as the response's content");
+        builder.AppendLine(12, "var body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);");
+        builder.AppendLine(12, "var buffered = new ByteArrayContent(body);");
+        builder.AppendLine(12, "foreach (var header in response.Content.Headers)");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "buffered.Headers.TryAddWithoutValidation(header.Key, header.Value);");
+        builder.AppendLine(12, "}");
+        builder.AppendLine();
+        builder.AppendLine(12, "response.Content.Dispose();");
+        builder.AppendLine(12, "response.Content = buffered;");
+        builder.AppendLine(12, "return response;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine(8, "catch");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "response.Dispose();");
+        builder.AppendLine(12, "throw;");
+        builder.AppendLine(8, "}");
         builder.AppendLine(4, "}");
         builder.AppendLine("}");
     }

@@ -776,7 +776,18 @@ public static class EndpointPerOperationExtractor
 
         // Per-operation retry (x-retry-*): tells the API resilience handler how to run this request
         // when it differs from the handler default (its policy for safe methods, no retry for POST/PATCH).
-        var resilienceStamp = ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, "requestMessage");
+        // A response that is not streamed is also read inside the handler's attempt, so its timeout and retry cover the body.
+        var isStreamedResponse = (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint;
+        var resilienceStatements = new[]
+            {
+                ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, "requestMessage"),
+                isStreamedResponse ? null : ResilienceRequestHelper.BuildBufferStatement(openApiDoc, "requestMessage"),
+            }
+            .Where(s => s is not null)
+            .ToList();
+        var resilienceStamp = resilienceStatements.Count == 0
+            ? null
+            : string.Join(Environment.NewLine, resilienceStatements);
 
         // Build header with usings
         var headerBuilder = new StringBuilder();
