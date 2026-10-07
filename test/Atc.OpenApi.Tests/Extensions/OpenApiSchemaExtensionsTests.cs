@@ -1,4 +1,4 @@
-namespace Atc.Rest.Api.Generator.Tests.Extensions;
+namespace Atc.OpenApi.Tests.Extensions;
 
 public class OpenApiSchemaExtensionsTests
 {
@@ -251,101 +251,6 @@ public class OpenApiSchemaExtensionsTests
         // Assert
         // See the spec note above: nullable does not reach through oneOf.
         Assert.Equal("DeviceType", typeName);
-    }
-
-    [Fact]
-    public void SchemaExtractor_WithOneOfSingleReference_GeneratesCorrectRecordProperty()
-    {
-        // Arrange - full integration test using SchemaExtractor
-        const string yaml = """
-                            openapi: 3.0.0
-                            info:
-                              title: Test API
-                              version: 1.0.0
-                            paths:
-                              /devices:
-                                get:
-                                  operationId: getDevices
-                                  responses:
-                                    '200':
-                                      description: OK
-                            components:
-                              schemas:
-                                InsightDevice:
-                                  type: object
-                                  properties:
-                                    id:
-                                      type: string
-                                      format: uuid
-                                    name:
-                                      type: string
-                                    customer:
-                                      nullable: true
-                                      oneOf:
-                                        - $ref: '#/components/schemas/IdValue'
-                                    site:
-                                      nullable: true
-                                      oneOf:
-                                        - $ref: '#/components/schemas/IdValue'
-                                    suggestedCustomer:
-                                      nullable: true
-                                      oneOf:
-                                        - $ref: '#/components/schemas/KeyValue'
-                                IdValue:
-                                  type: object
-                                  properties:
-                                    id:
-                                      type: string
-                                      format: uuid
-                                    name:
-                                      type: string
-                                KeyValue:
-                                  type: object
-                                  properties:
-                                    key:
-                                      type: string
-                                    value:
-                                      type: string
-                            """;
-
-        var document = ParseYaml(yaml);
-        Assert.NotNull(document);
-
-        // Act - use overload without pathSegment to extract all component schemas
-        var recordsParams = SchemaExtractor.Extract(
-            document,
-            "TestApi",
-            includeDeprecated: false);
-
-        // Assert
-        Assert.NotNull(recordsParams);
-
-        var insightDeviceRecord = recordsParams.Parameters
-            .FirstOrDefault(r => r.Name == "InsightDevice");
-        Assert.NotNull(insightDeviceRecord);
-        Assert.NotNull(insightDeviceRecord.Parameters);
-
-        // Every property is optional (no required list), so each one is nullable; the type is the oneOf reference.
-        // Check the customer property type
-        var customerParam = insightDeviceRecord.Parameters
-            .FirstOrDefault(p => p.Name == "Customer");
-        Assert.NotNull(customerParam);
-        Assert.Equal("IdValue", customerParam.TypeName);
-        Assert.True(customerParam.IsNullableType);
-
-        // Check the site property type
-        var siteParam = insightDeviceRecord.Parameters
-            .FirstOrDefault(p => p.Name == "Site");
-        Assert.NotNull(siteParam);
-        Assert.Equal("IdValue", siteParam.TypeName);
-        Assert.True(siteParam.IsNullableType);
-
-        // Check the suggestedCustomer property type
-        var suggestedCustomerParam = insightDeviceRecord.Parameters
-            .FirstOrDefault(p => p.Name == "SuggestedCustomer");
-        Assert.NotNull(suggestedCustomerParam);
-        Assert.Equal("KeyValue", suggestedCustomerParam.TypeName);
-        Assert.True(suggestedCustomerParam.IsNullableType);
     }
 
     // ========== SanitizeSchemaName Tests ==========

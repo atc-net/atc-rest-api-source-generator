@@ -1,4 +1,4 @@
-namespace Atc.Rest.Api.Generator.Tests.Models;
+namespace Atc.OpenApi.Tests.Models;
 
 public class TypeConflictRegistryTests
 {

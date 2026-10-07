@@ -1,4 +1,4 @@
-namespace Atc.Rest.Api.Generator.Tests.Helpers;
+namespace Atc.OpenApi.Tests.Helpers;
 
 public class OpenApiDocumentHelperTests
 {

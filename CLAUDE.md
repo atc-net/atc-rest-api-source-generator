@@ -41,6 +41,7 @@ dotnet test --filter "FullyQualifiedName~CasingHelperTests.IsCamelCase_ReturnsEx
 
 Test projects:
 - `Atc.Rest.Api.Generator.Tests` - Unit tests for the shared generator library
+- `Atc.OpenApi.Tests` - Unit tests for the OpenAPI extensions and helpers library
 - `Atc.Rest.Api.SourceGenerator.Tests` - Unit tests for Roslyn source generators
 - `Atc.Rest.Api.Generator.Cli.Tests` - Tests for CLI commands
 - `Atc.Rest.Api.Generator.IntegrationTests` - End-to-end scenario tests

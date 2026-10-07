@@ -1,4 +1,4 @@
-namespace Atc.Rest.Api.Generator.Tests.Extensions;
+namespace Atc.OpenApi.Tests.Extensions;
 
 public class OpenApiDocumentSpecVersionTests
 {

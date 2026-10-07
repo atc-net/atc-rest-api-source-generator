@@ -1,4 +1,4 @@
-namespace Atc.Rest.Api.Generator.Tests.Extensions;
+namespace Atc.OpenApi.Tests.Extensions;
 
 /// <summary>
 /// The one rule every generator (server, C# clients, TypeScript) uses to decide how a body is read and written:
