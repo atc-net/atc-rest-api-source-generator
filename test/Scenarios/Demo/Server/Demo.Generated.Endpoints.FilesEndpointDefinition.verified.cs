@@ -118,10 +118,10 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFiles(
         [FromServices] IUploadFormDataFilesHandler handler,
-        [FromForm(Name = "files")] IFormFileCollection? files,
+        [FromForm] IFormFileCollection? files,
         CancellationToken cancellationToken)
     {
-        var request = new FilesAsFormDataRequest(Files: files?.ToList() ?? new List<IFormFile>());
+        var request = new FilesAsFormDataRequest(Files: files?.GetFiles("files").ToList() ?? new List<IFormFile>());
         var parameters = new UploadFormDataFilesParameters(request);
         return UploadFormDataFilesResult.ToIResult(
             await handler.ExecuteAsync(

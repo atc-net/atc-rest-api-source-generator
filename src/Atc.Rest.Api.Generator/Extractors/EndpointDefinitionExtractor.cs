@@ -1621,7 +1621,7 @@ using Microsoft.AspNetCore.Builder;
             DefaultValue: null));
 
         // For form flattening, add individual form parameters instead of [AsParameters]
-        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType)>();
+        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName)>();
         var routeParameterNames = new List<(string ParamName, string PropName)>();
         if (requiresFormFlattening)
         {
@@ -1659,9 +1659,13 @@ using Microsoft.AspNetCore.Builder;
                     if (isFile)
                     {
                         // File property - IFormFile, bound by the field name the specification gives it (upload_file),
-                        // not by the C# parameter name derived from it; a collection takes the files of that field
+                        // not by the C# parameter name derived from it. ASP.NET Core binds an IFormFileCollection to
+                        // every file of the form and refuses a name on it, so the request takes that field's files
+                        // from it by name (GetFiles).
                         typeName = isCollection ? "IFormFileCollection" : "IFormFile";
-                        attributes = [new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}")];
+                        attributes = isCollection
+                            ? [new("FromForm", null)]
+                            : [new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}")];
 
                         // Make nullable since file is often optional
                         typeName += "?";
@@ -1704,7 +1708,7 @@ using Microsoft.AspNetCore.Builder;
                         Name: paramName,
                         DefaultValue: null));
 
-                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema)));
+                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema), propName));
                 }
             }
 
@@ -1818,13 +1822,16 @@ using Microsoft.AspNetCore.Builder;
             var requestArgs = string.Join(", ", formParameterNames.Select(p => $"{p.PropName}: {RequestArgument(p)}"));
 
             static string RequestArgument(
-                (string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType) p)
+                (string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName) p)
             {
                 var cleanTypeName = p.TypeName.TrimEnd('?');
+
+                // A field of many files: its own files out of the form's (an absent field is no files)
+                var fieldFiles = $"{p.ParamName}?.GetFiles({CSharpLiteralHelper.ToStringLiteral(p.WireName)}).ToList()";
                 if (!p.IsRequired)
                 {
                     return cleanTypeName == "IFormFileCollection"
-                        ? $"{p.ParamName}?.ToList()"
+                        ? fieldFiles
                         : p.ParamName;
                 }
 
@@ -1841,7 +1848,7 @@ using Microsoft.AspNetCore.Builder;
                     // The model uses List<IFormFile> but ASP.NET Core binds to IFormFileCollection
                     if (cleanTypeName == "IFormFileCollection")
                     {
-                        return $"{p.ParamName}?.ToList() ?? new List<IFormFile>()";
+                        return $"{fieldFiles} ?? new List<IFormFile>()";
                     }
 
                     return p.ParamName + "!";

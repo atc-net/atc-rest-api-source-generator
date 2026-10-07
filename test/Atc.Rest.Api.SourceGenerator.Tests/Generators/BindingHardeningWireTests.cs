@@ -69,8 +69,37 @@ public sealed class BindingHardeningWireTests
                     application/json:
                       schema:
                         $ref: '#/components/schemas/UploadInfo'
+          /albums:
+            post:
+              operationId: createAlbum
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      $ref: '#/components/schemas/AlbumForm'
+              responses:
+                '200':
+                  description: The names of the photos the server received
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          type: string
         components:
           schemas:
+            AlbumForm:
+              type: object
+              properties:
+                cover:
+                  type: string
+                  format: binary
+                photos:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
             ProfileForm:
               type: object
               required: [name]
@@ -128,10 +157,17 @@ public sealed class BindingHardeningWireTests
             }
         }
 
+        public sealed class CreateAlbumHandlerImpl : ICreateAlbumHandler
+        {
+            public System.Threading.Tasks.Task<CreateAlbumResult> ExecuteAsync(CreateAlbumParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(CreateAlbumResult.Ok(parameters.Request.Photos?.Select(f => f.FileName).ToList() ?? new System.Collections.Generic.List<string>()));
+        }
+
         public static class BindingRegistration
         {
             public static void Register(IServiceCollection services)
             {
+                services.AddScoped<ICreateAlbumHandler, CreateAlbumHandlerImpl>();
                 services.AddScoped<IListPricesHandler, ListPricesHandlerImpl>();
                 services.AddScoped<ICreateProfileHandler, CreateProfileHandlerImpl>();
                 services.AddScoped<IUploadFileHandler, UploadFileHandlerImpl>();
@@ -218,6 +254,33 @@ public sealed class BindingHardeningWireTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("""{"name":"a.txt","size":5}""", body);
+    }
+
+    /// <summary>
+    /// A field of many files gets the files of that field only - not the form's other file field. ASP.NET Core binds
+    /// an <c>IFormFileCollection</c> parameter to every file of the form and refuses a field name on it (the host did
+    /// not start), so the generated endpoint picks the field's files by name.
+    /// </summary>
+    [Fact]
+    public async Task Server_BindsAFieldOfManyFilesByItsSpecificationName()
+    {
+        await using var host = await XmlTestHost.StartAsync(Yaml, HandlerSource, "ErrorBodies.RuntimeTest.BindingRegistration");
+        using var client = new HttpClient { BaseAddress = host.BaseAddress };
+        using var cover = new ByteArrayContent("c"u8.ToArray());
+        using var first = new ByteArrayContent("1"u8.ToArray());
+        using var second = new ByteArrayContent("2"u8.ToArray());
+        using var form = new MultipartFormDataContent
+        {
+            { cover, "cover", "cover.jpg" },
+            { first, "photos", "p1.jpg" },
+            { second, "photos", "p2.jpg" },
+        };
+
+        using var response = await client.PostAsync(new Uri("/albums", UriKind.Relative), form, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("""["p1.jpg","p2.jpg"]""", body);
     }
 
     /// <summary>
