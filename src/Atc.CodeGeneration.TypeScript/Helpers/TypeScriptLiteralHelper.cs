@@ -16,8 +16,30 @@ public static class TypeScriptLiteralHelper
         var sb = new StringBuilder((value?.Length ?? 0) + 8);
         sb.Append('\'');
 
-        foreach (var c in value ?? string.Empty)
+        var text = value ?? string.Empty;
+        for (var i = 0; i < text.Length; i++)
         {
+            var c = text[i];
+
+            // The halves of a surrogate pair are written as they are; a lone surrogate (from a JSON escape) has no
+            // UTF-8 form, so written raw the generated file would hold U+FFFD instead
+            if (char.IsSurrogate(c))
+            {
+                var paired = char.IsHighSurrogate(c)
+                    ? i + 1 < text.Length && char.IsLowSurrogate(text[i + 1])
+                    : i > 0 && char.IsHighSurrogate(text[i - 1]);
+                if (paired)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append(@"\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                }
+
+                continue;
+            }
+
             switch (c)
             {
                 case (char)92:

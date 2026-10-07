@@ -22,6 +22,9 @@ global using System.Threading;
 global using System.Xml;
 global using System.Xml.Linq;
 
+global using Atc.CodeGeneration.CSharp.Helpers;
+global using Atc.CodeGeneration.TypeScript.Helpers;
+global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator;
 global using Atc.Rest.Api.Generator.Cli.Services;
@@ -33,6 +36,7 @@ global using Atc.Rest.Api.SourceGenerator.Helpers;
 global using Atc.Rest.Api.SourceGenerator.Tests.Helpers;
 global using Atc.Rest.Api.Tests.Node;
 
+global using CsCheck;
 global using Microsoft.AspNetCore.Authentication;
 global using Microsoft.AspNetCore.Builder;
 global using Microsoft.AspNetCore.Http;
