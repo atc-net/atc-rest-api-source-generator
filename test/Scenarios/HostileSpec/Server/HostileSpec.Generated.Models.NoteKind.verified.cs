@@ -19,7 +19,7 @@ namespace HostileSpec.Generated.Models;
 /// The kind */ of &lt;note> &amp; "more".
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<NoteKind>))]
 public enum NoteKind
 {
     [EnumMember(Value = "plain")]

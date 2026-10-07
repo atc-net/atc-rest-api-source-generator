@@ -837,7 +837,8 @@ public class InlineEnumExtractorTests
         var content = InlineEnumExtractor.GenerateEnumContent(enumParams);
 
         Assert.Contains("namespace Demo.Generated.Models;", content, StringComparison.Ordinal);
-        Assert.Contains("[JsonConverter(typeof(JsonStringEnumConverter))]", content, StringComparison.Ordinal);
+        Assert.Contains("[JsonConverter(typeof(JsonStringEnumConverter<OrderStatus>))]", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("JsonStringEnumConverter))", content, StringComparison.Ordinal);
         Assert.Contains("public enum OrderStatus", content, StringComparison.Ordinal);
         Assert.Contains("[EnumMember(Value = \"active\")]", content, StringComparison.Ordinal);
         Assert.Contains("[JsonStringEnumMemberName(\"active\")]", content, StringComparison.Ordinal);

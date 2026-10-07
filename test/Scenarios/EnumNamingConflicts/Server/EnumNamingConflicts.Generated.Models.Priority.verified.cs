@@ -18,7 +18,7 @@ namespace EnumNamingConflicts.Generated.Models;
 /// Enum with a value matching C# keyword.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<Priority>))]
 public enum Priority
 {
     Default,

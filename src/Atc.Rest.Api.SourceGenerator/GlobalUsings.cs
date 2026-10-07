@@ -32,6 +32,7 @@ global using Microsoft.OpenApi;
 
 // Type aliases for Atc.Rest.Api.Generator.Models to avoid DiagnosticSeverity ambiguity
 global using EndpointInfo = Atc.Rest.Api.Generator.Models.EndpointInfo;
+global using GeneratedEnumDeclaration = Atc.Rest.Api.Generator.Models.GeneratedEnumDeclaration;
 global using GeneratorDiagnosticMessage = Atc.Rest.Api.Generator.Models.DiagnosticMessage;
 global using GeneratorDiagnosticSeverity = Atc.Rest.Api.Generator.Models.DiagnosticSeverity;
 global using MultiPartConfiguration = Atc.Rest.Api.Generator.Models.MultiPartConfiguration;

@@ -18,7 +18,7 @@ namespace EnumNamingConflicts.Generated.Models;
 /// Enum with values matching C# boolean keywords.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<BooleanLike>))]
 public enum BooleanLike
 {
     True,

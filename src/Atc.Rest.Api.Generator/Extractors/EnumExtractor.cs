@@ -100,7 +100,7 @@ public static class EnumExtractor
                 HeaderContent = HeaderBuilder.WithUsings(
                     NamespaceConstants.SystemCodeDomCompiler,
                     NamespaceConstants.SystemTextJsonSerialization),
-                Attributes = [.. parameters.Attributes ?? [], new AttributeParameters("JsonConverter", "typeof(JsonStringEnumConverter)")],
+                Attributes = [.. parameters.Attributes ?? [], new AttributeParameters("JsonConverter", $"typeof(JsonStringEnumConverter<{parameters.EnumTypeName}>)")],
             };
         }
 
@@ -108,7 +108,13 @@ public static class EnumExtractor
             new CodeDocumentationTagsGenerator(),
             parameters);
 
-        return generator.Generate();
+        // The generic converter: the non-generic one creates its converter with MakeGenericType, which a Native AOT
+        // build cannot do (and System.Text.Json's source generator refuses it). The same defaults, so the same wire.
+        return generator
+            .Generate()
+            .Replace(
+                "[JsonConverter(typeof(JsonStringEnumConverter))]",
+                $"[JsonConverter(typeof(JsonStringEnumConverter<{parameters.EnumTypeName}>))]");
     }
 
     /// <summary>

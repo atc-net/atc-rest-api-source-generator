@@ -19,7 +19,7 @@ namespace HostileSchemas.Generated.Models;
 /// A string enum with an empty member and members that are no identifier.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<Mark>))]
 public enum Mark
 {
     Empty,

@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -23,19 +22,20 @@ namespace HostileSpec.Generated;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class EnumWireConverterFactory : JsonConverterFactory
 {
-    private static readonly JsonStringEnumConverter StringValuesOnly = new(namingPolicy: null, allowIntegerValues: false);
-
     /// <inheritdoc />
     public override bool CanConvert(Type typeToConvert)
-        => typeToConvert.IsEnum &&
-           typeToConvert.GetCustomAttribute<GeneratedCodeAttribute>() is { Tool: "Atc.Rest.Api.SourceGenerator" };
+        => typeToConvert == typeof(global::HostileSpec.Generated.Models.Quota);
 
     /// <inheritdoc />
     public override JsonConverter? CreateConverter(
         Type typeToConvert,
         JsonSerializerOptions options)
-        => typeToConvert.GetCustomAttribute<JsonConverterAttribute>()?.ConverterType is { IsGenericType: true } numberConverter &&
-           numberConverter.GetGenericTypeDefinition() == typeof(JsonNumberEnumConverter<>)
-            ? ((JsonConverterFactory)Activator.CreateInstance(numberConverter)!).CreateConverter(typeToConvert, options)
-            : StringValuesOnly.CreateConverter(typeToConvert, options);
+    {
+        if (typeToConvert == typeof(global::HostileSpec.Generated.Models.Quota))
+        {
+            return new JsonNumberEnumConverter<global::HostileSpec.Generated.Models.Quota>().CreateConverter(typeToConvert, options);
+        }
+
+        return null;
+    }
 }

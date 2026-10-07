@@ -19,7 +19,7 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// Color enumeration with kebab-case values.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<ColorType>))]
 public enum ColorType
 {
     [EnumMember(Value = "primary-blue")]

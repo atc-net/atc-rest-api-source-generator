@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// Inline enum definition.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<EnumTypesInlineEnum>))]
 public enum EnumTypesInlineEnum
 {
     Option1,

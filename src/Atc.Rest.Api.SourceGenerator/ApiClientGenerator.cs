@@ -341,14 +341,6 @@ public class ApiClientGenerator : IIncrementalGenerator
             ReportAndRemoveShadowedErrorContracts(context, openApiDoc, sharedSchemas, yamlPath);
         }
 
-        // The converter both client modes put first in their JSON options, when there is an enum to write
-        if (EnumWireConverterExtractor.HasEnums(openApiDoc))
-        {
-            generatedContext.AddGeneratedSource(
-                $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
-                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-
         // The trim- and AOT-safe length-limit attributes the models and parameters are written with
         if (LengthLimitAttributesExtractor.IsNeeded(openApiDoc))
         {
@@ -364,6 +356,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             config.ClientGranularity == ClientGranularityType.Single)
         {
             GenerateSingleTypedClient(context, generatedContext, openApiDoc, projectName, config, conflicts, systemTypeResolver, yamlPath, packages.HasHttpClientFactory, xmlModels);
+            GenerateEnumWireConverterFactory(generatedContext, openApiDoc, projectName);
             return;
         }
 
@@ -509,6 +502,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             GenerateOAuthInfrastructure(generatedContext, openApiDoc, projectName);
         }
 
+        GenerateEnumWireConverterFactory(generatedContext, openApiDoc, projectName);
+
         // Report generation summary
         var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
         var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
@@ -545,6 +540,21 @@ public class ApiClientGenerator : IIncrementalGenerator
             endpointCount,
             warnings,
             errors);
+    }
+
+    // The converter both client modes put first in their JSON options, when there is an enum to write - written last,
+    // from the enums generated before it
+    private static void GenerateEnumWireConverterFactory(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
+        if (EnumWireConverterExtractor.HasEnums(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
+                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName), generatedContext.Enums).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
     }
 
     private static void GenerateResiliencePolicies(

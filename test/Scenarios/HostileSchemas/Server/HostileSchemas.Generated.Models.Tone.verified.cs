@@ -19,7 +19,7 @@ namespace HostileSchemas.Generated.Models;
 /// A nullable string enum with a null member.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<Tone>))]
 public enum Tone
 {
     [EnumMember(Value = "warm")]

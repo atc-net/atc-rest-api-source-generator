@@ -1834,7 +1834,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             context.AddGeneratedSource(
                 $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
-                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName), context.Enums).NormalizeForSourceOutput(), Encoding.UTF8));
         }
     }
 

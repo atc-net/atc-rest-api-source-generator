@@ -17,45 +17,76 @@ public static class EnumWireConverterExtractor
     public const string ClassName = "EnumWireConverterFactory";
 
     /// <summary>
-    /// The source of the factory, in the given namespace.
+    /// The source of the factory, in the given namespace, for the enums the project generates: each with its generic
+    /// converter, so the factory works in a trimmed or Native AOT build.
     /// </summary>
     /// <param name="namespaceName">The namespace of the generated file.</param>
+    /// <param name="enums">The generated enums.</param>
     /// <returns>The file content.</returns>
-    public static string Generate(string namespaceName)
-        => $$"""
-             {{HeaderBuilder.WithUsings(
-                 NamespaceConstants.System,
-                 NamespaceConstants.SystemCodeDomCompiler,
-                 "System.Reflection",
-                 NamespaceConstants.SystemTextJson,
-                 NamespaceConstants.SystemTextJsonSerialization).TrimEnd()}}
+    public static string Generate(
+        string namespaceName,
+        IReadOnlyList<GeneratedEnumDeclaration> enums)
+    {
+        if (enums is null)
+        {
+            throw new ArgumentNullException(nameof(enums));
+        }
 
-             namespace {{namespaceName}};
+        var distinct = enums
+            .GroupBy(e => e.FullName, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .ToList();
 
-             /// <summary>
-             /// Reads and writes every generated enum as the specification writes it, whatever enum converter is
-             /// registered after it: an integer enum as its number, a string enum as its values and never from a number.
-             /// </summary>
-             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-             public sealed class {{ClassName}} : JsonConverterFactory
-             {
-                 private static readonly JsonStringEnumConverter StringValuesOnly = new(namingPolicy: null, allowIntegerValues: false);
+        var canConvert = distinct.Count == 0
+            ? "false"
+            : string.Join($"{Environment.NewLine}           || ", distinct.Select(e => $"typeToConvert == typeof({e.FullName})"));
 
-                 /// <inheritdoc />
-                 public override bool CanConvert(Type typeToConvert)
-                     => typeToConvert.IsEnum &&
-                        typeToConvert.GetCustomAttribute<GeneratedCodeAttribute>() is { Tool: "{{GeneratorInfo.Name}}" };
+        var createConverter = new StringBuilder();
+        foreach (var e in distinct)
+        {
+            var converter = e.IsInteger
+                ? $"new JsonNumberEnumConverter<{e.FullName}>()"
+                : $"new JsonStringEnumConverter<{e.FullName}>(namingPolicy: null, allowIntegerValues: false)";
+            createConverter
+                .AppendLine($"        if (typeToConvert == typeof({e.FullName}))")
+                .AppendLine("        {")
+                .AppendLine($"            return {converter}.CreateConverter(typeToConvert, options);")
+                .AppendLine("        }")
+                .AppendLine();
+        }
 
-                 /// <inheritdoc />
-                 public override JsonConverter? CreateConverter(
-                     Type typeToConvert,
-                     JsonSerializerOptions options)
-                     => typeToConvert.GetCustomAttribute<JsonConverterAttribute>()?.ConverterType is { IsGenericType: true } numberConverter &&
-                        numberConverter.GetGenericTypeDefinition() == typeof(JsonNumberEnumConverter<>)
-                         ? ((JsonConverterFactory)Activator.CreateInstance(numberConverter)!).CreateConverter(typeToConvert, options)
-                         : StringValuesOnly.CreateConverter(typeToConvert, options);
-             }
-             """;
+        return $$"""
+                 {{HeaderBuilder.WithUsings(
+                     NamespaceConstants.System,
+                     NamespaceConstants.SystemCodeDomCompiler,
+                     NamespaceConstants.SystemTextJson,
+                     NamespaceConstants.SystemTextJsonSerialization).TrimEnd()}}
+
+                 namespace {{namespaceName}};
+
+                 /// <summary>
+                 /// Reads and writes every generated enum as the specification writes it, whatever enum converter is
+                 /// registered after it: an integer enum as its number, a string enum as its values and never from a number.
+                 /// </summary>
+                 [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+                 public sealed class {{ClassName}} : JsonConverterFactory
+                 {
+                     /// <inheritdoc />
+                     public override bool CanConvert(Type typeToConvert)
+                         => {{canConvert}};
+
+                     /// <inheritdoc />
+                     public override JsonConverter? CreateConverter(
+                         Type typeToConvert,
+                         JsonSerializerOptions options)
+                     {
+                 {{createConverter.ToString().TrimEnd()}}
+
+                         return null;
+                     }
+                 }
+                 """;
+    }
 
     /// <summary>
     /// Whether the document has an enum the generator emits as a C# enum: one in a schema reachable from the

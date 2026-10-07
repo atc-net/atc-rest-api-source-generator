@@ -16,7 +16,7 @@ using System.Text.Json.Serialization;
 namespace HostileSchemas.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<Color>))]
 public enum Color
 {
     [EnumMember(Value = "red")]
