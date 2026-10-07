@@ -1,0 +1,9 @@
+{
+  "stryker-config": {
+    "test-runner": "mtp",
+    "project": "Atc.OpenApi.csproj",
+    "reporters": [ "Progress", "Html", "Json", "ClearText" ],
+    "mutation-level": "Standard",
+    "thresholds": { "high": 80, "low": 60, "break": 0 }
+  }
+}

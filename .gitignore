@@ -434,3 +434,4 @@ tmpclaude-*-cwd
 # Playwright MCP screenshots and page snapshots
 .playwright-mcp/
 .claude/worktrees/
+StrykerOutput/
