@@ -31,6 +31,13 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
     <!-- The generated scope and role policies against real signed JWTs, as an identity provider issues them -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <!-- The SDK's trim and AOT analyzer, for the AOT gate over the generated code: only its DLL is copied to the
+         output, so it does not analyze this project -->
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.12" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(PkgMicrosoft_NET_ILLink_Tasks)\analyzers\dotnet\cs\ILLink.RoslynAnalyzer.dll" Link="ILLinkAnalyzer\ILLink.RoslynAnalyzer.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

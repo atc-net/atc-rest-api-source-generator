@@ -257,7 +257,7 @@ internal static class CompilationVerificationHarness
         "useGlobalErrorHandler",
     ];
 
-    private static CSharpCompilation CreateCompilation(
+    internal static CSharpCompilation CreateCompilation(
         List<(string HintName, string Source)> generatedSources,
         bool includeMinimalApi = false,
         DocumentationMode documentationMode = DocumentationMode.Parse)
