@@ -1445,6 +1445,7 @@ internal static class DiagnosticHelpers
             "OPR" => "Operation Validation",
             "MPT" => "Multi-Part Specification",
             "RL" => "Rate Limiting",
+            "RTY" => "Retry",
             "CACHE" => "Caching",
             "CLT" => "Client Configuration",
             "STREAM" => "Streaming",

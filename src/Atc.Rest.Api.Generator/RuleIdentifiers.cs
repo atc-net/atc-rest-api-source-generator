@@ -354,6 +354,16 @@ public static class RuleIdentifiers
     /// </summary>
     public const string RateLimitWindowIgnoredForConcurrency = "ATC_API_RL008";
 
+    // ========== Retry Rules (RTY) ==========
+
+    /// <summary>
+    /// ATC_API_RTY001: An x-retry-* setting no generated policy reads: a policy takes its values from where its name is
+    /// first declared, inheriting operation → path → document, so a setting at a level no such declaration covers is
+    /// dropped - with no x-retry-policy in the document, every one. (The timeout of an operation that is not retried is
+    /// read.) Warning, Standard and Strict.
+    /// </summary>
+    public const string RetrySettingNotApplied = "ATC_API_RTY001";
+
     // ========== Caching Rules (CACHE) ==========
 
     /// <summary>

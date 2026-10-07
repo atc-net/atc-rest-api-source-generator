@@ -234,6 +234,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_RL007: Info when the algorithm cannot supply a Retry-After value
         ValidateRateLimitRetryAfterSupport(diagnostics, sourceFilePath, document);
 
+        // ATC_API_RTY001: Warn on an x-retry-* setting no generated policy reads
+        diagnostics.AddRange(RetrySettingValidator.Validate(document, sourceFilePath));
+
         // ATC_API_OPR001: Warn when operationId is missing (Standard only — Strict mode reports it as an Error per-operation)
         if (strategy == ValidateSpecificationStrategy.Standard)
         {
