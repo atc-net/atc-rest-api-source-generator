@@ -538,7 +538,8 @@ public static class TypeScriptOperationHelper
         bool brandedIds = false,
         string? path = null)
     {
-        if (param.Schema is null)
+        // No schema, or one that says nothing about the value ({}): the text the value is on the wire
+        if (param.Schema is null || param.Schema.IsUntyped())
         {
             return "string";
         }

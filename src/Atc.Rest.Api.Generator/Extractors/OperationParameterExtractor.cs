@@ -790,10 +790,13 @@ public static class OperationParameterExtractor
         // Use HasFlag to check for type presence
         var schemaType = schema.Type ?? JsonSchemaType.Null;
 
-        // Handle array type specially to get proper item type
+        // Handle array type specially to get proper item type; a schema that says nothing about the value ({}) is the
+        // text the value is on the wire
         var baseType = schemaType.HasFlag(JsonSchemaType.Array)
             ? MapArrayType(schema, registry)
-            : schemaType.ToCSharpTypeName(schema.Format);
+            : schema.IsUntyped()
+                ? "string"
+                : schemaType.ToCSharpTypeName(schema.Format);
 
         // Check if schema is explicitly nullable (OpenAPI 3.1 combined type with Null)
         var isNullable = schemaType.HasFlag(JsonSchemaType.Null);

@@ -47,6 +47,9 @@ public sealed class ServerRequestDelegateGeneratorTests
                 - name: site
                   in: query
                   schema: { type: string, format: uri }
+                - name: anything
+                  in: query
+                  schema: {}
               responses:
                 '200':
                   description: The bound values
@@ -68,7 +71,7 @@ public sealed class ServerRequestDelegateGeneratorTests
                     $"search={parameters.Search ?? "<null>"} sort={parameters.Sort ?? "<null>"} tag={parameters.Tag} " +
                     $"tags={(parameters.Tags is null ? "<null>" : string.Join("|", parameters.Tags))} legacy={parameters.Legacy ?? "<null>"} " +
                     $"limit={parameters.Limit?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "<null>"} " +
-                    $"site={parameters.Site?.ToString() ?? "<null>"}"));
+                    $"site={parameters.Site?.ToString() ?? "<null>"} anything={parameters.Anything ?? "<null>"}"));
         #pragma warning restore CS0618
         }
 
@@ -86,8 +89,8 @@ public sealed class ServerRequestDelegateGeneratorTests
             var data = new TheoryData<bool, string, int, string>();
             foreach (var useRequestDelegateGenerator in new[] { false, true })
             {
-                data.Add(useRequestDelegateGenerator, "/items?tag=t", 200, "search=<null> sort=name tag=t tags=<null> legacy=<null> limit=<null> site=<null>");
-                data.Add(useRequestDelegateGenerator, "/items?tag=t&search=s&sort=x&tags=a&tags=b&legacy=l&limit=3&site=https%3A%2F%2Fcontoso.com%2F", 200, "search=s sort=x tag=t tags=a|b legacy=l limit=3 site=https://contoso.com/");
+                data.Add(useRequestDelegateGenerator, "/items?tag=t", 200, "search=<null> sort=name tag=t tags=<null> legacy=<null> limit=<null> site=<null> anything=<null>");
+                data.Add(useRequestDelegateGenerator, "/items?tag=t&search=s&sort=x&tags=a&tags=b&legacy=l&limit=3&site=https%3A%2F%2Fcontoso.com%2F&anything=a%20b", 200, "search=s sort=x tag=t tags=a|b legacy=l limit=3 site=https://contoso.com/ anything=a b");
                 data.Add(useRequestDelegateGenerator, "/items?search=s", 400, string.Empty);
 
                 // The limits of an optional string and an optional list (their attributes are on the declared property)
@@ -133,6 +136,7 @@ public sealed class ServerRequestDelegateGeneratorTests
 
         Assert.Equal(
             [
+                "GET items/: anything query String required=False default=<none>",
                 "GET items/: legacy query String required=False default=<none>",
                 "GET items/: limit query Nullable`1 required=False default=<none>",
                 "GET items/: search query String required=False default=<none>",

@@ -68,6 +68,10 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         {
             requestBuilder.WithQueryParameter("callback", parameters.Callback);
         }
+        if (parameters.Anything is not null)
+        {
+            requestBuilder.WithQueryParameter("anything", parameters.Anything);
+        }
         var cookieParts = new List<string>();
         if (parameters.Session is not null)
         {

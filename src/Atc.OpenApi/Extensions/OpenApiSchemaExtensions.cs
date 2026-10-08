@@ -836,6 +836,23 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// Whether the schema says nothing about the value (<c>{}</c>, or one with only a description or
+        /// <c>nullable</c>): no type but null, no format, properties, items, enum or composition. A parameter of such a
+        /// schema is the text it is on the wire.
+        /// </summary>
+        /// <returns>True for an untyped schema.</returns>
+        public bool IsUntyped()
+            => schema is OpenApiSchema actual &&
+               (actual.Type is null || actual.Type == JsonSchemaType.Null) &&
+               string.IsNullOrEmpty(actual.Format) &&
+               actual.Properties is null or { Count: 0 } &&
+               actual.Items is null &&
+               actual.Enum is null or { Count: 0 } &&
+               actual.AllOf is null or { Count: 0 } &&
+               actual.OneOf is null or { Count: 0 } &&
+               actual.AnyOf is null or { Count: 0 };
+
+        /// <summary>
         /// The enum a property wraps as <c>allOf: [$ref]</c> (the 3.0 way to give a referenced enum a default or
         /// a description), or <see langword="null"/>.
         /// </summary>

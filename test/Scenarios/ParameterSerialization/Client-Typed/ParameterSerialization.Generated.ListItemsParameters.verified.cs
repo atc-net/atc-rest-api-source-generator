@@ -29,4 +29,5 @@ public sealed record ListItemsParameters(
     List<string>? Legacy,
     List<string>? Ids,
     Uri? Callback,
+    string? Anything,
     string? Session);

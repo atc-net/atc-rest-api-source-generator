@@ -31,6 +31,7 @@ public sealed record ListItemsParameters(
     ParsableList<string> Legacy,
     ParsableList<string> Ids,
     Uri Callback,
+    string Anything,
     string Session)
 #nullable restore annotations
 {
@@ -48,6 +49,9 @@ public sealed record ListItemsParameters(
 
     [FromQuery(Name = "callback")]
     public Uri? Callback { get; init; } = Callback;
+
+    [FromQuery(Name = "anything")]
+    public string? Anything { get; init; } = Anything;
 
     [FromHeader(Name = "x-cookie-session")]
     public string? Session { get; init; } = Session;

@@ -30,6 +30,7 @@ public static class ListItemsParametersWire
         WireParameter.Text("query", "legacy", isArray: true),
         WireParameter.Text("query", "ids", isArray: true),
         WireParameter.Text("query", "callback"),
+        WireParameter.Text("query", "anything"),
         WireParameter.Text("header", "x-cookie-session"),
     ];
 }
