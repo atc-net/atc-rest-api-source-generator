@@ -10,7 +10,14 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// longer than the policy timeout goes back to the caller), that "no retry" keeps the timeout, and that the
 /// timeout and the retry cover the body: a body that stalls after the headers times out, and one the connection
 /// breaks off is retried.
+/// <para>
+/// Each case's requests carry the case's number in the path, and the server counts per case: an attempt a case gave up
+/// on can reach the server after the next case started. The class runs alone - beside the rest of the suite the thread
+/// pool starves, and an attempt could time out on its one-second policy before it reached the server.
+/// </para>
 /// </remarks>
+[Collection(nameof(RetryPolicyRuntimeTests))]
+[CollectionDefinition(nameof(RetryPolicyRuntimeTests), DisableParallelization = true)]
 public class RetryPolicyRuntimeTests
 {
     private const string ProjectName = "Retries";
@@ -214,11 +221,12 @@ public class RetryPolicyRuntimeTests
         await using var server = await CountingServer.StartAsync();
 
         var mismatches = new List<string>();
+        var caseNumber = 0;
         foreach (var (operationId, mode, expectedAttempts, expectedOutcome) in cases)
         {
-            server.Reset();
-            var outcome = await (Task<string>)probe.Invoke(null, [server.BaseAddress.ToString(), operationId, mode])!;
-            var attempts = server.Attempts;
+            var caseKey = $"{mode}~{++caseNumber}";
+            var outcome = await (Task<string>)probe.Invoke(null, [server.BaseAddress.ToString(), operationId, caseKey])!;
+            var attempts = server.AttemptsOf(caseKey);
 
             if (attempts != expectedAttempts ||
                 (expectedOutcome is not null && !outcome.Contains(expectedOutcome, StringComparison.Ordinal)))
@@ -306,14 +314,14 @@ public class RetryPolicyRuntimeTests
     }
 
     /// <summary>
-    /// A stub server that counts requests and answers by the last path segment (a status code, "429-short"
-    /// with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds, "stall" headers and part of
-    /// the body and then nothing, "reset" headers and part of the body and then a connection reset).
+    /// A stub server that counts requests per case and answers by the last path segment, "{mode}~{case}" (a status
+    /// code, "429-short" with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds, "stall"
+    /// headers and part of the body and then nothing, "reset" headers and part of the body and then a connection reset).
     /// </summary>
     private sealed class CountingServer : IAsyncDisposable
     {
         private readonly WebApplication app;
-        private int attempts;
+        private readonly ConcurrentDictionary<string, int> attempts = new(StringComparer.Ordinal);
 
         private CountingServer(WebApplication app)
         {
@@ -323,7 +331,8 @@ public class RetryPolicyRuntimeTests
 
         public Uri BaseAddress { get; }
 
-        public int Attempts => Volatile.Read(ref attempts);
+        public int AttemptsOf(string caseKey)
+            => attempts.GetValueOrDefault(caseKey);
 
         public static async Task<CountingServer> StartAsync()
         {
@@ -335,8 +344,9 @@ public class RetryPolicyRuntimeTests
             CountingServer? server = null;
             webApp.Run(async context =>
             {
-                Interlocked.Increment(ref server!.attempts);
-                var mode = context.Request.Path.Value!.Split('/')[^1];
+                var caseKey = context.Request.Path.Value!.Split('/')[^1];
+                server!.attempts.AddOrUpdate(caseKey, 1, (_, count) => count + 1);
+                var mode = caseKey.Split('~')[0];
                 switch (mode)
                 {
                     case "503":
@@ -407,9 +417,6 @@ public class RetryPolicyRuntimeTests
             server = new CountingServer(webApp);
             return server;
         }
-
-        public void Reset()
-            => Volatile.Write(ref attempts, 0);
 
         public async ValueTask DisposeAsync()
         {
