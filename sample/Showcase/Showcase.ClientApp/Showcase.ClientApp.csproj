@@ -10,7 +10,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Rest.Client" Version="2.1.0" />
+    <!-- TEMP (3.0 development): direct reference to the unreleased trim- and Native AOT-ready atc-rest-client.
+         Replace with the released PackageReference before release. -->
+    <ProjectReference Include="..\..\..\..\atc-rest-client\src\Atc.Rest.Client\Atc.Rest.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

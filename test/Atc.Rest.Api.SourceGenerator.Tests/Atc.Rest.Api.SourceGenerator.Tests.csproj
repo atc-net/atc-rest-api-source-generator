@@ -49,8 +49,10 @@
     <ProjectReference Include="..\..\..\atc-rest-minimalapi\src\Atc.Rest.MinimalApi\Atc.Rest.MinimalApi.csproj" />
     <!-- Referenced so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES), enabling real C#
          compilation and runs of generated client output (CompilationVerificationTests, the error-body matrix).
-         2.1.0: error bodies of any media type are read as text; binary responses carry typed errors and headers. -->
-    <PackageReference Include="Atc.Rest.Client" Version="2.1.0" />
+         TEMP (3.0 development): direct reference to the unreleased trim- and Native AOT-ready atc-rest-client
+         (URL-encoded form fields, a body with its own media type, repeated multipart fields).
+         Replace with the released <PackageReference Include="Atc.Rest.Client" Version="..." /> before release. -->
+    <ProjectReference Include="..\..\..\atc-rest-client\src\Atc.Rest.Client\Atc.Rest.Client.csproj" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses
