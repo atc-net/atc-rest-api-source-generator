@@ -176,12 +176,13 @@ public static class FormBodyHelper
     }
 
     /// <summary>
-    /// The model schema of a form body: the component a reference names (null when the document does not have it), or
-    /// the inline schema itself.
+    /// The model schema of a form body: the component a reference names. An inline model has no generated type (the
+    /// request is an <c>object</c>; validation reports ATC_API_OPR017), so it has no fields to send either.
     /// </summary>
-    /// <param name="schema">The form body's schema, a reference or inline.</param>
+    /// <param name="schema">The form body's schema.</param>
     /// <param name="openApiDoc">The document the components are in.</param>
-    /// <returns>The model schema, or <see langword="null"/>.</returns>
+    /// <returns>The component schema, or <see langword="null"/> for an inline schema or a reference the document does
+    /// not have.</returns>
     public static IOpenApiSchema? ResolveModelSchema(
         IOpenApiSchema? schema,
         OpenApiDocument openApiDoc)
@@ -193,7 +194,7 @@ public static class FormBodyHelper
 
         if (schema is not OpenApiSchemaReference schemaRef)
         {
-            return schema;
+            return null;
         }
 
         var schemaId = schemaRef.Reference?.Id;

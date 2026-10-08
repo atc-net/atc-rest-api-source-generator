@@ -2082,8 +2082,8 @@ public static class HttpClientExtractor
 
     /// <summary>
     /// Gets the schema for schema-based multipart/form-data requests.
-    /// Returns the model's schema (a resolved reference, or inline) if the request body is multipart/form-data with
-    /// a model, otherwise returns null.
+    /// Returns the resolved schema if the request body is multipart/form-data (declared with any parameter and in any
+    /// case) with a schema reference, otherwise returns null.
     /// </summary>
     private static IOpenApiSchema? GetSchemaBasedMultipartSchema(
         OpenApiOperation operation,
@@ -2094,7 +2094,7 @@ public static class HttpClientExtractor
             return null;
         }
 
-        // A model ($ref or inline) under multipart/form-data, declared with any parameter and in any case
+        // A model ($ref) under multipart/form-data, declared with any parameter and in any case
         if (FormBodyHelper.FindMultipartFormDataMediaType(operation.RequestBody.Content) is not { } multipartMediaType ||
             operation.RequestBody.Content[multipartMediaType].Schema is not { } schema ||
             schema.GetFileUploadInfo().IsFile)

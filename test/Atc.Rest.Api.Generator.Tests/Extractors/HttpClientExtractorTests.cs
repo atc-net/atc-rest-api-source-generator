@@ -1027,28 +1027,14 @@ public class HttpClientExtractorTests
         Assert.Contains("httpClient.PostAsync(url, content, cancellationToken)", content, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Extract_InlineUrlEncodedFormBody_SendsTheFieldsAsFormUrlEncodedContent()
-    {
-        var document = ParseYaml(UrlEncodedFormYaml.Replace("schema: { $ref: '#/components/schemas/Credentials' }", "schema: { type: object, required: [user], properties: { user: { type: string } } }", StringComparison.Ordinal));
-        Assert.NotNull(document);
-
-        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
-
-        var content = clientClass!.Methods!.First(m => m.Name == "LoginAsync").Content!;
-        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"user\", user));", content, StringComparison.Ordinal);
-        Assert.Contains("using var content = new FormUrlEncodedContent(fields);", content, StringComparison.Ordinal);
-    }
-
     [Theory]
-    [InlineData("multipart/form-data", "{ type: object, properties: { name: { type: string }, file: { type: string, format: binary } } }")]
     [InlineData("multipart/form-data; charset=utf-8", "{ $ref: '#/components/schemas/Upload' }")]
     [InlineData("MULTIPART/FORM-DATA", "{ $ref: '#/components/schemas/Upload' }")]
     public void Extract_MultipartModelBody_SendsItsFieldsAsParts(
         string mediaType,
         string schema)
     {
-        // A model offered inline, or under a media type with a parameter or in another case, was not sent as its parts
+        // A model under a media type with a parameter or in another case was not sent at all
         var document = ParseYaml($$"""
             openapi: 3.0.0
             info: { title: T, version: 1.0.0 }

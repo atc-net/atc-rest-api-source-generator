@@ -1526,21 +1526,6 @@ public class EndpointPerOperationExtractorTests
         Assert.Contains("requestBuilder.WithBinaryBody(global::System.IO.Stream.Null, \"application/x-www-form-urlencoded\");", content, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Extract_InlineUrlEncodedFormBody_SendsTheFieldsAsAUrlEncodedForm()
-    {
-        // An inline form model was sent as a JSON body
-        var document = ParseYaml(UrlEncodedFormYaml.Replace("schema: { $ref: '#/components/schemas/Credentials' }", "schema: { type: object, required: [user], properties: { user: { type: string } } }", StringComparison.Ordinal));
-        Assert.NotNull(document);
-
-        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "login", registry: null, includeDeprecated: false);
-
-        var content = Assert.Single(files).EndpointClassContent!;
-        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"user\", user));", content, StringComparison.Ordinal);
-        Assert.Contains("requestBuilder.WithUrlEncodedFormField(field.Key, field.Value);", content, StringComparison.Ordinal);
-        Assert.DoesNotContain("WithBody(parameters.Request)", content, StringComparison.Ordinal);
-    }
-
     [Theory]
     [InlineData("application/merge-patch+json")]
     [InlineData("application/vnd.contoso.thing+json")]
@@ -1561,7 +1546,6 @@ public class EndpointPerOperationExtractorTests
     }
 
     [Theory]
-    [InlineData("multipart/form-data", "{ type: object, properties: { name: { type: string }, file: { type: string, format: binary } } }", "requestBuilder.WithFormField(\"name\", ")]
     [InlineData("multipart/form-data; charset=utf-8", "{ $ref: '#/components/schemas/Upload' }", "requestBuilder.WithFormField(\"name\", ")]
     [InlineData("MULTIPART/FORM-DATA", "{ $ref: '#/components/schemas/Upload' }", "requestBuilder.WithFormField(\"name\", ")]
     [InlineData("multipart/form-data", "{ type: string, format: binary }", "requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", ")]
@@ -1571,7 +1555,7 @@ public class EndpointPerOperationExtractorTests
         string schema,
         string expected)
     {
-        // A model offered inline, or under a media type with a parameter or in another case, fell back to
+        // A model under a media type with a parameter or in another case fell back to
         // WithBody(parameters.File!.OpenReadStream()): no File on a model's parameters (the client did not compile),
         // and a stream given to WithBody is serialized as JSON
         var yaml = $$"""

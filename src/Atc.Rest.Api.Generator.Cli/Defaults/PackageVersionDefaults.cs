@@ -29,6 +29,11 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// Fallback minimum version for Atc.Rest.Client.
     /// </summary>
+    /// <remarks>
+    /// TEMP (3.0 development): the generated EndpointPerOperation client needs the trim- and Native AOT-ready release
+    /// after 2.1.0 (WithUrlEncodedFormField, WithBody with a media type, AddAtcRestClientCore with options). Raise this
+    /// to that release when it is published.
+    /// </remarks>
     public static readonly Version RestClientMinFallback = new(2, 1, 0);
 
     /// <summary>

@@ -1213,7 +1213,7 @@ public static class EndpointPerOperationExtractor
                 else if (operation.RequestBody.Content[contentType!].Schema is { } multipartSchema)
                 {
                     // multipart/form-data (the declared key, with any parameter, in any case): a model's fields, or the
-                    // raw file(s)
+                    // raw file(s) - never a stream through WithBody, which serializes it as JSON
                     var (isFile, isCollection) = multipartSchema.GetFileUploadInfo();
                     if (isFile && isCollection)
                     {
@@ -1233,7 +1233,7 @@ public static class EndpointPerOperationExtractor
                     }
                     else
                     {
-                        // A model ($ref or inline) - WithFile/WithFormField calls for each property
+                        // A model - WithFile/WithFormField calls for each property
                         GenerateMultipartFormDataCode(sb, multipartSchema, openApiDoc);
                     }
                 }
