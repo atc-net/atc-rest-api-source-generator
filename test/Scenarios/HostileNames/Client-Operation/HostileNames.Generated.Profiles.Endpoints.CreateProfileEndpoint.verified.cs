@@ -60,15 +60,7 @@ public sealed class CreateProfileEndpoint : ICreateProfileEndpoint
             fields.Add(new KeyValuePair<string, string>("display_name", displayName));
         }
 
-        if (fields.Count == 0)
-        {
-            requestBuilder.WithBinaryBody(global::System.IO.Stream.Null, "application/x-www-form-urlencoded");
-        }
-
-        foreach (var field in fields)
-        {
-            requestBuilder.WithUrlEncodedFormField(field.Key, field.Value);
-        }
+        requestBuilder.WithUrlEncodedForm(fields);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);

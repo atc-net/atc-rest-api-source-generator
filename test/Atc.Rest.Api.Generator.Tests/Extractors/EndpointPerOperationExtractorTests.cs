@@ -1518,12 +1518,12 @@ public class EndpointPerOperationExtractorTests
         Assert.Contains("var fields = new List<KeyValuePair<string, string>>();", content, StringComparison.Ordinal);
         Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"user\", user));", content, StringComparison.Ordinal);
         Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"role\", role.ToWireValue()));", content, StringComparison.Ordinal);
-        Assert.Contains("requestBuilder.WithUrlEncodedFormField(field.Key, field.Value);", content, StringComparison.Ordinal);
         Assert.DoesNotContain("FormUrlEncodedContent", content, StringComparison.Ordinal);
         Assert.DoesNotContain("WithBody(parameters.Request)", content, StringComparison.Ordinal);
 
-        // A form without a field still says it is one: the builder sends no body for no URL-encoded field
-        Assert.Contains("requestBuilder.WithBinaryBody(global::System.IO.Stream.Null, \"application/x-www-form-urlencoded\");", content, StringComparison.Ordinal);
+        // The whole form in one call, which sends a form without a field too (an empty body with the form media type)
+        Assert.Contains("requestBuilder.WithUrlEncodedForm(fields);", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stream.Null", content, StringComparison.Ordinal);
     }
 
     [Theory]

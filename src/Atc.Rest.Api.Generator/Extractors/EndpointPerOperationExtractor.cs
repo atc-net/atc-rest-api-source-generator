@@ -1242,19 +1242,11 @@ public static class EndpointPerOperationExtractor
                      operation.GetFormBodyMediaType() is { } formMediaType &&
                      FormBodyHelper.ResolveModelSchema(operation.RequestBody.Content[formMediaType].Schema, openApiDoc) is { } formSchema)
             {
-                // A URL-encoded form: the model's fields, each as its wire text, in the request builder's URL-encoded
-                // form. The builder sends no body for no field, so an empty form is sent as an empty body of its own.
+                // A URL-encoded form: the model's fields, each as its wire text, as the request builder's URL-encoded
+                // form - which is sent without a field too
                 sb.AppendLine("var fields = new List<KeyValuePair<string, string>>();");
                 FormBodyHelper.AppendUrlEncodedFields(sb, formSchema, "parameters.Request", "fields");
-                sb.AppendLine("if (fields.Count == 0)");
-                sb.AppendLine("{");
-                sb.AppendLine(4, "requestBuilder.WithBinaryBody(global::System.IO.Stream.Null, \"application/x-www-form-urlencoded\");");
-                sb.AppendLine("}");
-                sb.AppendLine();
-                sb.AppendLine("foreach (var field in fields)");
-                sb.AppendLine("{");
-                sb.AppendLine(4, "requestBuilder.WithUrlEncodedFormField(field.Key, field.Value);");
-                sb.AppendLine("}");
+                sb.AppendLine("requestBuilder.WithUrlEncodedForm(fields);");
             }
             else if (XmlBodyHelper.ClientRequestBody(operation, preferXml) is { } xmlRequestBody)
             {
