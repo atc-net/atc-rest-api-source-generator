@@ -1028,6 +1028,60 @@ public class HttpClientExtractorTests
     }
 
     [Fact]
+    public void Extract_InlineUrlEncodedFormBody_SendsTheFieldsAsFormUrlEncodedContent()
+    {
+        var document = ParseYaml(UrlEncodedFormYaml.Replace("schema: { $ref: '#/components/schemas/Credentials' }", "schema: { type: object, required: [user], properties: { user: { type: string } } }", StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        var content = clientClass!.Methods!.First(m => m.Name == "LoginAsync").Content!;
+        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"user\", user));", content, StringComparison.Ordinal);
+        Assert.Contains("using var content = new FormUrlEncodedContent(fields);", content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("multipart/form-data", "{ type: object, properties: { name: { type: string }, file: { type: string, format: binary } } }")]
+    [InlineData("multipart/form-data; charset=utf-8", "{ $ref: '#/components/schemas/Upload' }")]
+    [InlineData("MULTIPART/FORM-DATA", "{ $ref: '#/components/schemas/Upload' }")]
+    public void Extract_MultipartModelBody_SendsItsFieldsAsParts(
+        string mediaType,
+        string schema)
+    {
+        // A model offered inline, or under a media type with a parameter or in another case, was not sent as its parts
+        var document = ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /uploads:
+                post:
+                  operationId: upload
+                  requestBody:
+                    required: true
+                    content:
+                      '{{mediaType}}':
+                        schema: {{schema}}
+                  responses:
+                    '204': { description: Uploaded }
+            components:
+              schemas:
+                Upload:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    file: { type: string, format: binary }
+            """);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        var content = clientClass!.Methods!.First(m => m.Name == "UploadAsync").Content!;
+        Assert.Contains("using var content = new MultipartFormDataContent();", content, StringComparison.Ordinal);
+        Assert.Contains("content.Add(new StringContent(", content, StringComparison.Ordinal);
+        Assert.Contains(".OpenReadStream());", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_WithPathSegment_KeepsOnlyThatSegmentsOperationsAndNamesTheClientAfterIt()
     {
         var document = ParseYaml(TwoSegmentsYaml);

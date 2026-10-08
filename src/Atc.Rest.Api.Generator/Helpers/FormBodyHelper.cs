@@ -174,4 +174,43 @@ public static class FormBodyHelper
                 : $"global::System.FormattableString.Invariant($\"{{{valueExpression}}}\")",
         };
     }
+
+    /// <summary>
+    /// The model schema of a form body: the component a reference names (null when the document does not have it), or
+    /// the inline schema itself.
+    /// </summary>
+    /// <param name="schema">The form body's schema, a reference or inline.</param>
+    /// <param name="openApiDoc">The document the components are in.</param>
+    /// <returns>The model schema, or <see langword="null"/>.</returns>
+    public static IOpenApiSchema? ResolveModelSchema(
+        IOpenApiSchema? schema,
+        OpenApiDocument openApiDoc)
+    {
+        if (openApiDoc is null)
+        {
+            throw new ArgumentNullException(nameof(openApiDoc));
+        }
+
+        if (schema is not OpenApiSchemaReference schemaRef)
+        {
+            return schema;
+        }
+
+        var schemaId = schemaRef.Reference?.Id;
+        return !string.IsNullOrEmpty(schemaId) &&
+               openApiDoc.Components?.Schemas is not null &&
+               openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var component)
+            ? component
+            : null;
+    }
+
+    /// <summary>
+    /// The multipart/form-data media type of a request body as the document declares it: with a parameter (e.g.
+    /// <c>; charset=utf-8</c>) and in any case.
+    /// </summary>
+    /// <param name="content">The request body's content.</param>
+    /// <returns>The declared key, or <see langword="null"/> when the body has no multipart/form-data.</returns>
+    public static string? FindMultipartFormDataMediaType(
+        IDictionary<string, IOpenApiMediaType>? content)
+        => content?.Keys.FirstOrDefault(key => key.Split(';')[0].Trim().Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase));
 }

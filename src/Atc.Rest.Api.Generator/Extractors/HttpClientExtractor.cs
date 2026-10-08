@@ -2082,8 +2082,8 @@ public static class HttpClientExtractor
 
     /// <summary>
     /// Gets the schema for schema-based multipart/form-data requests.
-    /// Returns the resolved schema if the request body is multipart/form-data with a schema reference,
-    /// otherwise returns null.
+    /// Returns the model's schema (a resolved reference, or inline) if the request body is multipart/form-data with
+    /// a model, otherwise returns null.
     /// </summary>
     private static IOpenApiSchema? GetSchemaBasedMultipartSchema(
         OpenApiOperation operation,
@@ -2094,25 +2094,15 @@ public static class HttpClientExtractor
             return null;
         }
 
-        // Check for multipart/form-data content type with schema reference
-        if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
+        // A model ($ref or inline) under multipart/form-data, declared with any parameter and in any case
+        if (FormBodyHelper.FindMultipartFormDataMediaType(operation.RequestBody.Content) is not { } multipartMediaType ||
+            operation.RequestBody.Content[multipartMediaType].Schema is not { } schema ||
+            schema.GetFileUploadInfo().IsFile)
         {
             return null;
         }
 
-        // If schema is a reference to a component schema, resolve it
-        if (mediaType.Schema is OpenApiSchemaReference schemaRef)
-        {
-            var schemaId = schemaRef.Reference?.Id;
-            if (!string.IsNullOrEmpty(schemaId) &&
-                openApiDoc.Components?.Schemas is not null &&
-                openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema))
-            {
-                return schema;
-            }
-        }
-
-        return null;
+        return FormBodyHelper.ResolveModelSchema(schema, openApiDoc);
     }
 
     /// <summary>
@@ -2126,18 +2116,12 @@ public static class HttpClientExtractor
     {
         if (operation.GetJsonRequestBodyMediaType() is not null ||
             operation.HasFileUpload() ||
-            operation.GetFormBodyMediaType() is not { } formMediaType ||
-            operation.RequestBody?.Content?[formMediaType].Schema is not OpenApiSchemaReference schemaRef)
+            operation.GetFormBodyMediaType() is not { } formMediaType)
         {
             return null;
         }
 
-        var schemaId = schemaRef.Reference?.Id;
-        return !string.IsNullOrEmpty(schemaId) &&
-               openApiDoc.Components?.Schemas is not null &&
-               openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema)
-            ? schema
-            : null;
+        return FormBodyHelper.ResolveModelSchema(operation.RequestBody?.Content?[formMediaType].Schema, openApiDoc);
     }
 
     /// <summary>
