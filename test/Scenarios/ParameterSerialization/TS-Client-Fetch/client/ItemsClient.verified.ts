@@ -25,13 +25,14 @@ export class ItemsClient {
   }
 
   /** List items */
-  async listItems(query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }, signal?: AbortSignal): Promise<ListItemsResult> {
+  async listItems(query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string }, cookies?: { session?: string }, signal?: AbortSignal): Promise<ListItemsResult> {
     return this.api.request<Item[]>('GET', '/items', {
       query: {
         tags: query?.tags,
         q: query?.q,
         legacy: query?.legacy?.join(' '),
         ids: query?.ids,
+        callback: query?.callback,
       },
       headers: {
         // Note: browsers forbid setting the Cookie header via fetch; Node.js only.

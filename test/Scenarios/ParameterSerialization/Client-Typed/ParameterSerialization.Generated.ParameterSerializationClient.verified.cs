@@ -77,6 +77,11 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             }
         }
 
+        if (parameters.Callback is not null)
+        {
+            queryParams.Add($"callback={Uri.EscapeDataString($"{parameters.Callback}")}");
+        }
+
         if (queryParams.Count > 0)
         {
             url += "?" + string.Join("&", queryParams);

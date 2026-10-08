@@ -6,7 +6,7 @@ info:
     Exercises query-parameter style/explode/allowReserved serialization:
     a supported optional form-explode array (tags), an allowReserved primitive (q),
     a spaceDelimited array (legacy, sent as one value with spaces), a $ref-to-array
-    query param (ids), an OAS 3.2 in:querystring raw-query param (rawFilter, its own operation), and
+    query param (ids), an optional URI (callback), an OAS 3.2 in:querystring raw-query param (rawFilter, its own operation), and
     an in:cookie with style:cookie (session) per RFC 6265.
 
 paths:
@@ -43,6 +43,12 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/IdList"
+        - name: callback
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
         - name: session
           in: cookie
           style: cookie

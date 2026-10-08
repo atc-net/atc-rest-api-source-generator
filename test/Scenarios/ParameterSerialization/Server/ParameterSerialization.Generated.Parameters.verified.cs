@@ -2,12 +2,12 @@
 #nullable enable
 #pragma warning disable CS1591
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -30,6 +30,7 @@ public sealed record ListItemsParameters(
     string Q,
     ParsableList<string> Legacy,
     ParsableList<string> Ids,
+    Uri Callback,
     string Session)
 #nullable restore annotations
 {
@@ -44,6 +45,9 @@ public sealed record ListItemsParameters(
 
     [FromQuery(Name = "ids")]
     public ParsableList<string>? Ids { get; init; } = Ids;
+
+    [FromQuery(Name = "callback")]
+    public Uri? Callback { get; init; } = Callback;
 
     [FromHeader(Name = "x-cookie-session")]
     public string? Session { get; init; } = Session;

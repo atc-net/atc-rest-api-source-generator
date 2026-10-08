@@ -797,25 +797,11 @@ public static class OperationParameterExtractor
         // Check if schema is explicitly nullable (OpenAPI 3.1 combined type with Null)
         var isNullable = schemaType.HasFlag(JsonSchemaType.Null);
 
-        // Add nullable marker if not required or explicitly nullable
-        if (!isRequired || isNullable)
-        {
-            // Value types need ? to be nullable (including extended value types like DateTimeOffset, Guid)
-            if (CSharpTypeHelper.IsBasicValueType(baseType) || IsExtendedValueType(baseType))
-            {
-                return $"{baseType}?";
-            }
-
-            // String, arrays, and generic collections should also be nullable when not required or nullable
-            if (baseType == "string" ||
-                baseType.EndsWith("[]", StringComparison.Ordinal) ||
-                baseType.StartsWith("List<", StringComparison.Ordinal))
-            {
-                return $"{baseType}?";
-            }
-        }
-
-        return baseType;
+        // Every type is nullable when not required or explicitly nullable - a value type, a string, a list, and a Uri
+        // or an object too (the binders take a non-nullable one for a required parameter)
+        return (!isRequired || isNullable) && !baseType.EndsWith("?", StringComparison.Ordinal)
+            ? $"{baseType}?"
+            : baseType;
     }
 
     /// <summary>
