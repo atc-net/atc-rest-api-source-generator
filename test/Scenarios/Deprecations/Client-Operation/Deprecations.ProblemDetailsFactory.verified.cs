@@ -89,14 +89,18 @@ public static class ProblemDetailsFactory
     private static bool TryReadAny<T>(string? content, out T? value)
     {
         value = default;
-        if (string.IsNullOrWhiteSpace(content))
+
+        // The lenient read is reflection-based: the consumer's error model through options of its own, which the
+        // app's JsonSerializerContext does not reach. A trimmed or Native AOT app (reflection-based serialization off)
+        // reads the error model as Atc.Rest.Client does, from the app's context, or keeps the raw body in Content.
+        if (!System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault || string.IsNullOrWhiteSpace(content))
         {
             return false;
         }
 
         try
         {
-            value = System.Text.Json.JsonSerializer.Deserialize<T>(content!, LenientOptions);
+            value = DeserializeLeniently<T>(content!);
             return value is not null;
         }
         catch (System.Text.Json.JsonException)
@@ -104,6 +108,13 @@ public static class ProblemDetailsFactory
             return false;
         }
     }
+
+    // Only called where reflection-based serialization is enabled: a trimmed or Native AOT app has it off
+    // (JsonSerializerIsReflectionEnabledByDefault), and the trimmer removes the call by that feature switch
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
+    private static T? DeserializeLeniently<T>(string content)
+        => System.Text.Json.JsonSerializer.Deserialize<T>(content, LenientOptions);
 
     /// <summary>
     /// An error response whose body was kept as bytes - a media type that is neither JSON nor text, such as
