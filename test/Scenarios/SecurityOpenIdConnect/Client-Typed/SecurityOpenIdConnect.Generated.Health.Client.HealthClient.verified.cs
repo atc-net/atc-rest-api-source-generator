@@ -50,7 +50,7 @@ public sealed class HealthClient : IHealthClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<HealthStatus>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<HealthStatus>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -67,7 +66,7 @@ public sealed class AccountsClient : IAccountsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Account>>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Account>>())!;
     }
 
     public async System.Threading.Tasks.Task<Account> CreateAccountAsync(
@@ -75,10 +74,10 @@ public sealed class AccountsClient : IAccountsClient
         CancellationToken cancellationToken = default)
     {
         var url = "accounts";
-        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Account>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
     }
 
     public async System.Threading.Tasks.Task<Account> GetAccountByIdAsync(
@@ -89,7 +88,7 @@ public sealed class AccountsClient : IAccountsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Account>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
     }
 
     public async System.Threading.Tasks.Task DeleteAccountByIdAsync(
@@ -106,10 +105,10 @@ public sealed class AccountsClient : IAccountsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"accounts/{Uri.EscapeDataString(parameters.AccountId)}";
-        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Account>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
     }
 
     public async System.Threading.Tasks.Task<PaginatedResult<Account>> ListPaginatedAccountsAsync(
@@ -147,7 +146,7 @@ public sealed class AccountsClient : IAccountsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PaginatedResult<Account>>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PaginatedResult<Account>>())!;
     }
 
     public async IAsyncEnumerable<Account> ListAsyncEnumerableAccountsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -158,7 +157,7 @@ public sealed class AccountsClient : IAccountsClient
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
-        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<Account>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))
+        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<Account>(), cancellationToken).ConfigureAwait(false))
         {
             if (item is not null)
             {

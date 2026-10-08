@@ -55,13 +55,14 @@ public class OAuthTokenProviderExtractorTests
         Assert.Contains("public OAuthTokenProvider(HttpClient httpClient, IOptions<OAuthClientOptions> options)", result, StringComparison.Ordinal);
         Assert.Contains("[\"grant_type\"] = \"client_credentials\",", result, StringComparison.Ordinal);
         Assert.Contains("tokenResponse = await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);", result, StringComparison.Ordinal);
-        Assert.Contains("return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);", result, StringComparison.Ordinal);
+        Assert.Contains("return await ReadTokenResponseAsync(response.Content, cancellationToken).ConfigureAwait(false);", result, StringComparison.Ordinal);
 
         // No refresh-token path without an Authorization Code refresh URL.
         Assert.DoesNotContain("RequestTokenWithRefreshTokenAsync", result, StringComparison.Ordinal);
         Assert.DoesNotContain("\"refresh_token\"", result, StringComparison.Ordinal);
 
-        Assert.Contains("using System.Net.Http.Json;", result, StringComparison.Ordinal);
+        // The token response is read from the JSON document, not with System.Net.Http.Json (trim- and AOT-safe)
+        Assert.DoesNotContain("using System.Net.Http.Json;", result, StringComparison.Ordinal);
         Assert.Contains("using Microsoft.Extensions.Options;", result, StringComparison.Ordinal);
     }
 

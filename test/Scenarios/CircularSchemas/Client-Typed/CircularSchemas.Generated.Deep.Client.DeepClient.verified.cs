@@ -50,7 +50,7 @@ public sealed class DeepClient : IDeepClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Level1>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Level1>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

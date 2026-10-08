@@ -51,7 +51,7 @@ public sealed class KeysClient : IKeysClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Company_Api_KeyPage>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Company_Api_KeyPage>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

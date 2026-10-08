@@ -69,7 +69,7 @@ public sealed class SessionClient : ISessionClient
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<CookieParameters.Generated.Session.Models.Session>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<CookieParameters.Generated.Session.Models.Session>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

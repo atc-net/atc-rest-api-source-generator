@@ -8,7 +8,6 @@ using System.Linq;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -122,7 +121,67 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider, IDisposable
 
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return await ReadTokenResponseAsync(response.Content, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<OAuthTokenResponse?> ReadTokenResponseAsync(
+        HttpContent content,
+        CancellationToken cancellationToken)
+    {
+        using var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var document = await System.Text.Json.JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var root = document.RootElement;
+        if (root.ValueKind == System.Text.Json.JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (root.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            throw new System.Text.Json.JsonException("The token response is no JSON object.");
+        }
+
+        var token = new OAuthTokenResponse();
+        foreach (var member in root.EnumerateObject())
+        {
+            // Upper-cased as an ordinal case-insensitive comparison does
+            switch (member.Name.ToUpperInvariant())
+            {
+                case "ACCESS_TOKEN":
+                    token.AccessToken = Text(member.Value)!;
+                    break;
+                case "TOKEN_TYPE":
+                    token.TokenType = Text(member.Value)!;
+                    break;
+                case "EXPIRES_IN":
+                    token.ExpiresIn = Seconds(member.Value);
+                    break;
+                case "REFRESH_TOKEN":
+                    token.RefreshToken = Text(member.Value);
+                    break;
+                case "SCOPE":
+                    token.Scope = Text(member.Value);
+                    break;
+            }
+        }
+
+        return token;
+
+        static string? Text(System.Text.Json.JsonElement value)
+            => value.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => value.GetString(),
+                System.Text.Json.JsonValueKind.Null => null,
+                _ => throw new System.Text.Json.JsonException($"A token response member is a {value.ValueKind}, not a string."),
+            };
+
+        static int Seconds(System.Text.Json.JsonElement value)
+            => value.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var seconds) => seconds,
+                System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var seconds) => seconds,
+                _ => throw new System.Text.Json.JsonException("The token response's expires_in is no whole number."),
+            };
     }
 
     /// <inheritdoc />

@@ -593,8 +593,8 @@ public class HttpClientExtractorTests
         Assert.NotNull(clientClass);
         var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
-        Assert.Contains("PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
-        Assert.Contains("JsonSerializer.Deserialize<Gadget>(json, jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Gadget>())", method.Content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -658,9 +658,9 @@ public class HttpClientExtractorTests
         // which has always resolved verbs through EndpointMapHelper.BuildHttpMethodExpression.
         Assert.Contains("HttpMethod.Query", method.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("new HttpMethod(\"QUERY\")", method.Content, StringComparison.Ordinal);
-        Assert.Contains("JsonContent.Create(parameters.Request, options: jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("jsonSerializerOptions.ToJsonContent(parameters.Request)", method.Content, StringComparison.Ordinal);
         Assert.Contains("SendAsync(", method.Content, StringComparison.Ordinal);
-        Assert.Contains("JsonSerializer.Deserialize<Widget>(json, jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Widget>())", method.Content, StringComparison.Ordinal);
     }
 
     [Fact]

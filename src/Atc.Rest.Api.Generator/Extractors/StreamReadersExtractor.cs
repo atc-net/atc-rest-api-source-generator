@@ -131,7 +131,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("    {");
             sb.AppendLine("        var parser = SseParser.Create(");
             sb.AppendLine("            stream,");
-            sb.AppendLine("            (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize<T>(data, options)));");
+            sb.AppendLine("            (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize(data, options.TypeInfo<T>())));");
         }
 
         sb.AppendLine();
@@ -202,7 +202,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("        Stream stream,");
             sb.AppendLine("        JsonSerializerOptions options,");
             sb.AppendLine("        CancellationToken cancellationToken)");
-            sb.AppendLine("        => JsonSerializer.DeserializeAsyncEnumerable<T>(stream, topLevelValues: true, options, cancellationToken);");
+            sb.AppendLine("        => JsonSerializer.DeserializeAsyncEnumerable(stream, options.TypeInfo<T>(), topLevelValues: true, cancellationToken);");
         }
 
         sb.AppendLine();
@@ -211,7 +211,7 @@ public static class StreamReadersExtractor
         // uses the DI-configured IContractSerializer (both accept a UTF-8 byte[] record).
         var deserializeRecord = perOperation
             ? "serializer.Deserialize<T>(record.ToArray())"
-            : "JsonSerializer.Deserialize<T>(record.ToArray(), options)";
+            : "JsonSerializer.Deserialize(record.ToArray(), options.TypeInfo<T>())";
 
         // JSON Text Sequence, RFC 7464 (application/json-seq): each record is RS(0x1E) <json> LF.
         // RS is the delimiter PRECISELY so a record's JSON may contain embedded LFs (e.g. a
@@ -278,7 +278,7 @@ public static class StreamReadersExtractor
         // Both take the accumulated body string.
         var deserializeBody = perOperation
             ? "serializer.Deserialize<T>(body.ToString())"
-            : "JsonSerializer.Deserialize<T>(body.ToString(), options)";
+            : "JsonSerializer.Deserialize(body.ToString(), options.TypeInfo<T>())";
 
         // multipart/mixed: parts are delimited by `--<boundary>` lines, each part has headers up to
         // a blank line, then the JSON body; the stream ends at `--<boundary>--`. Accumulate body

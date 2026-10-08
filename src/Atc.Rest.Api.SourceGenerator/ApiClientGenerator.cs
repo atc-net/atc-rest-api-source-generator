@@ -293,6 +293,14 @@ public class ApiClientGenerator : IIncrementalGenerator
             GenerateApiClientJsonOptions(generatedContext, openApiDoc, projectName);
         }
 
+        // The typed clients read and write JSON through the metadata their options resolve (trim- and AOT-safe)
+        if (config.GenerationMode != GenerationModeType.EndpointPerOperation)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
+                SourceText.From(GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Generate shared ProblemDetails and factory once for EndpointPerOperation mode
         if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
         {

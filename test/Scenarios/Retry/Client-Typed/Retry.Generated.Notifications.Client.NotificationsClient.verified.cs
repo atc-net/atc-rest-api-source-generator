@@ -9,7 +9,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -52,7 +51,7 @@ public sealed class NotificationsClient : INotificationsClient
     {
         var url = "notifications";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
-        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.NotificationsConstant);
         ApiResilienceRequest.BufferResponse(requestMessage);
 

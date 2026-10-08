@@ -9,7 +9,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -52,14 +51,14 @@ public sealed class ReportsClient : IReportsClient
     {
         var url = "reports/generate";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
-        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         ApiResilienceRequest.DisableRetry(requestMessage, timeoutSeconds: 600);
         ApiResilienceRequest.BufferResponse(requestMessage);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<ReportJob>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ReportJob>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

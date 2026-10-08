@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -51,7 +50,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Resource>>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Resource>>())!;
     }
 
     public async Task<List<Resource>> QueryResourcesAsync(
@@ -61,12 +60,12 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         var url = "resources";
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Query, url);
-        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Resource>>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Resource>>())!;
     }
 
     public async Task LinkResourceAsync(CancellationToken cancellationToken = default)

@@ -10,7 +10,6 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -53,7 +52,7 @@ public sealed class PetClient : IPetClient
     {
         var url = "pet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
-        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
@@ -63,7 +62,7 @@ public sealed class PetClient : IPetClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.Pet.Models.Pet>())!;
     }
 
     public async Task<PetStoreFull.Generated.Pet.Models.Pet> AddPetAsync(
@@ -72,7 +71,7 @@ public sealed class PetClient : IPetClient
     {
         var url = "pet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
-        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
@@ -82,7 +81,7 @@ public sealed class PetClient : IPetClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.Pet.Models.Pet>())!;
     }
 
     public async Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByStatusAsync(
@@ -108,7 +107,7 @@ public sealed class PetClient : IPetClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<PetStoreFull.Generated.Pet.Models.Pet>>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<PetStoreFull.Generated.Pet.Models.Pet>>())!;
     }
 
     public async Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByTagsAsync(
@@ -137,7 +136,7 @@ public sealed class PetClient : IPetClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<PetStoreFull.Generated.Pet.Models.Pet>>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<PetStoreFull.Generated.Pet.Models.Pet>>())!;
     }
 
     public async Task<PetStoreFull.Generated.Pet.Models.Pet> GetPetByIdAsync(
@@ -155,7 +154,7 @@ public sealed class PetClient : IPetClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.Pet.Models.Pet>())!;
     }
 
     public async Task<PetStoreFull.Generated.Pet.Models.Pet> UpdatePetWithFormAsync(
@@ -190,7 +189,7 @@ public sealed class PetClient : IPetClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.Pet.Models.Pet>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.Pet.Models.Pet>())!;
     }
 
     public async Task DeletePetAsync(
@@ -232,7 +231,7 @@ public sealed class PetClient : IPetClient
         using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<ApiResponse>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ApiResponse>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

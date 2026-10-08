@@ -52,7 +52,7 @@ public sealed class StringFormatsClient : IStringFormatsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<ModelsAndProperties.Generated.StringFormats.Models.StringFormats>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ModelsAndProperties.Generated.StringFormats.Models.StringFormats>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

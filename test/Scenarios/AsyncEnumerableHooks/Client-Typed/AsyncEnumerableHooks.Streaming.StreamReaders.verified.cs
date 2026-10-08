@@ -33,7 +33,7 @@ internal static class StreamReaders
     {
         var parser = SseParser.Create(
             stream,
-            (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize<T>(data, options)));
+            (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize(data, options.TypeInfo<T>())));
 
         await foreach (var item in parser.EnumerateAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -68,7 +68,7 @@ internal static class StreamReaders
         Stream stream,
         JsonSerializerOptions options,
         CancellationToken cancellationToken)
-        => JsonSerializer.DeserializeAsyncEnumerable<T>(stream, topLevelValues: true, options, cancellationToken);
+        => JsonSerializer.DeserializeAsyncEnumerable(stream, options.TypeInfo<T>(), topLevelValues: true, cancellationToken);
 
     public static async IAsyncEnumerable<T?> ReadJsonSequenceAsync<T>(
         Stream stream,
@@ -86,7 +86,7 @@ internal static class StreamReaders
                 {
                     if (record.Length > 0)
                     {
-                        yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);
+                        yield return JsonSerializer.Deserialize(record.ToArray(), options.TypeInfo<T>());
                         record.SetLength(0);
                     }
                 }
@@ -94,7 +94,7 @@ internal static class StreamReaders
                 {
                     // The LF that ends a record: yielded now, not at the next record's separator - a server that fails
                     // after this record never sends one (a pretty-printed record is complete only once it is balanced)
-                    yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);
+                    yield return JsonSerializer.Deserialize(record.ToArray(), options.TypeInfo<T>());
                     record.SetLength(0);
                 }
                 else
@@ -110,7 +110,7 @@ internal static class StreamReaders
 
         if (record.Length > 0)
         {
-            yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);
+            yield return JsonSerializer.Deserialize(record.ToArray(), options.TypeInfo<T>());
         }
     }
 
@@ -132,7 +132,7 @@ internal static class StreamReaders
             {
                 if (inPart && body.Length > 0)
                 {
-                    yield return JsonSerializer.Deserialize<T>(body.ToString(), options);
+                    yield return JsonSerializer.Deserialize(body.ToString(), options.TypeInfo<T>());
                     body.Clear();
                 }
 
@@ -171,14 +171,14 @@ internal static class StreamReaders
             // this part never sends one
             if (IsCompleteJson(body.ToString()))
             {
-                yield return JsonSerializer.Deserialize<T>(body.ToString(), options);
+                yield return JsonSerializer.Deserialize(body.ToString(), options.TypeInfo<T>());
                 body.Clear();
             }
         }
 
         if (inPart && body.Length > 0)
         {
-            yield return JsonSerializer.Deserialize<T>(body.ToString(), options);
+            yield return JsonSerializer.Deserialize(body.ToString(), options.TypeInfo<T>());
         }
     }
 

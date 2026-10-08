@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -59,7 +58,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = "devices";
-        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -77,7 +76,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
-        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -181,7 +180,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
             // A success whose body is no JSON (a proxy's HTML page) is no success - this style never throws for it
             try
             {
-                contentObject = JsonSerializer.Deserialize<T>(content, jsonSerializerOptions);
+                contentObject = JsonSerializer.Deserialize(content, jsonSerializerOptions.TypeInfo<T>());
             }
             catch (JsonException)
             {

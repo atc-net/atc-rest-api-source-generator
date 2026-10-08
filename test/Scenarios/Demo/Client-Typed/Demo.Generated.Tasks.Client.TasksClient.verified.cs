@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -66,7 +65,7 @@ public sealed class TasksClient : ITasksClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<List<Demo.Generated.Tasks.Models.Task>>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Demo.Generated.Tasks.Models.Task>>())!;
     }
 
     public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> CreateTaskAsync(
@@ -74,10 +73,10 @@ public sealed class TasksClient : ITasksClient
         CancellationToken cancellationToken = default)
     {
         var url = "tasks";
-        using var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Demo.Generated.Tasks.Models.Task>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
     public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> GetTaskByIdAsync(
@@ -88,7 +87,7 @@ public sealed class TasksClient : ITasksClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Demo.Generated.Tasks.Models.Task>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
     public async System.Threading.Tasks.Task DeleteTaskByIdAsync(
@@ -105,10 +104,10 @@ public sealed class TasksClient : ITasksClient
         CancellationToken cancellationToken = default)
     {
         var url = $"tasks/{Uri.EscapeDataString(parameters.TaskId)}";
-        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<Demo.Generated.Tasks.Models.Task>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

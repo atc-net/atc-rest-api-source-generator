@@ -1169,7 +1169,7 @@ public static class HttpClientExtractor
             }
             else if (streamingFraming == StreamingFraming.JsonArray)
             {
-                builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
+                builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<{streamingItemType}>(), cancellationToken).ConfigureAwait(false))");
             }
             else
             {
@@ -1310,7 +1310,7 @@ public static class HttpClientExtractor
             StreamingFraming.MultipartMixed => $"StreamReaders.ReadMultipartMixedAsync<{streamingItemType}>(stream, boundary, jsonSerializerOptions, cancellationToken)",
 
             // JsonArray is the legitimate legacy path using the DeserializeAsyncEnumerable brace-scan.
-            StreamingFraming.JsonArray => $"JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
+            StreamingFraming.JsonArray => $"JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<{streamingItemType}>(), cancellationToken)",
 
             // Any other framing is a StreamReaders-based wire framing that was added without an explicit
             // reader branch - fail loudly at generation time rather than silently emitting the
@@ -1485,9 +1485,7 @@ public static class HttpClientExtractor
             var jsonContent = JsonBodyContent(operation, requestAccess);
             AppendSend(
                 builder,
-                IsPlainJson(operation)
-                    ? $"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);"
-                    : $"var response = await httpClient.PostAsync(url, {jsonContent}, cancellationToken).ConfigureAwait(false);",
+                $"var response = await httpClient.PostAsync(url, {jsonContent}, cancellationToken).ConfigureAwait(false);",
                 resilienceStamp,
                 "HttpMethod.Post",
                 jsonContent,
@@ -1554,11 +1552,7 @@ public static class HttpClientExtractor
             var jsonContent = hasJsonBody ? JsonBodyContent(operation, requestAccess) : null;
             AppendSend(
                 builder,
-                hasJsonBody
-                    ? IsPlainJson(operation)
-                        ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);"
-                        : $"var response = await httpClient.PutAsync(url, {jsonContent}, cancellationToken).ConfigureAwait(false);"
-                    : "var response = await httpClient.PutAsync(url, null, cancellationToken).ConfigureAwait(false);",
+                $"var response = await httpClient.PutAsync(url, {jsonContent ?? "null"}, cancellationToken).ConfigureAwait(false);",
                 resilienceStamp,
                 "HttpMethod.Put",
                 jsonContent,
@@ -1594,7 +1588,7 @@ public static class HttpClientExtractor
     }
 
     /// <summary>
-    /// Whether the JSON request body is declared as <c>application/json</c> (the verb helpers send that).
+    /// Whether the JSON request body is declared as <c>application/json</c> (the content's default media type).
     /// </summary>
     private static bool IsPlainJson(OpenApiOperation operation)
         => string.Equals(operation.GetJsonRequestBodyMediaType(), "application/json", StringComparison.OrdinalIgnoreCase);
@@ -1607,8 +1601,8 @@ public static class HttpClientExtractor
         OpenApiOperation operation,
         string requestAccess)
         => IsPlainJson(operation)
-            ? $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)"
-            : $"JsonContent.Create({requestAccess}, new System.Net.Http.Headers.MediaTypeHeaderValue(\"{operation.GetJsonRequestBodyMediaType()}\"), jsonSerializerOptions)";
+            ? $"jsonSerializerOptions.ToJsonContent({requestAccess})"
+            : $"jsonSerializerOptions.ToJsonContent({requestAccess}, new System.Net.Http.Headers.MediaTypeHeaderValue(\"{operation.GetJsonRequestBodyMediaType()}\"))";
 
     /// <summary>
     /// Emits the send for an operation: the verb helper call (<c>GetAsync</c>, <c>PostAsJsonAsync</c>, ...) as
@@ -2306,7 +2300,7 @@ public static class HttpClientExtractor
         {
             // A success without a body (a 204, an empty 200) is null, not a JsonException
             builder.AppendLine("var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
-            AppendStatement(builder, $"return json.Length == 0 ? default! : JsonSerializer.Deserialize<{returnType}>(json, jsonSerializerOptions)!;", isLastStatement);
+            AppendStatement(builder, $"return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<{returnType}>())!;", isLastStatement);
             return;
         }
 
@@ -2550,7 +2544,7 @@ public static class HttpClientExtractor
         sb.AppendLine(4, "// A success whose body is no JSON (a proxy's HTML page) is no success - this style never throws for it");
         sb.AppendLine(4, "try");
         sb.AppendLine(4, "{");
-        sb.AppendLine(8, "contentObject = JsonSerializer.Deserialize<T>(content, jsonSerializerOptions);");
+        sb.AppendLine(8, "contentObject = JsonSerializer.Deserialize(content, jsonSerializerOptions.TypeInfo<T>());");
         sb.AppendLine(4, "}");
         sb.AppendLine(4, "catch (JsonException)");
         sb.AppendLine(4, "{");

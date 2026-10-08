@@ -162,7 +162,7 @@ public static class OAuthTokenProviderExtractor
         contentBuilder.AppendLine(4, "public async Task<string> RefreshTokenAsync(CancellationToken cancellationToken = default)");
         contentBuilder.AppendLine(8, "var parameters = new Dictionary<string, string>");
         contentBuilder.AppendLine(8, "using var content = new FormUrlEncodedContent(parameters);");
-        contentBuilder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);");
+        contentBuilder.AppendLine(8, "return await ReadTokenResponseAsync(response.Content, cancellationToken).ConfigureAwait(false);");
         contentBuilder.AppendLine("}");
         var content = contentBuilder.ToString();
 
@@ -303,7 +303,7 @@ public static class OAuthTokenProviderExtractor
         builder.AppendLine();
         builder.AppendLine(8, "response.EnsureSuccessStatusCode();");
         builder.AppendLine();
-        builder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);");
+        builder.AppendLine(8, "return await ReadTokenResponseAsync(response.Content, cancellationToken).ConfigureAwait(false);");
         builder.AppendLine(4, "}");
 
         // Add refresh token method if supported
@@ -338,10 +338,12 @@ public static class OAuthTokenProviderExtractor
             builder.AppendLine(12, "return await RequestTokenWithClientCredentialsAsync(opts, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine(8, "}");
             builder.AppendLine();
-            builder.AppendLine(8, "return await response.Content.ReadFromJsonAsync<OAuthTokenResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);");
+            builder.AppendLine(8, "return await ReadTokenResponseAsync(response.Content, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine(4, "}");
         }
 
+        builder.AppendLine();
+        AppendReadTokenResponse(builder);
         builder.AppendLine();
         builder.AppendLine(4, "/// <inheritdoc />");
         builder.AppendLine(4, "public void Dispose()");
@@ -351,5 +353,74 @@ public static class OAuthTokenProviderExtractor
         builder.AppendLine("}");
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// <c>ReadTokenResponseAsync</c>: the token response read member by member from the JSON document - no
+    /// reflection-based serialization, so it is trim- and AOT-safe - as the serializer reads it with Web defaults:
+    /// member names in any case, a number in a string, other members skipped; a member of the wrong type, or a body
+    /// that is no JSON object, is a <c>JsonException</c>, and a <c>null</c> body no token.
+    /// </summary>
+    private static void AppendReadTokenResponse(StringBuilder builder)
+    {
+        builder.AppendLine(4, "private static async Task<OAuthTokenResponse?> ReadTokenResponseAsync(");
+        builder.AppendLine(8, "HttpContent content,");
+        builder.AppendLine(8, "CancellationToken cancellationToken)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "using var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
+        builder.AppendLine(8, "using var document = await System.Text.Json.JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);");
+        builder.AppendLine(8, "var root = document.RootElement;");
+        builder.AppendLine(8, "if (root.ValueKind == System.Text.Json.JsonValueKind.Null)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "return null;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "if (root.ValueKind != System.Text.Json.JsonValueKind.Object)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "throw new System.Text.Json.JsonException(\"The token response is no JSON object.\");");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "var token = new OAuthTokenResponse();");
+        builder.AppendLine(8, "foreach (var member in root.EnumerateObject())");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "// Upper-cased as an ordinal case-insensitive comparison does");
+        builder.AppendLine(12, "switch (member.Name.ToUpperInvariant())");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "case \"ACCESS_TOKEN\":");
+        builder.AppendLine(20, "token.AccessToken = Text(member.Value)!;");
+        builder.AppendLine(20, "break;");
+        builder.AppendLine(16, "case \"TOKEN_TYPE\":");
+        builder.AppendLine(20, "token.TokenType = Text(member.Value)!;");
+        builder.AppendLine(20, "break;");
+        builder.AppendLine(16, "case \"EXPIRES_IN\":");
+        builder.AppendLine(20, "token.ExpiresIn = Seconds(member.Value);");
+        builder.AppendLine(20, "break;");
+        builder.AppendLine(16, "case \"REFRESH_TOKEN\":");
+        builder.AppendLine(20, "token.RefreshToken = Text(member.Value);");
+        builder.AppendLine(20, "break;");
+        builder.AppendLine(16, "case \"SCOPE\":");
+        builder.AppendLine(20, "token.Scope = Text(member.Value);");
+        builder.AppendLine(20, "break;");
+        builder.AppendLine(12, "}");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "return token;");
+        builder.AppendLine();
+        builder.AppendLine(8, "static string? Text(System.Text.Json.JsonElement value)");
+        builder.AppendLine(12, "=> value.ValueKind switch");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "System.Text.Json.JsonValueKind.String => value.GetString(),");
+        builder.AppendLine(16, "System.Text.Json.JsonValueKind.Null => null,");
+        builder.AppendLine(16, "_ => throw new System.Text.Json.JsonException($\"A token response member is a {value.ValueKind}, not a string.\"),");
+        builder.AppendLine(12, "};");
+        builder.AppendLine();
+        builder.AppendLine(8, "static int Seconds(System.Text.Json.JsonElement value)");
+        builder.AppendLine(12, "=> value.ValueKind switch");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var seconds) => seconds,");
+        builder.AppendLine(16, "System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var seconds) => seconds,");
+        builder.AppendLine(16, "_ => throw new System.Text.Json.JsonException(\"The token response's expires_in is no whole number.\"),");
+        builder.AppendLine(12, "};");
+        builder.AppendLine(4, "}");
     }
 }

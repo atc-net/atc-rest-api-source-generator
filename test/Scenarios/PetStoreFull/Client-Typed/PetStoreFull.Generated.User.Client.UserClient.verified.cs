@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -52,7 +51,7 @@ public sealed class UserClient : IUserClient
     {
         var url = "user";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
-        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
@@ -62,7 +61,7 @@ public sealed class UserClient : IUserClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.User.Models.User>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
     }
 
     public async Task<PetStoreFull.Generated.User.Models.User> CreateUsersWithListInputAsync(
@@ -71,7 +70,7 @@ public sealed class UserClient : IUserClient
     {
         var url = "user/createWithList";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
-        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
@@ -81,7 +80,7 @@ public sealed class UserClient : IUserClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.User.Models.User>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
     }
 
     public async Task<string> LoginUserAsync(
@@ -133,7 +132,7 @@ public sealed class UserClient : IUserClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize<PetStoreFull.Generated.User.Models.User>(json, jsonSerializerOptions)!;
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
     }
 
     public async Task UpdateUserAsync(
@@ -141,7 +140,7 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
-        using var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
