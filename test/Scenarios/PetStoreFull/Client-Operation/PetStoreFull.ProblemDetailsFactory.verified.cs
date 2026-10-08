@@ -49,7 +49,7 @@ public static class ProblemDetailsFactory
     /// operation's <c>default</c> model) - or creates one with the body as the detail.
     /// </summary>
     public static ProblemDetails FromContent(HttpStatusCode statusCode, string? content)
-        => TryRead<ProblemDetails>(content) is { } problem
+        => TryRead(content, validation: false) is { } problem
             ? problem with { Status = problem.Status ?? (int)statusCode }
             : Create(statusCode, content);
 
@@ -58,7 +58,7 @@ public static class ProblemDetailsFactory
     /// creates one with the body as the detail.
     /// </summary>
     public static ValidationProblemDetails ValidationFromContent(HttpStatusCode statusCode, string? content)
-        => TryRead<ValidationProblemDetails>(content) is { } problem
+        => TryRead(content, validation: true) is ValidationProblemDetails problem
             ? problem with { Status = problem.Status ?? (int)statusCode }
             : CreateValidation(statusCode, content);
 
@@ -67,7 +67,7 @@ public static class ProblemDetailsFactory
     /// as a declared model that cannot hold them; <see langword="null"/> when the body has none.
     /// </summary>
     public static System.Collections.Generic.Dictionary<string, string[]>? ValidationErrorsFromContent(string? content)
-        => TryRead<ValidationProblemDetails>(content)?.Errors;
+        => (TryRead(content, validation: true) as ValidationProblemDetails)?.Errors;
 
     /// <summary>
     /// Reads an error model (the declared one, or the configured custom one) from the raw response body - a body
@@ -171,7 +171,7 @@ public static class ProblemDetailsFactory
         var members = new[] { "type", "title", "status", "detail", "instance", "errors" };
         var extensions = root.Elements()
             .Where(e => !members.Contains(e.Name.LocalName))
-            .ToDictionary(Key, e => System.Text.Json.JsonSerializer.SerializeToElement(e.HasElements ? e.ToString() : e.Value), System.StringComparer.Ordinal);
+            .ToDictionary(Key, e => JsonString(e.HasElements ? e.ToString() : e.Value), System.StringComparer.Ordinal);
         var errors = root.Elements().FirstOrDefault(e => e.Name.LocalName == "errors");
         ProblemDetails problem = errors is null
             ? new ProblemDetails(Member("type"), Member("title"), status, Member("detail"), Member("instance"))
@@ -186,6 +186,13 @@ public static class ProblemDetailsFactory
         return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, response.Content, problem, response.Headers);
     }
 
+    // The text as a JSON string, escaped as the serializer writes one
+    private static System.Text.Json.JsonElement JsonString(string value)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse("\"" + System.Text.Json.JsonEncodedText.Encode(value) + "\"");
+        return document.RootElement.Clone();
+    }
+
     private static readonly System.Text.Json.JsonSerializerOptions LenientOptions = CreateLenientOptions();
 
     private static System.Text.Json.JsonSerializerOptions CreateLenientOptions()
@@ -195,8 +202,7 @@ public static class ProblemDetailsFactory
         return options;
     }
 
-    private static T? TryRead<T>(string? content, System.Text.Json.JsonSerializerOptions? options = null)
-        where T : class
+    private static ProblemDetails? TryRead(string? content, bool validation)
     {
         if (string.IsNullOrWhiteSpace(content) || content!.TrimStart()[0] != '{')
         {
@@ -205,11 +211,90 @@ public static class ProblemDetailsFactory
 
         try
         {
-            return System.Text.Json.JsonSerializer.Deserialize<T>(content, options ?? new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            using var document = System.Text.Json.JsonDocument.Parse(content);
+            string? type = null, title = null, detail = null, instance = null;
+            int? status = null;
+            System.Collections.Generic.Dictionary<string, string[]>? errors = null;
+            System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? extensions = null;
+            foreach (var member in document.RootElement.EnumerateObject())
+            {
+                // Upper-cased as an ordinal case-insensitive comparison does
+                switch (member.Name.ToUpperInvariant())
+                {
+                    case "TYPE":
+                        type = Text(member.Value);
+                        break;
+                    case "TITLE":
+                        title = Text(member.Value);
+                        break;
+                    case "STATUS":
+                        status = Status(member.Value);
+                        break;
+                    case "DETAIL":
+                        detail = Text(member.Value);
+                        break;
+                    case "INSTANCE":
+                        instance = Text(member.Value);
+                        break;
+                    case "ERRORS" when validation:
+                        errors = Errors(member.Value);
+                        break;
+                    default:
+                        (extensions ??= new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>(System.StringComparer.Ordinal))[member.Name] = member.Value.Clone();
+                        break;
+                }
+            }
+
+            return validation
+                ? new ValidationProblemDetails(type, title, status, detail, instance, errors) { Extensions = extensions }
+                : new ProblemDetails(type, title, status, detail, instance) { Extensions = extensions };
         }
         catch (System.Text.Json.JsonException)
         {
             return null;
+        }
+
+        static string? Text(System.Text.Json.JsonElement value)
+            => value.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => value.GetString(),
+                System.Text.Json.JsonValueKind.Null => null,
+                _ => throw new System.Text.Json.JsonException(),
+            };
+
+        static int? Status(System.Text.Json.JsonElement value)
+            => value.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var number) => number,
+                System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var number) => number,
+                System.Text.Json.JsonValueKind.Null => null,
+                _ => throw new System.Text.Json.JsonException(),
+            };
+
+        static System.Collections.Generic.Dictionary<string, string[]>? Errors(System.Text.Json.JsonElement value)
+        {
+            if (value.ValueKind == System.Text.Json.JsonValueKind.Null)
+            {
+                return null;
+            }
+
+            if (value.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                throw new System.Text.Json.JsonException();
+            }
+
+            var errors = new System.Collections.Generic.Dictionary<string, string[]>(System.StringComparer.Ordinal);
+            foreach (var field in value.EnumerateObject())
+            {
+                errors[field.Name] = field.Value.ValueKind switch
+                {
+                    System.Text.Json.JsonValueKind.Array => field.Value.EnumerateArray().Select(item => Text(item)!).ToArray(),
+                    System.Text.Json.JsonValueKind.Null => null!,
+                    _ => throw new System.Text.Json.JsonException(),
+                };
+            }
+
+            return errors;
         }
     }
 
@@ -228,7 +313,8 @@ public static class ProblemDetailsFactory
         {
             try
             {
-                return System.Text.Json.JsonSerializer.Deserialize<string>(trimmed);
+                using var document = System.Text.Json.JsonDocument.Parse(trimmed);
+                return document.RootElement.GetString();
             }
             catch (System.Text.Json.JsonException)
             {

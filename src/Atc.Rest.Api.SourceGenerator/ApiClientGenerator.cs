@@ -1736,7 +1736,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(8, "var members = new[] { \"type\", \"title\", \"status\", \"detail\", \"instance\", \"errors\" };");
         sb.AppendLine(8, "var extensions = root.Elements()");
         sb.AppendLine(12, ".Where(e => !members.Contains(e.Name.LocalName))");
-        sb.AppendLine(12, ".ToDictionary(Key, e => System.Text.Json.JsonSerializer.SerializeToElement(e.HasElements ? e.ToString() : e.Value), System.StringComparer.Ordinal);");
+        sb.AppendLine(12, ".ToDictionary(Key, e => JsonString(e.HasElements ? e.ToString() : e.Value), System.StringComparer.Ordinal);");
         sb.AppendLine(8, "var errors = root.Elements().FirstOrDefault(e => e.Name.LocalName == \"errors\");");
         sb.AppendLine(8, "ProblemDetails problem = errors is null");
         sb.AppendLine(12, "? new ProblemDetails(Member(\"type\"), Member(\"title\"), status, Member(\"detail\"), Member(\"instance\"))");
@@ -1751,6 +1751,118 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(8, "return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, response.Content, problem, response.Headers);");
         sb.AppendLine(4, "}");
         sb.AppendLine();
+        sb.AppendLine(4, "// The text as a JSON string, escaped as the serializer writes one");
+        sb.AppendLine(4, "private static System.Text.Json.JsonElement JsonString(string value)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "using var document = System.Text.Json.JsonDocument.Parse(\"\\\"\" + System.Text.Json.JsonEncodedText.Encode(value) + \"\\\"\");");
+        sb.AppendLine(8, "return document.RootElement.Clone();");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// <c>TryRead</c>: a problem body read member by member from the JSON document - no reflection-based
+    /// serialization, so it is trim- and AOT-safe - as the serializer reads it with Web defaults: member names in any
+    /// case, the last of a repeated member, a status as a number or a numeric string, the other members as
+    /// extensions. A member of the wrong type, or a body that is no JSON object, gives no problem.
+    /// </summary>
+    private static void AppendTryReadProblem(StringBuilder sb)
+    {
+        sb.AppendLine(4, "private static ProblemDetails? TryRead(string? content, bool validation)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "if (string.IsNullOrWhiteSpace(content) || content!.TrimStart()[0] != '{')");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return null;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "try");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "using var document = System.Text.Json.JsonDocument.Parse(content);");
+        sb.AppendLine(12, "string? type = null, title = null, detail = null, instance = null;");
+        sb.AppendLine(12, "int? status = null;");
+        sb.AppendLine(12, "System.Collections.Generic.Dictionary<string, string[]>? errors = null;");
+        sb.AppendLine(12, "System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? extensions = null;");
+        sb.AppendLine(12, "foreach (var member in document.RootElement.EnumerateObject())");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "// Upper-cased as an ordinal case-insensitive comparison does");
+        sb.AppendLine(16, "switch (member.Name.ToUpperInvariant())");
+        sb.AppendLine(16, "{");
+        sb.AppendLine(20, "case \"TYPE\":");
+        sb.AppendLine(24, "type = Text(member.Value);");
+        sb.AppendLine(24, "break;");
+        sb.AppendLine(20, "case \"TITLE\":");
+        sb.AppendLine(24, "title = Text(member.Value);");
+        sb.AppendLine(24, "break;");
+        sb.AppendLine(20, "case \"STATUS\":");
+        sb.AppendLine(24, "status = Status(member.Value);");
+        sb.AppendLine(24, "break;");
+        sb.AppendLine(20, "case \"DETAIL\":");
+        sb.AppendLine(24, "detail = Text(member.Value);");
+        sb.AppendLine(24, "break;");
+        sb.AppendLine(20, "case \"INSTANCE\":");
+        sb.AppendLine(24, "instance = Text(member.Value);");
+        sb.AppendLine(24, "break;");
+        sb.AppendLine(20, "case \"ERRORS\" when validation:");
+        sb.AppendLine(24, "errors = Errors(member.Value);");
+        sb.AppendLine(24, "break;");
+        sb.AppendLine(20, "default:");
+        sb.AppendLine(24, "(extensions ??= new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>(System.StringComparer.Ordinal))[member.Name] = member.Value.Clone();");
+        sb.AppendLine(24, "break;");
+        sb.AppendLine(16, "}");
+        sb.AppendLine(12, "}");
+        sb.AppendLine();
+        sb.AppendLine(12, "return validation");
+        sb.AppendLine(16, "? new ValidationProblemDetails(type, title, status, detail, instance, errors) { Extensions = extensions }");
+        sb.AppendLine(16, ": new ProblemDetails(type, title, status, detail, instance) { Extensions = extensions };");
+        sb.AppendLine(8, "}");
+        sb.AppendLine(8, "catch (System.Text.Json.JsonException)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return null;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "static string? Text(System.Text.Json.JsonElement value)");
+        sb.AppendLine(12, "=> value.ValueKind switch");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "System.Text.Json.JsonValueKind.String => value.GetString(),");
+        sb.AppendLine(16, "System.Text.Json.JsonValueKind.Null => null,");
+        sb.AppendLine(16, "_ => throw new System.Text.Json.JsonException(),");
+        sb.AppendLine(12, "};");
+        sb.AppendLine();
+        sb.AppendLine(8, "static int? Status(System.Text.Json.JsonElement value)");
+        sb.AppendLine(12, "=> value.ValueKind switch");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var number) => number,");
+        sb.AppendLine(16, "System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var number) => number,");
+        sb.AppendLine(16, "System.Text.Json.JsonValueKind.Null => null,");
+        sb.AppendLine(16, "_ => throw new System.Text.Json.JsonException(),");
+        sb.AppendLine(12, "};");
+        sb.AppendLine();
+        sb.AppendLine(8, "static System.Collections.Generic.Dictionary<string, string[]>? Errors(System.Text.Json.JsonElement value)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "if (value.ValueKind == System.Text.Json.JsonValueKind.Null)");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "return null;");
+        sb.AppendLine(12, "}");
+        sb.AppendLine();
+        sb.AppendLine(12, "if (value.ValueKind != System.Text.Json.JsonValueKind.Object)");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "throw new System.Text.Json.JsonException();");
+        sb.AppendLine(12, "}");
+        sb.AppendLine();
+        sb.AppendLine(12, "var errors = new System.Collections.Generic.Dictionary<string, string[]>(System.StringComparer.Ordinal);");
+        sb.AppendLine(12, "foreach (var field in value.EnumerateObject())");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "errors[field.Name] = field.Value.ValueKind switch");
+        sb.AppendLine(16, "{");
+        sb.AppendLine(20, "System.Text.Json.JsonValueKind.Array => field.Value.EnumerateArray().Select(item => Text(item)!).ToArray(),");
+        sb.AppendLine(20, "System.Text.Json.JsonValueKind.Null => null!,");
+        sb.AppendLine(20, "_ => throw new System.Text.Json.JsonException(),");
+        sb.AppendLine(16, "};");
+        sb.AppendLine(12, "}");
+        sb.AppendLine();
+        sb.AppendLine(12, "return errors;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine(4, "}");
     }
 
     private static void GenerateProblemDetails(
@@ -1874,7 +1986,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "/// operation's <c>default</c> model) - or creates one with the body as the detail.");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, "public static ProblemDetails FromContent(HttpStatusCode statusCode, string? content)");
-        sb.AppendLine(8, "=> TryRead<ProblemDetails>(content) is { } problem");
+        sb.AppendLine(8, "=> TryRead(content, validation: false) is { } problem");
         sb.AppendLine(12, "? problem with { Status = problem.Status ?? (int)statusCode }");
         sb.AppendLine(12, ": Create(statusCode, content);");
         sb.AppendLine();
@@ -1883,7 +1995,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "/// creates one with the body as the detail.");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, "public static ValidationProblemDetails ValidationFromContent(HttpStatusCode statusCode, string? content)");
-        sb.AppendLine(8, "=> TryRead<ValidationProblemDetails>(content) is { } problem");
+        sb.AppendLine(8, "=> TryRead(content, validation: true) is ValidationProblemDetails problem");
         sb.AppendLine(12, "? problem with { Status = problem.Status ?? (int)statusCode }");
         sb.AppendLine(12, ": CreateValidation(statusCode, content);");
         sb.AppendLine();
@@ -1892,7 +2004,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "/// as a declared model that cannot hold them; <see langword=\"null\"/> when the body has none.");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, "public static System.Collections.Generic.Dictionary<string, string[]>? ValidationErrorsFromContent(string? content)");
-        sb.AppendLine(8, "=> TryRead<ValidationProblemDetails>(content)?.Errors;");
+        sb.AppendLine(8, "=> (TryRead(content, validation: true) as ValidationProblemDetails)?.Errors;");
         sb.AppendLine();
         sb.AppendLine(4, "/// <summary>");
         sb.AppendLine(4, "/// Reads an error model (the declared one, or the configured custom one) from the raw response body - a body");
@@ -1977,23 +2089,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(8, "return options;");
         sb.AppendLine(4, "}");
         sb.AppendLine();
-        sb.AppendLine(4, "private static T? TryRead<T>(string? content, System.Text.Json.JsonSerializerOptions? options = null)");
-        sb.AppendLine(8, "where T : class");
-        sb.AppendLine(4, "{");
-        sb.AppendLine(8, "if (string.IsNullOrWhiteSpace(content) || content!.TrimStart()[0] != '{')");
-        sb.AppendLine(8, "{");
-        sb.AppendLine(12, "return null;");
-        sb.AppendLine(8, "}");
-        sb.AppendLine();
-        sb.AppendLine(8, "try");
-        sb.AppendLine(8, "{");
-        sb.AppendLine(12, "return System.Text.Json.JsonSerializer.Deserialize<T>(content, options ?? new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));");
-        sb.AppendLine(8, "}");
-        sb.AppendLine(8, "catch (System.Text.Json.JsonException)");
-        sb.AppendLine(8, "{");
-        sb.AppendLine(12, "return null;");
-        sb.AppendLine(8, "}");
-        sb.AppendLine(4, "}");
+        AppendTryReadProblem(sb);
         sb.AppendLine();
         sb.AppendLine(4, "/// <summary>");
         sb.AppendLine(4, "/// The message as detail text: a JSON string body (<c>\"text\"</c>) is unwrapped to its value.");
@@ -2010,7 +2106,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(8, "{");
         sb.AppendLine(12, "try");
         sb.AppendLine(12, "{");
-        sb.AppendLine(16, "return System.Text.Json.JsonSerializer.Deserialize<string>(trimmed);");
+        sb.AppendLine(16, "using var document = System.Text.Json.JsonDocument.Parse(trimmed);");
+        sb.AppendLine(16, "return document.RootElement.GetString();");
         sb.AppendLine(12, "}");
         sb.AppendLine(12, "catch (System.Text.Json.JsonException)");
         sb.AppendLine(12, "{");
