@@ -173,7 +173,7 @@ public static class TupleExtractor
             sb.AppendLine(12, $"throw new JsonException(\"A {name} has {fixedItems.Count} item(s); item {i + 1} ({item.Name}) is missing.\");");
             sb.AppendLine(8, "}");
             sb.AppendLine();
-            sb.AppendLine(8, $"var item{i} = JsonSerializer.Deserialize<{typeName}>(ref reader, options){(typeName.EndsWith("?", StringComparison.Ordinal) ? string.Empty : "!")};");
+            sb.AppendLine(8, $"var item{i} = JsonSerializer.Deserialize(ref reader, Info<{typeName}>(options)){(typeName.EndsWith("?", StringComparison.Ordinal) ? string.Empty : "!")};");
             sb.AppendLine(8, "reader.Read();");
         }
 
@@ -183,7 +183,7 @@ public static class TupleExtractor
             sb.AppendLine(8, $"var additionalItems = new List<{additionalItemType}>();");
             sb.AppendLine(8, "while (reader.TokenType != JsonTokenType.EndArray)");
             sb.AppendLine(8, "{");
-            sb.AppendLine(12, $"additionalItems.Add(JsonSerializer.Deserialize<{additionalItemType}>(ref reader, options)!);");
+            sb.AppendLine(12, $"additionalItems.Add(JsonSerializer.Deserialize(ref reader, Info<{additionalItemType}>(options))!);");
             sb.AppendLine(12, "reader.Read();");
             sb.AppendLine(8, "}");
         }
@@ -215,7 +215,7 @@ public static class TupleExtractor
         sb.AppendLine(8, "writer.WriteStartArray();");
         foreach (var item in fixedItems)
         {
-            sb.AppendLine(8, $"JsonSerializer.Serialize(writer, value.{item.Name}, options);");
+            sb.AppendLine(8, $"JsonSerializer.Serialize(writer, value.{item.Name}, Info<{ItemTypeName(item)}>(options));");
         }
 
         if (additionalItems is not null)
@@ -223,13 +223,16 @@ public static class TupleExtractor
             sb.AppendLine();
             sb.AppendLine(8, $"foreach (var item in value.{additionalItems.Name} ?? [])");
             sb.AppendLine(8, "{");
-            sb.AppendLine(12, "JsonSerializer.Serialize(writer, item, options);");
+            sb.AppendLine(12, $"JsonSerializer.Serialize(writer, item, Info<{additionalItemType}>(options));");
             sb.AppendLine(8, "}");
             sb.AppendLine();
         }
 
         sb.AppendLine(8, "writer.WriteEndArray();");
         sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "// The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app");
+        sb.AppendLine(4, "private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));");
         sb.Append('}');
 
         return sb.ToString();

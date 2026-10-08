@@ -325,12 +325,12 @@ public class TupleExtractorTests
         Assert.Contains("public sealed class CoordinateJsonConverter : JsonConverter<Coordinate>", content, StringComparison.Ordinal);
         Assert.Contains("throw new JsonException(\"A Coordinate is a JSON array.\");", content, StringComparison.Ordinal);
         Assert.Contains("throw new JsonException(\"A Coordinate has 2 item(s); item 1 (Latitude) is missing.\");", content, StringComparison.Ordinal);
-        Assert.Contains("var item0 = JsonSerializer.Deserialize<double>(ref reader, options)!;", content, StringComparison.Ordinal);
-        Assert.Contains("var item1 = JsonSerializer.Deserialize<double>(ref reader, options)!;", content, StringComparison.Ordinal);
+        Assert.Contains("var item0 = JsonSerializer.Deserialize(ref reader, Info<double>(options))!;", content, StringComparison.Ordinal);
+        Assert.Contains("var item1 = JsonSerializer.Deserialize(ref reader, Info<double>(options))!;", content, StringComparison.Ordinal);
         Assert.Contains("// Items beyond the ones the tuple names are not part of the model", content, StringComparison.Ordinal);
         Assert.Contains("return new Coordinate(item0, item1);", content, StringComparison.Ordinal);
-        Assert.Contains("JsonSerializer.Serialize(writer, value.Latitude, options);", content, StringComparison.Ordinal);
-        Assert.Contains("JsonSerializer.Serialize(writer, value.Longitude, options);", content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Serialize(writer, value.Latitude, Info<double>(options));", content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Serialize(writer, value.Longitude, Info<double>(options));", content, StringComparison.Ordinal);
         Assert.EndsWith("}", content, StringComparison.Ordinal);
     }
 
@@ -372,7 +372,7 @@ public class TupleExtractorTests
 
         // Assert
         Assert.Contains("var additionalItems = new List<string>();", content, StringComparison.Ordinal);
-        Assert.Contains("additionalItems.Add(JsonSerializer.Deserialize<string>(ref reader, options)!);", content, StringComparison.Ordinal);
+        Assert.Contains("additionalItems.Add(JsonSerializer.Deserialize(ref reader, Info<string>(options))!);", content, StringComparison.Ordinal);
         Assert.Contains("return new Entry(item0, additionalItems.ToArray());", content, StringComparison.Ordinal);
         Assert.Contains("foreach (var item in value.AdditionalItems ?? [])", content, StringComparison.Ordinal);
         Assert.DoesNotContain("reader.Skip();", content, StringComparison.Ordinal);

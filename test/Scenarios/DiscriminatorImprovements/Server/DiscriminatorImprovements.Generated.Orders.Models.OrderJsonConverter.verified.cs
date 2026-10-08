@@ -42,14 +42,17 @@ public sealed class OrderJsonConverter : JsonConverter<Order>
 
         return discriminatorValue switch
         {
-            "online" => JsonSerializer.Deserialize<OnlineOrder>(rawText, options),
-            "in_store" => JsonSerializer.Deserialize<InStoreOrder>(rawText, options),
-            _ => JsonSerializer.Deserialize<OnlineOrder>(rawText, options),
+            "online" => JsonSerializer.Deserialize(rawText, Info<OnlineOrder>(options)),
+            "in_store" => JsonSerializer.Deserialize(rawText, Info<InStoreOrder>(options)),
+            _ => JsonSerializer.Deserialize(rawText, Info<OnlineOrder>(options)),
         };
     }
 
     public override void Write(Utf8JsonWriter writer, Order value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }

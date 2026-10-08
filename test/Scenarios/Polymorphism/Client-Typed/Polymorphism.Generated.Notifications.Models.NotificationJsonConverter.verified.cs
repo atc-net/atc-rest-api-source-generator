@@ -42,15 +42,18 @@ public sealed class NotificationJsonConverter : JsonConverter<Notification>
 
         return discriminatorValue switch
         {
-            "EmailNotification" => JsonSerializer.Deserialize<EmailNotification>(rawText, options),
-            "SmsNotification" => JsonSerializer.Deserialize<SmsNotification>(rawText, options),
-            "PushNotification" => JsonSerializer.Deserialize<PushNotification>(rawText, options),
-            _ => JsonSerializer.Deserialize<EmailNotification>(rawText, options),
+            "EmailNotification" => JsonSerializer.Deserialize(rawText, Info<EmailNotification>(options)),
+            "SmsNotification" => JsonSerializer.Deserialize(rawText, Info<SmsNotification>(options)),
+            "PushNotification" => JsonSerializer.Deserialize(rawText, Info<PushNotification>(options)),
+            _ => JsonSerializer.Deserialize(rawText, Info<EmailNotification>(options)),
         };
     }
 
     public override void Write(Utf8JsonWriter writer, Notification value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }

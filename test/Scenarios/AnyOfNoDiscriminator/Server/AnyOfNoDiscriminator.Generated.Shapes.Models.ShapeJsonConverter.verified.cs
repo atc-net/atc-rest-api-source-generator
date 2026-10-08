@@ -42,15 +42,18 @@ public sealed class ShapeJsonConverter : JsonConverter<Shape>
 
         return discriminatorValue switch
         {
-            "Circle" => JsonSerializer.Deserialize<Circle>(rawText, options),
-            "Square" => JsonSerializer.Deserialize<Square>(rawText, options),
-            "Triangle" => JsonSerializer.Deserialize<Triangle>(rawText, options),
-            _ => JsonSerializer.Deserialize<Circle>(rawText, options),
+            "Circle" => JsonSerializer.Deserialize(rawText, Info<Circle>(options)),
+            "Square" => JsonSerializer.Deserialize(rawText, Info<Square>(options)),
+            "Triangle" => JsonSerializer.Deserialize(rawText, Info<Triangle>(options)),
+            _ => JsonSerializer.Deserialize(rawText, Info<Circle>(options)),
         };
     }
 
     public override void Write(Utf8JsonWriter writer, Shape value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }

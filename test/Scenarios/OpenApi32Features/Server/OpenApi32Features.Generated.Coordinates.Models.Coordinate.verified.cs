@@ -47,7 +47,7 @@ public sealed class CoordinateJsonConverter : JsonConverter<Coordinate>
             throw new JsonException("A Coordinate has 2 item(s); item 1 (Latitude) is missing.");
         }
 
-        var item0 = JsonSerializer.Deserialize<double>(ref reader, options)!;
+        var item0 = JsonSerializer.Deserialize(ref reader, Info<double>(options))!;
         reader.Read();
 
         if (reader.TokenType == JsonTokenType.EndArray)
@@ -55,7 +55,7 @@ public sealed class CoordinateJsonConverter : JsonConverter<Coordinate>
             throw new JsonException("A Coordinate has 2 item(s); item 2 (Longitude) is missing.");
         }
 
-        var item1 = JsonSerializer.Deserialize<double>(ref reader, options)!;
+        var item1 = JsonSerializer.Deserialize(ref reader, Info<double>(options))!;
         reader.Read();
 
         // Items beyond the ones the tuple names are not part of the model
@@ -74,8 +74,11 @@ public sealed class CoordinateJsonConverter : JsonConverter<Coordinate>
         JsonSerializerOptions options)
     {
         writer.WriteStartArray();
-        JsonSerializer.Serialize(writer, value.Latitude, options);
-        JsonSerializer.Serialize(writer, value.Longitude, options);
+        JsonSerializer.Serialize(writer, value.Latitude, Info<double>(options));
+        JsonSerializer.Serialize(writer, value.Longitude, Info<double>(options));
         writer.WriteEndArray();
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }

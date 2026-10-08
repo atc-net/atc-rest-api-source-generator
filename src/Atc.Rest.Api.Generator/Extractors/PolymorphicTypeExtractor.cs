@@ -187,12 +187,12 @@ public static class PolymorphicTypeExtractor
 
         foreach (var variant in config.Variants)
         {
-            sb.AppendLine($"            \"{variant.DiscriminatorValue}\" => JsonSerializer.Deserialize<{variant.TypeName}>(rawText, options),");
+            sb.AppendLine($"            \"{variant.DiscriminatorValue}\" => JsonSerializer.Deserialize(rawText, Info<{variant.TypeName}>(options)),");
         }
 
         if (config.DefaultVariantTypeName is not null)
         {
-            sb.AppendLine($"            _ => JsonSerializer.Deserialize<{config.DefaultVariantTypeName}>(rawText, options),");
+            sb.AppendLine($"            _ => JsonSerializer.Deserialize(rawText, Info<{config.DefaultVariantTypeName}>(options)),");
         }
         else
         {
@@ -205,8 +205,11 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine();
         sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");
         sb.AppendLine("    {");
-        sb.AppendLine("        JsonSerializer.Serialize(writer, value, value.GetType(), options);");
+        sb.AppendLine("        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app");
+        sb.AppendLine("    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));");
 
         sb.AppendLine("}");
 
@@ -477,7 +480,7 @@ public static class PolymorphicTypeExtractor
             sb.AppendLine($"        {variant.TypeName}? {local} = null;");
             sb.AppendLine("        try");
             sb.AppendLine("        {");
-            sb.AppendLine($"            {local} = JsonSerializer.Deserialize<{variant.TypeName}>(rawText, strict);");
+            sb.AppendLine($"            {local} = JsonSerializer.Deserialize(rawText, Info<{variant.TypeName}>(strict));");
             sb.AppendLine("        }");
             sb.AppendLine("        catch (JsonException ex)");
             sb.AppendLine("        {");
@@ -503,17 +506,27 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    private static JsonSerializerOptions Strict(JsonSerializerOptions options)");
-        sb.AppendLine("        => StrictOptions.GetValue(options, static o => new JsonSerializerOptions(o)");
+        sb.AppendLine("        => StrictOptions.GetValue(options, static o =>");
         sb.AppendLine("        {");
-        sb.AppendLine("            RespectRequiredConstructorParameters = true,");
-        sb.AppendLine("            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,");
+        sb.AppendLine("            var strict = new JsonSerializerOptions(o)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                RespectRequiredConstructorParameters = true,");
+        sb.AppendLine("                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,");
+        sb.AppendLine("            };");
+        sb.AppendLine();
+        sb.AppendLine("            // Locked, so the metadata it resolves is cached");
+        sb.AppendLine("            strict.MakeReadOnly();");
+        sb.AppendLine("            return strict;");
         sb.AppendLine("        });");
 
         sb.AppendLine();
         sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");
         sb.AppendLine("    {");
-        sb.AppendLine("        JsonSerializer.Serialize(writer, value.Value, value.Value.GetType(), options);");
+        sb.AppendLine("        JsonSerializer.Serialize(writer, value.Value, options.GetTypeInfo(value.Value.GetType()));");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app");
+        sb.AppendLine("    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));");
 
         sb.AppendLine("}");
 

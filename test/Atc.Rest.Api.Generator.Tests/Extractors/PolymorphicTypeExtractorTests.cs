@@ -456,8 +456,8 @@ public class PolymorphicTypeExtractorTests
 
         // Assert
         Assert.Contains("JsonConverter<PaymentResult>", result, StringComparison.Ordinal);
-        Assert.Contains("Deserialize<SuccessPayment>", result, StringComparison.Ordinal);
-        Assert.Contains("Deserialize<FailedPayment>", result, StringComparison.Ordinal);
+        Assert.Contains("Info<SuccessPayment>", result, StringComparison.Ordinal);
+        Assert.Contains("Info<FailedPayment>", result, StringComparison.Ordinal);
         Assert.Contains("catch (JsonException ex)", result, StringComparison.Ordinal);
         Assert.Contains("the body fits no variant", result, StringComparison.Ordinal);
 
@@ -499,11 +499,11 @@ public class PolymorphicTypeExtractorTests
         // A discriminator that is no string is no known value; a body that is no object is a JsonException
         Assert.Contains("if (document.RootElement.TryGetProperty(\"orderType\", out var discriminatorElement) && discriminatorElement.ValueKind == JsonValueKind.String)", result, StringComparison.Ordinal);
         Assert.Contains("if (document.RootElement.ValueKind != JsonValueKind.Object)", result, StringComparison.Ordinal);
-        Assert.Contains("\"online\" => JsonSerializer.Deserialize<OnlineOrder>(rawText, options),", result, StringComparison.Ordinal);
-        Assert.Contains("\"in_store\" => JsonSerializer.Deserialize<InStoreOrder>(rawText, options),", result, StringComparison.Ordinal);
-        Assert.Contains("_ => JsonSerializer.Deserialize<OnlineOrder>(rawText, options),", result, StringComparison.Ordinal);
+        Assert.Contains("\"online\" => JsonSerializer.Deserialize(rawText, Info<OnlineOrder>(options)),", result, StringComparison.Ordinal);
+        Assert.Contains("\"in_store\" => JsonSerializer.Deserialize(rawText, Info<InStoreOrder>(options)),", result, StringComparison.Ordinal);
+        Assert.Contains("_ => JsonSerializer.Deserialize(rawText, Info<OnlineOrder>(options)),", result, StringComparison.Ordinal);
         Assert.DoesNotContain("Unknown 'orderType' value", result, StringComparison.Ordinal);
-        Assert.Contains("JsonSerializer.Serialize(writer, value, value.GetType(), options);", result, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));", result, StringComparison.Ordinal);
     }
 
     [Fact]

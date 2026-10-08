@@ -40,7 +40,7 @@ public sealed class NotificationJsonConverter : JsonConverter<Notification>
         EmailNotification? emailNotificationValue = null;
         try
         {
-            emailNotificationValue = JsonSerializer.Deserialize<EmailNotification>(rawText, strict);
+            emailNotificationValue = JsonSerializer.Deserialize(rawText, Info<EmailNotification>(strict));
         }
         catch (JsonException ex)
         {
@@ -61,7 +61,7 @@ public sealed class NotificationJsonConverter : JsonConverter<Notification>
         SmsNotification? smsNotificationValue = null;
         try
         {
-            smsNotificationValue = JsonSerializer.Deserialize<SmsNotification>(rawText, strict);
+            smsNotificationValue = JsonSerializer.Deserialize(rawText, Info<SmsNotification>(strict));
         }
         catch (JsonException ex)
         {
@@ -85,14 +85,24 @@ public sealed class NotificationJsonConverter : JsonConverter<Notification>
     }
 
     private static JsonSerializerOptions Strict(JsonSerializerOptions options)
-        => StrictOptions.GetValue(options, static o => new JsonSerializerOptions(o)
+        => StrictOptions.GetValue(options, static o =>
         {
-            RespectRequiredConstructorParameters = true,
-            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+            var strict = new JsonSerializerOptions(o)
+            {
+                RespectRequiredConstructorParameters = true,
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+            };
+
+            // Locked, so the metadata it resolves is cached
+            strict.MakeReadOnly();
+            return strict;
         });
 
     public override void Write(Utf8JsonWriter writer, Notification value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value.Value, value.Value.GetType(), options);
+        JsonSerializer.Serialize(writer, value.Value, options.GetTypeInfo(value.Value.GetType()));
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }

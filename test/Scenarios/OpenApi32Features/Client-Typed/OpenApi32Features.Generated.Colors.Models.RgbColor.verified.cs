@@ -48,7 +48,7 @@ public sealed class RgbColorJsonConverter : JsonConverter<RgbColor>
             throw new JsonException("A RgbColor has 3 item(s); item 1 (Red) is missing.");
         }
 
-        var item0 = JsonSerializer.Deserialize<int>(ref reader, options)!;
+        var item0 = JsonSerializer.Deserialize(ref reader, Info<int>(options))!;
         reader.Read();
 
         if (reader.TokenType == JsonTokenType.EndArray)
@@ -56,7 +56,7 @@ public sealed class RgbColorJsonConverter : JsonConverter<RgbColor>
             throw new JsonException("A RgbColor has 3 item(s); item 2 (Green) is missing.");
         }
 
-        var item1 = JsonSerializer.Deserialize<int>(ref reader, options)!;
+        var item1 = JsonSerializer.Deserialize(ref reader, Info<int>(options))!;
         reader.Read();
 
         if (reader.TokenType == JsonTokenType.EndArray)
@@ -64,7 +64,7 @@ public sealed class RgbColorJsonConverter : JsonConverter<RgbColor>
             throw new JsonException("A RgbColor has 3 item(s); item 3 (Blue) is missing.");
         }
 
-        var item2 = JsonSerializer.Deserialize<int>(ref reader, options)!;
+        var item2 = JsonSerializer.Deserialize(ref reader, Info<int>(options))!;
         reader.Read();
 
         // Items beyond the ones the tuple names are not part of the model
@@ -83,9 +83,12 @@ public sealed class RgbColorJsonConverter : JsonConverter<RgbColor>
         JsonSerializerOptions options)
     {
         writer.WriteStartArray();
-        JsonSerializer.Serialize(writer, value.Red, options);
-        JsonSerializer.Serialize(writer, value.Green, options);
-        JsonSerializer.Serialize(writer, value.Blue, options);
+        JsonSerializer.Serialize(writer, value.Red, Info<int>(options));
+        JsonSerializer.Serialize(writer, value.Green, Info<int>(options));
+        JsonSerializer.Serialize(writer, value.Blue, Info<int>(options));
         writer.WriteEndArray();
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }

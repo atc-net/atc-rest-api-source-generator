@@ -42,14 +42,17 @@ public sealed class EventJsonConverter : JsonConverter<Event>
 
         return discriminatorValue switch
         {
-            "user_created" => JsonSerializer.Deserialize<UserCreatedEvent>(rawText, options),
-            "order_placed" => JsonSerializer.Deserialize<OrderPlacedEvent>(rawText, options),
-            _ => JsonSerializer.Deserialize<UserCreatedEvent>(rawText, options),
+            "user_created" => JsonSerializer.Deserialize(rawText, Info<UserCreatedEvent>(options)),
+            "order_placed" => JsonSerializer.Deserialize(rawText, Info<OrderPlacedEvent>(options)),
+            _ => JsonSerializer.Deserialize(rawText, Info<UserCreatedEvent>(options)),
         };
     }
 
     public override void Write(Utf8JsonWriter writer, Event value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }

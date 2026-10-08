@@ -41,15 +41,18 @@ public sealed class PaymentMethodJsonConverter : JsonConverter<PaymentMethod>
 
         return discriminatorValue switch
         {
-            "credit_card" => JsonSerializer.Deserialize<CreditCard>(rawText, options),
-            "bank_transfer" => JsonSerializer.Deserialize<BankTransfer>(rawText, options),
-            "paypal" => JsonSerializer.Deserialize<PayPal>(rawText, options),
+            "credit_card" => JsonSerializer.Deserialize(rawText, Info<CreditCard>(options)),
+            "bank_transfer" => JsonSerializer.Deserialize(rawText, Info<BankTransfer>(options)),
+            "paypal" => JsonSerializer.Deserialize(rawText, Info<PayPal>(options)),
             _ => throw new JsonException($"Unknown 'type' value '{discriminatorValue}' for PaymentMethod."),
         };
     }
 
     public override void Write(Utf8JsonWriter writer, PaymentMethod value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));
     }
+
+    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app
+    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
 }
