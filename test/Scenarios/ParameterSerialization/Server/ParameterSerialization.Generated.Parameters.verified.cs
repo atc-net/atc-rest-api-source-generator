@@ -32,6 +32,8 @@ public sealed record ListItemsParameters(
     ParsableList<string> Ids,
     Uri Callback,
     string Anything,
+    ItemFilter Filter,
+    Paging Paging,
     string Session)
 #nullable restore annotations
 {
@@ -52,6 +54,12 @@ public sealed record ListItemsParameters(
 
     [FromQuery(Name = "anything")]
     public string? Anything { get; init; } = Anything;
+
+    [FromQuery(Name = "filter")]
+    public ItemFilter? Filter { get; init; } = Filter;
+
+    [FromQuery(Name = "paging")]
+    public Paging? Paging { get; init; } = Paging;
 
     [FromHeader(Name = "x-cookie-session")]
     public string? Session { get; init; } = Session;

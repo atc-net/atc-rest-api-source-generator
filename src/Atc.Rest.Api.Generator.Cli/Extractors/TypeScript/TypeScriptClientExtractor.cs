@@ -1318,6 +1318,23 @@ public static class TypeScriptClientExtractor
         {
             var propName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
             var value = TypeScriptOperationHelper.OptionalPropertyAccess("query", propName);
+
+            // An object: each property by its own key - filter[name] (deepObject) or name (form, explode)
+            if (param.GetQueryObject() is { } queryObject)
+            {
+                foreach (var property in queryObject.Properties)
+                {
+                    var access = TypeScriptOperationHelper.OptionalPropertyAccess(value, property.WireName.ApplyNamingStrategy(namingStrategy));
+                    var schema = property.Schema is OpenApiSchemaReference reference ? reference.Target : property.Schema;
+                    var text = convertDates && schema?.Format is "date" or "date-time"
+                        ? $"({access} instanceof Date ? {(schema.Format == "date" ? $"dateOnly({access})" : access + ".toISOString()")} : {access} ?? undefined)"
+                        : access + " ?? undefined";
+                    sb.Append("        '").Append(queryObject.KeyOf(property).Replace("'", "\\'", StringComparison.Ordinal)).Append("': ").Append(text).AppendLine(",");
+                }
+
+                continue;
+            }
+
             if (convertDates && TypeScriptOperationHelper.IsDateParam(param))
             {
                 value = TypeScriptOperationHelper.SerializeDateParameter(param, value, optional: true);

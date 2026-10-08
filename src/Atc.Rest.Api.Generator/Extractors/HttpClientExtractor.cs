@@ -936,6 +936,13 @@ public static class HttpClientExtractor
                 var isRequired = param.Required;
                 var serialization = param.GetParameterSerialization();
 
+                // An object: each property set by its own key - filter[name] (deepObject) or name (form, explode)
+                if (param.GetQueryObject() is { } queryObject)
+                {
+                    AppendQueryObject(builder, queryObject, paramAccess);
+                    continue;
+                }
+
                 // An array whose items are one value (form with explode: false, pipeDelimited, spaceDelimited): the
                 // items joined on the declared delimiter, each as the specification writes it
                 if (serialization.ValueKind == ParameterValueKind.Array &&
@@ -1944,6 +1951,43 @@ public static class HttpClientExtractor
     /// <summary>
     /// A wire name for the inside of a generated interpolated string literal: escaped as text, braces doubled.
     /// </summary>
+    // An object in the query: each property that is set, by its key (escaped: filter%5Bname%5D), as a scalar of its type
+    private static void AppendQueryObject(
+        StringBuilder builder,
+        OpenApiParameterExtensions.QueryObject queryObject,
+        string paramAccess)
+    {
+        var local = "queryObject" + paramAccess.Substring(paramAccess.LastIndexOf('.') + 1);
+        builder.AppendLine();
+        builder.AppendLine($"if ({paramAccess} is {{ }} {local})");
+        builder.AppendLine("{");
+        foreach (var property in queryObject.Properties)
+        {
+            var access = $"{local}.{property.WireName.ToPascalCaseForDotNet()}";
+            var key = InterpolatedName(Uri.EscapeDataString(queryObject.KeyOf(property)));
+            var schema = (IOpenApiSchema?)property.Schema.WrappedEnum() ?? property.Schema;
+            var type = property.Schema.ToCSharpTypeForModel(property.Required);
+            var value = WireValueHelper.IsIntegerEnum(schema)
+                ? WireValueHelper.IntegerEnumWireExpression(access)
+                : WireValueHelper.IsStringEnum(schema)
+                    ? $"Uri.EscapeDataString({access}.ToWireValue()!)"
+                    : BuildEncodedExpression(access, type);
+            if (property.Schema.CanBeNullInQueryObject(property.Required))
+            {
+                builder.AppendLine(4, $"if ({access} is not null)");
+                builder.AppendLine(4, "{");
+                builder.AppendLine(8, $"queryParams.Add($\"{key}={{{value}}}\");");
+                builder.AppendLine(4, "}");
+            }
+            else
+            {
+                builder.AppendLine(4, $"queryParams.Add($\"{key}={{{value}}}\");");
+            }
+        }
+
+        builder.AppendLine("}");
+    }
+
     private static string InterpolatedName(string name)
         => CSharpLiteralHelper.EscapeString(name).Replace("{", "{{").Replace("}", "}}");
 

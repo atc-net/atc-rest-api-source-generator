@@ -31,6 +31,8 @@ public static class ListItemsParametersWire
         WireParameter.Text("query", "ids", isArray: true),
         WireParameter.Text("query", "callback"),
         WireParameter.Text("query", "anything"),
+        WireParameter.Object("query", "filter", deepObject: true, (WireParameter.Text("query", "name"), false), (WireParameter.Parsable<double>("query", "minPrice"), false), (WireParameter.EnumValue<ItemStatus>("query", "status"), false)),
+        WireParameter.Object("query", "paging", deepObject: false, (WireParameter.Parsable<int>("query", "page"), true), (WireParameter.Parsable<int>("query", "perPage"), false)),
         WireParameter.Text("header", "x-cookie-session"),
     ];
 }

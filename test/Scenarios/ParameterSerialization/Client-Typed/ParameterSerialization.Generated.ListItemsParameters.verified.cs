@@ -30,4 +30,6 @@ public sealed record ListItemsParameters(
     List<string>? Ids,
     Uri? Callback,
     string? Anything,
+    ItemFilter? Filter,
+    Paging? Paging,
     string? Session);

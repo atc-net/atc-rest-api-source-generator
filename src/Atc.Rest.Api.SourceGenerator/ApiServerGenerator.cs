@@ -815,11 +815,14 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
 
-        // A model bound by Content-Type gets a partial with BindAsync, so its record is partial
+        // A model bound by Content-Type gets a partial with BindAsync, and an object in the query one with TryParse,
+        // so its record is partial
         var boundSources = xmlSources
             .Where(x => boundRequestModels?.ContainsKey(x.SchemaKey) == true)
             .ToList();
+        var queryObjectModels = QueryObjectHelper.Models(openApiDoc);
         var boundTypeNames = new HashSet<string>(boundSources.Select(x => x.TypeName), StringComparer.Ordinal);
+        boundTypeNames.UnionWith(queryObjectModels.Keys);
 
         // Generate each model as a separate file
         foreach (var modelRecord in recordsParameters.Parameters)
@@ -848,6 +851,14 @@ public class ApiServerGenerator : IIncrementalGenerator
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName),
                 SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+
+            // An object in the query: the model reads the value the wire-binding step collected from its keys
+            if (queryObjectModels.TryGetValue(record.Name.Split(' ')[0], out var queryObject))
+            {
+                context.AddGeneratedSource(
+                    NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName + "QueryObject"),
+                    SourceText.From(QueryObjectModelExtractor.Generate(record, queryObject, modelsNamespace).NormalizeForSourceOutput(), Encoding.UTF8));
+            }
         }
 
         if (xmlModels is not null)
@@ -1450,7 +1461,9 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Shaped so the Request Delegate Generator (a Native AOT build) can bind them
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var generatedContent = RecordContentGenerator.GenerateParameterRecords(codeDocGenerator, recordsParams);
+        var queryObjects = QueryObjectHelper.ByParametersRecord(openApiDoc);
+        var queryObjectModels = new HashSet<string>(QueryObjectHelper.Models(openApiDoc).Keys, StringComparer.Ordinal);
+        var generatedContent = RecordContentGenerator.GenerateParameterRecords(codeDocGenerator, recordsParams, queryObjectModels);
 
         context.AddGeneratedSource(
             $"{parametersNamespace}.g.cs",
@@ -1460,7 +1473,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         // (only where the step is generated: a record can bind a header no endpoint step reads)
         foreach (var record in WireBindingHelper.IsNeeded(openApiDoc) ? recordsParams.Parameters : [])
         {
-            if (WireBindingHelper.ParameterDescriptionClass(record, recordsParams.Namespace, recordsParams.HeaderContent) is not { } description)
+            queryObjects.TryGetValue(record.Name, out var recordQueryObjects);
+            if (WireBindingHelper.ParameterDescriptionClass(record, recordsParams.Namespace, recordsParams.HeaderContent, recordQueryObjects, registry) is not { } description)
             {
                 continue;
             }

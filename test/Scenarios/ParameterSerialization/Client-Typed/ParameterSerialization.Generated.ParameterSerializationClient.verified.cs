@@ -24,6 +24,7 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
+        Converters = { new global::ParameterSerialization.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;
@@ -85,6 +86,31 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         if (parameters.Anything is not null)
         {
             queryParams.Add($"anything={Uri.EscapeDataString($"{parameters.Anything}")}");
+        }
+
+        if (parameters.Filter is { } queryObjectFilter)
+        {
+            if (queryObjectFilter.Name is not null)
+            {
+                queryParams.Add($"filter%5Bname%5D={Uri.EscapeDataString(queryObjectFilter.Name)}");
+            }
+            if (queryObjectFilter.MinPrice is not null)
+            {
+                queryParams.Add($"filter%5BminPrice%5D={Uri.EscapeDataString(((global::System.IFormattable?)queryObjectFilter.MinPrice)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}");
+            }
+            if (queryObjectFilter.Status is not null)
+            {
+                queryParams.Add($"filter%5Bstatus%5D={Uri.EscapeDataString(queryObjectFilter.Status.ToWireValue()!)}");
+            }
+        }
+
+        if (parameters.Paging is { } queryObjectPaging)
+        {
+            queryParams.Add($"page={Uri.EscapeDataString(((global::System.IFormattable?)queryObjectPaging.Page)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}");
+            if (queryObjectPaging.PerPage is not null)
+            {
+                queryParams.Add($"perPage={Uri.EscapeDataString(((global::System.IFormattable?)queryObjectPaging.PerPage)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}");
+            }
         }
 
         if (queryParams.Count > 0)

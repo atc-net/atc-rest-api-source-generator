@@ -27,8 +27,16 @@ namespace ComponentsReuse.Generated;
 /// array. Built from the parameter's type, without reflection.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray)
+public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false)
 {
+    /// <summary>
+    /// An object in the query: each property by its own key - <c>{name}[{property}]</c> (deepObject) or the
+    /// property's name (form, explode) - checked as the property's type, and handed to the binder as one value
+    /// (<c>property=value</c> after the item separator, each) the model's <c>TryParse</c> reads.
+    /// </summary>
+    public static WireParameter Object(string @in, string name, bool deepObject, params (WireParameter Property, bool Required)[] properties)
+        => new(@in, name, null, "Object", null, false, properties, deepObject);
+
     /// <summary>
     /// A value any text is (a string, or a type without a parser).
     /// </summary>
@@ -92,7 +100,7 @@ public static class WireBindingExtensions
 
     private const char ItemSeparator = '\u001F';
 
-    private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray);
+    private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false);
 
     /// <summary>
     /// Adds the step for the parameters an endpoint binds (its <c>{Record}Wire.Parameters</c>); an array whose
@@ -111,7 +119,7 @@ public static class WireBindingExtensions
             }
 
             var delimited = Array.Find(delimitedArrays, d => string.Equals(d.Name, wire.Name, StringComparison.OrdinalIgnoreCase));
-            parameters.Add(new BoundParameter(wire.In, wire.Name, wire.Parses, wire.TypeName, wire.Members, delimited.Name is null ? null : delimited.Delimiter, wire.IsArray));
+            parameters.Add(new BoundParameter(wire.In, wire.Name, wire.Parses, wire.TypeName, wire.Members, delimited.Name is null ? null : delimited.Delimiter, wire.IsArray, wire.Properties, wire.DeepObject));
         }
 
         if (parameters.Count == 0)
@@ -282,6 +290,66 @@ public static class WireBindingExtensions
         return errors;
     }
 
+    // An object's properties from their keys: "{property}={value}" after the item separator, each (an enum by
+    // its member name), or null when none was sent; the values that do not parse, and the required
+    // properties missing from an object that was sent, by key
+    private static Dictionary<string, string[]>? CollectObject(
+        IQueryCollection query,
+        BoundParameter parameter,
+        IReadOnlyList<(WireParameter Property, bool Required)> properties,
+        out string? collected)
+    {
+        collected = null;
+        Dictionary<string, string[]>? errors = null;
+        var missing = new List<string>();
+        var pairs = new System.Text.StringBuilder();
+        var sent = false;
+        foreach (var (property, required) in properties)
+        {
+            var key = parameter.DeepObject ? $"{parameter.Name}[{property.Name}]" : property.Name;
+            if (!query.TryGetValue(key, out var values) || values.Count == 0 || string.IsNullOrEmpty(values[0]))
+            {
+                if (required)
+                {
+                    missing.Add(key);
+                }
+
+                continue;
+            }
+
+            sent = true;
+            var value = values[0]!;
+            if (value.Contains(ItemSeparator, StringComparison.Ordinal) ||
+                (property.Parses is { } parses && !parses(value)))
+            {
+                errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                errors[key] = [$"'{value}' is not a valid {property.TypeName}."];
+                continue;
+            }
+
+            if (property.Members is { Count: > 0 } members && members.TryGetValue(value, out var member))
+            {
+                value = member;
+            }
+
+            pairs.Append(ItemSeparator).Append(property.Name).Append('=').Append(value);
+        }
+
+        if (!sent)
+        {
+            return null;
+        }
+
+        foreach (var key in missing)
+        {
+            errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+            errors[key] = [$"The {key} field is required."];
+        }
+
+        collected = pairs.ToString();
+        return errors;
+    }
+
     // The request as the binder reads it; the values it cannot bind, by parameter name, or null
     private static Dictionary<string, string[]>? Rewrite(
         HttpRequest request,
@@ -305,6 +373,32 @@ public static class WireBindingExtensions
         Dictionary<string, string[]>? errors = null;
         foreach (var parameter in parameters)
         {
+            // An object in the query: its properties' keys, as one value the model reads (none: no object)
+            if (parameter.Properties is { } properties)
+            {
+                query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                var objectErrors = CollectObject(request.Query, parameter, properties, out var collected);
+                if (objectErrors is not null)
+                {
+                    errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                    foreach (var error in objectErrors)
+                    {
+                        errors[error.Key] = error.Value;
+                    }
+                }
+
+                if (collected is null)
+                {
+                    query.Remove(parameter.Name);
+                }
+                else
+                {
+                    query[parameter.Name] = collected;
+                }
+
+                continue;
+            }
+
             // OAS 3.2 in: querystring - the whole query string, as sent
             if (parameter.In == "query" && parameter.Name == QueryStringKey)
             {

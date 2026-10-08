@@ -42,6 +42,15 @@ public static class EndpointsServiceCollectionExtensions
         // Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)
         services.AddAtcRestClientCore();
 
+        // Every generated enum on the wire as the specification writes it
+        services.ConfigureAtcRestClientJsonOptions(options =>
+        {
+            if (!global::System.Linq.Enumerable.Any(options.Converters, converter => converter is global::ParameterSerialization.Generated.EnumWireConverterFactory))
+            {
+                options.Converters.Insert(0, new global::ParameterSerialization.Generated.EnumWireConverterFactory());
+            }
+        });
+
         if (configureJsonSerializerOptions is not null)
         {
             services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);

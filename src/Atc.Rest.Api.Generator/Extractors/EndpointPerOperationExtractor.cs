@@ -1119,6 +1119,38 @@ public static class EndpointPerOperationExtractor
         foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Query))
         {
             var propName = propertyNames.Get(param, referenceId);
+
+            // An object: each property that is set, by its key - filter[name] (deepObject) or name (form, explode)
+            if (param.GetQueryObject() is { } queryObject)
+            {
+                var local = "queryObject" + propName;
+                sb.AppendLine($"if (parameters.{propName} is {{ }} {local})");
+                sb.AppendLine("{");
+                foreach (var property in queryObject.Properties)
+                {
+                    var access = $"{local}.{property.WireName.ToPascalCaseForDotNet()}";
+                    var schema = (IOpenApiSchema?)property.Schema.WrappedEnum() ?? property.Schema;
+                    var value = WireValueHelper.IsStringEnum(schema)
+                        ? $"{access}.ToWireValue()"
+                        : WireValueHelper.TryBuildWireExpression(access, schema) ?? access;
+                    var add = $"requestBuilder.WithQueryParameter({CSharpLiteralHelper.ToStringLiteral(queryObject.KeyOf(property))}, {value});";
+                    if (property.Schema.CanBeNullInQueryObject(property.Required))
+                    {
+                        sb.AppendLine(4, $"if ({access} is not null)");
+                        sb.AppendLine(4, "{");
+                        sb.AppendLine(8, add);
+                        sb.AppendLine(4, "}");
+                    }
+                    else
+                    {
+                        sb.AppendLine(4, add);
+                    }
+                }
+
+                sb.AppendLine("}");
+                continue;
+            }
+
             if (param.Required)
             {
                 sb.AppendLine($"requestBuilder.WithQueryParameter({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {WireValue(param, propName)});");

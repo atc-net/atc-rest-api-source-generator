@@ -6,7 +6,7 @@ info:
     Exercises query-parameter style/explode/allowReserved serialization:
     a supported optional form-explode array (tags), an allowReserved primitive (q),
     a spaceDelimited array (legacy, sent as one value with spaces), a $ref-to-array
-    query param (ids), an optional URI (callback), an untyped value (anything, sent as text), an OAS 3.2 in:querystring raw-query param (rawFilter, its own operation), and
+    query param (ids), an optional URI (callback), an untyped value (anything, sent as text), an object as deepObject (filter[name]=...) and an object as form explode (page=...&perPage=...), an OAS 3.2 in:querystring raw-query param (rawFilter, its own operation), and
     an in:cookie with style:cookie (session) per RFC 6265.
 
 paths:
@@ -53,6 +53,18 @@ paths:
           in: query
           required: false
           schema: {}
+        - name: filter
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            $ref: "#/components/schemas/ItemFilter"
+        - name: paging
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Paging"
         - name: session
           in: cookie
           style: cookie
@@ -95,6 +107,32 @@ paths:
 
 components:
   schemas:
+    ItemFilter:
+      type: object
+      properties:
+        name:
+          type: string
+        minPrice:
+          type: number
+          format: double
+        status:
+          $ref: "#/components/schemas/ItemStatus"
+    ItemStatus:
+      type: string
+      enum:
+        - in-stock
+        - sold-out
+    Paging:
+      type: object
+      required:
+        - page
+      properties:
+        page:
+          type: integer
+          format: int32
+        perPage:
+          type: integer
+          format: int32
     IdList:
       type: array
       items:

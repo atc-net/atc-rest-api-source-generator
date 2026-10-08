@@ -836,6 +836,19 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// Whether a model property of this schema can be null (so a client checks it before sending it): its C#
+        /// type is nullable, or a reference type (a string, a <c>Uri</c>, an object). A required value type cannot.
+        /// </summary>
+        /// <param name="isRequired">Whether the model requires the property.</param>
+        /// <returns>True when the property can be null.</returns>
+        public bool CanBeNullInQueryObject(bool isRequired)
+        {
+            var type = schema.ToCSharpTypeForModel(isRequired);
+            return type.EndsWith("?", StringComparison.Ordinal) ||
+                   type is "string" or "object" or "Uri" or "System.Uri" or "byte[]";
+        }
+
+        /// <summary>
         /// Whether the schema says nothing about the value (<c>{}</c>, or one with only a description or
         /// <c>nullable</c>): no type but null, no format, properties, items, enum or composition. A parameter of such a
         /// schema is the text it is on the wire.

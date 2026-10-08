@@ -19,6 +19,40 @@ public static class OpenApiParameterExtensions
     /// <param name="ReferenceId">The reference ID if this was a parameter reference, null otherwise.</param>
     public sealed record ResolvedParameter(OpenApiParameter? Parameter, string? ReferenceId);
 
+    /// <summary>
+    /// An object in the query, as OpenAPI serializes it: each property by its own key - <c>filter[name]</c>
+    /// (<c>style: deepObject</c>) or <c>name</c> (<c>style: form</c>, <c>explode: true</c>, the default).
+    /// </summary>
+    /// <param name="ParameterName">The parameter's name.</param>
+    /// <param name="DeepObject">Whether a property's key is <c>{parameter}[{property}]</c> (otherwise the property's name).</param>
+    /// <param name="SchemaName">The component schema of the model.</param>
+    /// <param name="Properties">The model's properties: wire name, schema, whether the model requires it.</param>
+    public sealed record QueryObject(
+        string ParameterName,
+        bool DeepObject,
+        string SchemaName,
+        IReadOnlyList<QueryObjectProperty> Properties)
+    {
+        /// <summary>
+        /// The query key a property is sent with.
+        /// </summary>
+        /// <param name="property">The property.</param>
+        /// <returns><c>filter[name]</c> or <c>name</c>.</returns>
+        public string KeyOf(QueryObjectProperty property)
+            => DeepObject ? $"{ParameterName}[{property?.WireName}]" : property?.WireName ?? string.Empty;
+    }
+
+    /// <summary>
+    /// A property of a <see cref="QueryObject"/>.
+    /// </summary>
+    /// <param name="WireName">The property's name in the specification.</param>
+    /// <param name="Schema">Its schema.</param>
+    /// <param name="Required">Whether the model requires it.</param>
+    public sealed record QueryObjectProperty(
+        string WireName,
+        IOpenApiSchema Schema,
+        bool Required);
+
     /// <param name="parameterInterface">The OpenAPI parameter interface (can be a reference or direct parameter).</param>
     extension(IOpenApiParameter parameterInterface)
     {
@@ -159,6 +193,10 @@ public static class OpenApiParameterExtensions
         {
             var valueKind = GetValueKind(parameter.Schema);
             var style = parameter.Style ?? DefaultStyleFor(parameter.In);
+            if (valueKind == ParameterValueKind.Object && parameter.GetQueryObject() is not null)
+            {
+                return new ParameterSerialization(style, parameter.Explode, parameter.AllowReserved, valueKind, IsSupported: true);
+            }
 
             // OpenApiParameter.Explode is a computed getter that derives the OpenAPI style-based default
             // (true for Form, false otherwise), applied at parse time too. No null-coalescing fallback
@@ -188,6 +226,50 @@ public static class OpenApiParameterExtensions
         }
 
         /// <summary>
+        /// The parameter as an object in the query the generated code binds and sends - a model (a component schema)
+        /// whose properties are each one value (a string, a number, a boolean, an enum), serialized as
+        /// <c>style: deepObject</c> or as <c>style: form</c> with <c>explode: true</c> - or null. Nested objects and
+        /// arrays have no serialization the specification defines there, and <c>form</c> without explode loses the
+        /// property names to a reader that does not know them.
+        /// </summary>
+        /// <returns>The object, or null.</returns>
+        public QueryObject? GetQueryObject()
+        {
+            if (parameter.In != ParameterLocation.Query ||
+                string.IsNullOrEmpty(parameter.Name) ||
+                parameter.Schema is not OpenApiSchemaReference { Target: OpenApiSchema model } reference ||
+                (reference.Reference.Id ?? reference.Id) is not { Length: > 0 } schemaName ||
+                model.Properties is not { Count: > 0 } properties ||
+                model.AllOf is { Count: > 0 } ||
+                model.OneOf is { Count: > 0 } ||
+                model.AnyOf is { Count: > 0 } ||
+                (model.Type is { } type && !type.HasFlag(JsonSchemaType.Object)))
+            {
+                return null;
+            }
+
+            var style = parameter.Style ?? ParameterStyle.Form;
+            var deepObject = style == ParameterStyle.DeepObject;
+            if (!deepObject && !(style == ParameterStyle.Form && parameter.Explode))
+            {
+                return null;
+            }
+
+            var list = new List<QueryObjectProperty>();
+            foreach (var property in properties)
+            {
+                if (!IsSingleValue(property.Value))
+                {
+                    return null;
+                }
+
+                list.Add(new QueryObjectProperty(property.Key, property.Value, model.Required?.Contains(property.Key) == true));
+            }
+
+            return new QueryObject(parameter.Name!, deepObject, schemaName, list);
+        }
+
+        /// <summary>
         /// The character between the items of a query array that is one value: <c>,</c> for <c>form</c> with
         /// <c>explode: false</c>, <c>|</c> for <c>pipeDelimited</c> and a space for <c>spaceDelimited</c> (both without
         /// explode). <see langword="null"/> for an array sent as repeated keys (<c>explode: true</c>) and for anything
@@ -211,6 +293,34 @@ public static class OpenApiParameterExtensions
                 _ => null,
             };
         }
+    }
+
+    // One value in a query: a primitive, an enum, a reference to either, or an enum wrapped in allOf - no object,
+    // no array, no composition
+    private static bool IsSingleValue(IOpenApiSchema? schema)
+    {
+        if (schema is null)
+        {
+            return false;
+        }
+
+        if (schema.WrappedEnum() is not null)
+        {
+            return true;
+        }
+
+        if (schema.Type is { } type &&
+            (type.HasFlag(JsonSchemaType.Object) || type.HasFlag(JsonSchemaType.Array)))
+        {
+            return false;
+        }
+
+        return schema.Format is not ("byte" or "binary") &&
+               schema.Properties is null or { Count: 0 } &&
+               schema.Items is null &&
+               schema.AllOf is null or { Count: 0 } &&
+               schema.OneOf is null or { Count: 0 } &&
+               schema.AnyOf is null or { Count: 0 };
     }
 
     private static ParameterStyle DefaultStyleFor(ParameterLocation? location)

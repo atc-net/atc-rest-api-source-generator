@@ -71,10 +71,12 @@ public static class RecordContentGenerator
     /// </summary>
     /// <param name="codeDocumentationTagsGenerator">The documentation generator.</param>
     /// <param name="parameters">The parameters records.</param>
+    /// <param name="modelTypeNames">The generated models a parameter can be (an object in the query): reference types.</param>
     /// <returns>The rendered content.</returns>
     public static string GenerateParameterRecords(
         ICodeDocumentationTagsGenerator codeDocumentationTagsGenerator,
-        RecordsParameters parameters)
+        RecordsParameters parameters,
+        ISet<string>? modelTypeNames = null)
     {
         if (parameters is null)
         {
@@ -86,7 +88,7 @@ public static class RecordContentGenerator
         foreach (var record in parameters.Parameters)
         {
             var oblivious = record.Parameters?
-                .Where(p => p.IsNullableType && IsReferenceTypeName(p.GenericTypeName, p.TypeName))
+                .Where(p => p.IsNullableType && (IsReferenceTypeName(p.GenericTypeName, p.TypeName) || IsModel(p.TypeName, modelTypeNames)))
                 .ToList() ?? [];
             if (oblivious.Count == 0)
             {
@@ -128,6 +130,13 @@ public static class RecordContentGenerator
            typeName.StartsWith("ParsableList<", StringComparison.Ordinal) ||
            typeName.StartsWith("List<", StringComparison.Ordinal) ||
            typeName.StartsWith("IEnumerable<", StringComparison.Ordinal);
+
+    // A generated model, by its simple name (the type may be written qualified)
+    private static bool IsModel(
+        string typeName,
+        ISet<string>? modelTypeNames)
+        => modelTypeNames is not null &&
+           modelTypeNames.Contains(typeName.TrimEnd('?').Substring(typeName.TrimEnd('?').LastIndexOf('.') + 1));
 
     private static string ObliviousBody(
         RecordParameters record,

@@ -252,6 +252,75 @@ public class OpenApiParameterExtensionsTests
         Assert.True(s.IsSupported);
     }
 
+    // ========== GetQueryObject Tests ==========
+    [Theory]
+    [InlineData("in: query, style: deepObject, explode: true, schema: { $ref: '#/components/schemas/Flat' }", true, true)]
+    [InlineData("in: query, schema: { $ref: '#/components/schemas/Flat' }", true, false)]
+    [InlineData("in: query, style: form, explode: true, schema: { $ref: '#/components/schemas/WithWrappedEnum' }", true, false)]
+    [InlineData("in: query, style: form, explode: false, schema: { $ref: '#/components/schemas/Flat' }", false, false)]
+    [InlineData("in: query, style: deepObject, explode: true, schema: { $ref: '#/components/schemas/Nested' }", false, false)]
+    [InlineData("in: query, style: deepObject, explode: true, schema: { $ref: '#/components/schemas/WithArray' }", false, false)]
+    [InlineData("in: query, style: deepObject, explode: true, schema: { type: object, properties: { name: { type: string } } }", false, false)]
+    [InlineData("in: header, schema: { $ref: '#/components/schemas/Flat' }", false, false)]
+    public void GetQueryObject_IsAFlatModel_SentAsDeepObjectOrFormExplode(
+        string declaration,
+        bool isQueryObject,
+        bool deepObject)
+    {
+        var yaml = $$"""
+            openapi: 3.0.3
+            info: { title: Contoso, version: 1.0.0 }
+            paths:
+              /items:
+                get:
+                  operationId: listItems
+                  parameters:
+                    - { name: filter, {{declaration}} }
+                  responses:
+                    '200': { description: OK }
+            components:
+              schemas:
+                Flat:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    size: { type: integer }
+                    color: { $ref: '#/components/schemas/Color' }
+                WithWrappedEnum:
+                  type: object
+                  properties:
+                    color: { nullable: true, allOf: [ { $ref: '#/components/schemas/Color' } ] }
+                Nested:
+                  type: object
+                  properties:
+                    inner: { $ref: '#/components/schemas/Flat' }
+                WithArray:
+                  type: object
+                  properties:
+                    tags: { type: array, items: { type: string } }
+                Color:
+                  type: string
+                  enum: [red, green]
+            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var param = document.Paths["/items"].Operations!.Values.First().Parameters![0].Resolve().Parameter!;
+
+        var queryObject = param.GetQueryObject();
+
+        Assert.Equal(isQueryObject, queryObject is not null);
+        if (queryObject is not null)
+        {
+            Assert.Equal(deepObject, queryObject.DeepObject);
+            Assert.Equal(deepObject ? "filter[color]" : "color", queryObject.KeyOf(queryObject.Properties.Single(p => p.WireName == "color")));
+            Assert.True(param.GetParameterSerialization().IsSupported);
+        }
+        else if (declaration.StartsWith("in: query", StringComparison.Ordinal))
+        {
+            Assert.False(param.GetParameterSerialization().IsSupported);
+        }
+    }
+
     [Fact]
     public void GetParameterSerialization_RefToArraySchema_ClassifiesAsArraySupported()
     {
@@ -298,8 +367,9 @@ public class OpenApiParameterExtensionsTests
     public void GetParameterSerialization_RefToObjectSchema_ClassifiesAsObjectNotSupported()
     {
         // A query param whose schema is a $ref to a components object schema must resolve to Object
-        // (not Primitive) so the unsupported-style warning (ATC_API_OPR026) fires for object query
-        // params delivered via $ref.
+        // (not Primitive) so the unsupported-style warning (ATC_API_OPR026) fires for an object query
+        // param delivered via $ref in a style the generated code does not send (form without explode;
+        // deepObject and form with explode are supported, see GetQueryObject).
         const string yaml = """
                             openapi: 3.0.3
                             info:
@@ -312,6 +382,8 @@ public class OpenApiParameterExtensionsTests
                                   parameters:
                                     - name: filter
                                       in: query
+                                      style: form
+                                      explode: false
                                       schema:
                                         $ref: '#/components/schemas/Filter'
                                   responses:

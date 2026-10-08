@@ -72,6 +72,29 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         {
             requestBuilder.WithQueryParameter("anything", parameters.Anything);
         }
+        if (parameters.Filter is { } queryObjectFilter)
+        {
+            if (queryObjectFilter.Name is not null)
+            {
+                requestBuilder.WithQueryParameter("filter[name]", queryObjectFilter.Name);
+            }
+            if (queryObjectFilter.MinPrice is not null)
+            {
+                requestBuilder.WithQueryParameter("filter[minPrice]", ((global::System.IFormattable?)queryObjectFilter.MinPrice)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
+            }
+            if (queryObjectFilter.Status is not null)
+            {
+                requestBuilder.WithQueryParameter("filter[status]", queryObjectFilter.Status.ToWireValue());
+            }
+        }
+        if (parameters.Paging is { } queryObjectPaging)
+        {
+            requestBuilder.WithQueryParameter("page", ((global::System.IFormattable?)queryObjectPaging.Page)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
+            if (queryObjectPaging.PerPage is not null)
+            {
+                requestBuilder.WithQueryParameter("perPage", ((global::System.IFormattable?)queryObjectPaging.PerPage)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
         var cookieParts = new List<string>();
         if (parameters.Session is not null)
         {
