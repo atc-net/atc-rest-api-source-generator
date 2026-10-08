@@ -28,9 +28,9 @@ public static class EndpointsServiceCollectionExtensions
     /// Also ensures IHttpMessageFactory and IContractSerializer are registered (from Atc.Rest.Client).
     /// </summary>
     /// <remarks>
-    /// The serializer is shared by every client in the app, and the first registration wins: pass
-    /// <paramref name="configureJsonSerializerOptions"/> to the first endpoints registration, for example to add the
-    /// app's JsonSerializerContext in a trimmed or Native AOT app.
+    /// The serializer is shared by every client in the app. Its options start from Atc.Rest.Client's defaults, and every
+    /// registration adds its configure step (ConfigureAtcRestClientJsonOptions), so the steps of several clients are all
+    /// kept - for example each library's JsonSerializerContext in a trimmed or Native AOT app.
     /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
@@ -40,12 +40,21 @@ public static class EndpointsServiceCollectionExtensions
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         // Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)
-        // - its default serializer, with every generated enum on the wire as the specification writes it
-        services.AddAtcRestClientCore(options =>
+        services.AddAtcRestClientCore();
+
+        // Every generated enum on the wire as the specification writes it
+        services.ConfigureAtcRestClientJsonOptions(options =>
         {
-            options.Converters.Insert(0, new global::PetStoreFull.Generated.EnumWireConverterFactory());
-            configureJsonSerializerOptions?.Invoke(options);
+            if (!global::System.Linq.Enumerable.Any(options.Converters, converter => converter is global::PetStoreFull.Generated.EnumWireConverterFactory))
+            {
+                options.Converters.Insert(0, new global::PetStoreFull.Generated.EnumWireConverterFactory());
+            }
         });
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         services.AddTransient<IGetInventoryEndpoint, GetInventoryEndpoint>();
         services.AddTransient<IPlaceOrderEndpoint, PlaceOrderEndpoint>();

@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using SecurityAtcExt.Generated.Admin;
 using SecurityAtcExt.Generated.ApiKeys;
@@ -35,11 +36,16 @@ public static class SecurityAtcExtEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAdminEndpoints(configureJsonSerializerOptions);
-        services.AddApiKeysEndpoints(configureJsonSerializerOptions);
-        services.AddOrdersEndpoints(configureJsonSerializerOptions);
-        services.AddPublicEndpoints(configureJsonSerializerOptions);
-        services.AddReportsEndpoints(configureJsonSerializerOptions);
+        services.AddAdminEndpoints();
+        services.AddApiKeysEndpoints();
+        services.AddOrdersEndpoints();
+        services.AddPublicEndpoints();
+        services.AddReportsEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

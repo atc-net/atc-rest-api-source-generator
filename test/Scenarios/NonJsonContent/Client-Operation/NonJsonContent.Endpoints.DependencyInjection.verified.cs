@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using NonJsonContent.Generated.Exports;
 using NonJsonContent.Generated.Files;
@@ -34,10 +35,15 @@ public static class NonJsonContentEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddExportsEndpoints(configureJsonSerializerOptions);
-        services.AddFilesEndpoints(configureJsonSerializerOptions);
-        services.AddItemsEndpoints(configureJsonSerializerOptions);
-        services.AddReportsEndpoints(configureJsonSerializerOptions);
+        services.AddExportsEndpoints();
+        services.AddFilesEndpoints();
+        services.AddItemsEndpoints();
+        services.AddReportsEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Pagination.Generated.Accounts;
 using Pagination.Generated.Archive;
@@ -38,14 +39,19 @@ public static class PaginationEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAccountsEndpoints(configureJsonSerializerOptions);
-        services.AddArchiveEndpoints(configureJsonSerializerOptions);
-        services.AddEventsEndpoints(configureJsonSerializerOptions);
-        services.AddLogsEndpoints(configureJsonSerializerOptions);
-        services.AddMetricsEndpoints(configureJsonSerializerOptions);
-        services.AddOrgsEndpoints(configureJsonSerializerOptions);
-        services.AddPagesEndpoints(configureJsonSerializerOptions);
-        services.AddTagsEndpoints(configureJsonSerializerOptions);
+        services.AddAccountsEndpoints();
+        services.AddArchiveEndpoints();
+        services.AddEventsEndpoints();
+        services.AddLogsEndpoints();
+        services.AddMetricsEndpoints();
+        services.AddOrgsEndpoints();
+        services.AddPagesEndpoints();
+        services.AddTagsEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

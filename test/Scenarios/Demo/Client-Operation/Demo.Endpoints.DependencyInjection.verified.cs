@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Demo.Generated.Accounts;
 using Demo.Generated.Files;
@@ -35,11 +36,16 @@ public static class DemoEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAccountsEndpoints(configureJsonSerializerOptions);
-        services.AddFilesEndpoints(configureJsonSerializerOptions);
-        services.AddTasksEndpoints(configureJsonSerializerOptions);
-        services.AddTestsEndpoints(configureJsonSerializerOptions);
-        services.AddUsersEndpoints(configureJsonSerializerOptions);
+        services.AddAccountsEndpoints();
+        services.AddFilesEndpoints();
+        services.AddTasksEndpoints();
+        services.AddTestsEndpoints();
+        services.AddUsersEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using RateLimit.Generated.Exports;
 using RateLimit.Generated.Health;
@@ -36,12 +37,17 @@ public static class RateLimitEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddExportsEndpoints(configureJsonSerializerOptions);
-        services.AddHealthEndpoints(configureJsonSerializerOptions);
-        services.AddNotificationsEndpoints(configureJsonSerializerOptions);
-        services.AddOrdersEndpoints(configureJsonSerializerOptions);
-        services.AddReportsEndpoints(configureJsonSerializerOptions);
-        services.AddWebhooksEndpoints(configureJsonSerializerOptions);
+        services.AddExportsEndpoints();
+        services.AddHealthEndpoints();
+        services.AddNotificationsEndpoints();
+        services.AddOrdersEndpoints();
+        services.AddReportsEndpoints();
+        services.AddWebhooksEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

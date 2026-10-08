@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using HostileTypeScript.Generated.Files;
 using HostileTypeScript.Generated.Repos;
@@ -33,9 +34,14 @@ public static class HostileTypeScriptEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddFilesEndpoints(configureJsonSerializerOptions);
-        services.AddReposEndpoints(configureJsonSerializerOptions);
-        services.AddTreesEndpoints(configureJsonSerializerOptions);
+        services.AddFilesEndpoints();
+        services.AddReposEndpoints();
+        services.AddTreesEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

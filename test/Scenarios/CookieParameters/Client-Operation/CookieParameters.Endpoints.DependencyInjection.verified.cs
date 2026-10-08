@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using CookieParameters.Generated.Session;
 using CookieParameters.Generated.Tracking;
@@ -32,8 +33,13 @@ public static class CookieParametersEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddSessionEndpoints(configureJsonSerializerOptions);
-        services.AddTrackingEndpoints(configureJsonSerializerOptions);
+        services.AddSessionEndpoints();
+        services.AddTrackingEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

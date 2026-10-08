@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using SecurityOpenIdConnect.Generated.Health;
 using SecurityOpenIdConnect.Generated.Me;
@@ -33,9 +34,14 @@ public static class SecurityOpenIdConnectEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddHealthEndpoints(configureJsonSerializerOptions);
-        services.AddMeEndpoints(configureJsonSerializerOptions);
-        services.AddResourcesEndpoints(configureJsonSerializerOptions);
+        services.AddHealthEndpoints();
+        services.AddMeEndpoints();
+        services.AddResourcesEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Polymorphism.Generated.Notifications;
 using Polymorphism.Generated.Payments;
@@ -33,9 +34,14 @@ public static class PolymorphismEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddNotificationsEndpoints(configureJsonSerializerOptions);
-        services.AddPaymentsEndpoints(configureJsonSerializerOptions);
-        services.AddShapesEndpoints(configureJsonSerializerOptions);
+        services.AddNotificationsEndpoints();
+        services.AddPaymentsEndpoints();
+        services.AddShapesEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

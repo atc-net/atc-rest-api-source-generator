@@ -31,7 +31,7 @@ internal static class PackageVersionDefaults
     /// </summary>
     /// <remarks>
     /// TEMP (3.0 development): the generated EndpointPerOperation client needs the trim- and Native AOT-ready release
-    /// after 2.1.0 (WithUrlEncodedFormField, WithBody with a media type, AddAtcRestClientCore with options). Raise this
+    /// after 2.1.0 (WithUrlEncodedForm, WithBody with a media type, ConfigureAtcRestClientJsonOptions). Raise this
     /// to that release when it is published.
     /// </remarks>
     public static readonly Version RestClientMinFallback = new(2, 1, 0);

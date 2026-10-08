@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using InlineSchemas.Generated.Analytics;
 using InlineSchemas.Generated.Reports;
@@ -32,8 +33,13 @@ public static class InlineSchemasEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAnalyticsEndpoints(configureJsonSerializerOptions);
-        services.AddReportsEndpoints(configureJsonSerializerOptions);
+        services.AddAnalyticsEndpoints();
+        services.AddReportsEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

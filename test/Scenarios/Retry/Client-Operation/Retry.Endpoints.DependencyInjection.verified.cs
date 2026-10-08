@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Retry.Generated.External;
 using Retry.Generated.Health;
@@ -35,11 +36,16 @@ public static class RetryEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddExternalEndpoints(configureJsonSerializerOptions);
-        services.AddHealthEndpoints(configureJsonSerializerOptions);
-        services.AddNotificationsEndpoints(configureJsonSerializerOptions);
-        services.AddOrdersEndpoints(configureJsonSerializerOptions);
-        services.AddReportsEndpoints(configureJsonSerializerOptions);
+        services.AddExternalEndpoints();
+        services.AddHealthEndpoints();
+        services.AddNotificationsEndpoints();
+        services.AddOrdersEndpoints();
+        services.AddReportsEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

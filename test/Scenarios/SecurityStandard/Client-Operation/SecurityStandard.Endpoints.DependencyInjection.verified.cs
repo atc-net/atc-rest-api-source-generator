@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using SecurityStandard.Generated.Admin;
 using SecurityStandard.Generated.Data;
@@ -35,11 +36,16 @@ public static class SecurityStandardEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAdminEndpoints(configureJsonSerializerOptions);
-        services.AddDataEndpoints(configureJsonSerializerOptions);
-        services.AddOrdersEndpoints(configureJsonSerializerOptions);
-        services.AddPublicEndpoints(configureJsonSerializerOptions);
-        services.AddUsersEndpoints(configureJsonSerializerOptions);
+        services.AddAdminEndpoints();
+        services.AddDataEndpoints();
+        services.AddOrdersEndpoints();
+        services.AddPublicEndpoints();
+        services.AddUsersEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

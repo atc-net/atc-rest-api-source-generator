@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using HostileNames.Generated.Accounts;
 using HostileNames.Generated.Keys;
@@ -38,14 +39,19 @@ public static class HostileNamesEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAccountsEndpoints(configureJsonSerializerOptions);
-        services.AddKeysEndpoints(configureJsonSerializerOptions);
-        services.AddMoviesEndpoints(configureJsonSerializerOptions);
-        services.AddPetsEndpoints(configureJsonSerializerOptions);
-        services.AddProfilesEndpoints(configureJsonSerializerOptions);
-        services.AddReposEndpoints(configureJsonSerializerOptions);
-        services.AddStreamsEndpoints(configureJsonSerializerOptions);
-        services.AddThingsEndpoints(configureJsonSerializerOptions);
+        services.AddAccountsEndpoints();
+        services.AddKeysEndpoints();
+        services.AddMoviesEndpoints();
+        services.AddPetsEndpoints();
+        services.AddProfilesEndpoints();
+        services.AddReposEndpoints();
+        services.AddStreamsEndpoints();
+        services.AddThingsEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

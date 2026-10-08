@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using StreamingItemSchema.Generated.Events;
 using StreamingItemSchema.Generated.EventsMultipart;
@@ -34,10 +35,15 @@ public static class StreamingItemSchemaEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddEventsEndpoints(configureJsonSerializerOptions);
-        services.AddEventsMultipartEndpoints(configureJsonSerializerOptions);
-        services.AddEventsSeqEndpoints(configureJsonSerializerOptions);
-        services.AddEventsSseEndpoints(configureJsonSerializerOptions);
+        services.AddEventsEndpoints();
+        services.AddEventsMultipartEndpoints();
+        services.AddEventsSeqEndpoints();
+        services.AddEventsSseEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

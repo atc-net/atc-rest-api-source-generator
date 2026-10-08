@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using PetStoreFull.Generated.Pet;
 using PetStoreFull.Generated.Store;
@@ -33,9 +34,14 @@ public static class PetStoreFullEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddPetEndpoints(configureJsonSerializerOptions);
-        services.AddStoreEndpoints(configureJsonSerializerOptions);
-        services.AddUserEndpoints(configureJsonSerializerOptions);
+        services.AddPetEndpoints();
+        services.AddStoreEndpoints();
+        services.AddUserEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }

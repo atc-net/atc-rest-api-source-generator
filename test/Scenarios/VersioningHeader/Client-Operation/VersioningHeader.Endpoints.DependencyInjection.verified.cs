@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using VersioningHeader.Generated.Owners;
 using VersioningHeader.Generated.Pets;
@@ -32,8 +33,13 @@ public static class VersioningHeaderEndpointsServiceCollectionExtensions
         this IServiceCollection services,
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddOwnersEndpoints(configureJsonSerializerOptions);
-        services.AddPetsEndpoints(configureJsonSerializerOptions);
+        services.AddOwnersEndpoints();
+        services.AddPetsEndpoints();
+
+        if (configureJsonSerializerOptions is not null)
+        {
+            services.ConfigureAtcRestClientJsonOptions(configureJsonSerializerOptions);
+        }
 
         return services;
     }
