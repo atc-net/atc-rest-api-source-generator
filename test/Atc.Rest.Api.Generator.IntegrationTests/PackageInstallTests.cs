@@ -120,6 +120,66 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         Assert.Contains("without the context: failed", run.Output, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The reflection-free typed-client app as a Native AOT binary: the ILCompiler reports no trim or AOT warning for the
+    /// generated client, and the native app does what the JIT-compiled one does. Skipped where no native toolchain is
+    /// installed.
+    /// </summary>
+    [Fact]
+    public Task ATypedClient_RunsAsANativeAotBinary()
+    {
+        var library = package.NewDirectory("native-library");
+        var app = package.NewDirectory("native-app");
+        WriteClientLibrary(library, """{ "generationMode": "TypedClient", "extensibleEnums": false }""", isAotCompatible: true);
+        WriteReflectionFreeApp(app, library, publishAot: true);
+
+        return AssertRunsAsNativeAotBinaryAsync(app);
+    }
+
+    /// <summary>
+    /// The reflection-free per-operation app as a Native AOT binary, as <see cref="ATypedClient_RunsAsANativeAotBinary"/>.
+    /// </summary>
+    [Fact]
+    public Task APerOperationClient_RunsAsANativeAotBinary()
+    {
+        var library = package.NewDirectory("epo-native-library");
+        var app = package.NewDirectory("epo-native-app");
+        WriteClientLibrary(library, """{ "generationMode": "EndpointPerOperation", "extensibleEnums": false }""", isAotCompatible: true);
+        WritePerOperationReflectionFreeApp(app, library, publishAot: true);
+
+        return AssertRunsAsNativeAotBinaryAsync(app);
+    }
+
+    private static async Task AssertRunsAsNativeAotBinaryAsync(string app)
+    {
+        if (!NativeAotToolchain.IsAvailable(out var skipReason))
+        {
+            Assert.Skip(skipReason);
+        }
+
+        var output = Path.Combine(app, "native");
+        var publish = await PackedGeneratorFixture.RunDotnetAsync(app, "publish", "-c", "Release", "-p:UseSharedCompilation=false", "-o", output);
+        Assert.True(publish.ExitCode == 0, $"The app did not publish:\n{publish.Output}");
+
+        // The ILCompiler's own analysis of the whole app - the generated client, Atc.Rest.Client and the framework
+        var aotWarnings = publish.Output
+            .Split('\n')
+            .Where(line => line.Contains("warning IL", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        Assert.True(aotWarnings.Count == 0, "Trim or AOT warnings:\n" + string.Join("\n", aotWarnings));
+
+        var executable = Path.Combine(output, OperatingSystem.IsWindows() ? "ContosoApp.exe" : "ContosoApp");
+        var run = await PackedGeneratorFixture.RunAsync(executable, app);
+        Assert.True(run.ExitCode == 0, $"The native app did not run:\n{run.Output}");
+
+        Assert.Contains("reflection: False", run.Output, StringComparison.Ordinal);
+        Assert.Contains("listed: 1 Tom Cat", run.Output, StringComparison.Ordinal);
+        Assert.Contains("""sent: {"name":"Rex","kind":"Dog"}""", run.Output, StringComparison.Ordinal);
+        Assert.Contains("created: 2 Rex Dog", run.Output, StringComparison.Ordinal);
+        Assert.Contains("without the context: failed", run.Output, StringComparison.Ordinal);
+    }
+
     private void WriteConsumer(string consumer)
     {
         File.Copy(
@@ -253,9 +313,10 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
 
     private void WriteReflectionFreeApp(
         string app,
-        string library)
+        string library,
+        bool publishAot = false)
     {
-        WriteReflectionFreeAppProject(app, library);
+        WriteReflectionFreeAppProject(app, library, publishAot);
 
         File.WriteAllText(
             Path.Combine(app, "Program.cs"),
@@ -311,9 +372,12 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         package.WriteNuGetConfig(app);
     }
 
+    // PublishAot in the app's project, not on the command line: a global property reaches every referenced project,
+    // and a netstandard2.0 build of one cannot be compiled ahead of time (NETSDK1207)
     private static void WriteReflectionFreeAppProject(
         string app,
-        string library)
+        string library,
+        bool publishAot)
         => File.WriteAllText(
             Path.Combine(app, "ContosoApp.csproj"),
             $"""
@@ -322,6 +386,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
                  {StrictProperties}
                  <OutputType>Exe</OutputType>
                  <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+                 <PublishAot>{(publishAot ? "true" : "false")}</PublishAot>
                </PropertyGroup>
                <ItemGroup>
                  <ProjectReference Include="{Path.Combine(library, "ContosoClientLibrary.csproj")}" />
@@ -331,9 +396,10 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
 
     private void WritePerOperationReflectionFreeApp(
         string app,
-        string library)
+        string library,
+        bool publishAot = false)
     {
-        WriteReflectionFreeAppProject(app, library);
+        WriteReflectionFreeAppProject(app, library, publishAot);
 
         File.WriteAllText(
             Path.Combine(app, "Program.cs"),

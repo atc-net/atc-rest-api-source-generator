@@ -83,11 +83,17 @@ public sealed class PackedGeneratorFixture : IAsyncLifetime
              """);
     }
 
-    public static async Task<(int ExitCode, string Output)> RunDotnetAsync(
+    public static Task<(int ExitCode, string Output)> RunDotnetAsync(
+        string workingDirectory,
+        params string[] arguments)
+        => RunAsync("dotnet", workingDirectory, arguments);
+
+    public static async Task<(int ExitCode, string Output)> RunAsync(
+        string fileName,
         string workingDirectory,
         params string[] arguments)
     {
-        var startInfo = new ProcessStartInfo("dotnet")
+        var startInfo = new ProcessStartInfo(fileName)
         {
             WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
@@ -99,7 +105,7 @@ public sealed class PackedGeneratorFixture : IAsyncLifetime
             startInfo.ArgumentList.Add(argument);
         }
 
-        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("dotnet did not start.");
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException($"{fileName} did not start.");
         var output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
         var error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
