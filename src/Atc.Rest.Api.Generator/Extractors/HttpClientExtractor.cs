@@ -1783,7 +1783,7 @@ public static class HttpClientExtractor
             InlineEnumExtractor.IsInlineEnumSchema(actualSchema) &&
             !string.IsNullOrEmpty(param.Name))
         {
-            return InlineEnumExtractor.GenerateInlineEnumTypeName(parametersClassName, propName);
+            return InlineEnumExtractor.GenerateInlineEnumTypeName(parametersClassName, propName, TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc));
         }
 
         return GetParameterType(param, openApiDoc);

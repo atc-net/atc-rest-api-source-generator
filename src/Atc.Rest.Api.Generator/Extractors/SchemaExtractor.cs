@@ -1079,7 +1079,7 @@ public static class SchemaExtractor
             if (InlineEnumExtractor.IsInlineEnumSchema(prop.Value))
             {
                 var actualSchema = (OpenApiSchema)prop.Value;
-                var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey);
+                var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);
                 csharpType = enumTypeName ?? "string";
 
                 // Handle nullable for inline enums: optional without a default, or nullable by the schema
@@ -1095,7 +1095,7 @@ public static class SchemaExtractor
                 // as List<T>. Dedup with scalar inline enums uses the same values-key
                 // map so identical value sets collapse to one type.
                 var actualArraySchema = (OpenApiSchema)prop.Value;
-                var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey);
+                var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);
                 csharpType = enumTypeName is not null
                     ? $"List<{enumTypeName}>"
                     : prop.Value.ToCSharpTypeForModel(isRequired, registry);
@@ -1478,7 +1478,8 @@ public static class SchemaExtractor
         string propertyName,
         string ns,
         string pathSegment,
-        Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey)
+        Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey,
+        ISet<string>? componentTypeNames)
     {
         var valuesKey = InlineEnumExtractor.GetEnumValuesKey(enumSchema);
         if (inlineEnumsByValuesKey.TryGetValue(valuesKey, out var existing))
@@ -1486,7 +1487,7 @@ public static class SchemaExtractor
             return existing.TypeName;
         }
 
-        var enumTypeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parentSchemaName, propertyName);
+        var enumTypeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parentSchemaName, propertyName, componentTypeNames);
         var enumParams = InlineEnumExtractor.ExtractEnumFromInlineSchema(enumSchema, enumTypeName, ns);
         if (enumParams is null)
         {

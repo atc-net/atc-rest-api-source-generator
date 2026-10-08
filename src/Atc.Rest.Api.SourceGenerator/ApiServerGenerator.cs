@@ -373,6 +373,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             projectName,
             pathSegments.Select(s => PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, s) ?? string.Empty));
 
+        // The component schemas' C# names, which an inline enum's generated name must not take
+        var componentTypeNames = TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc);
+
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
@@ -415,7 +418,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate shared models/enums first (under common namespace without segment suffix)
         if (sharedSchemas.Count > 0)
         {
-            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
+            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, componentTypeNames: componentTypeNames);
             GenerateModelsForSchemas(
                 generatedContext,
                 openApiDoc,
@@ -476,7 +479,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             // Create conflict registry for this path segment (lightweight: O(1)).
             // Uses the effective segment - the raw pathSegment would qualify conflicting types
             // against a namespace that is never generated when the segment collapses away.
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas);
+            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, componentTypeNames: componentTypeNames);
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);

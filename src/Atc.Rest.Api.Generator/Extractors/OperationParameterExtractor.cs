@@ -462,6 +462,7 @@ public static class OperationParameterExtractor
                         projectName,
                         pathSegment,
                         inlineEnumsByValuesKey,
+                        registry?.ComponentTypeNames,
                         out var isArrayOfInlineEnum);
                     if (inlineEnumTypeName is not null)
                     {
@@ -817,6 +818,7 @@ public static class OperationParameterExtractor
         string projectName,
         string? pathSegment,
         Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey,
+        ISet<string>? componentTypeNames,
         out bool isArrayOfInlineEnum)
     {
         isArrayOfInlineEnum = false;
@@ -850,7 +852,7 @@ public static class OperationParameterExtractor
             return existing.TypeName;
         }
 
-        var typeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parameterRecordName, propertyName);
+        var typeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parameterRecordName, propertyName, componentTypeNames);
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         var enumParameters = InlineEnumExtractor.ExtractEnumFromInlineSchema(enumSchema, typeName, ns);
         if (enumParameters is null)

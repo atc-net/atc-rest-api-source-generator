@@ -72,11 +72,32 @@ public static class InlineEnumExtractor
     /// </summary>
     /// <param name="parentSchemaName">The name of the parent schema (e.g., "ResendEventsRequest").</param>
     /// <param name="propertyName">The property name (e.g., "resourceType").</param>
+    /// <param name="componentTypeNames">
+    /// The C# names of the component schemas: a name one of them has is taken by that schema, so the inline enum is
+    /// <c>{Parent}{Property}Enum</c> (<c>Thing.type</c> next to a component <c>ThingType</c>).
+    /// </param>
     /// <returns>The generated type name (e.g., "ResendEventsRequestResourceType").</returns>
     public static string GenerateInlineEnumTypeName(
         string parentSchemaName,
-        string propertyName)
-        => $"{parentSchemaName}{propertyName.EnsureFirstCharacterToUpper()}";
+        string propertyName,
+        ISet<string>? componentTypeNames = null)
+    {
+        var name = $"{parentSchemaName}{propertyName.EnsureFirstCharacterToUpper()}";
+        if (componentTypeNames is null || !componentTypeNames.Contains(name))
+        {
+            return name;
+        }
+
+        var candidate = name + "Enum";
+        var suffix = 2;
+        while (componentTypeNames.Contains(candidate))
+        {
+            candidate = $"{name}Enum{suffix.ToString(CultureInfo.InvariantCulture)}";
+            suffix++;
+        }
+
+        return candidate;
+    }
 
     /// <summary>
     /// Generates a key based on sorted enum values for deduplication.

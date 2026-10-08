@@ -72,19 +72,34 @@ public sealed class TypeConflictRegistry
     /// </summary>
     private readonly ISet<string>? sharedSchemaNames;
 
+    /// <summary>
+    /// The C# names of the document's component schemas (see <see cref="ComponentTypeNamesOf"/>); null when the
+    /// caller does not know.
+    /// </summary>
+    private readonly ISet<string>? componentTypeNames;
+
     private TypeConflictRegistry(
         ISet<string> conflictingSchemaNames,
         string projectName,
         string? pathSegment,
         ISet<string>? sharedSchemaNames = null,
-        bool extensibleEnums = false)
+        bool extensibleEnums = false,
+        ISet<string>? componentTypeNames = null)
     {
         this.conflictingSchemaNames = conflictingSchemaNames;
         this.projectName = projectName;
         this.pathSegment = pathSegment;
         this.sharedSchemaNames = sharedSchemaNames;
+        this.componentTypeNames = componentTypeNames;
         ExtensibleEnums = extensibleEnums;
     }
+
+    /// <summary>
+    /// The C# names of the document's component schemas - what a generated name of its own (an inline enum) must not
+    /// take; null when the caller did not pass them.
+    /// </summary>
+    public ISet<string>? ComponentTypeNames
+        => componentTypeNames;
 
     /// <summary>
     /// Whether the string enums are generated as extensible enums (a client): a <c>readonly record struct</c> whose
@@ -183,14 +198,28 @@ public sealed class TypeConflictRegistry
     /// <param name="pathSegment">Optional path segment for segmented namespaces.</param>
     /// <param name="sharedSchemaNames">Optional names of the schemas generated into the shared models namespace.</param>
     /// <param name="extensibleEnums">Whether the string enums are extensible enums (a generated client); see <see cref="ExtensibleEnums"/>.</param>
+    /// <param name="componentTypeNames">The C# names of the component schemas (<see cref="ComponentTypeNamesOf"/>).</param>
     /// <returns>A registry configured for the specified path segment.</returns>
     public static TypeConflictRegistry ForSegment(
         ISet<string> conflicts,
         string projectName,
         string? pathSegment = null,
         ISet<string>? sharedSchemaNames = null,
-        bool extensibleEnums = false)
-        => new(conflicts, projectName, pathSegment, sharedSchemaNames, extensibleEnums);
+        bool extensibleEnums = false,
+        ISet<string>? componentTypeNames = null)
+        => new(conflicts, projectName, pathSegment, sharedSchemaNames, extensibleEnums, componentTypeNames);
+
+    /// <summary>
+    /// The C# names the document's component schemas are generated with (sanitized: <c>Pageable.Mode</c> is
+    /// <c>PageableMode</c>).
+    /// </summary>
+    /// <param name="doc">The OpenAPI document.</param>
+    /// <returns>The names.</returns>
+    public static ISet<string> ComponentTypeNamesOf(
+        OpenApiDocument doc)
+        => new HashSet<string>(
+            (doc?.Components?.Schemas?.Keys ?? []).Select(OpenApiSchemaExtensions.SanitizeSchemaName),
+            StringComparer.Ordinal);
 
     /// <summary>
     /// Builds a conflict registry by scanning OpenAPI document schemas.
