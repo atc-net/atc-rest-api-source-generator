@@ -119,14 +119,18 @@ public class CliVersionHelperTests
     [Fact]
     public async Task TryGetNewerVersionAsync_LookupNeverCompletes_ReturnsNullWithinBudget()
     {
-        var service = new StubNugetPackageVersionService(new Version(9, 9, 9), delay: TimeSpan.FromSeconds(30));
+        var lookup = TimeSpan.FromSeconds(30);
+        var service = new StubNugetPackageVersionService(new Version(9, 9, 9), delay: lookup);
         var stopwatch = Stopwatch.StartNew();
 
         var version = await CliVersionHelper.TryGetNewerVersionAsync(service, new Version(1, 2, 3), Budget);
 
         stopwatch.Stop();
         Assert.Null(version);
-        Assert.True(stopwatch.Elapsed < Budget + TimeSpan.FromSeconds(3), $"Took {stopwatch.Elapsed}.");
+
+        // The budget ended the wait, not the lookup: well short of it even when a loaded machine runs the timer late
+        // (a full parallel test run once took 5.03s for the 2s budget)
+        Assert.True(stopwatch.Elapsed < lookup / 2, $"Took {stopwatch.Elapsed}.");
     }
 
     private static readonly TimeSpan Budget = TimeSpan.FromSeconds(2);
