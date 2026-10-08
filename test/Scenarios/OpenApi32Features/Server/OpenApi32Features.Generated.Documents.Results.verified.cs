@@ -53,7 +53,7 @@ public sealed class CreateDocumentResult : IResult
     /// Without errors, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared Error, so a client reading Error finds it empty. Pass a Error to send the declared body.
     /// </remarks>
     public static CreateDocumentResult BadRequest(Error? errors = null)
-        => new(errors is null ? TypedResults.StatusCode(400) : TypedResults.Json(errors, contentType: "application/json", statusCode: 400));
+        => new(errors is null ? TypedResults.StatusCode(400) : JsonTypeInfoHttpResult.Of(errors, "application/json", 400));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -86,5 +86,55 @@ internal sealed class LocationHttpResult : IResult
     {
         httpContext.Response.Headers.Location = location;
         return inner.ExecuteAsync(httpContext);
+    }
+}
+
+/// <summary>
+/// Creates a <see cref="JsonTypeInfoHttpResult{T}"/>, its value type inferred.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class JsonTypeInfoHttpResult
+{
+    public static JsonTypeInfoHttpResult<T> Of<T>(
+        T value,
+        string? contentType,
+        int? statusCode)
+        => new(value, contentType, statusCode);
+}
+
+/// <summary>
+/// Writes a JSON body through the <see cref="global::System.Text.Json.Serialization.Metadata.JsonTypeInfo{T}"/>
+/// the app's JSON options resolve.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class JsonTypeInfoHttpResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, IValueHttpResult<T>, IContentTypeHttpResult
+{
+    private static readonly global::System.Text.Json.JsonSerializerOptions FallbackOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
+    public JsonTypeInfoHttpResult(
+        T value,
+        string? contentType,
+        int? statusCode)
+    {
+        Value = value;
+        ContentType = contentType;
+        StatusCode = statusCode;
+    }
+
+    public T Value { get; }
+
+    object? IValueHttpResult.Value => Value;
+
+    public string? ContentType { get; }
+
+    public int? StatusCode { get; }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        var options = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+            .GetService<global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>>(httpContext.RequestServices)?.Value.SerializerOptions
+            ?? FallbackOptions;
+
+        return TypedResults.Json(Value, global::OpenApi32Features.Generated.GeneratedJsonOptions.TypeInfo<T>(options), ContentType, StatusCode).ExecuteAsync(httpContext);
     }
 }

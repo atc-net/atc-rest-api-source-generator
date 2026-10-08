@@ -89,7 +89,7 @@ public sealed class ReposGetResult : IResult
     /// Without error, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared ApiError, so a client reading ApiError finds it empty. Pass a ApiError to send the declared body.
     /// </remarks>
     public static ReposGetResult NotFound(ApiError? error = null)
-        => new(error is null ? TypedResults.StatusCode(404) : TypedResults.Json(error, contentType: "application/json", statusCode: 404));
+        => new(error is null ? TypedResults.StatusCode(404) : JsonTypeInfoHttpResult.Of(error, "application/json", 404));
 
     /// <summary>
     /// 422 Unprocessable Entity - Invalid - the error schema is named like the client's own.
@@ -98,7 +98,7 @@ public sealed class ReposGetResult : IResult
     /// Without error, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared ValidationError, so a client reading ValidationError finds it empty. Pass a ValidationError to send the declared body.
     /// </remarks>
     public static ReposGetResult UnprocessableEntity(ValidationError? error = null)
-        => new(error is null ? TypedResults.StatusCode(422) : TypedResults.Json(error, contentType: "application/json", statusCode: 422));
+        => new(error is null ? TypedResults.StatusCode(422) : JsonTypeInfoHttpResult.Of(error, "application/json", 422));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -108,4 +108,54 @@ public sealed class ReposGetResult : IResult
     /// </summary>
     public static IResult ToIResult(ReposGetResult result)
         => result.Result;
+}
+
+/// <summary>
+/// Creates a <see cref="JsonTypeInfoHttpResult{T}"/>, its value type inferred.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class JsonTypeInfoHttpResult
+{
+    public static JsonTypeInfoHttpResult<T> Of<T>(
+        T value,
+        string? contentType,
+        int? statusCode)
+        => new(value, contentType, statusCode);
+}
+
+/// <summary>
+/// Writes a JSON body through the <see cref="global::System.Text.Json.Serialization.Metadata.JsonTypeInfo{T}"/>
+/// the app's JSON options resolve.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class JsonTypeInfoHttpResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, IValueHttpResult<T>, IContentTypeHttpResult
+{
+    private static readonly global::System.Text.Json.JsonSerializerOptions FallbackOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
+    public JsonTypeInfoHttpResult(
+        T value,
+        string? contentType,
+        int? statusCode)
+    {
+        Value = value;
+        ContentType = contentType;
+        StatusCode = statusCode;
+    }
+
+    public T Value { get; }
+
+    object? IValueHttpResult.Value => Value;
+
+    public string? ContentType { get; }
+
+    public int? StatusCode { get; }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        var options = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+            .GetService<global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>>(httpContext.RequestServices)?.Value.SerializerOptions
+            ?? FallbackOptions;
+
+        return TypedResults.Json(Value, global::HostileTypeScript.Generated.GeneratedJsonOptions.TypeInfo<T>(options), ContentType, StatusCode).ExecuteAsync(httpContext);
+    }
 }

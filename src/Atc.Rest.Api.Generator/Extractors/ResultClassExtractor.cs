@@ -79,6 +79,68 @@ public static class ResultClassExtractor
     }
 
     /// <summary>
+    /// The <c>JsonTypeInfoHttpResult&lt;T&gt;</c> type the factories of a JSON body use: the value written through the
+    /// <c>JsonTypeInfo</c> the app's JSON options resolve (<c>ConfigureHttpJsonOptions</c>), never the reflection-based
+    /// serializer overloads - so the result is trim- and Native AOT-safe, with the metadata of a trimmed or AOT app from
+    /// its <c>JsonSerializerContext</c>. ASP.NET Core's own JSON result writes it, as it would have.
+    /// </summary>
+    /// <param name="baseNamespace">The generated root namespace, where <c>GeneratedJsonOptions</c> is.</param>
+    /// <returns>The source.</returns>
+    public static string JsonTypeInfoHttpResultSource(string baseNamespace)
+        => $$"""
+
+            /// <summary>
+            /// Creates a <see cref="JsonTypeInfoHttpResult{T}"/>, its value type inferred.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal static class JsonTypeInfoHttpResult
+            {
+                public static JsonTypeInfoHttpResult<T> Of<T>(
+                    T value,
+                    string? contentType,
+                    int? statusCode)
+                    => new(value, contentType, statusCode);
+            }
+
+            /// <summary>
+            /// Writes a JSON body through the <see cref="global::System.Text.Json.Serialization.Metadata.JsonTypeInfo{T}"/>
+            /// the app's JSON options resolve.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class JsonTypeInfoHttpResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, IValueHttpResult<T>, IContentTypeHttpResult
+            {
+                private static readonly global::System.Text.Json.JsonSerializerOptions FallbackOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
+                public JsonTypeInfoHttpResult(
+                    T value,
+                    string? contentType,
+                    int? statusCode)
+                {
+                    Value = value;
+                    ContentType = contentType;
+                    StatusCode = statusCode;
+                }
+
+                public T Value { get; }
+
+                object? IValueHttpResult.Value => Value;
+
+                public string? ContentType { get; }
+
+                public int? StatusCode { get; }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    var options = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                        .GetService<global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>>(httpContext.RequestServices)?.Value.SerializerOptions
+                        ?? FallbackOptions;
+
+                    return TypedResults.Json(Value, global::{{baseNamespace}}.GeneratedJsonOptions.TypeInfo<T>(options), ContentType, StatusCode).ExecuteAsync(httpContext);
+                }
+            }
+            """;
+
+    /// <summary>
     /// The <c>LocationHttpResult</c> type the 303 factories use (ASP.NET Core has no redirect result for 303): the
     /// wrapped result, written with a <c>Location</c> header.
     /// </summary>
@@ -771,12 +833,13 @@ public static class ResultClassExtractor
             ErrorResponseKind.JsonString => (
                 "string",
                 "message",
-                $"TypedResults.Json(message, contentType: \"{shape.MediaTypeLiteral}\", statusCode: {status})"),
+                JsonResultExpression("message", shape.MediaTypeLiteral, status)),
             ErrorResponseKind.XmlObject => XmlErrorFactory(shape, status, code, GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas)),
-            _ => (
+            _ => JsonErrorFactory(
                 GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas),
                 code == 400 ? "errors" : "error",
-                $"TypedResults.Json({(code == 400 ? "errors" : "error")}, contentType: \"{shape.MediaTypeLiteral}\", statusCode: {status})"),
+                shape.MediaTypeLiteral,
+                status),
         };
 
         if (isDefault)
@@ -812,6 +875,26 @@ public static class ResultClassExtractor
 
         return methods;
     }
+
+    /// <summary>
+    /// The expression of a JSON body written through the app's JSON options' <c>JsonTypeInfo</c>.
+    /// </summary>
+    /// <remarks>
+    /// The value's type is inferred, as <c>TypedResults.Json</c> inferred it: a nullable value type's value stays
+    /// nullable.
+    /// </remarks>
+    private static string JsonResultExpression(
+        string valueName,
+        string? mediaTypeLiteral,
+        string status)
+        => $"JsonTypeInfoHttpResult.Of({valueName}, {(mediaTypeLiteral is null ? "null" : $"\"{mediaTypeLiteral}\"")}, {status})";
+
+    private static (string ValueType, string ValueName, string Written) JsonErrorFactory(
+        string valueType,
+        string valueName,
+        string? mediaTypeLiteral,
+        string status)
+        => (valueType, valueName, JsonResultExpression(valueName, mediaTypeLiteral, status));
 
     /// <summary>
     /// The factory value of a declared XML error model: the model, written by its XML mapping with the declared media
@@ -1345,9 +1428,9 @@ public static class ResultClassExtractor
             _ when isTextResponse && textResponseMediaType is not null =>
                 Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),
             _ when !string.IsNullOrEmpty(contentType) && xmlBody is not null =>
-                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response", $"TypedResults.Json(response, statusCode: {status})")),
+                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response", JsonResultExpression("response", mediaTypeLiteral: null, status))),
             _ when !string.IsNullOrEmpty(contentType) =>
-                Method(contentType, "response", $"new(TypedResults.Json(response, statusCode: {status}))"),
+                Method(contentType, "response", $"new({JsonResultExpression("response", mediaTypeLiteral: null, status)})"),
             _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
         };
     }

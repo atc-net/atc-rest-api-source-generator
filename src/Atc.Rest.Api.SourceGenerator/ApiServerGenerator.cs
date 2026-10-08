@@ -734,6 +734,11 @@ public class ApiServerGenerator : IIncrementalGenerator
             }
         }
 
+        // The JSON results and stream writers write through the metadata the app's JSON options resolve (trim- and AOT-safe)
+        generatedContext.AddGeneratedSource(
+            $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
+            SourceText.From(GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+
         // Report generation summary
         var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
 
@@ -1590,6 +1595,12 @@ public class ApiServerGenerator : IIncrementalGenerator
         if (allGeneratedCode.ToString().Contains("new NegotiatedHttpResult("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.NegotiatedHttpResultSource());
+        }
+
+        // A JSON body is written through the JsonTypeInfo the app's JSON options resolve (trim- and AOT-safe)
+        if (allGeneratedCode.ToString().Contains("JsonTypeInfoHttpResult.Of("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.JsonTypeInfoHttpResultSource(NamespaceBuilder.BuildBase(projectName)));
         }
 
         var normalizeForSourceOutput = allGeneratedCode

@@ -52,7 +52,7 @@ public sealed class ListPetsResult : IResult
     public static ListPetsResult Error(
         Error error,
         int statusCode = 500)
-        => new(TypedResults.Json(error, contentType: "application/json", statusCode: statusCode));
+        => new(JsonTypeInfoHttpResult.Of(error, "application/json", statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -93,7 +93,7 @@ public sealed class CreatePetsResult : IResult
     public static CreatePetsResult Error(
         Error error,
         int statusCode = 500)
-        => new(TypedResults.Json(error, contentType: "application/json", statusCode: statusCode));
+        => new(JsonTypeInfoHttpResult.Of(error, "application/json", statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -137,7 +137,7 @@ public sealed class ShowPetByIdResult : IResult
     public static ShowPetByIdResult Error(
         Error error,
         int statusCode = 500)
-        => new(TypedResults.Json(error, contentType: "application/json", statusCode: statusCode));
+        => new(JsonTypeInfoHttpResult.Of(error, "application/json", statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -147,4 +147,54 @@ public sealed class ShowPetByIdResult : IResult
     /// </summary>
     public static IResult ToIResult(ShowPetByIdResult result)
         => result.Result;
+}
+
+/// <summary>
+/// Creates a <see cref="JsonTypeInfoHttpResult{T}"/>, its value type inferred.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class JsonTypeInfoHttpResult
+{
+    public static JsonTypeInfoHttpResult<T> Of<T>(
+        T value,
+        string? contentType,
+        int? statusCode)
+        => new(value, contentType, statusCode);
+}
+
+/// <summary>
+/// Writes a JSON body through the <see cref="global::System.Text.Json.Serialization.Metadata.JsonTypeInfo{T}"/>
+/// the app's JSON options resolve.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class JsonTypeInfoHttpResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, IValueHttpResult<T>, IContentTypeHttpResult
+{
+    private static readonly global::System.Text.Json.JsonSerializerOptions FallbackOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
+    public JsonTypeInfoHttpResult(
+        T value,
+        string? contentType,
+        int? statusCode)
+    {
+        Value = value;
+        ContentType = contentType;
+        StatusCode = statusCode;
+    }
+
+    public T Value { get; }
+
+    object? IValueHttpResult.Value => Value;
+
+    public string? ContentType { get; }
+
+    public int? StatusCode { get; }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        var options = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+            .GetService<global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>>(httpContext.RequestServices)?.Value.SerializerOptions
+            ?? FallbackOptions;
+
+        return TypedResults.Json(Value, global::PetStoreSimple.Generated.GeneratedJsonOptions.TypeInfo<T>(options), ContentType, StatusCode).ExecuteAsync(httpContext);
+    }
 }

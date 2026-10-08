@@ -121,15 +121,17 @@ public static class SequentialResultsExtractor
         sb.AppendLine("            ? CompactOptions.GetValue(options, static o => new JsonSerializerOptions(o) { WriteIndented = false })");
         sb.AppendLine("            : options;");
         sb.AppendLine();
+
         sb.AppendLine("    public static async Task WriteJsonLinesAsync<T>(");
         sb.AppendLine("        IAsyncEnumerable<T> items,");
         sb.AppendLine("        Stream stream,");
         sb.AppendLine("        JsonSerializerOptions options,");
         sb.AppendLine("        CancellationToken cancellationToken)");
         sb.AppendLine("    {");
+        sb.AppendLine($"        var typeInfo = global::{NamespaceBuilder.BuildBase(projectName)}.{GeneratedJsonOptionsExtractor.ClassName}.TypeInfo<T>(Compact(options));");
         sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
         sb.AppendLine("        {");
-        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, typeInfo, cancellationToken);");
         sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");
@@ -144,10 +146,11 @@ public static class SequentialResultsExtractor
         sb.AppendLine("        JsonSerializerOptions options,");
         sb.AppendLine("        CancellationToken cancellationToken)");
         sb.AppendLine("    {");
+        sb.AppendLine($"        var typeInfo = global::{NamespaceBuilder.BuildBase(projectName)}.{GeneratedJsonOptionsExtractor.ClassName}.TypeInfo<T>(Compact(options));");
         sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
         sb.AppendLine("        {");
         sb.AppendLine("            await stream.WriteAsync(RecordSeparator, cancellationToken);");
-        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, typeInfo, cancellationToken);");
         sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");
@@ -163,11 +166,12 @@ public static class SequentialResultsExtractor
         sb.AppendLine("        JsonSerializerOptions options,");
         sb.AppendLine("        CancellationToken cancellationToken)");
         sb.AppendLine("    {");
+        sb.AppendLine($"        var typeInfo = global::{NamespaceBuilder.BuildBase(projectName)}.{GeneratedJsonOptionsExtractor.ClassName}.TypeInfo<T>(Compact(options));");
         sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
         sb.AppendLine("        {");
         sb.AppendLine("            var header = Encoding.ASCII.GetBytes($\"--{boundary}\\r\\nContent-Type: application/json\\r\\n\\r\\n\");");
         sb.AppendLine("            await stream.WriteAsync(header, cancellationToken);");
-        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, typeInfo, cancellationToken);");
         sb.AppendLine("            await stream.WriteAsync(Crlf, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");

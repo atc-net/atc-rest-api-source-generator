@@ -42,9 +42,10 @@ public static class SequentialStreamWriter
         JsonSerializerOptions options,
         CancellationToken cancellationToken)
     {
+        var typeInfo = global::StreamingItemSchema.Generated.GeneratedJsonOptions.TypeInfo<T>(Compact(options));
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
-            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, item, typeInfo, cancellationToken);
             await stream.WriteAsync(LineFeed, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
@@ -56,10 +57,11 @@ public static class SequentialStreamWriter
         JsonSerializerOptions options,
         CancellationToken cancellationToken)
     {
+        var typeInfo = global::StreamingItemSchema.Generated.GeneratedJsonOptions.TypeInfo<T>(Compact(options));
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
             await stream.WriteAsync(RecordSeparator, cancellationToken);
-            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, item, typeInfo, cancellationToken);
             await stream.WriteAsync(LineFeed, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
@@ -72,11 +74,12 @@ public static class SequentialStreamWriter
         JsonSerializerOptions options,
         CancellationToken cancellationToken)
     {
+        var typeInfo = global::StreamingItemSchema.Generated.GeneratedJsonOptions.TypeInfo<T>(Compact(options));
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
             var header = Encoding.ASCII.GetBytes($"--{boundary}\r\nContent-Type: application/json\r\n\r\n");
             await stream.WriteAsync(header, cancellationToken);
-            await JsonSerializer.SerializeAsync(stream, item, Compact(options), cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, item, typeInfo, cancellationToken);
             await stream.WriteAsync(Crlf, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
