@@ -38,7 +38,7 @@ public static class EndpointsServiceCollectionExtensions
             PropertyNamingPolicy = global::System.Text.Json.JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
             WriteIndented = true,
-            Converters = { new global::AsyncEnumerableHooks.Generated.EnumWireConverterFactory(), new global::System.Text.Json.Serialization.JsonStringEnumConverter() },
+            Converters = { new global::AsyncEnumerableHooks.Generated.EnumWireConverterFactory() },
         }));
 
         services.AddTransient<IListItemsEndpoint, ListItemsEndpoint>();

@@ -64,4 +64,5 @@ global using VerifyXunit;
 global using Xunit;
 
 global using EndpointInfo = Atc.Rest.Api.Generator.Models.EndpointInfo;
+global using GeneratedEnumDeclaration = Atc.Rest.Api.Generator.Models.GeneratedEnumDeclaration;
 global using MultiPartConfiguration = Atc.Rest.Api.Generator.Models.MultiPartConfiguration;

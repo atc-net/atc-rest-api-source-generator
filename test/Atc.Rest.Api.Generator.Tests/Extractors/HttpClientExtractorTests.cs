@@ -423,7 +423,7 @@ public class HttpClientExtractorTests
         Assert.NotNull(clientClass.AdditionalFieldDeclarations);
         var declarations = string.Join('\n', clientClass.AdditionalFieldDeclarations);
         Assert.Contains("defaultJsonSerializerOptions", declarations, StringComparison.Ordinal);
-        Assert.Contains("JsonStringEnumConverter", declarations, StringComparison.Ordinal);
+        Assert.DoesNotContain("new JsonStringEnumConverter()", declarations, StringComparison.Ordinal);
         Assert.Contains("PropertyNameCaseInsensitive", declarations, StringComparison.Ordinal);
 
         // The wire names of the specification are camelCase (the models carry [JsonPropertyName] only where
@@ -1171,6 +1171,40 @@ public class HttpClientExtractorTests
         Assert.Equal("ListPetsParametersStatus", inlineEnum.TypeName);
         Assert.Equal("TestApi.Generated.Models", inlineEnum.EnumParameters.Namespace);
         Assert.Equal(["Available", "Sold"], inlineEnum.EnumParameters.Values.Select(v => v.Name), StringComparer.Ordinal);
+    }
+
+    // The generated EnumWireConverterFactory serves every generated enum; the non-generic JsonStringEnumConverter
+    // needs runtime code generation and has no enum of its own left to serve
+    [Theory]
+    [InlineData("[Red, Green]")]
+    [InlineData(null)]
+    public void DefaultJsonSerializerOptionsInitializers_AddNoNonGenericEnumConverter(
+        string? enumValues)
+    {
+        var yaml = $$"""
+            openapi: 3.0.3
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema: { $ref: '#/components/schemas/Thing' }
+            components:
+              schemas:
+                Thing:
+                  type: object
+                  properties:
+                    color: { type: string{{(enumValues is null ? string.Empty : $", enum: {enumValues}")}} }
+            """;
+
+        var initializers = HttpClientExtractor.DefaultJsonSerializerOptionsInitializers(ParseYaml(yaml)!, "Contoso");
+
+        Assert.DoesNotContain(initializers, i => i.Contains("new JsonStringEnumConverter()", StringComparison.Ordinal));
     }
 
     private const string TwoSegmentsYaml = """

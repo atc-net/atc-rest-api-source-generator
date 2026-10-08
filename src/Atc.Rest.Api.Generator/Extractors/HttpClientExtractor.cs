@@ -19,9 +19,9 @@ public static class HttpClientExtractor
             "PropertyNamingPolicy = JsonNamingPolicy.CamelCase,",
             "PropertyNameCaseInsensitive = true,",
             "AllowOutOfOrderMetadataProperties = true,",
-            EnumWireConverterExtractor.HasEnums(openApiDoc)
-                ? $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}(), new JsonStringEnumConverter() }},"
-                : "Converters = { new JsonStringEnumConverter() },",
+            .. EnumWireConverterExtractor.HasEnums(openApiDoc)
+                ? new[] { $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}() }}," }
+                : [],
         ];
 
     /// <summary>

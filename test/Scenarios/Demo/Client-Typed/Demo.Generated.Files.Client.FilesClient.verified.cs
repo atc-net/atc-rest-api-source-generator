@@ -25,7 +25,7 @@ public sealed class FilesClient : IFilesClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new global::Demo.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
+        Converters = { new global::Demo.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;

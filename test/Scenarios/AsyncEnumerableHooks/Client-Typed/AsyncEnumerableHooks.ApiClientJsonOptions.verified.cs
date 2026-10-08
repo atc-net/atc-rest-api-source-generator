@@ -28,6 +28,6 @@ public sealed class ApiClientJsonOptions
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new global::AsyncEnumerableHooks.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
+        Converters = { new global::AsyncEnumerableHooks.Generated.EnumWireConverterFactory() },
     };
 }

@@ -24,7 +24,6 @@ public sealed class TreeClient : ITreeClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

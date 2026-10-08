@@ -1392,7 +1392,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             sb.AppendLine(12, "PropertyNamingPolicy = global::System.Text.Json.JsonNamingPolicy.CamelCase,");
             sb.AppendLine(12, "DefaultIgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,");
             sb.AppendLine(12, "WriteIndented = true,");
-            sb.AppendLine(12, $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}(), new global::System.Text.Json.Serialization.JsonStringEnumConverter() }},");
+            sb.AppendLine(12, $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}() }},");
             sb.AppendLine(8, "}));");
         }
         else

@@ -24,7 +24,7 @@ public sealed class ReportsClient : IReportsClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new global::SecurityHybrid.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
+        Converters = { new global::SecurityHybrid.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;

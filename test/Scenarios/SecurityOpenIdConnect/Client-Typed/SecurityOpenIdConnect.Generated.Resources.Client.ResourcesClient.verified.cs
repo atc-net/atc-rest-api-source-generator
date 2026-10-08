@@ -25,7 +25,6 @@ public sealed class ResourcesClient : IResourcesClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

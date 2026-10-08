@@ -24,7 +24,7 @@ public sealed class EnumNamingConflictsClient : IEnumNamingConflictsClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new global::EnumNamingConflicts.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
+        Converters = { new global::EnumNamingConflicts.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;

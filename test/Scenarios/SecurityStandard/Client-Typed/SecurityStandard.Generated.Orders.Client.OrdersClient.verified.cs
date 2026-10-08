@@ -25,7 +25,7 @@ public sealed class OrdersClient : IOrdersClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new global::SecurityStandard.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
+        Converters = { new global::SecurityStandard.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;

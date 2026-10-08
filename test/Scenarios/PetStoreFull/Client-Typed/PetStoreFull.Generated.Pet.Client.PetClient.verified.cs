@@ -26,7 +26,7 @@ public sealed class PetClient : IPetClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new global::PetStoreFull.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
+        Converters = { new global::PetStoreFull.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;

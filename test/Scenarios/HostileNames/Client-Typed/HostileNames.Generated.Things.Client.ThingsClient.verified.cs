@@ -24,7 +24,6 @@ public sealed class ThingsClient : IThingsClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new JsonStringEnumConverter() },
     };
 
     private readonly HttpClient httpClient;

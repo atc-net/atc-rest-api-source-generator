@@ -25,7 +25,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
-        Converters = { new global::HostileSpec.Generated.EnumWireConverterFactory(), new JsonStringEnumConverter() },
+        Converters = { new global::HostileSpec.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;
