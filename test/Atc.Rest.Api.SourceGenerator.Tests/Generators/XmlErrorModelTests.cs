@@ -132,7 +132,7 @@ public sealed class XmlErrorModelTests
                 services
                     .AddHttpClient(httpClientName, c => c.BaseAddress = new Uri("http://stub/"))
                     .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
-                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services]);
+                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                 using var provider = services.BuildServiceProvider();
                 var endpointType = assembly.GetTypes().Single(t => t.Name == "IGetReportEndpoint");
                 var execute = endpointType.GetMethod("ExecuteAsync")!;
@@ -178,7 +178,7 @@ public sealed class XmlErrorModelTests
                 services
                     .AddHttpClient(httpClientName, c => c.BaseAddress = new Uri("http://stub/"))
                     .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
-                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services]);
+                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                 using var provider = services.BuildServiceProvider();
                 var endpointType = assembly.GetTypes().Single(t => t.Name == "IGetAuditEndpoint");
                 var execute = endpointType.GetMethod("ExecuteAsync")!;

@@ -18,6 +18,42 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         """;
 
+    /// <summary>
+    /// The HTTP server the reflection-free apps talk to: a list of one pet, and a created pet for a POST, whose body it
+    /// keeps.
+    /// </summary>
+    private const string StubHandlerSource = """
+            internal sealed class StubHandler : HttpMessageHandler
+            {
+                public static string? LastBody { get; private set; }
+
+                protected override async Task<HttpResponseMessage> SendAsync(
+                    HttpRequestMessage request,
+                    CancellationToken cancellationToken)
+                {
+                    if (request.Method == HttpMethod.Post)
+                    {
+                        LastBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+                        return Json(HttpStatusCode.Created, "{\"id\":2,\"name\":\"Rex\",\"kind\":\"Dog\"}");
+                    }
+
+                    return Json(HttpStatusCode.OK, "[{\"id\":1,\"name\":\"Tom\",\"kind\":\"Cat\"}]");
+                }
+
+                private static HttpResponseMessage Json(
+                    HttpStatusCode statusCode,
+                    string json)
+                    => new(statusCode) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+            }
+            """;
+
+    /// <summary>
+    /// TEMP (3.0 development): the unreleased trim- and Native AOT-ready atc-rest-client, next to this repository.
+    /// Replace with the released <c>PackageReference</c> before release.
+    /// </summary>
+    private string AtcRestClientReference
+        => $"""<ProjectReference Include="{Path.GetFullPath(Path.Combine(package.RepositoryRoot, "..", "atc-rest-client", "src", "Atc.Rest.Client", "Atc.Rest.Client.csproj"))}" />""";
+
     [Fact]
     public async Task APackedGenerator_GeneratesAClientThatCompiles_InAStrictConsumer()
     {
@@ -47,8 +83,32 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
     {
         var library = package.NewDirectory("aot-library");
         var app = package.NewDirectory("aot-app");
-        WriteTypedClientLibrary(library);
+        WriteClientLibrary(library, """{ "generationMode": "TypedClient", "extensibleEnums": false }""", isAotCompatible: true);
         WriteReflectionFreeApp(app, library);
+
+        var run = await PackedGeneratorFixture.RunDotnetAsync(app, "run", "-p:UseSharedCompilation=false");
+        Assert.True(run.ExitCode == 0, $"The app did not run:\n{run.Output}");
+
+        Assert.Contains("reflection: False", run.Output, StringComparison.Ordinal);
+        Assert.Contains("listed: 1 Tom Cat", run.Output, StringComparison.Ordinal);
+        Assert.Contains("""sent: {"name":"Rex","kind":"Dog"}""", run.Output, StringComparison.Ordinal);
+        Assert.Contains("created: 2 Rex Dog", run.Output, StringComparison.Ordinal);
+        Assert.Contains("without the context: failed", run.Output, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A per-operation client in an app with reflection-based serialization off: the app's
+    /// <c>JsonSerializerContext</c>, added through the endpoints' <c>configureJsonSerializerOptions</c>, joins
+    /// Atc.Rest.Client's default options next to the generated enum converter - and without it the client fails
+    /// rather than falling back to reflection.
+    /// </summary>
+    [Fact]
+    public async Task APerOperationClient_WorksWithReflectionOff_FromTheAppsJsonSerializerContext()
+    {
+        var library = package.NewDirectory("epo-aot-library");
+        var app = package.NewDirectory("epo-aot-app");
+        WriteClientLibrary(library, """{ "generationMode": "EndpointPerOperation", "extensibleEnums": false }""", isAotCompatible: false);
+        WritePerOperationReflectionFreeApp(app, library);
 
         var run = await PackedGeneratorFixture.RunDotnetAsync(app, "run", "-p:UseSharedCompilation=false");
         Assert.True(run.ExitCode == 0, $"The app did not run:\n{run.Output}");
@@ -80,7 +140,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
                </PropertyGroup>
                <ItemGroup>
                  <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{package.Version}" />
-                 <PackageReference Include="Atc.Rest.Client" Version="2.1.0" />
+                 {AtcRestClientReference}
                  <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
                </ItemGroup>
                <ItemGroup>
@@ -105,7 +165,10 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         package.WriteNuGetConfig(consumer);
     }
 
-    private void WriteTypedClientLibrary(string library)
+    private void WriteClientLibrary(
+        string library,
+        string marker,
+        bool isAotCompatible)
     {
         File.WriteAllText(
             Path.Combine(library, "Contoso.yaml"),
@@ -163,9 +226,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
                   type: string
                   enum: [Cat, Dog]
             """);
-        File.WriteAllText(
-            Path.Combine(library, ".atc-rest-api-client"),
-            """{ "generationMode": "TypedClient", "extensibleEnums": false }""");
+        File.WriteAllText(Path.Combine(library, ".atc-rest-api-client"), marker);
 
         File.WriteAllText(
             Path.Combine(library, "ContosoClientLibrary.csproj"),
@@ -173,11 +234,11 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
              <Project Sdk="Microsoft.NET.Sdk">
                <PropertyGroup>
                  {StrictProperties}
-                 <IsAotCompatible>true</IsAotCompatible>
+                 <IsAotCompatible>{(isAotCompatible ? "true" : "false")}</IsAotCompatible>
                </PropertyGroup>
                <ItemGroup>
                  <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{package.Version}" />
-                 <PackageReference Include="Atc.Rest.Client" Version="2.1.0" />
+                 {AtcRestClientReference}
                  <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
                </ItemGroup>
                <ItemGroup>
@@ -194,20 +255,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         string app,
         string library)
     {
-        File.WriteAllText(
-            Path.Combine(app, "ContosoApp.csproj"),
-            $"""
-             <Project Sdk="Microsoft.NET.Sdk">
-               <PropertyGroup>
-                 {StrictProperties}
-                 <OutputType>Exe</OutputType>
-                 <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
-               </PropertyGroup>
-               <ItemGroup>
-                 <ProjectReference Include="{Path.Combine(library, "ContosoClientLibrary.csproj")}" />
-               </ItemGroup>
-             </Project>
-             """);
+        WriteReflectionFreeAppProject(app, library);
 
         File.WriteAllText(
             Path.Combine(app, "Program.cs"),
@@ -258,29 +306,94 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
             [JsonSerializable(typeof(NewPet))]
             internal sealed partial class AppJsonContext : JsonSerializerContext;
 
-            internal sealed class StubHandler : HttpMessageHandler
+            """ + StubHandlerSource);
+
+        package.WriteNuGetConfig(app);
+    }
+
+    private static void WriteReflectionFreeAppProject(
+        string app,
+        string library)
+        => File.WriteAllText(
+            Path.Combine(app, "ContosoApp.csproj"),
+            $"""
+             <Project Sdk="Microsoft.NET.Sdk">
+               <PropertyGroup>
+                 {StrictProperties}
+                 <OutputType>Exe</OutputType>
+                 <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+               </PropertyGroup>
+               <ItemGroup>
+                 <ProjectReference Include="{Path.Combine(library, "ContosoClientLibrary.csproj")}" />
+               </ItemGroup>
+             </Project>
+             """);
+
+    private void WritePerOperationReflectionFreeApp(
+        string app,
+        string library)
+    {
+        WriteReflectionFreeAppProject(app, library);
+
+        File.WriteAllText(
+            Path.Combine(app, "Program.cs"),
+            """
+            using System;
+            using System.Collections.Generic;
+            using System.Linq;
+            using System.Net;
+            using System.Net.Http;
+            using System.Text;
+            using System.Text.Json;
+            using System.Text.Json.Serialization;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Contoso.Generated;
+            using Contoso.Generated.Client;
+            using Contoso.Generated.Endpoints.Interfaces;
+            using Contoso.Generated.Models;
+            using Microsoft.Extensions.DependencyInjection;
+
+            Console.WriteLine($"reflection: {JsonSerializer.IsReflectionEnabledByDefault}");
+
+            var services = new ServiceCollection();
+            services.AddContosoEndpoints(options => options.TypeInfoResolverChain.Insert(0, AppJsonContext.Default));
+            services
+                .AddHttpClient(Constants.HttpClientName, client => client.BaseAddress = new Uri("http://contoso.test/"))
+                .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
+            var provider = services.BuildServiceProvider();
+
+            var listed = await provider.GetRequiredService<IListPetsEndpoint>().ExecuteAsync();
+            var pets = listed.OkContent.ToList();
+            Console.WriteLine($"listed: {pets.Count} {pets[0].Name} {pets[0].Kind}");
+
+            var created = await provider.GetRequiredService<ICreatePetEndpoint>().ExecuteAsync(new CreatePetParameters(new NewPet("Rex", PetKind.Dog)));
+            Console.WriteLine($"sent: {string.Concat(StubHandler.LastBody!.Where(c => !char.IsWhiteSpace(c)))}");
+            Console.WriteLine($"created: {created.CreatedContent.Id} {created.CreatedContent.Name} {created.CreatedContent.Kind}");
+
+            try
             {
-                public static string? LastBody { get; private set; }
-
-                protected override async Task<HttpResponseMessage> SendAsync(
-                    HttpRequestMessage request,
-                    CancellationToken cancellationToken)
-                {
-                    if (request.Method == HttpMethod.Post)
-                    {
-                        LastBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                        return Json(HttpStatusCode.Created, "{\"id\":2,\"name\":\"Rex\",\"kind\":\"Dog\"}");
-                    }
-
-                    return Json(HttpStatusCode.OK, "[{\"id\":1,\"name\":\"Tom\",\"kind\":\"Cat\"}]");
-                }
-
-                private static HttpResponseMessage Json(
-                    HttpStatusCode statusCode,
-                    string json)
-                    => new(statusCode) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+                var bare = new ServiceCollection();
+                bare.AddContosoEndpoints();
+                bare
+                    .AddHttpClient(Constants.HttpClientName, client => client.BaseAddress = new Uri("http://contoso.test/"))
+                    .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
+                await bare.BuildServiceProvider().GetRequiredService<IListPetsEndpoint>().ExecuteAsync();
+                Console.WriteLine("without the context: read");
             }
-            """);
+            catch (Exception ex) when (ex.InnerException is NotSupportedException)
+            {
+                // Atc.Rest.Client wraps it in its RestClientDeserializationException
+                Console.WriteLine("without the context: failed");
+            }
+
+            [JsonSerializable(typeof(IEnumerable<Pet>))]
+            [JsonSerializable(typeof(List<Pet>))]
+            [JsonSerializable(typeof(Pet))]
+            [JsonSerializable(typeof(NewPet))]
+            internal sealed partial class AppJsonContext : JsonSerializerContext;
+
+            """ + StubHandlerSource);
 
         package.WriteNuGetConfig(app);
     }

@@ -27,12 +27,15 @@ public static class SecurityOpenIdConnectEndpointsServiceCollectionExtensions
     /// Registers all SecurityOpenIdConnect API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddSecurityOpenIdConnectEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddSecurityOpenIdConnectEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddHealthEndpoints();
-        services.AddMeEndpoints();
-        services.AddResourcesEndpoints();
+        services.AddHealthEndpoints(configureJsonSerializerOptions);
+        services.AddMeEndpoints(configureJsonSerializerOptions);
+        services.AddResourcesEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

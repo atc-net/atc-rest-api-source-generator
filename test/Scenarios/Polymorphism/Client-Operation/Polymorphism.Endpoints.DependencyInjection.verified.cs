@@ -27,12 +27,15 @@ public static class PolymorphismEndpointsServiceCollectionExtensions
     /// Registers all Polymorphism API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddPolymorphismEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddPolymorphismEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddNotificationsEndpoints();
-        services.AddPaymentsEndpoints();
-        services.AddShapesEndpoints();
+        services.AddNotificationsEndpoints(configureJsonSerializerOptions);
+        services.AddPaymentsEndpoints(configureJsonSerializerOptions);
+        services.AddShapesEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

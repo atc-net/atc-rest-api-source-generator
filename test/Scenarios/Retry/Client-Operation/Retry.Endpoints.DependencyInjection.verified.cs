@@ -29,14 +29,17 @@ public static class RetryEndpointsServiceCollectionExtensions
     /// Registers all Retry API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddRetryEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddRetryEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddExternalEndpoints();
-        services.AddHealthEndpoints();
-        services.AddNotificationsEndpoints();
-        services.AddOrdersEndpoints();
-        services.AddReportsEndpoints();
+        services.AddExternalEndpoints(configureJsonSerializerOptions);
+        services.AddHealthEndpoints(configureJsonSerializerOptions);
+        services.AddNotificationsEndpoints(configureJsonSerializerOptions);
+        services.AddOrdersEndpoints(configureJsonSerializerOptions);
+        services.AddReportsEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

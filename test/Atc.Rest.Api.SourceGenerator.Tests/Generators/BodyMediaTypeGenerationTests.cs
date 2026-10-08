@@ -158,7 +158,7 @@ public sealed class BodyMediaTypeGenerationTests
                     .AddHttpClient(httpClientName, c => c.BaseAddress = new Uri("http://stub/"))
                     .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
                 var register = assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints");
-                register.Invoke(null, [services]);
+                register.Invoke(null, [services, null]);
                 using var provider = services.BuildServiceProvider();
 
                 var endpointType = assembly.GetTypes().Single(t => t.Name == "IGetReportPdfEndpoint");
@@ -293,7 +293,7 @@ public sealed class BodyMediaTypeGenerationTests
                 services
                     .AddHttpClient(httpClientName, c => c.BaseAddress = new Uri("http://stub/"))
                     .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
-                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services]);
+                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                 using var provider = services.BuildServiceProvider();
 
                 var endpointType = assembly.GetTypes().Single(t => t.Name == "IGetReportPdfEndpoint");

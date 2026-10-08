@@ -29,14 +29,17 @@ public static class SecurityHybridEndpointsServiceCollectionExtensions
     /// Registers all SecurityHybrid API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddSecurityHybridEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddSecurityHybridEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAdminEndpoints();
-        services.AddOrdersEndpoints();
-        services.AddProductsEndpoints();
-        services.AddPublicEndpoints();
-        services.AddReportsEndpoints();
+        services.AddAdminEndpoints(configureJsonSerializerOptions);
+        services.AddOrdersEndpoints(configureJsonSerializerOptions);
+        services.AddProductsEndpoints(configureJsonSerializerOptions);
+        services.AddPublicEndpoints(configureJsonSerializerOptions);
+        services.AddReportsEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

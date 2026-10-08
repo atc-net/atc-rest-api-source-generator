@@ -129,7 +129,7 @@ public sealed class XmlProblemDetailsTests
                 var httpClientName = (string)assembly.GetTypes().Single(t => t.Name == "Constants").GetField("HttpClientName")!.GetValue(null)!;
                 var services = new ServiceCollection();
                 services.AddHttpClient(httpClientName, c => c.BaseAddress = baseAddress);
-                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services]);
+                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                 using var provider = services.BuildServiceProvider();
                 var pet = assembly.GetTypes().Single(t => t.Name == "Pet");
 

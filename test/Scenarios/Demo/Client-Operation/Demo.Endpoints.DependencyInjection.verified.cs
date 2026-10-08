@@ -29,14 +29,17 @@ public static class DemoEndpointsServiceCollectionExtensions
     /// Registers all Demo API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddDemoEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddDemoEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAccountsEndpoints();
-        services.AddFilesEndpoints();
-        services.AddTasksEndpoints();
-        services.AddTestsEndpoints();
-        services.AddUsersEndpoints();
+        services.AddAccountsEndpoints(configureJsonSerializerOptions);
+        services.AddFilesEndpoints(configureJsonSerializerOptions);
+        services.AddTasksEndpoints(configureJsonSerializerOptions);
+        services.AddTestsEndpoints(configureJsonSerializerOptions);
+        services.AddUsersEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

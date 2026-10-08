@@ -115,7 +115,7 @@ public sealed class ModelOrFileXmlResponseTests
                     .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
                 foreach (var register in assembly.GetTypes().SelectMany(t => t.GetMethods()).Where(m => m.Name.StartsWith("AddErrorBodies", StringComparison.Ordinal) && m.Name.EndsWith("Endpoints", StringComparison.Ordinal)))
                 {
-                    register.Invoke(null, [services]);
+                    register.Invoke(null, [services, null]);
                 }
 
                 using var provider = services.BuildServiceProvider();

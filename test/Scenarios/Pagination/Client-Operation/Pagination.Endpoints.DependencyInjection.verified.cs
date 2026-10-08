@@ -32,17 +32,20 @@ public static class PaginationEndpointsServiceCollectionExtensions
     /// Registers all Pagination API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddPaginationEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddPaginationEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAccountsEndpoints();
-        services.AddArchiveEndpoints();
-        services.AddEventsEndpoints();
-        services.AddLogsEndpoints();
-        services.AddMetricsEndpoints();
-        services.AddOrgsEndpoints();
-        services.AddPagesEndpoints();
-        services.AddTagsEndpoints();
+        services.AddAccountsEndpoints(configureJsonSerializerOptions);
+        services.AddArchiveEndpoints(configureJsonSerializerOptions);
+        services.AddEventsEndpoints(configureJsonSerializerOptions);
+        services.AddLogsEndpoints(configureJsonSerializerOptions);
+        services.AddMetricsEndpoints(configureJsonSerializerOptions);
+        services.AddOrgsEndpoints(configureJsonSerializerOptions);
+        services.AddPagesEndpoints(configureJsonSerializerOptions);
+        services.AddTagsEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

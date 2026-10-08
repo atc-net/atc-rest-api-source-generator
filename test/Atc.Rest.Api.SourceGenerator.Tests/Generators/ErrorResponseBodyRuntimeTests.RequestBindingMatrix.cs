@@ -118,6 +118,12 @@ public partial class ErrorResponseBodyRuntimeTests
               requestBody: { required: true, content: { application/x-www-form-urlencoded: { schema: { $ref: '#/components/schemas/Form' } } } }
               responses:
                 '200': { description: What the server bound, content: { application/json: { schema: { $ref: '#/components/schemas/Echo' } } } }
+          /bind/body/multipart-charset:
+            post:
+              operationId: bindMultipartCharset
+              requestBody: { required: true, content: { 'multipart/form-data; charset=utf-8': { schema: { $ref: '#/components/schemas/Upload' } } } }
+              responses:
+                '200': { description: What the server bound, content: { application/json: { schema: { $ref: '#/components/schemas/Echo' } } } }
         components:
           schemas:
             Color:
@@ -136,6 +142,7 @@ public partial class ErrorResponseBodyRuntimeTests
               properties:
                 name: { type: string }
                 count: { type: integer, format: int32 }
+                tags: { type: array, items: { type: string } }
                 file: { type: string, format: binary }
             Thing:
               type: object
@@ -377,6 +384,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(BindFormResult.Ok(BindEcho.Of(parameters, accessor)));
         }
 
+        public sealed class BindMultipartCharsetHandlerImpl(IHttpContextAccessor accessor) : IBindMultipartCharsetHandler
+        {
+            public System.Threading.Tasks.Task<BindMultipartCharsetResult> ExecuteAsync(BindMultipartCharsetParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(BindMultipartCharsetResult.Ok(BindEcho.Of(parameters, accessor)));
+        }
+
         public static class RequestBindingRegistration
         {
             public static void Register(IServiceCollection services)
@@ -391,6 +404,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IBindVendorJsonHandler, BindVendorJsonHandlerImpl>();
                 services.AddScoped<IBindMultipartHandler, BindMultipartHandlerImpl>();
                 services.AddScoped<IBindFormHandler, BindFormHandlerImpl>();
+                services.AddScoped<IBindMultipartCharsetHandler, BindMultipartCharsetHandlerImpl>();
             }
         }
         """";
@@ -427,7 +441,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     services.AddHttpClient(httpClientName, c => c.BaseAddress = new Uri(baseAddress));
                     foreach (var register in assembly.GetTypes().SelectMany(t => t.GetMethods()).Where(m => m.IsStatic && m.Name.StartsWith("AddErrorBodies", StringComparison.Ordinal) && m.Name.EndsWith("Endpoints", StringComparison.Ordinal)))
                     {
-                        register.Invoke(null, [services]);
+                        register.Invoke(null, [services, null]);
                     }
 
                     provider = services.BuildServiceProvider();
@@ -959,16 +973,17 @@ public partial class ErrorResponseBodyRuntimeTests
         var bytes = RequestBindingFileBytes();
         var fileText = $"f é.bin;application/pdf;{bytes.Length};{Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant()[..16]}";
         cases.Add(new RequestBindingCase(
-            "body: multipart/form-data (fields and a file)",
+            "body: multipart/form-data (fields, a list and a file)",
             "body",
             "BindMultipart",
             Multipart: new JsonObject
             {
                 ["name"] = "doc é",
                 ["count"] = 2,
+                ["tags"] = new JsonArray("a b", "c"),
                 ["file"] = new JsonObject { ["fileName"] = "f é.bin", ["contentType"] = "application/pdf", ["base64"] = Convert.ToBase64String(bytes) },
             },
-            Expected: Expect(("Name", "doc é"), ("Count", "2"), ("File", fileText), ("@contentType", "multipart/form-data"))));
+            Expected: Expect(("Name", "doc é"), ("Count", "2"), ("Tags", "a b|c"), ("File", fileText), ("@contentType", "multipart/form-data"))));
 
         // A URL-encoded form: every scalar formatting (a boolean, a fractional number, an offset, an enum wire name) and
         // a list as repeated keys; the values carry the characters a careless encoder gets wrong (+, &, =, %)
@@ -981,6 +996,17 @@ public partial class ErrorResponseBodyRuntimeTests
                 ["name"] = text, ["count"] = -3, ["ratio"] = 1.5, ["flag"] = true, ["when"] = BindInstant, ["day"] = "2026-03-04", ["color"] = "dark-blue", ["tags"] = new JsonArray("a b", "c&d=e"),
             },
             Expected: Expect(("Name", text), ("Count", "-3"), ("Ratio", "1.5"), ("Flag", "true"), ("When", BindInstantUtc), ("Day", "2026-03-04"), ("Color", "DarkBlue"), ("Tags", "a b|c&d=e"), ("@contentType", "application/x-www-form-urlencoded"))));
+        cases.Add(new RequestBindingCase(
+            "body: multipart/form-data declared with a parameter",
+            "body",
+            "BindMultipartCharset",
+            Multipart: new JsonObject
+            {
+                ["name"] = "doc é",
+                ["tags"] = new JsonArray("a b", "c"),
+                ["file"] = new JsonObject { ["fileName"] = "f é.bin", ["contentType"] = "application/pdf", ["base64"] = Convert.ToBase64String(bytes) },
+            },
+            Expected: Expect(("Name", "doc é"), ("Tags", "a b|c"), ("File", fileText), ("@contentType", "multipart/form-data"))));
         cases.Add(new RequestBindingCase(
             "body: application/x-www-form-urlencoded, only the required field",
             "body",

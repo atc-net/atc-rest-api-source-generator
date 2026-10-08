@@ -818,7 +818,7 @@ public static class EndpointPerOperationExtractor
         }
 
         headerBuilder.AppendLine("using Atc.Rest.Client.Builder;");
-        if (usesStreamReaders || UsesSerializedJsonBody(operation))
+        if (usesStreamReaders)
         {
             headerBuilder.AppendLine("using Atc.Rest.Client.Serialization;");
         }
@@ -895,7 +895,7 @@ public static class EndpointPerOperationExtractor
         // SSE and JSON Lines deserialize each element via the DI-configured IContractSerializer
         // (so the per-op client honors the same serialization as the legacy streaming path).
         // Only these StreamReaders-based endpoints need it; others keep the 2-arg constructor.
-        if (usesStreamReaders || UsesSerializedJsonBody(operation))
+        if (usesStreamReaders)
         {
             constructorParams.Add(new(
                 GenericTypeName: null,
@@ -1017,11 +1017,6 @@ public static class EndpointPerOperationExtractor
 
         return attributes;
     }
-
-    private static bool UsesSerializedJsonBody(OpenApiOperation operation)
-        => operation.GetJsonRequestBodyMediaType() is { } mediaType &&
-           !string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase) &&
-           !operation.HasFileUpload();
 
     private static string WireValue(
         OpenApiParameter param,
@@ -1215,67 +1210,51 @@ public static class EndpointPerOperationExtractor
                     // type the operation declares - else as the file's own of the several it declares
                     sb.AppendLine($"requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), {RawFileBodyHelper.ContentTypeExpression(operation, "parameters.File", contentType!)});");
                 }
-                else if (contentType is "multipart/form-data")
+                else if (operation.RequestBody.Content[contentType!].Schema is { } multipartSchema)
                 {
-                    // Check if it's a schema-based upload or raw file(s)
-                    if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
+                    // multipart/form-data (the declared key, with any parameter, in any case): a model's fields, or the
+                    // raw file(s)
+                    var (isFile, isCollection) = multipartSchema.GetFileUploadInfo();
+                    if (isFile && isCollection)
                     {
-                        sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
+                        // Array of files - iterate and add each with WithFile using IFileContent
+                        sb.AppendLine("if (parameters.File is not null)");
+                        sb.AppendLine("{");
+                        sb.AppendLine(4, "for (var i = 0; i < parameters.File.Length; i++)");
+                        sb.AppendLine(4, "{");
+                        sb.AppendLine(8, "requestBuilder.WithFile(parameters.File[i].OpenReadStream(), \"files\", parameters.File[i].FileName, parameters.File[i].ContentType);");
+                        sb.AppendLine(4, "}");
+                        sb.AppendLine("}");
                     }
-                    else if (mediaType.Schema is OpenApiSchemaReference schemaRef)
+                    else if (isFile)
                     {
-                        // Schema-based multipart - generate WithFile/WithFormField calls for each property
-                        GenerateMultipartFormDataCode(sb, schemaRef, openApiDoc);
-                    }
-                    else if (mediaType.Schema is not null)
-                    {
-                        // Raw file(s) multipart - check if single or array
-                        var (isFile, isCollection) = mediaType.Schema.GetFileUploadInfo();
-                        if (isFile && isCollection)
-                        {
-                            // Array of files - iterate and add each with WithFile using IFileContent
-                            sb.AppendLine("if (parameters.File is not null)");
-                            sb.AppendLine("{");
-                            sb.AppendLine(4, "for (var i = 0; i < parameters.File.Length; i++)");
-                            sb.AppendLine(4, "{");
-                            sb.AppendLine(8, "requestBuilder.WithFile(parameters.File[i].OpenReadStream(), \"files\", parameters.File[i].FileName, parameters.File[i].ContentType);");
-                            sb.AppendLine(4, "}");
-                            sb.AppendLine("}");
-                        }
-                        else if (isFile)
-                        {
-                            // Single file - use WithFile with IFileContent metadata
-                            sb.AppendLine("requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", parameters.File.FileName, parameters.File.ContentType);");
-                        }
-                        else
-                        {
-                            // Fallback
-                            sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
-                        }
+                        // Single file - use WithFile with IFileContent metadata
+                        sb.AppendLine("requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", parameters.File.FileName, parameters.File.ContentType);");
                     }
                     else
                     {
-                        // No schema - fallback
-                        sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
+                        // A model ($ref or inline) - WithFile/WithFormField calls for each property
+                        GenerateMultipartFormDataCode(sb, multipartSchema, openApiDoc);
                     }
-                }
-                else
-                {
-                    // Other file upload content types
-                    sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
                 }
             }
             else if (operation.GetJsonRequestBodyMediaType() is null &&
                      operation.GetFormBodyMediaType() is { } formMediaType &&
-                     operation.RequestBody.Content[formMediaType].Schema is OpenApiSchemaReference formSchemaRef &&
-                     openApiDoc.Components?.Schemas?.TryGetValue(formSchemaRef.Reference?.Id ?? string.Empty, out var formSchema) == true)
+                     FormBodyHelper.ResolveModelSchema(operation.RequestBody.Content[formMediaType].Schema, openApiDoc) is { } formSchema)
             {
-                // A URL-encoded form: the model's fields, encoded by FormUrlEncodedContent (the request builder has no
-                // URL-encoded form of its own; its form fields are multipart)
+                // A URL-encoded form: the model's fields, each as its wire text, in the request builder's URL-encoded
+                // form. The builder sends no body for no field, so an empty form is sent as an empty body of its own.
                 sb.AppendLine("var fields = new List<KeyValuePair<string, string>>();");
                 FormBodyHelper.AppendUrlEncodedFields(sb, formSchema, "parameters.Request", "fields");
-                sb.AppendLine("using var formContent = new FormUrlEncodedContent(fields);");
-                sb.AppendLine("requestBuilder.WithBinaryBody(formContent.ReadAsStream(), \"application/x-www-form-urlencoded\");");
+                sb.AppendLine("if (fields.Count == 0)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, "requestBuilder.WithBinaryBody(global::System.IO.Stream.Null, \"application/x-www-form-urlencoded\");");
+                sb.AppendLine("}");
+                sb.AppendLine();
+                sb.AppendLine("foreach (var field in fields)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, "requestBuilder.WithUrlEncodedFormField(field.Key, field.Value);");
+                sb.AppendLine("}");
             }
             else if (XmlBodyHelper.ClientRequestBody(operation, preferXml) is { } xmlRequestBody)
             {
@@ -1285,9 +1264,9 @@ public static class EndpointPerOperationExtractor
             }
             else if (operation.GetJsonRequestBodyMediaType() is { } jsonMediaType && !string.Equals(jsonMediaType, "application/json", StringComparison.OrdinalIgnoreCase))
             {
-                // A JSON body under another JSON media type (merge-patch+json, vnd.x+json): WithBody sends application/json,
-                // so the body is serialized here and sent with the declared media type
-                sb.AppendLine($"requestBuilder.WithBinaryBody(new global::System.IO.MemoryStream(global::System.Text.Encoding.UTF8.GetBytes(contractSerializer.Serialize(parameters.Request))), \"{jsonMediaType}\");");
+                // A JSON body under another JSON media type (merge-patch+json, vnd.x+json): serialized by the request
+                // builder and sent with the declared media type
+                sb.AppendLine($"requestBuilder.WithBody(parameters.Request, {CSharpLiteralHelper.ToStringLiteral(jsonMediaType)});");
             }
             else
             {
@@ -2275,15 +2254,12 @@ public static class EndpointPerOperationExtractor
     /// </summary>
     private static void GenerateMultipartFormDataCode(
         StringBuilder sb,
-        OpenApiSchemaReference schemaRef,
+        IOpenApiSchema modelSchema,
         OpenApiDocument openApiDoc)
     {
         // A model without properties, or one the document does not have: the whole model as the body
-        var schemaId = schemaRef.Reference?.Id;
-        if (string.IsNullOrEmpty(schemaId) ||
-            openApiDoc.Components?.Schemas is null ||
-            !openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema) ||
-            schema.Properties is not { Count: > 0 })
+        var schema = FormBodyHelper.ResolveModelSchema(modelSchema, openApiDoc);
+        if (schema?.Properties is not { Count: > 0 })
         {
             sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
             return;

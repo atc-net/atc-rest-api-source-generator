@@ -26,11 +26,14 @@ public static class InlineSchemasEndpointsServiceCollectionExtensions
     /// Registers all InlineSchemas API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddInlineSchemasEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddInlineSchemasEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAnalyticsEndpoints();
-        services.AddReportsEndpoints();
+        services.AddAnalyticsEndpoints(configureJsonSerializerOptions);
+        services.AddReportsEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

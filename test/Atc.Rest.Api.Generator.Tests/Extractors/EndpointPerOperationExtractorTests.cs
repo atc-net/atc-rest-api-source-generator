@@ -1508,8 +1508,7 @@ public class EndpointPerOperationExtractorTests
     public void Extract_UrlEncodedFormBody_SendsTheFieldsAsAFormUrlEncodedBody()
     {
         // The endpoint called WithBody(parameters.Request) on a record without a Request: the client did not compile.
-        // The request builder has no URL-encoded form of its own, so the fields are encoded by FormUrlEncodedContent
-        // and sent as a binary body of the form's media type.
+        // The fields go to the request builder's URL-encoded form, each as its wire text.
         var document = ParseYaml(UrlEncodedFormYaml);
         Assert.NotNull(document);
 
@@ -1519,10 +1518,115 @@ public class EndpointPerOperationExtractorTests
         Assert.Contains("var fields = new List<KeyValuePair<string, string>>();", content, StringComparison.Ordinal);
         Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"user\", user));", content, StringComparison.Ordinal);
         Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"role\", role.ToWireValue()));", content, StringComparison.Ordinal);
-        Assert.Contains("using var formContent = new FormUrlEncodedContent(fields);", content, StringComparison.Ordinal);
-        Assert.Contains("requestBuilder.WithBinaryBody(formContent.ReadAsStream(), \"application/x-www-form-urlencoded\");", content, StringComparison.Ordinal);
+        Assert.Contains("requestBuilder.WithUrlEncodedFormField(field.Key, field.Value);", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("FormUrlEncodedContent", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("WithBody(parameters.Request)", content, StringComparison.Ordinal);
+
+        // A form without a field still says it is one: the builder sends no body for no URL-encoded field
+        Assert.Contains("requestBuilder.WithBinaryBody(global::System.IO.Stream.Null, \"application/x-www-form-urlencoded\");", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_InlineUrlEncodedFormBody_SendsTheFieldsAsAUrlEncodedForm()
+    {
+        // An inline form model was sent as a JSON body
+        var document = ParseYaml(UrlEncodedFormYaml.Replace("schema: { $ref: '#/components/schemas/Credentials' }", "schema: { type: object, required: [user], properties: { user: { type: string } } }", StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "login", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"user\", user));", content, StringComparison.Ordinal);
+        Assert.Contains("requestBuilder.WithUrlEncodedFormField(field.Key, field.Value);", content, StringComparison.Ordinal);
         Assert.DoesNotContain("WithBody(parameters.Request)", content, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("application/merge-patch+json")]
+    [InlineData("application/vnd.contoso.thing+json")]
+    public void Extract_JsonBodyOfAnotherJsonMediaType_IsSentWithThatMediaTypeByTheRequestBuilder(
+        string mediaType)
+    {
+        // The builder serializes the body and sends it with the declared media type, so the endpoint needs no
+        // IContractSerializer of its own
+        var document = ParseYaml(JsonMediaTypeBodyYaml.Replace("MEDIA_TYPE", mediaType, StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "things", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains($"requestBuilder.WithBody(parameters.Request, \"{mediaType}\");", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("WithBinaryBody", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("IContractSerializer", content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("multipart/form-data", "{ type: object, properties: { name: { type: string }, file: { type: string, format: binary } } }", "requestBuilder.WithFormField(\"name\", ")]
+    [InlineData("multipart/form-data; charset=utf-8", "{ $ref: '#/components/schemas/Upload' }", "requestBuilder.WithFormField(\"name\", ")]
+    [InlineData("MULTIPART/FORM-DATA", "{ $ref: '#/components/schemas/Upload' }", "requestBuilder.WithFormField(\"name\", ")]
+    [InlineData("multipart/form-data", "{ type: string, format: binary }", "requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", ")]
+    [InlineData("multipart/form-data", "{ type: array, items: { type: string, format: binary } }", "requestBuilder.WithFile(parameters.File[i].OpenReadStream(), \"files\", ")]
+    public void Extract_MultipartBody_SendsItsPartsAndNeverAStreamAsAJsonBody(
+        string mediaType,
+        string schema,
+        string expected)
+    {
+        // A model offered inline, or under a media type with a parameter or in another case, fell back to
+        // WithBody(parameters.File!.OpenReadStream()): no File on a model's parameters (the client did not compile),
+        // and a stream given to WithBody is serialized as JSON
+        var yaml = $$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /uploads:
+                post:
+                  operationId: upload
+                  requestBody:
+                    required: true
+                    content:
+                      '{{mediaType}}':
+                        schema: {{schema}}
+                  responses:
+                    '204': { description: Uploaded }
+            components:
+              schemas:
+                Upload:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    file: { type: string, format: binary }
+            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "uploads", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains(expected, content, StringComparison.Ordinal);
+        Assert.DoesNotContain("WithBody(parameters.File", content, StringComparison.Ordinal);
+    }
+
+    private const string JsonMediaTypeBodyYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        paths:
+          /things:
+            patch:
+              operationId: patchThing
+              requestBody:
+                required: true
+                content:
+                  MEDIA_TYPE:
+                    schema: { $ref: '#/components/schemas/Thing' }
+              responses:
+                '204': { description: Patched }
+        components:
+          schemas:
+            Thing:
+              type: object
+              properties:
+                name: { type: string }
+        """;
 
     private const string UrlEncodedFormYaml = """
         openapi: 3.0.0

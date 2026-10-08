@@ -27,19 +27,25 @@ public static class EndpointsServiceCollectionExtensions
     /// Registers all Reports API endpoint implementations.
     /// Also ensures IHttpMessageFactory and IContractSerializer are registered (from Atc.Rest.Client).
     /// </summary>
+    /// <remarks>
+    /// The serializer is shared by every client in the app, and the first registration wins: pass
+    /// <paramref name="configureJsonSerializerOptions"/> to the first endpoints registration, for example to add the
+    /// app's JsonSerializerContext in a trimmed or Native AOT app.
+    /// </remarks>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddReportsEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddReportsEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         // Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)
         // - its default serializer, with every generated enum on the wire as the specification writes it
-        services.AddAtcRestClientCore(new global::Atc.Rest.Client.Serialization.DefaultJsonContractSerializer(new global::System.Text.Json.JsonSerializerOptions
+        services.AddAtcRestClientCore(options =>
         {
-            PropertyNamingPolicy = global::System.Text.Json.JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-            WriteIndented = true,
-            Converters = { new global::SecurityHybrid.Generated.EnumWireConverterFactory() },
-        }));
+            options.Converters.Insert(0, new global::SecurityHybrid.Generated.EnumWireConverterFactory());
+            configureJsonSerializerOptions?.Invoke(options);
+        });
 
         services.AddTransient<IListReportsEndpoint, ListReportsEndpoint>();
 

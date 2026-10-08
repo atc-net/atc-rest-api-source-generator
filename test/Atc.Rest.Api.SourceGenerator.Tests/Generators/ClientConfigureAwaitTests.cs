@@ -92,7 +92,7 @@ public sealed class ClientConfigureAwaitTests
                     services
                         .AddHttpClient(httpClientName, c => c.BaseAddress = new Uri("http://stub/"))
                         .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
-                    assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services]);
+                    assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                     var provider = services.BuildServiceProvider();
                     var endpointType = assembly.GetTypes().Single(t => t.Name == "I" + method + "Endpoint");
                     var endpoint = provider.GetRequiredService(endpointType);

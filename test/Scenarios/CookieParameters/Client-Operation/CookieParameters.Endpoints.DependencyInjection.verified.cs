@@ -26,11 +26,14 @@ public static class CookieParametersEndpointsServiceCollectionExtensions
     /// Registers all CookieParameters API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddCookieParametersEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddCookieParametersEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddSessionEndpoints();
-        services.AddTrackingEndpoints();
+        services.AddSessionEndpoints(configureJsonSerializerOptions);
+        services.AddTrackingEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

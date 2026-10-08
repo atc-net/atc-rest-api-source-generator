@@ -32,17 +32,20 @@ public static class HostileNamesEndpointsServiceCollectionExtensions
     /// Registers all HostileNames API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddHostileNamesEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddHostileNamesEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddAccountsEndpoints();
-        services.AddKeysEndpoints();
-        services.AddMoviesEndpoints();
-        services.AddPetsEndpoints();
-        services.AddProfilesEndpoints();
-        services.AddReposEndpoints();
-        services.AddStreamsEndpoints();
-        services.AddThingsEndpoints();
+        services.AddAccountsEndpoints(configureJsonSerializerOptions);
+        services.AddKeysEndpoints(configureJsonSerializerOptions);
+        services.AddMoviesEndpoints(configureJsonSerializerOptions);
+        services.AddPetsEndpoints(configureJsonSerializerOptions);
+        services.AddProfilesEndpoints(configureJsonSerializerOptions);
+        services.AddReposEndpoints(configureJsonSerializerOptions);
+        services.AddStreamsEndpoints(configureJsonSerializerOptions);
+        services.AddThingsEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

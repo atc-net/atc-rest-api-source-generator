@@ -1385,27 +1385,33 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, $"/// Registers all {displayName} API endpoint implementations.");
         sb.AppendLine(4, "/// Also ensures IHttpMessageFactory and IContractSerializer are registered (from Atc.Rest.Client).");
         sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "/// <remarks>");
+        sb.AppendLine(4, "/// The serializer is shared by every client in the app, and the first registration wins: pass");
+        sb.AppendLine(4, "/// <paramref name=\"configureJsonSerializerOptions\"/> to the first endpoints registration, for example to add the");
+        sb.AppendLine(4, "/// app's JsonSerializerContext in a trimmed or Native AOT app.");
+        sb.AppendLine(4, "/// </remarks>");
         sb.AppendLine(4, "/// <param name=\"services\">The service collection.</param>");
+        sb.AppendLine(4, "/// <param name=\"configureJsonSerializerOptions\">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>");
         sb.AppendLine(4, "/// <returns>The service collection for method chaining.</returns>");
-        sb.AppendLine(4, $"public static IServiceCollection Add{registrationName}Endpoints(this IServiceCollection services)");
+        sb.AppendLine(4, $"public static IServiceCollection Add{registrationName}Endpoints(");
+        sb.AppendLine(8, "this IServiceCollection services,");
+        sb.AppendLine(8, "global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)");
         sb.AppendLine(4, "{");
         sb.AppendLine(8, "// Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)");
         if (hasEnums)
         {
             // Atc.Rest.Client's default serializer options, with every generated enum as the specification writes it
-            // ahead of its JsonStringEnumConverter (which would write an integer enum's member name)
+            // ahead of its own enum converter (which would write an integer enum's member name)
             sb.AppendLine(8, "// - its default serializer, with every generated enum on the wire as the specification writes it");
-            sb.AppendLine(8, "services.AddAtcRestClientCore(new global::Atc.Rest.Client.Serialization.DefaultJsonContractSerializer(new global::System.Text.Json.JsonSerializerOptions");
+            sb.AppendLine(8, "services.AddAtcRestClientCore(options =>");
             sb.AppendLine(8, "{");
-            sb.AppendLine(12, "PropertyNamingPolicy = global::System.Text.Json.JsonNamingPolicy.CamelCase,");
-            sb.AppendLine(12, "DefaultIgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,");
-            sb.AppendLine(12, "WriteIndented = true,");
-            sb.AppendLine(12, $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}() }},");
-            sb.AppendLine(8, "}));");
+            sb.AppendLine(12, $"options.Converters.Insert(0, new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}());");
+            sb.AppendLine(12, "configureJsonSerializerOptions?.Invoke(options);");
+            sb.AppendLine(8, "});");
         }
         else
         {
-            sb.AppendLine(8, "services.AddAtcRestClientCore();");
+            sb.AppendLine(8, "services.AddAtcRestClientCore(options => configureJsonSerializerOptions?.Invoke(options));");
         }
 
         sb.AppendLine();
@@ -1456,14 +1462,18 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, $"/// Registers all {projectName} API endpoint implementations from all path segments.");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, "/// <param name=\"services\">The service collection.</param>");
+        sb.AppendLine(4, "/// <param name=\"configureJsonSerializerOptions\">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>");
         sb.AppendLine(4, "/// <returns>The service collection for method chaining.</returns>");
-        sb.AppendLine(4, $"public static IServiceCollection Add{sanitizedProjectName}Endpoints(this IServiceCollection services)");
+        sb.AppendLine(4, $"public static IServiceCollection Add{sanitizedProjectName}Endpoints(");
+        sb.AppendLine(8, "this IServiceCollection services,");
+        sb.AppendLine(8, "global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)");
         sb.AppendLine(4, "{");
 
-        // Call each path segment's extension method
+        // Call each path segment's extension method - the serializer is shared and the first registration wins, so
+        // each gets the callback
         foreach (var pathSegment in pathSegments)
         {
-            sb.AppendLine(8, $"services.Add{pathSegment}Endpoints();");
+            sb.AppendLine(8, $"services.Add{pathSegment}Endpoints(configureJsonSerializerOptions);");
         }
 
         sb.AppendLine();

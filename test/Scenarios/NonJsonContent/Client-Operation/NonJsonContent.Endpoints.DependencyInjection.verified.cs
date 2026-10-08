@@ -28,13 +28,16 @@ public static class NonJsonContentEndpointsServiceCollectionExtensions
     /// Registers all NonJsonContent API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddNonJsonContentEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddNonJsonContentEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddExportsEndpoints();
-        services.AddFilesEndpoints();
-        services.AddItemsEndpoints();
-        services.AddReportsEndpoints();
+        services.AddExportsEndpoints(configureJsonSerializerOptions);
+        services.AddFilesEndpoints(configureJsonSerializerOptions);
+        services.AddItemsEndpoints(configureJsonSerializerOptions);
+        services.AddReportsEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

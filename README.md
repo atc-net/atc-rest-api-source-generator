@@ -169,7 +169,7 @@ app.Run();
 | Package | When | Version |
 |---------|------|---------|
 | [`Atc.Rest.MinimalApi`](https://www.nuget.org/packages/Atc.Rest.MinimalApi) | Server: validation filter, global error handler, endpoint definitions | **3.x** with generator 3.x (they ship together - see [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3)) |
-| [`Atc.Rest.Client`](https://www.nuget.org/packages/Atc.Rest.Client) | C# client in `EndpointPerOperation` mode | 2.1 or later |
+| [`Atc.Rest.Client`](https://www.nuget.org/packages/Atc.Rest.Client) | C# client in `EndpointPerOperation` mode | the trim- and Native AOT-ready release after 2.1 (URL-encoded forms, a body with its own media type) |
 | [`Atc`](https://www.nuget.org/packages/Atc) | C# client in `EndpointPerOperation` mode | 3.x |
 
 ```xml

@@ -154,7 +154,7 @@ public sealed class XmlRequestBodyTests
                 var httpClientName = (string)assembly.GetTypes().Single(t => t.Name == "Constants").GetField("HttpClientName")!.GetValue(null)!;
                 var services = new ServiceCollection();
                 services.AddHttpClient(httpClientName, c => c.BaseAddress = baseAddress);
-                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services]);
+                assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                 using var provider = services.BuildServiceProvider();
                 var endpointType = assembly.GetTypes().Single(t => t.Name == $"I{operation}Endpoint");
                 var execute = endpointType.GetMethod("ExecuteAsync")!;

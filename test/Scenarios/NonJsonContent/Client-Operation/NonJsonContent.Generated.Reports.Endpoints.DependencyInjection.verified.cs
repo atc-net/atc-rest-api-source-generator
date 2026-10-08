@@ -27,12 +27,20 @@ public static class EndpointsServiceCollectionExtensions
     /// Registers all Reports API endpoint implementations.
     /// Also ensures IHttpMessageFactory and IContractSerializer are registered (from Atc.Rest.Client).
     /// </summary>
+    /// <remarks>
+    /// The serializer is shared by every client in the app, and the first registration wins: pass
+    /// <paramref name="configureJsonSerializerOptions"/> to the first endpoints registration, for example to add the
+    /// app's JsonSerializerContext in a trimmed or Native AOT app.
+    /// </remarks>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddReportsEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddReportsEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         // Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)
-        services.AddAtcRestClientCore();
+        services.AddAtcRestClientCore(options => configureJsonSerializerOptions?.Invoke(options));
 
         services.AddTransient<IGetTextReportEndpoint, GetTextReportEndpoint>();
 

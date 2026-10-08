@@ -27,12 +27,15 @@ public static class HostileTypeScriptEndpointsServiceCollectionExtensions
     /// Registers all HostileTypeScript API endpoint implementations from all path segments.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configureJsonSerializerOptions">Optional callback to adjust the serializer options, which start from Atc.Rest.Client's defaults.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddHostileTypeScriptEndpoints(this IServiceCollection services)
+    public static IServiceCollection AddHostileTypeScriptEndpoints(
+        this IServiceCollection services,
+        global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
-        services.AddFilesEndpoints();
-        services.AddReposEndpoints();
-        services.AddTreesEndpoints();
+        services.AddFilesEndpoints(configureJsonSerializerOptions);
+        services.AddReposEndpoints(configureJsonSerializerOptions);
+        services.AddTreesEndpoints(configureJsonSerializerOptions);
 
         return services;
     }

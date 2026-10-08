@@ -184,7 +184,7 @@ public sealed class XmlRichModelTests
                         services.AddHttpClient(httpClientName, c => c.BaseAddress = new Uri(baseAddress));
                         foreach (var register in assembly.GetTypes().SelectMany(t => t.GetMethods()).Where(m => m.IsStatic && m.Name.StartsWith("AddErrorBodies", StringComparison.Ordinal) && m.Name.EndsWith("Endpoints", StringComparison.Ordinal)))
                         {
-                            register.Invoke(null, [services]);
+                            register.Invoke(null, [services, null]);
                         }
 
                         using var provider = services.BuildServiceProvider();

@@ -140,7 +140,7 @@ public sealed class EnumWireTests
                     services
                         .AddHttpClient(httpClientName, c => c.BaseAddress = new Uri("http://stub/"))
                         .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
-                    assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services]);
+                    assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                     using var provider = services.BuildServiceProvider();
                     var createType = assembly.GetTypes().Single(t => t.Name == "ICreateItemEndpoint");
                     var createResult = await Result(createType.GetMethod("ExecuteAsync")!.Invoke(provider.GetRequiredService(createType), [createParameters, httpClientName, CancellationToken.None])!);
