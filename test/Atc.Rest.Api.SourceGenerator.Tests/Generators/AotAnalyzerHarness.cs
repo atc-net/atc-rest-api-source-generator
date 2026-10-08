@@ -62,12 +62,6 @@ internal static class AotAnalyzerHarness
         var withGenerated = WithAspNetCoreGenerators(generatedSources, includeMinimalApi);
         Assert.Contains(withGenerated.SyntaxTrees, t => t.ToString().Contains("InterceptsLocation", StringComparison.Ordinal));
 
-        // RDG's request delegates, for working through a binding difference: ATC_RDG_DUMP=<file>
-        if (Environment.GetEnvironmentVariable("ATC_RDG_DUMP") is { Length: > 0 } dumpPath)
-        {
-            File.WriteAllText(dumpPath, string.Join(Environment.NewLine, withGenerated.SyntaxTrees.Where(t => t.FilePath.Contains("RequestDelegateGenerator", StringComparison.Ordinal)).Select(t => t.ToString())));
-        }
-
         using var ms = new MemoryStream();
         var emitResult = withGenerated.Emit(ms, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(
@@ -94,6 +88,13 @@ internal static class AotAnalyzerHarness
         CSharpGeneratorDriver
             .Create(Tools.Value.Generators, parseOptions: parseOptions, optionsProvider: new AotOptionsProvider())
             .RunGeneratorsAndUpdateCompilation(compilation, out var withGenerated, out _, TestContext.Current.CancellationToken);
+
+        // RDG's request delegates, for working through a binding difference or an error in them: ATC_RDG_DUMP=<file>
+        // (the last compilation built wins)
+        if (Environment.GetEnvironmentVariable("ATC_RDG_DUMP") is { Length: > 0 } dumpPath)
+        {
+            File.WriteAllText(dumpPath, string.Join(Environment.NewLine, withGenerated.SyntaxTrees.Where(t => t.FilePath.Contains("RequestDelegateGenerator", StringComparison.Ordinal)).Select(t => t.ToString())));
+        }
 
         return withGenerated;
     }
