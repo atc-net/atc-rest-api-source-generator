@@ -166,6 +166,18 @@ internal sealed class XmlTestHost : IAsyncDisposable
             .SelectMany(d => d.SupportedResponseTypes.Select(r => $"{d.HttpMethod} {d.RelativePath}: {r.StatusCode} {r.Type?.Name} [{string.Join(", ", r.ApiResponseFormats.Select(f => f.MediaType))}]"))
             .ToList();
 
+    /// <summary>
+    /// The parameters the endpoint metadata describes to ApiExplorer, sorted:
+    /// <c>GET items: sort query String required=False default=name</c>.
+    /// </summary>
+    public IReadOnlyList<string> DescribeParameters()
+        => app.Services.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
+            .SelectMany(g => g.Items)
+            .SelectMany(d => d.ParameterDescriptions.Select(p =>
+                $"{d.HttpMethod} {d.RelativePath}: {p.Name} {p.Source.Id.ToLowerInvariant()} {p.Type?.Name} required={p.IsRequired} default={(p.DefaultValue is null or DBNull ? "<none>" : p.DefaultValue)}"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
     public ValueTask DisposeAsync()
     {
         client.Dispose();

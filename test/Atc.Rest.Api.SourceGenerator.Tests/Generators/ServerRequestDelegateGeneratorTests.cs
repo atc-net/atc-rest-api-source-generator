@@ -23,7 +23,7 @@ public sealed class ServerRequestDelegateGeneratorTests
               parameters:
                 - name: search
                   in: query
-                  schema: { type: string }
+                  schema: { type: string, maxLength: 3 }
                 - name: sort
                   in: query
                   schema: { type: string, default: name }
@@ -35,6 +35,7 @@ public sealed class ServerRequestDelegateGeneratorTests
                   in: query
                   schema:
                     type: array
+                    maxItems: 2
                     items: { type: string }
                 - name: legacy
                   in: query
@@ -84,6 +85,10 @@ public sealed class ServerRequestDelegateGeneratorTests
                 data.Add(useRequestDelegateGenerator, "/items?tag=t", 200, "search=<null> sort=name tag=t tags=<null> legacy=<null> limit=<null>");
                 data.Add(useRequestDelegateGenerator, "/items?tag=t&search=s&sort=x&tags=a&tags=b&legacy=l&limit=3", 200, "search=s sort=x tag=t tags=a|b legacy=l limit=3");
                 data.Add(useRequestDelegateGenerator, "/items?search=s", 400, string.Empty);
+
+                // The limits of an optional string and an optional list (their attributes are on the declared property)
+                data.Add(useRequestDelegateGenerator, "/items?tag=t&search=abcd", 400, string.Empty);
+                data.Add(useRequestDelegateGenerator, "/items?tag=t&tags=a&tags=b&tags=c", 400, string.Empty);
             }
 
             return data;
@@ -111,5 +116,27 @@ public sealed class ServerRequestDelegateGeneratorTests
         {
             Assert.Equal(expectedBody, body);
         }
+    }
+
+    /// <summary>
+    /// What the endpoint metadata says of each parameter (what ApiExplorer and the runtime OpenAPI document read): the
+    /// optional ones are optional, the default is the default.
+    /// </summary>
+    [Fact]
+    public async Task EveryParameter_IsDescribedAsDeclared()
+    {
+        await using var host = await XmlTestHost.StartAsync(Yaml, HandlerSource, "ErrorBodies.RuntimeTest.ItemsRegistration");
+
+        Assert.Equal(
+            [
+                "GET items/: legacy query String required=False default=<none>",
+                "GET items/: limit query Nullable`1 required=False default=<none>",
+                "GET items/: search query String required=False default=<none>",
+                "GET items/: sort query String required=False default=name",
+                "GET items/: tag query String required=True default=<none>",
+                "GET items/: tags query ParsableList`1 required=False default=<none>",
+            ],
+            host.DescribeParameters(),
+            StringComparer.Ordinal);
     }
 }
