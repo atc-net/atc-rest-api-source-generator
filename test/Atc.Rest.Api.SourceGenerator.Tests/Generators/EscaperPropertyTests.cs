@@ -70,6 +70,14 @@ public sealed class EscaperPropertyTests
             },
             iter: Iterations);
 
+    // A member name is a property name, where a reserved word is allowed - the sample once drew "do"
+    [Theory]
+    [InlineData("do")]
+    [InlineData("delete")]
+    [InlineData("default")]
+    public void TypeScriptEnumMemberName_KeepsAReservedWord(string name)
+        => Assert.Equal(name, TypeScriptLiteralHelper.ToEnumMemberName(name));
+
     /// <summary>
     /// The wire text of a date, time or number is the same under every culture, and reads back to the same value.
     /// The expressions are the ones the generated clients and servers use (compiled once per C# type).
@@ -142,19 +150,12 @@ public sealed class EscaperPropertyTests
         StrictUtf8.GetBytes(identifier);
     }
 
-    // An ECMAScript identifier that is not a reserved word: a letter, $ or _ first, then letters, digits, $ or _
+    // An ECMAScript identifier name: a letter, $ or _ first, then letters, digits, $ or _. A reserved word is one too:
+    // an enum member is a property name (enum E { do = 'do' } compiles), so TypeScriptEnumMemberName_KeepsAReservedWord
     private static bool IsTypeScriptIdentifier(string name)
         => name.Length > 0
            && (char.IsLetter(name[0]) || name[0] is '$' or '_')
-           && name.All(c => char.IsLetterOrDigit(c) || c is '$' or '_')
-           && !TypeScriptReservedWords.Contains(name);
-
-    private static readonly HashSet<string> TypeScriptReservedWords = new(StringComparer.Ordinal)
-    {
-        "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "enum",
-        "export", "extends", "false", "finally", "for", "function", "if", "import", "in", "instanceof", "new", "null",
-        "return", "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with",
-    };
+           && name.All(c => char.IsLetterOrDigit(c) || c is '$' or '_');
 
     // What a JavaScript engine reads from a single-quoted literal, for the escapes the helper may write
     private static string DecodeJavaScriptSingleQuoted(string literal)
