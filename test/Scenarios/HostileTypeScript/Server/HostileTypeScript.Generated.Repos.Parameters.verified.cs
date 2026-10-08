@@ -25,8 +25,17 @@ namespace HostileTypeScript.Generated.Repos.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReposListParameters(
-    [property: FromQuery(Name = "class")] string? Class,
-    [property: FromHeader(Name = "default")] string? Default);
+#nullable disable annotations
+    string Class,
+    string Default)
+#nullable restore annotations
+{
+    [FromQuery(Name = "class")]
+    public string? Class { get; init; } = Class;
+
+    [FromHeader(Name = "default")]
+    public string? Default { get; init; } = Default;
+}
 
 /// <summary>
 /// Parameters for operation request.

@@ -30,7 +30,9 @@ internal sealed class XmlTestHost : IAsyncDisposable
     /// <summary>
     /// Generates, compiles and starts the server - through the generated <c>Add/Map{Project}Api</c>, or for the plain
     /// host (<paramref name="plainHost"/>: no <c>Atc.Rest.MinimalApi</c>) through <c>MapEndpoints()</c> with
-    /// <c>AddProblemDetails</c>, <c>UseExceptionHandler</c> and <c>UseStatusCodePages</c> written by hand.
+    /// <c>AddProblemDetails</c>, <c>UseExceptionHandler</c> and <c>UseStatusCodePages</c> written by hand. With
+    /// <paramref name="useRequestDelegateGenerator"/> the endpoints run through RDG's request delegates, as in a Native
+    /// AOT build.
     /// </summary>
     public static async Task<XmlTestHost> StartAsync(
         string yaml,
@@ -40,7 +42,8 @@ internal sealed class XmlTestHost : IAsyncDisposable
         Action<IServiceCollection>? configureServices = null,
         bool plainHost = false,
         string? serverMarker = null,
-        Action<WebApplication, Assembly>? configureWithAssembly = null)
+        Action<WebApplication, Assembly>? configureWithAssembly = null,
+        bool useRequestDelegateGenerator = false)
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(
             new ApiServerGenerator(),
@@ -57,7 +60,9 @@ internal sealed class XmlTestHost : IAsyncDisposable
             .Select(ns => $"global using {ns};");
         sources.Add(("XmlRequestHandlers.cs", string.Join(Environment.NewLine, usings) + Environment.NewLine + handlerSource));
 
-        var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: !plainHost);
+        var assembly = useRequestDelegateGenerator
+            ? AotAnalyzerHarness.EmitAndLoadWithRequestDelegateGenerator(sources, includeMinimalApi: !plainHost)
+            : CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: !plainHost);
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
         builder.Services.AddEndpointsApiExplorer();

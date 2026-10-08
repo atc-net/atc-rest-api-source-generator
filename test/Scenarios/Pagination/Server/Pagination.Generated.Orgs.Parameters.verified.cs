@@ -27,5 +27,14 @@ namespace Pagination.Generated.Orgs.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListOrgDevicesParameters(
     [property: FromRoute(Name = "orgId"), Required] string OrgId,
-    [property: FromHeader(Name = "x-continuation")] string? Continuation,
-    [property: FromHeader(Name = "x-tenant")] string? Tenant);
+#nullable disable annotations
+    string Continuation,
+    string Tenant)
+#nullable restore annotations
+{
+    [FromHeader(Name = "x-continuation")]
+    public string? Continuation { get; init; } = Continuation;
+
+    [FromHeader(Name = "x-tenant")]
+    public string? Tenant { get; init; } = Tenant;
+}

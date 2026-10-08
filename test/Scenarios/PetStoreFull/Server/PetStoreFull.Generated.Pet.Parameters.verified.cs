@@ -71,8 +71,17 @@ public sealed record GetPetByIdParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetWithFormParameters(
     [property: FromRoute(Name = "petId"), Required] long PetId,
-    [property: FromQuery(Name = "name")] string? Name,
-    [property: FromQuery(Name = "status")] string? Status);
+#nullable disable annotations
+    string Name,
+    string Status)
+#nullable restore annotations
+{
+    [FromQuery(Name = "name")]
+    public string? Name { get; init; } = Name;
+
+    [FromQuery(Name = "status")]
+    public string? Status { get; init; } = Status;
+}
 
 /// <summary>
 /// Parameters for operation request.
@@ -81,8 +90,14 @@ public sealed record UpdatePetWithFormParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeletePetParameters(
-    [property: FromHeader(Name = "api_key")] string? ApiKey,
-    [property: FromRoute(Name = "petId"), Required] long PetId);
+#nullable disable annotations
+    string ApiKey,
+#nullable restore annotations
+    [property: FromRoute(Name = "petId"), Required] long PetId)
+{
+    [FromHeader(Name = "api_key")]
+    public string? ApiKey { get; init; } = ApiKey;
+}
 
 /// <summary>
 /// Parameters for operation request.
@@ -92,5 +107,11 @@ public sealed record DeletePetParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UploadFileParameters(
     [property: FromRoute(Name = "petId"), Required] long PetId,
-    [property: FromQuery(Name = "additionalMetadata")] string? AdditionalMetadata,
-    [property: FromBody, Required] Stream File);
+#nullable disable annotations
+    string AdditionalMetadata,
+#nullable restore annotations
+    [property: FromBody, Required] Stream File)
+{
+    [FromQuery(Name = "additionalMetadata")]
+    public string? AdditionalMetadata { get; init; } = AdditionalMetadata;
+}

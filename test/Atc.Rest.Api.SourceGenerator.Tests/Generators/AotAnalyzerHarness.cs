@@ -31,20 +31,8 @@ internal static class AotAnalyzerHarness
         List<(string HintName, string Source)> generatedSources,
         bool includeMinimalApi)
     {
-        var parseOptions = CSharpParseOptions.Default.WithFeatures(
-        [
-            new KeyValuePair<string, string>("InterceptorsNamespaces", InterceptorsNamespaces),
-            new KeyValuePair<string, string>("InterceptorsPreviewNamespaces", InterceptorsNamespaces),
-        ]);
-
-        var compilation = CompilationVerificationHarness.CreateCompilation(generatedSources, includeMinimalApi);
-        compilation = compilation.RemoveAllSyntaxTrees().AddSyntaxTrees(
-            compilation.SyntaxTrees.Select(t => t.WithRootAndOptions(t.GetRoot(TestContext.Current.CancellationToken), parseOptions)));
-
-        var (generators, analyzers) = Tools.Value;
-        CSharpGeneratorDriver
-            .Create(generators, parseOptions: parseOptions, optionsProvider: new AotOptionsProvider())
-            .RunGeneratorsAndUpdateCompilation(compilation, out var withGenerated, out _, TestContext.Current.CancellationToken);
+        var withGenerated = WithAspNetCoreGenerators(generatedSources, includeMinimalApi);
+        var (_, analyzers) = Tools.Value;
 
         var errors = withGenerated
             .GetDiagnostics(TestContext.Current.CancellationToken)
@@ -60,6 +48,54 @@ internal static class AotAnalyzerHarness
             .Select(d => d.ToString());
 
         return [.. errors.Concat(warnings).Order(StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// Compiles the generated sources as an AOT project does - RDG intercepting the generated <c>Map*</c> calls - and
+    /// loads the assembly, so a test runs the endpoints through RDG's request delegates (an ordinary build binds them
+    /// with <c>RequestDelegateFactory</c>). Asserts the build succeeded and RDG intercepted.
+    /// </summary>
+    public static Assembly EmitAndLoadWithRequestDelegateGenerator(
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi)
+    {
+        var withGenerated = WithAspNetCoreGenerators(generatedSources, includeMinimalApi);
+        Assert.Contains(withGenerated.SyntaxTrees, t => t.ToString().Contains("InterceptsLocation", StringComparison.Ordinal));
+
+        // RDG's request delegates, for working through a binding difference: ATC_RDG_DUMP=<file>
+        if (Environment.GetEnvironmentVariable("ATC_RDG_DUMP") is { Length: > 0 } dumpPath)
+        {
+            File.WriteAllText(dumpPath, string.Join(Environment.NewLine, withGenerated.SyntaxTrees.Where(t => t.FilePath.Contains("RequestDelegateGenerator", StringComparison.Ordinal)).Select(t => t.ToString())));
+        }
+
+        using var ms = new MemoryStream();
+        var emitResult = withGenerated.Emit(ms, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(
+            emitResult.Success,
+            "Emit with RDG failed:\n" + string.Join("\n", emitResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString()).Distinct(StringComparer.Ordinal)));
+
+        return Assembly.Load(ms.ToArray());
+    }
+
+    private static Compilation WithAspNetCoreGenerators(
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi)
+    {
+        var parseOptions = CSharpParseOptions.Default.WithFeatures(
+        [
+            new KeyValuePair<string, string>("InterceptorsNamespaces", InterceptorsNamespaces),
+            new KeyValuePair<string, string>("InterceptorsPreviewNamespaces", InterceptorsNamespaces),
+        ]);
+
+        var compilation = CompilationVerificationHarness.CreateCompilation(generatedSources, includeMinimalApi);
+        compilation = compilation.RemoveAllSyntaxTrees().AddSyntaxTrees(
+            compilation.SyntaxTrees.Select(t => t.WithRootAndOptions(t.GetRoot(TestContext.Current.CancellationToken), parseOptions)));
+
+        CSharpGeneratorDriver
+            .Create(Tools.Value.Generators, parseOptions: parseOptions, optionsProvider: new AotOptionsProvider())
+            .RunGeneratorsAndUpdateCompilation(compilation, out var withGenerated, out _, TestContext.Current.CancellationToken);
+
+        return withGenerated;
     }
 
     private static (ImmutableArray<ISourceGenerator> Generators, ImmutableArray<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer> Analyzers) LoadTools()

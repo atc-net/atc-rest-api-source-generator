@@ -25,8 +25,14 @@ namespace Pagination.Generated.Accounts.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListAccountsParameters(
-    [property: FromQuery(Name = "continuation")] string? Continuation,
-    [property: FromQuery(Name = "pageSize")] int? PageSize);
+#nullable disable annotations
+    string Continuation,
+#nullable restore annotations
+    [property: FromQuery(Name = "pageSize")] int? PageSize)
+{
+    [FromQuery(Name = "continuation")]
+    public string? Continuation { get; init; } = Continuation;
+}
 
 /// <summary>
 /// Parameters for operation request.

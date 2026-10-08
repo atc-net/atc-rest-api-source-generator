@@ -25,11 +25,20 @@ namespace Demo.Generated.Users.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListUsersParameters(
-    [property: FromQuery(Name = "search")] string? Search,
-    [property: FromQuery(Name = "country")] string? Country,
+#nullable disable annotations
+    string Search,
+    string Country,
+#nullable restore annotations
     [property: FromQuery(Name = "role")] ListUsersParametersRole? Role,
     [property: FromQuery(Name = "isActive")] bool? IsActive,
-    [property: FromQuery(Name = "limit"), Range(1, 100), DefaultValue(25)] int? Limit = 25);
+    [property: FromQuery(Name = "limit"), Range(1, 100), DefaultValue(25)] int? Limit = 25)
+{
+    [FromQuery(Name = "search")]
+    public string? Search { get; init; } = Search;
+
+    [FromQuery(Name = "country")]
+    public string? Country { get; init; } = Country;
+}
 
 /// <summary>
 /// Parameters for operation request.

@@ -25,7 +25,13 @@ namespace AsyncEnumerableHooks.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
-    [property: FromQuery(Name = "filter")] string? Filter);
+#nullable disable annotations
+    string Filter)
+#nullable restore annotations
+{
+    [FromQuery(Name = "filter")]
+    public string? Filter { get; init; } = Filter;
+}
 
 /// <summary>
 /// Parameters for operation request.

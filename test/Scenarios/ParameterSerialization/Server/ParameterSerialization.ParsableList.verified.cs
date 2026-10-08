@@ -31,8 +31,16 @@ public sealed class ParsableList<T> : List<T>, IParsable<ParsableList<T>>
             : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
 
     /// <inheritdoc />
-    public static bool TryParse(string? s, IFormatProvider? provider, out ParsableList<T> result)
+    public static bool TryParse(string? s, IFormatProvider? provider, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableList<T> result)
     {
+        // No value is no list: a binder that parses before it looks (the Request Delegate Generator) then
+        // binds null, as one that looks first (RequestDelegateFactory) does
+        if (string.IsNullOrEmpty(s))
+        {
+            result = null;
+            return false;
+        }
+
         result = new ParsableList<T>();
         return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
     }
@@ -58,8 +66,16 @@ public sealed class ParsableEnumList<T> : List<T>, IParsable<ParsableEnumList<T>
             : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
 
     /// <inheritdoc />
-    public static bool TryParse(string? s, IFormatProvider? provider, out ParsableEnumList<T> result)
+    public static bool TryParse(string? s, IFormatProvider? provider, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableEnumList<T> result)
     {
+        // No value is no list: a binder that parses before it looks (the Request Delegate Generator) then
+        // binds null, as one that looks first (RequestDelegateFactory) does
+        if (string.IsNullOrEmpty(s))
+        {
+            result = null;
+            return false;
+        }
+
         result = new ParsableEnumList<T>();
         return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
     }

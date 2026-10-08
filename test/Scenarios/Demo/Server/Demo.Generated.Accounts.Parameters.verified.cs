@@ -71,7 +71,16 @@ public sealed record UpdateAccountByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPaginatedAccountsParameters(
-    [property: FromQuery(Name = "queryString")] string? QueryString,
-    [property: FromQuery(Name = "continuation")] string? Continuation,
+#nullable disable annotations
+    string QueryString,
+    string Continuation,
+#nullable restore annotations
     [property: FromQuery(Name = "pageSize"), Range(1, 100), DefaultValue(10)] int? PageSize = 10,
-    [property: FromQuery(Name = "pageIndex"), Range(0, long.MaxValue), DefaultValue(0)] int? PageIndex = 0);
+    [property: FromQuery(Name = "pageIndex"), Range(0, long.MaxValue), DefaultValue(0)] int? PageIndex = 0)
+{
+    [FromQuery(Name = "queryString")]
+    public string? QueryString { get; init; } = QueryString;
+
+    [FromQuery(Name = "continuation")]
+    public string? Continuation { get; init; } = Continuation;
+}

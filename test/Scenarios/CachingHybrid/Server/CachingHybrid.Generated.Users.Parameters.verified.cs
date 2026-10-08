@@ -25,9 +25,18 @@ namespace CachingHybrid.Generated.Users.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListUsersParameters(
-    [property: FromQuery(Name = "search")] string? Search,
-    [property: FromQuery(Name = "role")] string? Role,
-    [property: FromQuery(Name = "limit"), DefaultValue(50)] int? Limit = 50);
+#nullable disable annotations
+    string Search,
+    string Role,
+#nullable restore annotations
+    [property: FromQuery(Name = "limit"), DefaultValue(50)] int? Limit = 50)
+{
+    [FromQuery(Name = "search")]
+    public string? Search { get; init; } = Search;
+
+    [FromQuery(Name = "role")]
+    public string? Role { get; init; } = Role;
+}
 
 /// <summary>
 /// Parameters for operation request.

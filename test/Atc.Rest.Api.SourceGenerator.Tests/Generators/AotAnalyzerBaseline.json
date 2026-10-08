@@ -1,18 +1,3 @@
 {
-  "AsyncEnumerableHooks/Server": 1,
-  "CachingHybrid/Server": 6,
-  "CachingOutput/Server": 3,
-  "CookieParameters/Server": 5,
-  "Demo/Server": 18,
-  "Demo/ServerDomain": 18,
-  "Deprecations/Server": 2,
-  "Deprecations/ServerDomain": 2,
-  "HostileNames/Server": 6,
-  "HostileSpec/Server": 10,
-  "HostileTypeScript/Server": 4,
-  "HttpMethods/Server": 5,
-  "Pagination/Server": 13,
-  "ParameterSerialization/Server": 26,
-  "PetStoreFull/Server": 15,
-  "PetStoreFull/ServerDomain": 15
+  "HttpMethods/Server": 5
 }

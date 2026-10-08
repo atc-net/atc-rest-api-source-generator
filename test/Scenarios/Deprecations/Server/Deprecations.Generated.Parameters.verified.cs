@@ -26,8 +26,14 @@ namespace Deprecations.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPetsParameters(
-    [property: FromQuery(Name = "tag")] string? Tag,
-    [property: FromQuery(Name = "limit")] int? Limit);
+#nullable disable annotations
+    string Tag,
+#nullable restore annotations
+    [property: FromQuery(Name = "limit")] int? Limit)
+{
+    [FromQuery(Name = "tag")]
+    public string? Tag { get; init; } = Tag;
+}
 
 /// <summary>
 /// Parameters for operation request.

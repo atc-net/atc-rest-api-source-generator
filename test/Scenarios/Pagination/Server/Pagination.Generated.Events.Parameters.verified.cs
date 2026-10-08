@@ -26,5 +26,11 @@ namespace Pagination.Generated.Events.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListEventsParameters(
-    [property: FromQuery(Name = "page-token")] string? PageToken,
-    [property: FromQuery(Name = "page-size")] int? PageSize);
+#nullable disable annotations
+    string PageToken,
+#nullable restore annotations
+    [property: FromQuery(Name = "page-size")] int? PageSize)
+{
+    [FromQuery(Name = "page-token")]
+    public string? PageToken { get; init; } = PageToken;
+}

@@ -25,11 +25,29 @@ namespace ParameterSerialization.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
-    [property: FromQuery(Name = "tags")] ParsableList<string>? Tags,
-    [property: FromQuery(Name = "q")] string? Q,
-    [property: FromQuery(Name = "legacy")] ParsableList<string>? Legacy,
-    [property: FromQuery(Name = "ids")] ParsableList<string>? Ids,
-    [property: FromHeader(Name = "x-cookie-session")] string? Session);
+#nullable disable annotations
+    ParsableList<string> Tags,
+    string Q,
+    ParsableList<string> Legacy,
+    ParsableList<string> Ids,
+    string Session)
+#nullable restore annotations
+{
+    [FromQuery(Name = "tags")]
+    public ParsableList<string>? Tags { get; init; } = Tags;
+
+    [FromQuery(Name = "q")]
+    public string? Q { get; init; } = Q;
+
+    [FromQuery(Name = "legacy")]
+    public ParsableList<string>? Legacy { get; init; } = Legacy;
+
+    [FromQuery(Name = "ids")]
+    public ParsableList<string>? Ids { get; init; } = Ids;
+
+    [FromHeader(Name = "x-cookie-session")]
+    public string? Session { get; init; } = Session;
+}
 
 /// <summary>
 /// Parameters for operation request.
@@ -38,4 +56,10 @@ public sealed record ListItemsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsByQueryStringParameters(
-    [property: FromQuery(Name = "\u001fquerystring")] string? RawFilter);
+#nullable disable annotations
+    string RawFilter)
+#nullable restore annotations
+{
+    [FromQuery(Name = "\u001fquerystring")]
+    public string? RawFilter { get; init; } = RawFilter;
+}

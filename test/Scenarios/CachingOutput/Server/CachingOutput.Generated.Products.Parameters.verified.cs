@@ -25,9 +25,15 @@ namespace CachingOutput.Generated.Products.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListProductsParameters(
-    [property: FromQuery(Name = "category")] string? Category,
+#nullable disable annotations
+    string Category,
+#nullable restore annotations
     [property: FromQuery(Name = "page"), DefaultValue(1)] int? Page = 1,
-    [property: FromQuery(Name = "limit"), DefaultValue(20)] int? Limit = 20);
+    [property: FromQuery(Name = "limit"), DefaultValue(20)] int? Limit = 20)
+{
+    [FromQuery(Name = "category")]
+    public string? Category { get; init; } = Category;
+}
 
 /// <summary>
 /// Parameters for operation request.

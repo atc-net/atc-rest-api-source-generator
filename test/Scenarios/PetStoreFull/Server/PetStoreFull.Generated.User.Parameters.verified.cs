@@ -43,8 +43,17 @@ public sealed record CreateUsersWithListInputParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record LoginUserParameters(
-    [property: FromQuery(Name = "username")] string? Username,
-    [property: FromQuery(Name = "password")] string? Password);
+#nullable disable annotations
+    string Username,
+    string Password)
+#nullable restore annotations
+{
+    [FromQuery(Name = "username")]
+    public string? Username { get; init; } = Username;
+
+    [FromQuery(Name = "password")]
+    public string? Password { get; init; } = Password;
+}
 
 /// <summary>
 /// Parameters for operation request.
