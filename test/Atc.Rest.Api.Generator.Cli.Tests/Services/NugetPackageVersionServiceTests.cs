@@ -99,7 +99,10 @@ public sealed class NugetPackageVersionServiceTests
 
         stopwatch.Stop();
         Assert.Null(version);
-        Assert.True(stopwatch.Elapsed < Budget + TimeSpan.FromSeconds(3), $"Took {stopwatch.Elapsed}.");
+
+        // The budget ended the wait, not the handler's hang: well short of it even when a loaded machine runs the timer
+        // late (a full parallel test run once took 9.8s for the 2s budget)
+        Assert.True(stopwatch.Elapsed < HangingHandler.Hang / 2, $"Took {stopwatch.Elapsed}.");
     }
 
     private static NugetPackageVersionService CreateService(
@@ -130,11 +133,13 @@ public sealed class NugetPackageVersionServiceTests
 
     private sealed class HangingHandler : HttpMessageHandler
     {
+        public static readonly TimeSpan Hang = TimeSpan.FromSeconds(30);
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+            await Task.Delay(Hang, cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
