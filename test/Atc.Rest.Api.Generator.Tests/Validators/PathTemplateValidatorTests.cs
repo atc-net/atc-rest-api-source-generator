@@ -85,6 +85,42 @@ public class PathTemplateValidatorTests
         Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.OperationMissingPathParameter);
     }
 
+    /// <summary>
+    /// A path without its leading <c>/</c> is left out of the document by the reader, which reports it only among its
+    /// own diagnostics; the operation must not disappear without a word under <c>None</c>: it is an error under every
+    /// strategy, naming the path.
+    /// </summary>
+    [Fact]
+    public void Validate_APathWithoutItsLeadingSlash_IsAnError_UnderEveryStrategy()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info: { title: Contoso, version: 1.0.0 }
+            paths:
+              items:
+                get:
+                  operationId: listItems
+                  responses:
+                    '200': { description: OK }
+              /orders:
+                get:
+                  operationId: listOrders
+                  responses:
+                    '200': { description: OK }
+            """;
+        var (document, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, "no-slash.yaml");
+        Assert.NotNull(document);
+
+        foreach (var strategy in (ValidateSpecificationStrategy[])[ValidateSpecificationStrategy.None, ValidateSpecificationStrategy.Standard, ValidateSpecificationStrategy.Strict])
+        {
+            var diagnostics = OpenApiDocumentValidator.Validate(strategy, document, diagnostic!.Errors, TestFilePath, diagnosticWarnings: diagnostic.Warnings);
+
+            var error = Assert.Single(diagnostics, d => d.RuleId == RuleIdentifiers.PathParametersNotWellFormatted);
+            Assert.True(error.Severity == DiagnosticSeverity.Error, $"{strategy}: {string.Join(" | ", diagnostics.Select(d => d.RuleId + " " + d.Message))} | reader: {string.Join(" | ", diagnostic.Errors.Concat(diagnostic.Warnings).Select(e => e.Pointer + " " + e.Message))}");
+            Assert.Contains("'items'", error.Message, StringComparison.Ordinal);
+        }
+    }
+
     private static OpenApiDocument Parse(
         string path,
         string? declaredParameter,

@@ -94,6 +94,7 @@ public static class OpenApiDocumentValidator
         // A path template the route or the generated code could not carry, a placeholder no parameter declares, and
         // a response for a status range (generated as its first status)
         diagnostics.AddRange(ValidatePaths(document, sourceFilePath));
+        diagnostics.AddRange(ValidatePathsTheReaderDropped(diagnosticErrors, sourceFilePath));
         diagnostics.AddRange(ValidateResponseRanges(document, sourceFilePath));
 
         // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it), and a parameter
@@ -233,6 +234,47 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates using Microsoft.OpenApi library errors (Standard level).
     /// </summary>
+    /// <summary>
+    /// ATC_API_PTH001 for a path the reader left out of the document: one that does not start with <c>/</c>, which the
+    /// reader reports only as "{name} is not a valid property at #/paths" among its own errors (shown under Standard
+    /// and Strict only). The operations under it would otherwise disappear without a word. Every strategy.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidatePathsTheReaderDropped(
+        IList<OpenApiError> diagnosticErrors,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        foreach (var error in diagnosticErrors)
+        {
+            if (DroppedPath(error) is not { } path)
+            {
+                continue;
+            }
+
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.PathParametersNotWellFormatted,
+                $"Path '{path}' does not start with '/': the reader leaves it out, with every operation under it.",
+                DiagnosticSeverity.Error,
+                sourceFilePath,
+                LineNumber: null,
+                ColumnNumber: null,
+                Context: path,
+                Suggestions: [$"Write the path as '/{path}'"]));
+        }
+
+        return diagnostics;
+    }
+
+    // The path the reader dropped, from its error "{name} is not a valid property at #/paths"; null for any other error
+    private static string? DroppedPath(OpenApiError error)
+    {
+        const string suffix = " is not a valid property at #/paths";
+        var message = error.Message?.Trim();
+        return message is not null && message.EndsWith(suffix, StringComparison.Ordinal) && message.Length > suffix.Length
+            ? message.Substring(0, message.Length - suffix.Length).Trim()
+            : null;
+    }
+
     private static List<DiagnosticMessage> ValidateStandard(
         ValidateSpecificationStrategy strategy,
         IList<OpenApiError> diagnosticErrors,
@@ -256,6 +298,12 @@ public static class OpenApiDocumentValidator
                     error.Message.Contains("discriminator", StringComparison.OrdinalIgnoreCase) &&
                     error.Message.Contains("required", StringComparison.OrdinalIgnoreCase) &&
                     IsDiscriminatorWithoutPropertyName(document, error.Pointer))
+                {
+                    continue;
+                }
+
+                // A path without its leading '/': reported as ATC_API_PTH001 under every strategy
+                if (DroppedPath(error) is not null)
                 {
                     continue;
                 }
