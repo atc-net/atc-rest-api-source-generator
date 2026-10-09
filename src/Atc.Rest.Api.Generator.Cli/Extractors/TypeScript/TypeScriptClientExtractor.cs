@@ -1388,6 +1388,12 @@ public static class TypeScriptClientExtractor
                 value = TypeScriptOperationHelper.SerializeDateParameter(param, value, optional: true);
             }
 
+            // An array: its items joined by commas (style: simple), not left to the runtime's own header conversion
+            if (param.GetArrayDelimiter() is { } delimiter)
+            {
+                value += "?.join('" + delimiter + "')";
+            }
+
             sb.Append("        '").Append(rawName).Append("': ").Append(value).AppendLine(",");
         }
 

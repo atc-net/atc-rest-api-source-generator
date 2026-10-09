@@ -475,8 +475,8 @@ public static class CodeGenerationService
     }
 
     /// <summary>
-    /// Checks if the OpenAPI document contains any query parameters with array type, or a form body (bound field by
-    /// field) with a list field - both are bound through the generated ParsableList types.
+    /// Checks if the OpenAPI document contains any query, path or header parameters with array type, or a form body
+    /// (bound field by field) with a list field - all are bound through the generated ParsableList types.
     /// </summary>
     public static bool HasQueryArrayParameters(OpenApiDocument openApiDoc)
     {
@@ -975,8 +975,10 @@ public static class CodeGenerationService
             return false;
         }
 
+        // A query, path or header array: each is bound through ParsableList (a path or header array is its items
+        // joined by commas)
         var location = parameter.In ?? ParameterLocation.Query;
-        if (location != ParameterLocation.Query)
+        if (location is not (ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header))
         {
             return false;
         }

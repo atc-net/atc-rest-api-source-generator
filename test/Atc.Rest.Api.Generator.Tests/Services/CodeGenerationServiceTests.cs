@@ -514,8 +514,9 @@ public class CodeGenerationServiceTests
     }
 
     [Fact]
-    public void HasQueryArrayParameters_ArrayHeaderAndScalarQueryParameters_ReturnsFalse()
+    public void HasQueryArrayParameters_ArrayHeader_ReturnsTrue()
     {
+        // A header (or path) array is its items joined by commas, bound through ParsableList like a query array
         var document = OpenApiDocumentHelper.ParseYaml("""
             openapi: 3.0.3
             info:
@@ -541,7 +542,7 @@ public class CodeGenerationServiceTests
                       description: OK
             """);
 
-        Assert.False(CodeGenerationService.HasQueryArrayParameters(document));
+        Assert.True(CodeGenerationService.HasQueryArrayParameters(document));
     }
 
     [Fact]

@@ -24,6 +24,9 @@ public class ParameterBindingValidatorTests
         { "in: query", "{ type: array, items: { $ref: '#/components/schemas/Filter' } }" },
         { "in: query", "{ oneOf: [ { type: string }, { $ref: '#/components/schemas/Filter' } ] }" },
         { "in: query", "{ anyOf: [ { $ref: '#/components/schemas/Filter' } ] }" },
+        { "in: path, style: label", "{ type: string }" },
+        { "in: path, style: matrix", "{ type: string }" },
+        { "in: path, style: label", "{ type: array, items: { type: integer } }" },
     };
 
     public static TheoryData<string, string> Bindable => new()
@@ -41,6 +44,10 @@ public class ParameterBindingValidatorTests
         { "in: query", "{ allOf: [ { $ref: '#/components/schemas/Filter' } ] }" },
         { "in: header", "{ type: string, format: uuid }" },
         { "in: path", "{ type: string }" },
+        { "in: path", "{ type: array, items: { type: integer } }" },
+        { "in: path, style: simple, explode: true", "{ type: array, items: { type: string } }" },
+        { "in: header", "{ type: array, items: { type: string } }" },
+        { "in: header", "{ type: array, items: { $ref: '#/components/schemas/Color' } }" },
     };
 
     [Theory]
@@ -56,7 +63,7 @@ public class ParameterBindingValidatorTests
             var diagnostics = OpenApiDocumentValidator.Validate(strategy, document, [], TestFilePath);
 
             var diagnostic = Assert.Single(diagnostics, d => d.RuleId == RuleIdentifiers.ParameterValueNotBindable);
-            Assert.Equal(declaration == "in: path" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, diagnostic.Severity);
+            Assert.Equal(declaration.StartsWith("in: path", StringComparison.Ordinal) ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, diagnostic.Severity);
             Assert.Contains("'filter'", diagnostic.Message, StringComparison.Ordinal);
             Assert.Contains("listThings", diagnostic.Message, StringComparison.Ordinal);
             Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.ParameterSerializationNotSupported);
@@ -74,6 +81,7 @@ public class ParameterBindingValidatorTests
         var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath);
 
         Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.ParameterValueNotBindable);
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.ParameterSerializationNotSupported);
     }
 
     [Fact]
@@ -190,7 +198,7 @@ public class ParameterBindingValidatorTests
         string schema)
         => $$"""
             paths:
-              {{(declaration == "in: path" ? "/things/{filter}" : "/things")}}:
+              {{(declaration.StartsWith("in: path", StringComparison.Ordinal) ? "/things/{filter}" : "/things")}}:
                 get:
                   operationId: listThings
                   parameters:

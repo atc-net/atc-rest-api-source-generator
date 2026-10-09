@@ -184,15 +184,36 @@ public class OpenApiParameterExtensionsTests
         Assert.Equal(delimiter, param.GetArrayDelimiter());
     }
 
-    [Fact]
-    public void GetArrayDelimiter_IsNullForAnythingButAQueryArray()
+    /// <summary>
+    /// A path or header array is its items joined by commas (<c>style: simple</c>, explode or not): supported, with
+    /// <c>,</c> as its delimiter.
+    /// </summary>
+    [Theory]
+    [InlineData(ParameterLocation.Path, false)]
+    [InlineData(ParameterLocation.Path, true)]
+    [InlineData(ParameterLocation.Header, false)]
+    [InlineData(ParameterLocation.Header, true)]
+    public void GetArrayDelimiter_PathOrHeaderArray_IsAComma(
+        ParameterLocation location,
+        bool explode)
     {
-        var header = new OpenApiParameter
+        var param = new OpenApiParameter
         {
             Name = "tags",
-            In = ParameterLocation.Header,
+            In = location,
+            Style = ParameterStyle.Simple,
+            Explode = explode,
             Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
         };
+
+        Assert.True(param.GetParameterSerialization().IsSupported);
+        Assert.False(param.IsUnbindable());
+        Assert.Equal(',', param.GetArrayDelimiter());
+    }
+
+    [Fact]
+    public void GetArrayDelimiter_IsNullForAOneValueParameter()
+    {
         var primitive = new OpenApiParameter
         {
             Name = "tag",
@@ -201,8 +222,28 @@ public class OpenApiParameterExtensionsTests
             Schema = new OpenApiSchema { Type = JsonSchemaType.String },
         };
 
-        Assert.Null(header.GetArrayDelimiter());
         Assert.Null(primitive.GetArrayDelimiter());
+    }
+
+    /// <summary>
+    /// A path parameter in <c>label</c> (<c>.5</c>) or <c>matrix</c> (<c>;id=5</c>) style: the generated code neither
+    /// binds nor sends the prefix, so the parameter is one it cannot carry (<c>ATC_API_OPR037</c>).
+    /// </summary>
+    [Theory]
+    [InlineData(ParameterStyle.Label)]
+    [InlineData(ParameterStyle.Matrix)]
+    public void IsUnbindable_LabelOrMatrixStyle_IsTrue(ParameterStyle style)
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "id",
+            In = ParameterLocation.Path,
+            Required = true,
+            Style = style,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        };
+
+        Assert.True(param.IsUnbindable());
     }
 
     [Fact]

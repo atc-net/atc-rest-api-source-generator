@@ -423,10 +423,12 @@ public static class WireBindingExtensions
             }
 
             // An array: its items as one value with the item separator before each (the list type splits on
-            // it, nothing else). A declared delimiter splits each value; without one (explode: true) every
-            // key is one item, commas and all. An item keeps its spaces; an empty one is no item.
+            // it, nothing else). A declared delimiter splits each value; a path or header array is its items
+            // joined by commas (style: simple); in the query without one (explode: true) every key is one
+            // item, commas and all. An item keeps its spaces; an empty one is no item.
+            var arrayDelimiter = parameter.Delimiter ?? (parameter.In is "path" or "header" ? ',' : null);
             var items = parameter.IsArray
-                ? parameter.Delimiter is { } delimiter
+                ? arrayDelimiter is { } delimiter
                     ? values.SelectMany(v => (v ?? string.Empty).Split(delimiter, StringSplitOptions.RemoveEmptyEntries)).ToArray()
                     : values.Where(v => !string.IsNullOrEmpty(v)).Select(v => v!).ToArray()
                 : values.Where(v => v is not null).Select(v => v!).ToArray();
@@ -446,8 +448,20 @@ public static class WireBindingExtensions
 
             if (parameter.IsArray)
             {
-                query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
-                query[parameter.Name] = string.Concat(items.Select(item => ItemSeparator + item));
+                var joined = string.Concat(items.Select(item => ItemSeparator + item));
+                switch (parameter.In)
+                {
+                    case "path":
+                        request.RouteValues[parameter.Name] = joined;
+                        break;
+                    case "query":
+                        query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                        query[parameter.Name] = joined;
+                        break;
+                    default:
+                        request.Headers[parameter.Name] = joined;
+                        break;
+                }
             }
             else if (parameter.Members is { Count: > 0 })
             {

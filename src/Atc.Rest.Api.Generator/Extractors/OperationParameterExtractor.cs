@@ -482,10 +482,11 @@ public static class OperationParameterExtractor
                     ? paramType.Substring(0, paramType.Length - 1)
                     : paramType;
 
-                // For server-side query parameters, List<T> must be wrapped with ParsableList<T>
-                // because [AsParameters] binding requires TryParse, which List<T> doesn't have
+                // For server-side query, path and header parameters, List<T> must be wrapped with ParsableList<T>
+                // because [AsParameters] binding requires TryParse, which List<T> doesn't have (a path or header array
+                // is its items joined by commas, OpenAPI's style: simple)
                 if (includeBindingAttributes &&
-                    paramLocation == ParameterLocation.Query &&
+                    paramLocation is ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header &&
                     cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
                 {
                     // An enum has no TryParse of its own: its list is read by wire name (ParsableEnumList<T>)

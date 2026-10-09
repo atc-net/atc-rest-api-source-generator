@@ -213,7 +213,10 @@ public static class OpenApiParameterExtensions
                 // with explode: true)
                 ParameterStyle.PipeDelimited or ParameterStyle.SpaceDelimited => valueKind == ParameterValueKind.Array &&
                                                                                    parameter.In == ParameterLocation.Query,
-                ParameterStyle.Simple => valueKind == ParameterValueKind.Primitive,
+
+                // A primitive, or a path or header array as its items joined by commas
+                ParameterStyle.Simple => valueKind == ParameterValueKind.Primitive ||
+                                         (valueKind == ParameterValueKind.Array && parameter.In is ParameterLocation.Path or ParameterLocation.Header),
 
                 // OAS 3.2: style:cookie (RFC 6265) applies to in:cookie params; no percent-encoding,
                 // semicolon-separated pairs. Supported for primitive and array values.
@@ -285,6 +288,12 @@ public static class OpenApiParameterExtensions
                 return false;
             }
 
+            // A label (.5) or matrix (;id=5) value: the generated code neither binds nor sends the prefix
+            if (parameter.Style is ParameterStyle.Label or ParameterStyle.Matrix)
+            {
+                return true;
+            }
+
             var schema = (IOpenApiSchema?)parameter.Schema.SingleWrappedReference() ?? parameter.Schema;
             if (schema is OpenApiSchemaReference && parameter.In == ParameterLocation.Query)
             {
@@ -307,16 +316,26 @@ public static class OpenApiParameterExtensions
         }
 
         /// <summary>
-        /// The character between the items of a query array that is one value: <c>,</c> for <c>form</c> with
-        /// <c>explode: false</c>, <c>|</c> for <c>pipeDelimited</c> and a space for <c>spaceDelimited</c> (both without
-        /// explode). <see langword="null"/> for an array sent as repeated keys (<c>explode: true</c>) and for anything
-        /// that is no query array.
+        /// The character between the items of an array that is one value: <c>,</c> for a query array in <c>form</c>
+        /// with <c>explode: false</c> and for a path or header array (<c>style: simple</c>, explode or not), <c>|</c>
+        /// for <c>pipeDelimited</c> and a space for <c>spaceDelimited</c> (both without explode).
+        /// <see langword="null"/> for a query array sent as repeated keys (<c>explode: true</c>) and for anything that
+        /// is no array.
         /// </summary>
         /// <returns>The delimiter, or null.</returns>
         public char? GetArrayDelimiter()
         {
+            if (GetValueKind(parameter.Schema) != ParameterValueKind.Array)
+            {
+                return null;
+            }
+
+            if (parameter.In is ParameterLocation.Path or ParameterLocation.Header)
+            {
+                return (parameter.Style ?? ParameterStyle.Simple) == ParameterStyle.Simple ? ',' : null;
+            }
+
             if (parameter.In != ParameterLocation.Query ||
-                GetValueKind(parameter.Schema) != ParameterValueKind.Array ||
                 parameter.Explode)
             {
                 return null;

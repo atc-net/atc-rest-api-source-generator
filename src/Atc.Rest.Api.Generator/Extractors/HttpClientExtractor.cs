@@ -854,11 +854,13 @@ public static class HttpClientExtractor
                 {
                     var propName = propertyNames.Get(param, referenceId);
                     var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
-                    var replacement = WireValueHelper.IsStringEnum(param.Schema)
-                        ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
-                        : WireValueHelper.IsIntegerEnum(param.Schema)
-                            ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
-                            : BuildPathParameterReplacement(propName, paramType);
+                    var replacement = param.GetArrayDelimiter() is { } delimiter
+                        ? $"{{{JoinedItemsExpression(param, $"parameters.{propName}", paramType, delimiter, escapeItems: true)}}}"
+                        : WireValueHelper.IsStringEnum(param.Schema)
+                            ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
+                            : WireValueHelper.IsIntegerEnum(param.Schema)
+                                ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
+                                : BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -881,11 +883,13 @@ public static class HttpClientExtractor
                 {
                     var propName = propertyNames.Get(param, referenceId);
                     var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
-                    var replacement = WireValueHelper.IsStringEnum(param.Schema)
-                        ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
-                        : WireValueHelper.IsIntegerEnum(param.Schema)
-                            ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
-                            : BuildPathParameterReplacement(propName, paramType);
+                    var replacement = param.GetArrayDelimiter() is { } delimiter
+                        ? $"{{{JoinedItemsExpression(param, $"parameters.{propName}", paramType, delimiter, escapeItems: true)}}}"
+                        : WireValueHelper.IsStringEnum(param.Schema)
+                            ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
+                            : WireValueHelper.IsIntegerEnum(param.Schema)
+                                ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
+                                : BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -955,12 +959,7 @@ public static class HttpClientExtractor
                 if (serialization.ValueKind == ParameterValueKind.Array &&
                     param.GetArrayDelimiter() is { } delimiter)
                 {
-                    var itemsSchema = (param.Schema is OpenApiSchemaReference itemsReference ? itemsReference.Target : param.Schema)?.Items;
-                    var itemType = TryGetListElementType(paramType, out var elementType) ? elementType : "string";
-                    var itemText = WireValueHelper.IsIntegerEnum(itemsSchema)
-                        ? WireValueHelper.IntegerEnumWireExpression("item") + "!"
-                        : BuildWireTextExpression("item", itemType, WireValueHelper.IsStringEnum(itemsSchema));
-                    var joined = $"string.Join({CSharpLiteralHelper.ToStringLiteral(delimiter.ToString())}, global::System.Linq.Enumerable.Select({paramAccess}, item => {itemText}))";
+                    var joined = JoinedItemsExpression(param, paramAccess, paramType, delimiter, escapeItems: false);
                     var value = serialization.AllowReserved ? joined : $"Uri.EscapeDataString({joined})";
 
                     builder.AppendLine();
@@ -1696,9 +1695,13 @@ public static class HttpClientExtractor
 
             sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
             sb.AppendLine("{");
-            var headerText = WireValueHelper.IsIntegerEnum(param.Schema)
-                ? WireValueHelper.IntegerEnumWireExpression(variable) + "!"
-                : BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema));
+
+            // An array: its items joined by commas (style: simple)
+            var headerText = param.GetArrayDelimiter() is { } delimiter
+                ? JoinedItemsExpression(param, variable, paramType, delimiter, escapeItems: false)
+                : WireValueHelper.IsIntegerEnum(param.Schema)
+                    ? WireValueHelper.IntegerEnumWireExpression(variable) + "!"
+                    : BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema));
             sb.AppendLine(4, $"{requestVariable}.Headers.Add({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {headerText});");
             sb.AppendLine("}");
             sb.AppendLine();
@@ -1735,6 +1738,30 @@ public static class HttpClientExtractor
         // A value that is there: an empty string is left out, as before
         static string ValuePattern(string paramType)
             => paramType.TrimEnd('?') == "string" ? "{ Length: > 0 }" : "{ }";
+    }
+
+    /// <summary>
+    /// A C# expression of type <c>string</c>: an array's items joined on its delimiter, each as the specification writes
+    /// it (an enum by its wire value) and, in a path, percent-encoded on its own so the delimiter stays one.
+    /// </summary>
+    private static string JoinedItemsExpression(
+        OpenApiParameter param,
+        string access,
+        string paramType,
+        char delimiter,
+        bool escapeItems)
+    {
+        var itemsSchema = (param.Schema is OpenApiSchemaReference reference ? reference.Target : param.Schema)?.Items;
+        var itemType = TryGetListElementType(paramType, out var elementType) ? elementType : "string";
+        var itemText = WireValueHelper.IsIntegerEnum(itemsSchema)
+            ? WireValueHelper.IntegerEnumWireExpression("item") + "!"
+            : BuildWireTextExpression("item", itemType, WireValueHelper.IsStringEnum(itemsSchema));
+        if (escapeItems)
+        {
+            itemText = $"Uri.EscapeDataString({itemText})";
+        }
+
+        return $"string.Join({CSharpLiteralHelper.ToStringLiteral(delimiter.ToString())}, global::System.Linq.Enumerable.Select({access}, item => {itemText}))";
     }
 
     /// <summary>

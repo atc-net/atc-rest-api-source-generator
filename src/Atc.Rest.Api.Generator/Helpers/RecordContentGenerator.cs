@@ -128,6 +128,7 @@ public static class RecordContentGenerator
            typeName is "string" or "object" or "IFormFile" or "IFormFileCollection" or "Stream" or "Uri" or "System.Uri" ||
            typeName.EndsWith("[]", StringComparison.Ordinal) ||
            typeName.StartsWith("ParsableList<", StringComparison.Ordinal) ||
+           typeName.StartsWith("ParsableEnumList<", StringComparison.Ordinal) ||
            typeName.StartsWith("List<", StringComparison.Ordinal) ||
            typeName.StartsWith("IEnumerable<", StringComparison.Ordinal);
 
