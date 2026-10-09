@@ -907,6 +907,13 @@ public static class HttpClientExtractor
             {
                 var resolved = paramInterface.Resolve();
                 var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
+
+                // A value the client cannot send is left out (ATC_API_OPR037 warned)
+                if (param?.IsUnbindable() == true)
+                {
+                    continue;
+                }
+
                 switch (param)
                 {
                     case { In: ParameterLocation.Query }:

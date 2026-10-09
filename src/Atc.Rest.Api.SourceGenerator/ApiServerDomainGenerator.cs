@@ -158,11 +158,11 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                     }
 
                     // Validate the merged document according to the configured strategy, like a single file
-                    var validationDiagnostics = OpenApiDocumentValidator.Validate(
+                    var validationDiagnostics = SpecificationLoader.WithUnbindableParametersAsErrors(OpenApiDocumentValidator.Validate(
                         config.ValidateSpecificationStrategy,
                         merged,
                         Array.Empty<OpenApiError>(),
-                        baseFile.Value.Path);
+                        baseFile.Value.Path));
 
                     foreach (var diagnostic in validationDiagnostics)
                     {
@@ -393,7 +393,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         string markerDirectory,
         IReadOnlyList<OverlayFile> overlays)
     {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError, overlays);
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError, overlays, parametersMustBind: true);
         if (openApiDoc is null)
         {
             return;

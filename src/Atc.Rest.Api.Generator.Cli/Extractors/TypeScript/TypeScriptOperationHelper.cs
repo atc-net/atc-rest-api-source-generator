@@ -83,7 +83,9 @@ public static class TypeScriptOperationHelper
         foreach (var paramInterface in parameters)
         {
             var resolved = paramInterface.Resolve();
-            if (resolved.Parameter is not null && resolved.Parameter.In == location)
+
+            // A value the client cannot send is left out (ATC_API_OPR037 warned)
+            if (resolved.Parameter is not null && resolved.Parameter.In == location && !resolved.Parameter.IsUnbindable())
             {
                 result.Add(resolved.Parameter);
             }
@@ -798,7 +800,7 @@ public static class TypeScriptOperationHelper
             foreach (var paramInterface in operation.Parameters)
             {
                 var resolved = paramInterface.Resolve();
-                if (resolved.Parameter is { In: ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header } p)
+                if (resolved.Parameter is { In: ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header } p && !p.IsUnbindable())
                 {
                     CollectSchemaRefTypes(p.Schema, importTypes);
                 }
@@ -815,7 +817,7 @@ public static class TypeScriptOperationHelper
             foreach (var paramInterface in pathItem.Parameters)
             {
                 var resolved = paramInterface.Resolve();
-                if (resolved.Parameter is { In: ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header } p)
+                if (resolved.Parameter is { In: ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header } p && !p.IsUnbindable())
                 {
                     CollectSchemaRefTypes(p.Schema, importTypes);
                 }

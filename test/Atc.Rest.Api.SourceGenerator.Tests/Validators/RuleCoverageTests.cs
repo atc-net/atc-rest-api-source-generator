@@ -58,6 +58,7 @@ public class RuleCoverageTests
         ["ATC_API_SCH024"] = "SchemaTypeOnlyNull - Tested in Atc.Rest.Api.Generator.Tests.Validators.NullOnlyTypeValidatorTests",
         ["ATC_API_OPR033"] = "ParameterWithoutSchema - Tested in Atc.Rest.Api.Generator.Tests.Validators.ParameterSchemaValidatorTests",
         ["ATC_API_OPR034"] = "ResponseStatusRange - Tested in Atc.Rest.Api.Generator.Tests.Validators.ResponseRangeValidatorTests",
+        ["ATC_API_OPR037"] = "ParameterValueNotBindable - Tested in Atc.Rest.Api.Generator.Tests.Validators.ParameterBindingValidatorTests",
         ["ATC_API_SCH025"] = "SchemaConstraintNotGeneratable - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
         ["ATC_API_SCH026"] = "EnumValueListedTwice - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
         ["ATC_API_SCH027"] = "UnsupportedReferenceForm - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaReferenceValidatorTests",

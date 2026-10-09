@@ -1090,7 +1090,9 @@ public static class EndpointPerOperationExtractor
             foreach (var p in pathLevelParameters)
             {
                 var resolved = p.Resolve();
-                if (resolved.Parameter is not null)
+
+                // A value the client cannot send is left out (ATC_API_OPR037 warned)
+                if (resolved.Parameter is not null && !resolved.Parameter.IsUnbindable())
                 {
                     allParams.Add((resolved.Parameter, resolved.ReferenceId));
                 }
@@ -1102,7 +1104,9 @@ public static class EndpointPerOperationExtractor
             foreach (var p in operation.Parameters)
             {
                 var resolved = p.Resolve();
-                if (resolved.Parameter is not null)
+
+                // A value the client cannot send is left out (ATC_API_OPR037 warned)
+                if (resolved.Parameter is not null && !resolved.Parameter.IsUnbindable())
                 {
                     allParams.Add((resolved.Parameter, resolved.ReferenceId));
                 }

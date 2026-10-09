@@ -83,54 +83,12 @@ public static class InlineAllOfFlattener
         foreach (var parameter in parameters ?? [])
         {
             if (parameter.Resolve().Parameter is OpenApiParameter { Schema: OpenApiSchema schema } resolved &&
-                SingleWrappedReference(schema) is { } reference)
+                schema.SingleWrappedReference() is { } reference)
             {
                 resolved.Schema = reference;
             }
         }
     }
-
-    private static OpenApiSchemaReference? SingleWrappedReference(
-        OpenApiSchema schema)
-    {
-        if (schema.AllOf is not { Count: > 0 } allOf ||
-            HasValueType(schema.Type) ||
-            schema.Properties is { Count: > 0 } ||
-            schema.OneOf is { Count: > 0 } ||
-            schema.AnyOf is { Count: > 0 } ||
-            schema.Items is not null ||
-            schema.Enum is { Count: > 0 })
-        {
-            return null;
-        }
-
-        var references = allOf.OfType<OpenApiSchemaReference>().ToList();
-        return references.Count == 1 && allOf.All(part => part is OpenApiSchemaReference || IsEmpty(part))
-            ? references[0]
-            : null;
-    }
-
-    // A schema that says nothing about the value ({}, or one with only a description)
-    private static bool IsEmpty(IOpenApiSchema part)
-    {
-        if (part is not OpenApiSchema empty)
-        {
-            return false;
-        }
-
-        return !HasValueType(empty.Type) &&
-               empty.Properties is null or { Count: 0 } &&
-               empty.AllOf is null or { Count: 0 } &&
-               empty.OneOf is null or { Count: 0 } &&
-               empty.AnyOf is null or { Count: 0 } &&
-               empty.Enum is null or { Count: 0 } &&
-               empty.Items is null &&
-               string.IsNullOrEmpty(empty.Format);
-    }
-
-    // A type other than null ('nullable: true' alone says nothing about the value)
-    private static bool HasValueType(JsonSchemaType? type)
-        => type is { } value && (value | JsonSchemaType.Null) != JsonSchemaType.Null;
 
     private static void FlattenContent(
         IDictionary<string, IOpenApiMediaType>? content,

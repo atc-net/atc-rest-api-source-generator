@@ -24,7 +24,8 @@ internal static class SpecificationLoader
         string yamlContent,
         ValidateSpecificationStrategy strategy,
         Action<SourceProductionContext, string> reportParsingError,
-        IReadOnlyList<OverlayFile>? overlays = null)
+        IReadOnlyList<OverlayFile>? overlays = null,
+        bool parametersMustBind = false)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
@@ -62,6 +63,10 @@ internal static class SpecificationLoader
             yamlPath,
             yamlContent,
             openApiDiagnostic?.Warnings);
+        if (parametersMustBind)
+        {
+            validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
+        }
 
         // A status range (2XX) is its first status for every generator (the validator has warned about it)
         return ReportAndContinue(context, validationDiagnostics) ? ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc) : null;
@@ -84,7 +89,8 @@ internal static class SpecificationLoader
         IReadOnlyList<YamlFileInfo> partFiles,
         MultiPartConfiguration? mergeConfiguration,
         ValidateSpecificationStrategy strategy,
-        IReadOnlyList<OverlayFile>? overlays = null)
+        IReadOnlyList<OverlayFile>? overlays = null,
+        bool parametersMustBind = false)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
@@ -102,9 +108,25 @@ internal static class SpecificationLoader
             document,
             Array.Empty<OpenApiError>(),
             baseFile.Path);
+        if (parametersMustBind)
+        {
+            validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
+        }
 
         return ReportAndContinue(context, validationDiagnostics) ? ResponseRangeNormalizer.WithExplicitStatuses(document) : null;
     }
+
+    /// <summary>
+    /// The diagnostics a server generator reports: a parameter whose value cannot be bound (<c>ATC_API_OPR037</c>, a
+    /// warning to a client, which leaves it out) is an error - the server's code could not bind it.
+    /// </summary>
+    /// <param name="diagnostics">The validation diagnostics.</param>
+    /// <returns>The diagnostics, with those warnings as errors.</returns>
+    public static List<GeneratorDiagnosticMessage> WithUnbindableParametersAsErrors(
+        List<GeneratorDiagnosticMessage> diagnostics)
+        => [.. (diagnostics ?? []).Select(d => d.RuleId == RuleIdentifiers.ParameterValueNotBindable && d.Severity == GeneratorDiagnosticSeverity.Warning
+            ? d with { Severity = GeneratorDiagnosticSeverity.Error }
+            : d)];
 
     /// <summary>
     /// Merges a base specification with its parts and applies the overlays to the result, without validating it.

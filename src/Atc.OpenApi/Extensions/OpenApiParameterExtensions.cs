@@ -270,6 +270,43 @@ public static class OpenApiParameterExtensions
         }
 
         /// <summary>
+        /// Whether the generated code cannot bind or send the parameter's value: an object that is no flat model in the
+        /// query sent as <c>deepObject</c> or <c>form</c> with <c>explode</c> (<see cref="GetQueryObject"/>), or a
+        /// <c>oneOf</c>/<c>anyOf</c>/<c>allOf</c> without a type - or an array of either. A reference wrapped in an
+        /// <c>allOf</c> is the reference. A parameter with a <c>content</c> map (no schema) is not judged here.
+        /// </summary>
+        /// <returns>True when the value cannot be bound or sent.</returns>
+        public bool IsUnbindable()
+        {
+            if (parameter.In == ParameterLocation.QueryString ||
+                parameter.Schema is null ||
+                parameter.GetQueryObject() is not null)
+            {
+                return false;
+            }
+
+            var schema = (IOpenApiSchema?)parameter.Schema.SingleWrappedReference() ?? parameter.Schema;
+            if (schema is OpenApiSchemaReference && parameter.In == ParameterLocation.Query)
+            {
+                // A wrapped model in the query: judged as the model
+                var unwrapped = new OpenApiParameter
+                {
+                    Name = parameter.Name,
+                    In = parameter.In,
+                    Style = parameter.Style,
+                    Explode = parameter.Explode,
+                    Schema = schema,
+                };
+                if (unwrapped.GetQueryObject() is not null)
+                {
+                    return false;
+                }
+            }
+
+            return IsUnbindableValue(schema);
+        }
+
+        /// <summary>
         /// The character between the items of a query array that is one value: <c>,</c> for <c>form</c> with
         /// <c>explode: false</c>, <c>|</c> for <c>pipeDelimited</c> and a space for <c>spaceDelimited</c> (both without
         /// explode). <see langword="null"/> for an array sent as repeated keys (<c>explode: true</c>) and for anything
@@ -321,6 +358,25 @@ public static class OpenApiParameterExtensions
                schema.AllOf is null or { Count: 0 } &&
                schema.OneOf is null or { Count: 0 } &&
                schema.AnyOf is null or { Count: 0 };
+    }
+
+    // An object, or a composition without a type, or an array of either
+    private static bool IsUnbindableValue(IOpenApiSchema? schema)
+    {
+        if (schema is null)
+        {
+            return false;
+        }
+
+        if (schema.Type?.HasFlag(JsonSchemaType.Array) == true)
+        {
+            return schema.Items is { } items && IsUnbindableValue((IOpenApiSchema?)items.SingleWrappedReference() ?? items);
+        }
+
+        return schema.Type?.HasFlag(JsonSchemaType.Object) == true ||
+               schema.Properties is { Count: > 0 } ||
+               ((schema.Type is null || schema.Type == JsonSchemaType.Null) &&
+                (schema.OneOf is { Count: > 0 } || schema.AnyOf is { Count: > 0 } || schema.AllOf is { Count: > 0 }));
     }
 
     private static ParameterStyle DefaultStyleFor(ParameterLocation? location)

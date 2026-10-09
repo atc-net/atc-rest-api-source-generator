@@ -758,6 +758,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string QueryStringParameterNotAlone = "ATC_API_OPR036";
 
+    /// <summary>
+    /// ATC_API_OPR037: A parameter's value is one the generated code cannot bind or send - an object other than a
+    /// flat model in the query (as deepObject or form with explode), or a 'oneOf'/'anyOf'/'allOf' without a type.
+    /// A warning (a client leaves the parameter out; a server generator raises it to an error), an error in the path.
+    /// </summary>
+    public const string ParameterValueNotBindable = "ATC_API_OPR037";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

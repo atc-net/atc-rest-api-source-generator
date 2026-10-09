@@ -96,8 +96,10 @@ public static class OpenApiDocumentValidator
         diagnostics.AddRange(ValidatePaths(document, sourceFilePath));
         diagnostics.AddRange(ValidateResponseRanges(document, sourceFilePath));
 
-        // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it)
+        // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it), and a parameter
+        // whose value it cannot bind or send at all
         diagnostics.AddRange(ValidateQueryStringParameters(document, sourceFilePath));
+        diagnostics.AddRange(ValidateParameterValues(document, sourceFilePath));
 
         if (strategy == ValidateSpecificationStrategy.None)
         {
@@ -163,6 +165,41 @@ public static class OpenApiDocumentValidator
                         DiagnosticSeverity.Error,
                         sourceFilePath,
                         Suggestions: ["Keep one 'in: querystring' parameter and move the query parameters into its content, or use 'in: query' parameters only"]));
+                }
+            }
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// ATC_API_OPR037: a parameter whose value the generated code cannot bind or send (see
+    /// <see cref="OpenApiParameterExtensions"/>' <c>IsUnbindable</c>). A warning - a client leaves the parameter out, a
+    /// server generator raises it to an error - and an error in the path, where no client could build the URL.
+    /// Every strategy.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateParameterValues(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        foreach (var path in document.Paths ?? [])
+        {
+            foreach (var operation in path.Value?.Operations ?? [])
+            {
+                var operationId = operation.Value?.OperationId ?? $"{operation.Key.Method} {path.Key}";
+                foreach (var parameter in (path.Value!.Parameters ?? []).Concat(operation.Value?.Parameters ?? []))
+                {
+                    if (parameter.Resolve().Parameter is { } p && p.IsUnbindable())
+                    {
+                        var inPath = p.In == ParameterLocation.Path;
+                        diagnostics.Add(new DiagnosticMessage(
+                            RuleIdentifiers.ParameterValueNotBindable,
+                            $"Parameter '{p.Name}' ({p.In?.ToString().ToLowerInvariant()}) of operation '{operationId}' is a value the generated code cannot bind or send (a nested object or an array in an object, an object outside the query or in 'form' without 'explode', an inline object, or a 'oneOf'/'anyOf'/'allOf' without a type){(inPath ? "." : "; a client leaves it out, a server cannot be generated.")}",
+                            inPath ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+                            sourceFilePath,
+                            Suggestions: ["Send the object as 'style: deepObject' or 'form' with 'explode: true' with one value per property, declare its properties as parameters of their own, send it in a request body, or give the parameter a 'content' map"]));
+                    }
                 }
             }
         }
@@ -1953,7 +1990,8 @@ public static class OpenApiDocumentValidator
         {
             foreach (var parameter in operation.Parameters)
             {
-                if (parameter.Resolve().Parameter is { } p)
+                // A value that cannot be bound at all is ATC_API_OPR037 (every strategy)
+                if (parameter.Resolve().Parameter is { } p && !p.IsUnbindable())
                 {
                     var serialization = p.GetParameterSerialization();
                     if (!serialization.IsSupported)

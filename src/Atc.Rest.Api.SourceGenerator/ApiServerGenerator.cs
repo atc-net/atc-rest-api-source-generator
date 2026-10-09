@@ -266,7 +266,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         ServerPackageReferences packages,
         IReadOnlyList<OverlayFile> overlays)
     {
-        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy, overlays);
+        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy, overlays, parametersMustBind: true);
         if (openApiDoc is null)
         {
             return;
@@ -298,7 +298,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         ServerPackageReferences packages,
         IReadOnlyList<OverlayFile> overlays)
     {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportServerParsingError, overlays);
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportServerParsingError, overlays, parametersMustBind: true);
         if (openApiDoc is null)
         {
             return;

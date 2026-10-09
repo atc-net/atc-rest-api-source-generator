@@ -836,6 +836,33 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// The one reference the schema wraps in an <c>allOf</c> - <c>allOf: [$ref, {}]</c>, the OpenAPI 3.0 way to give
+        /// a reference a description or <c>nullable</c> (what springdoc writes) - or null: a schema with a type, its own
+        /// properties, items, an enum or another composition, or an <c>allOf</c> with more than a reference and empty
+        /// schemas, is no wrapper.
+        /// </summary>
+        /// <returns>The wrapped reference, or null.</returns>
+        public OpenApiSchemaReference? SingleWrappedReference()
+        {
+            if (schema is not OpenApiSchema wrapper ||
+                wrapper.AllOf is not { Count: > 0 } allOf ||
+                HasValueType(wrapper.Type) ||
+                wrapper.Properties is { Count: > 0 } ||
+                wrapper.OneOf is { Count: > 0 } ||
+                wrapper.AnyOf is { Count: > 0 } ||
+                wrapper.Items is not null ||
+                wrapper.Enum is { Count: > 0 })
+            {
+                return null;
+            }
+
+            var references = allOf.OfType<OpenApiSchemaReference>().ToList();
+            return references.Count == 1 && allOf.All(part => part is OpenApiSchemaReference || IsEmptySchema(part))
+                ? references[0]
+                : null;
+        }
+
+        /// <summary>
         /// Whether a model property of this schema can be null (so a client checks it before sending it): its C#
         /// type is nullable, or a reference type (a string, a <c>Uri</c>, an object). A required value type cannot.
         /// </summary>
@@ -2122,5 +2149,27 @@ public static class OpenApiSchemaExtensions
                     return "object";
             }
         }
+    }
+
+    // A type other than null ('nullable: true' alone says nothing about the value)
+    private static bool HasValueType(JsonSchemaType? type)
+        => type is { } value && (value | JsonSchemaType.Null) != JsonSchemaType.Null;
+
+    // A schema that says nothing about the value ({}, or one with only a description)
+    private static bool IsEmptySchema(IOpenApiSchema part)
+    {
+        if (part is not OpenApiSchema empty)
+        {
+            return false;
+        }
+
+        return !HasValueType(empty.Type) &&
+               empty.Properties is null or { Count: 0 } &&
+               empty.AllOf is null or { Count: 0 } &&
+               empty.OneOf is null or { Count: 0 } &&
+               empty.AnyOf is null or { Count: 0 } &&
+               empty.Enum is null or { Count: 0 } &&
+               empty.Items is null &&
+               string.IsNullOrEmpty(empty.Format);
     }
 }

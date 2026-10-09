@@ -428,8 +428,9 @@ public static class OperationParameterExtractor
                 var parameter = resolved.Parameter;
                 var referenceId = resolved.ReferenceId;
 
-                // Skip if we couldn't resolve the parameter or it has no name
-                if (parameter is null || string.IsNullOrEmpty(parameter.Name))
+                // Skip if we couldn't resolve the parameter or it has no name; a value the generated code cannot bind or
+                // send is left out (ATC_API_OPR037: a warning to a client, an error to a server)
+                if (parameter is null || string.IsNullOrEmpty(parameter.Name) || parameter.IsUnbindable())
                 {
                     continue;
                 }
