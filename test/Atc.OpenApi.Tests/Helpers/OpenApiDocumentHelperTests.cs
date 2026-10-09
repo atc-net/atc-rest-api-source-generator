@@ -62,6 +62,45 @@ public class OpenApiDocumentHelperTests
         Assert.Contains(messagePart, error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// An <c>xml.namespace</c> that is no absolute URI makes the reader throw ("Invalid URI"); the error names the
+    /// schema and the value instead, so the author can find it - in YAML and in JSON.
+    /// </summary>
+    [Theory]
+    [InlineData("petstore")]
+    [InlineData("'urn'")]
+    [InlineData("\"./pets\"")]
+    public void TryParseYamlWithDiagnostic_ARelativeXmlNamespace_IsAnErrorNamingTheSchema(
+        string value)
+    {
+        var yaml = $$"""
+            openapi: 3.0.3
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Ok:
+                  type: object
+                  xml: { name: ok, namespace: 'http://example.com/ok' }
+                Pet:
+                  type: object
+                  xml:
+                    name: pet
+                    namespace: {{value}}
+                  properties:
+                    name: { type: string }
+            """;
+
+        var (document, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, $"xml-namespace-{value.Length}.yaml");
+
+        Assert.Null(document);
+        var error = Assert.Single(diagnostic!.Errors);
+        Assert.Contains("'Pet'", error.Message, StringComparison.Ordinal);
+        Assert.Contains("xml.namespace", error.Message, StringComparison.Ordinal);
+        Assert.Contains(value.Trim('\'', '"'), error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("'Ok'", error.Message, StringComparison.Ordinal);
+    }
+
     // ========== ParseYaml Tests ==========
     [Fact]
     public void ParseYaml_ValidYaml_ReturnsDocument()

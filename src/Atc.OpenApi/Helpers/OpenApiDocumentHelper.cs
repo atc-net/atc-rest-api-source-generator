@@ -8,6 +8,9 @@ namespace Atc.OpenApi.Helpers;
 [SuppressMessage("Design", "S1075:Refactor your code not to use hardcoded absolute paths or URIs", Justification = "OK.")]
 public static class OpenApiDocumentHelper
 {
+    // A stand-in absolute URI for an xml.namespace the reader cannot take, followed by the value's index
+    private const string PlaceholderNamespace = "urn:atc-invalid-xml-namespace:";
+
     /// <summary>
     /// In-process cache for parsed OpenAPI documents, keyed by yamlPath.
     /// Each entry stores a content hash to detect when the file has changed,
@@ -18,6 +21,13 @@ public static class OpenApiDocumentHelper
     /// for thread safety.
     /// </summary>
     private static readonly ConcurrentDictionary<string, (int ContentHash, int ContentLength, OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new(StringComparer.Ordinal);
+
+    // A "namespace" key and its one-token value, in YAML (block or flow) or JSON; a value that starts an object or an
+    // array (a property named namespace) is no match
+    private static readonly System.Text.RegularExpressions.Regex XmlNamespaceValue = new(
+        @"(?<key>[""']?namespace[""']?[ \t]*:[ \t]*)(?<quote>[""']?)(?<value>[^""'\s,{}\[\]]+)\k<quote>",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
 
     /// <summary>
     /// Clears the in-process parse cache.
@@ -138,10 +148,14 @@ public static class OpenApiDocumentHelper
         catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
         {
             // The parser throws on some documents (an unsupported openapi version, an empty $ref): an error to
-            // report, as for any document it cannot read
+            // report, as for any document it cannot read. An xml.namespace that is no absolute URI is named with its
+            // schema - the reader's own message ("Invalid URI") says neither.
+            var reason = ex is UriFormatException && DescribeInvalidXmlNamespaces(yamlContent, baseUri) is { } namespaces
+                ? namespaces
+                : ex.Message;
             document = null;
             diagnostic = new OpenApiDiagnostic();
-            diagnostic.Errors.Add(new OpenApiError(string.Empty, "The specification cannot be read: " + ex.Message));
+            diagnostic.Errors.Add(new OpenApiError(string.Empty, "The specification cannot be read: " + reason));
         }
 
         StashSpecVersion(document, diagnostic);
@@ -149,6 +163,82 @@ public static class OpenApiDocumentHelper
         ParseCache[yamlPath] = (contentHash, contentLength, document, diagnostic);
 
         return (document, diagnostic);
+    }
+
+    /// <summary>
+    /// Names the schemas whose <c>xml.namespace</c> is no absolute URI: each such value is replaced by a placeholder URI
+    /// in a copy of the text, the copy is read, and the schemas that hold a placeholder are reported with their value.
+    /// Null when that finds none.
+    /// </summary>
+    private static string? DescribeInvalidXmlNamespaces(
+        string content,
+        Uri baseUri)
+    {
+        var originals = new List<string>();
+        var copy = XmlNamespaceValue.Replace(content, match =>
+        {
+            var value = match.Groups["value"].Value;
+            if (Uri.TryCreate(value, UriKind.Absolute, out _))
+            {
+                return match.Value;
+            }
+
+            originals.Add(value);
+            return match.Groups["key"].Value + match.Groups["quote"].Value + PlaceholderNamespace + (originals.Count - 1).ToString(CultureInfo.InvariantCulture) + match.Groups["quote"].Value;
+        });
+        if (originals.Count == 0)
+        {
+            return null;
+        }
+
+        OpenApiDocument? document;
+        try
+        {
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(copy));
+            document = (IsJsonText(copy)
+                ? new OpenApiJsonReader().Read(stream, baseUri, new OpenApiReaderSettings())
+                : new OpenApiYamlReader().Read(stream, baseUri, new OpenApiReaderSettings())).Document;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+        {
+            return null;
+        }
+
+        var found = new List<string>();
+        foreach (var pair in document?.Components?.Schemas ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            CollectPlaceholders(pair.Key, pair.Value, depth: 0);
+        }
+
+        return found.Count == 0
+            ? null
+            : string.Join("; ", found) + " - an xml.namespace must be an absolute URI (http://..., urn:...).";
+
+        void CollectPlaceholders(
+            string path,
+            IOpenApiSchema? schema,
+            int depth)
+        {
+            if (schema is null or OpenApiSchemaReference || depth > 32)
+            {
+                return;
+            }
+
+            if (schema.Xml?.Namespace?.OriginalString is { } ns &&
+                ns.StartsWith(PlaceholderNamespace, StringComparison.Ordinal) &&
+                int.TryParse(ns.Substring(PlaceholderNamespace.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var index) &&
+                index < originals.Count)
+            {
+                found.Add($"schema '{path}' has xml.namespace '{originals[index]}'");
+            }
+
+            foreach (var pair in schema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+            {
+                CollectPlaceholders($"{path}.{pair.Key}", pair.Value, depth + 1);
+            }
+
+            CollectPlaceholders($"{path}[]", schema.Items, depth + 1);
+        }
     }
 
     private static bool IsJsonText(string content)
