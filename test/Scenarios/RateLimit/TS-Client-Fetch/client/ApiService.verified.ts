@@ -8,6 +8,7 @@ import { ReportsClient } from './ReportsClient';
 import { WebhooksClient } from './WebhooksClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly exports: ExportsClient;
   readonly health: HealthClient;
   readonly notifications: NotificationsClient;
@@ -16,6 +17,7 @@ export class ApiService {
   readonly webhooks: WebhooksClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.exports = new ExportsClient(api);
     this.health = new HealthClient(api);

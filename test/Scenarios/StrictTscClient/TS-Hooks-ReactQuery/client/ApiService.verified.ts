@@ -5,11 +5,13 @@ import { InsightsClient } from './InsightsClient';
 import { LogsClient } from './LogsClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly devices: DevicesClient;
   readonly insights: InsightsClient;
   readonly logs: LogsClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.devices = new DevicesClient(api);
     this.insights = new InsightsClient(api);

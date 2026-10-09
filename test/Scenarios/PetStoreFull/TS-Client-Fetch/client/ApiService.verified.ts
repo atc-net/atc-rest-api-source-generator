@@ -5,11 +5,13 @@ import { StoreClient } from './StoreClient';
 import { UserClient } from './UserClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly pet: PetClient;
   readonly store: StoreClient;
   readonly user: UserClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.pet = new PetClient(api);
     this.store = new StoreClient(api);

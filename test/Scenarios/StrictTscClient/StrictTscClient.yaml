@@ -13,6 +13,9 @@ info:
       the client/hook surface (unused enum import).
     - logs: a pure-streaming op only, so the Axios client imports AxiosResponse
       without ever referencing it (unused import).
+    - x-signalr-hubs: server-push hubs - a hub file must compile under every hooks
+      style (none: no React, no hooks folder), with an event name that is no
+      identifier (device-updated) and an event declared twice.
   version: v1
 servers:
   - url: /api/v1
@@ -142,3 +145,14 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/LogLine'
+x-signalr-hubs:
+  logs:
+    url: /hubs/logs
+    events:
+      - name: LogLine
+        payload: '#/components/schemas/LogLine'
+      - name: device-updated
+        payload: '#/components/schemas/Device'
+      - name: LogLine
+        payload: '#/components/schemas/LogLine'
+      - name: Ping

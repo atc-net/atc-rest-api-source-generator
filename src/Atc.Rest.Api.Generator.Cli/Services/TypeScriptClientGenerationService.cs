@@ -165,9 +165,9 @@ public static class TypeScriptClientGenerationService
         // callbacks: block whose body resolves to a named component schema.
         var webhooksEmitted = WriteWebhooksFile(openApiDoc, outputPath, headerContent, dryRun);
 
-        // Step 6f: Emit SignalR-style hub hooks when the doc declares an
-        // x-signalr-hubs vendor extension. One hook file per declared hub.
-        var hubsEmitted = WriteSignalRHubFiles(openApiDoc, outputPath, headerContent, wireNames, dryRun);
+        // Step 6f: Emit SignalR-style hubs when the doc declares an x-signalr-hubs vendor extension: a
+        // framework-neutral connection per hub, and its React hook when the client has React hooks.
+        var hubsEmitted = WriteSignalRHubFiles(openApiDoc, outputPath, headerContent, wireNames, config.HooksStyle is TypeScriptHooksStyle.ReactQuery or TypeScriptHooksStyle.Swr, dryRun);
 
         // Step 6g: Emit branded ID type aliases when --branded-ids is set. The file
         // lives under types/ so it joins the existing type-only barrel. typeCount is
@@ -867,19 +867,20 @@ public static class TypeScriptClientGenerationService
     }
 
     /// <summary>
-    /// Writes per-hub <c>useXxxHub.ts</c> files plus a <c>hubs/index.ts</c> barrel
-    /// when the document declares an <c>x-signalr-hubs</c> vendor extension. The hooks
-    /// own the SignalR connection lifecycle and forward inbound events to caller-supplied
-    /// optional callbacks. No-op when the extension is missing or declares no hubs.
+    /// Writes per-hub <c>xxxHub.ts</c> files (a framework-neutral connection whose inbound events go to caller-supplied
+    /// optional callbacks), with React hooks the <c>useXxxHub.ts</c> hooks that own its lifecycle, plus a
+    /// <c>hubs/index.ts</c> barrel, when the document declares an <c>x-signalr-hubs</c> vendor extension. No-op when
+    /// the extension is missing or declares no hubs.
     /// </summary>
     private static bool WriteSignalRHubFiles(
         OpenApiDocument openApiDoc,
         string outputPath,
         string? headerContent,
         TypeScriptWireNames wireNames,
+        bool includeReactHooks,
         bool dryRun)
     {
-        var hubs = TypeScriptSignalRHubExtractor.Extract(openApiDoc, headerContent, wireNames);
+        var hubs = TypeScriptSignalRHubExtractor.Extract(openApiDoc, headerContent, wireNames, includeReactHooks);
         if (hubs.Count == 0)
         {
             return false;

@@ -6,12 +6,14 @@ import { EventsSeqClient } from './EventsSeqClient';
 import { EventsSseClient } from './EventsSseClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly events: EventsClient;
   readonly eventsMultipart: EventsMultipartClient;
   readonly eventsSeq: EventsSeqClient;
   readonly eventsSse: EventsSseClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.events = new EventsClient(api);
     this.eventsMultipart = new EventsMultipartClient(api);

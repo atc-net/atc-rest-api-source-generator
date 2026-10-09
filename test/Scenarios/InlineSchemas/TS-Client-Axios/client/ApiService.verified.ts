@@ -4,10 +4,12 @@ import { AnalyticsClient } from './AnalyticsClient';
 import { ReportsClient } from './ReportsClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly analytics: AnalyticsClient;
   readonly reports: ReportsClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.analytics = new AnalyticsClient(api);
     this.reports = new ReportsClient(api);

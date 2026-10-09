@@ -3,9 +3,11 @@ import { ApiClient, type ApiClientOptions } from './ApiClient';
 import { ResourcesClient } from './ResourcesClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly resources: ResourcesClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.resources = new ResourcesClient(api);
   }

@@ -12,7 +12,7 @@ public static class TypeScriptPackageScaffoldExtractor
     /// <param name="packageVersion">The npm package version.</param>
     /// <param name="description">Optional package description (from OpenAPI info.description).</param>
     /// <param name="config">TypeScript client generation configuration.</param>
-    /// <param name="hasSignalRHubs">Whether hub hooks were emitted (the document declares <c>x-signalr-hubs</c>): they import <c>@microsoft/signalr</c> and <c>react</c>.</param>
+    /// <param name="hasSignalRHubs">Whether hubs were emitted (the document declares <c>x-signalr-hubs</c>): they import <c>@microsoft/signalr</c> (and <c>react</c> only through the React hooks a hooks style brings).</param>
     /// <returns>The formatted package.json content.</returns>
     public static string GeneratePackageJson(
         string packageName,
@@ -92,7 +92,7 @@ public static class TypeScriptPackageScaffoldExtractor
 
         // Peer dependencies: the hooks' framework (React Query or SWR) and React, which the hooks, the
         // ApiProvider and the hub hooks import.
-        var needsReact = config.HooksStyle is TypeScriptHooksStyle.ReactQuery or TypeScriptHooksStyle.Swr || hasSignalRHubs;
+        var needsReact = config.HooksStyle is TypeScriptHooksStyle.ReactQuery or TypeScriptHooksStyle.Swr;
         var peerDependencies = new JsonObject();
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery)
         {

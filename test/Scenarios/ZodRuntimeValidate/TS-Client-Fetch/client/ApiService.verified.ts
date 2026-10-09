@@ -5,11 +5,13 @@ import { PetsClient } from './PetsClient';
 import { PingClient } from './PingClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly count: CountClient;
   readonly pets: PetsClient;
   readonly ping: PingClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.count = new CountClient(api);
     this.pets = new PetsClient(api);

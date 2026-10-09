@@ -4,10 +4,12 @@ import { PetsClient } from './PetsClient';
 import { UsersClient } from './UsersClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly pets: PetsClient;
   readonly users: UsersClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.pets = new PetsClient(api);
     this.users = new UsersClient(api);

@@ -5,11 +5,13 @@ import { PaymentsClient } from './PaymentsClient';
 import { ShapesClient } from './ShapesClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly notifications: NotificationsClient;
   readonly payments: PaymentsClient;
   readonly shapes: ShapesClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.notifications = new NotificationsClient(api);
     this.payments = new PaymentsClient(api);

@@ -113,15 +113,19 @@ public class TypeScriptPackageScaffoldExtractorTests
     }
 
     [Fact]
-    public void GeneratePackageJson_SignalRHubs_DeclareSignalRAndReact()
+    public void GeneratePackageJson_SignalRHubs_DeclareSignalR_AndReactOnlyWithReactHooks()
     {
-        // hubs/use*Hub.ts import '@microsoft/signalr' and 'react' (the hubs come from the document's
-        // x-signalr-hubs, not from a flag, so the service tells the scaffold whether any were emitted).
+        // hubs/*Hub.ts import '@microsoft/signalr' (the hubs come from the document's x-signalr-hubs, not from a
+        // flag, so the service tells the scaffold whether any were emitted); the React hooks over them, and so
+        // 'react', come only with a React hooks style
         var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig(), hasSignalRHubs: true);
+        var withHooks = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.ReactQuery }, hasSignalRHubs: true);
 
         Assert.Contains("\"@microsoft/signalr\": \"^8.0.0\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"react\": \"^18.0.0\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"@types/react\": \"^18.0.0\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"react\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"@microsoft/signalr\": \"^8.0.0\"", withHooks, StringComparison.Ordinal);
+        Assert.Contains("\"react\": \"^18.0.0\"", withHooks, StringComparison.Ordinal);
+        Assert.Contains("\"@types/react\": \"^18.0.0\"", withHooks, StringComparison.Ordinal);
     }
 
     [Fact]

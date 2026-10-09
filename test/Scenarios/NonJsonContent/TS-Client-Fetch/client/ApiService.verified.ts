@@ -6,12 +6,14 @@ import { ItemsClient } from './ItemsClient';
 import { ReportsClient } from './ReportsClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly exports: ExportsClient;
   readonly files: FilesClient;
   readonly items: ItemsClient;
   readonly reports: ReportsClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.exports = new ExportsClient(api);
     this.files = new FilesClient(api);

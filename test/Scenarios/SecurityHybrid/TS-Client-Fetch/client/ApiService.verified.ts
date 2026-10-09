@@ -7,6 +7,7 @@ import { PublicClient } from './PublicClient';
 import { ReportsClient } from './ReportsClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly admin: AdminClient;
   readonly orders: OrdersClient;
   readonly products: ProductsClient;
@@ -14,6 +15,7 @@ export class ApiService {
   readonly reports: ReportsClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.admin = new AdminClient(api);
     this.orders = new OrdersClient(api);

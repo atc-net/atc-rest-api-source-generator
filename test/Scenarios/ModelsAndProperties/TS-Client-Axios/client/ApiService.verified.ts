@@ -17,6 +17,7 @@ import { StringFormatsClient } from './StringFormatsClient';
 import { ValidationsClient } from './ValidationsClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly addresses: AddressesClient;
   readonly animals: AnimalsClient;
   readonly arrays: ArraysClient;
@@ -34,6 +35,7 @@ export class ApiService {
   readonly validations: ValidationsClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.addresses = new AddressesClient(api);
     this.animals = new AnimalsClient(api);

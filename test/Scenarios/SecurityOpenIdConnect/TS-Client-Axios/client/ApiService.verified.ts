@@ -5,11 +5,13 @@ import { MeClient } from './MeClient';
 import { ResourcesClient } from './ResourcesClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly health: HealthClient;
   readonly me: MeClient;
   readonly resources: ResourcesClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.health = new HealthClient(api);
     this.me = new MeClient(api);

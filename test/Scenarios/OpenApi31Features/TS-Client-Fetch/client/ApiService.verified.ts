@@ -5,11 +5,13 @@ import { CoordinatesClient } from './CoordinatesClient';
 import { DocumentsClient } from './DocumentsClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly colors: ColorsClient;
   readonly coordinates: CoordinatesClient;
   readonly documents: DocumentsClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.colors = new ColorsClient(api);
     this.coordinates = new CoordinatesClient(api);
