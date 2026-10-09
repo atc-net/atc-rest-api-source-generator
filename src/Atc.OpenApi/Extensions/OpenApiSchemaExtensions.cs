@@ -1719,34 +1719,7 @@ public static class OpenApiSchemaExtensions
                 return "object";
             }
 
-            if (actualSchema.AdditionalProperties is null)
-            {
-                return "object";
-            }
-
-            // Handle schema reference
-            if (actualSchema.AdditionalProperties is OpenApiSchemaReference schemaRef)
-            {
-                var refName = schemaRef.Reference?.Id ?? schemaRef.Id ?? "object";
-                return ResolveTypeName(refName, registry);
-            }
-
-            // Handle inline schema
-            if (actualSchema.AdditionalProperties is OpenApiSchema addPropsSchema)
-            {
-                // Untyped (additionalProperties: true) or empty schema
-                if (addPropsSchema.Type is null ||
-                    addPropsSchema.Type == JsonSchemaType.Null ||
-                    (addPropsSchema.Type.Value == default && addPropsSchema.Properties?.Count is null or 0))
-                {
-                    return "object";
-                }
-
-                // Typed (additionalProperties: { type: ... })
-                return addPropsSchema.Type.ToPrimitiveCSharpTypeName(addPropsSchema.Format) ?? "object";
-            }
-
-            return "object";
+            return DictionaryValueType(actualSchema.AdditionalProperties, registry, depth: 0);
         }
 
         /// <summary>
@@ -2171,5 +2144,42 @@ public static class OpenApiSchemaExtensions
                empty.Enum is null or { Count: 0 } &&
                empty.Items is null &&
                string.IsNullOrEmpty(empty.Format);
+    }
+
+    // The C# type of a dictionary's value: a referenced model by its name, a primitive by its type, an array as a
+    // List of its item type, a nested map as a Dictionary - anything else (untyped, an inline object) object
+    private static string DictionaryValueType(
+        IOpenApiSchema? value,
+        TypeConflictRegistry? registry,
+        int depth)
+    {
+        if (value is null || depth > 16)
+        {
+            return "object";
+        }
+
+        if (value is OpenApiSchemaReference reference)
+        {
+            return ResolveTypeName(reference.Reference?.Id ?? reference.Id ?? "object", registry);
+        }
+
+        if (value is not OpenApiSchema inline || !HasValueType(inline.Type))
+        {
+            return "object";
+        }
+
+        if (inline.Type!.Value.HasFlag(JsonSchemaType.Array))
+        {
+            return $"List<{DictionaryValueType(inline.Items, registry, depth + 1)}>";
+        }
+
+        if (inline.Type.Value.HasFlag(JsonSchemaType.Object))
+        {
+            return inline.AdditionalProperties is not null && inline.Properties is null or { Count: 0 }
+                ? $"Dictionary<string, {DictionaryValueType(inline.AdditionalProperties, registry, depth + 1)}>"
+                : "object";
+        }
+
+        return inline.Type.ToPrimitiveCSharpTypeName(inline.Format) ?? "object";
     }
 }

@@ -1907,6 +1907,9 @@ public class OpenApiSchemaExtensionsTests
     [InlineData("IntBag", "long")]
     [InlineData("PetBag", "Pet")]
     [InlineData("Pet", "object")]
+    [InlineData("StringListBag", "List<string>")]
+    [InlineData("PetListBag", "List<Pet>")]
+    [InlineData("NestedBag", "Dictionary<string, int>")]
     public void GetAdditionalPropertiesValueType_ReturnsTheValueType(
         string schemaName,
         string expected)
@@ -2149,6 +2152,25 @@ public class OpenApiSchemaExtensionsTests
                   type: object
                   additionalProperties:
                     $ref: '#/components/schemas/Pet'
+                StringListBag:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      type: string
+                PetListBag:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pet'
+                NestedBag:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      format: int32
             """);
 
     private static OpenApiDocument ParsePaginationDocument()

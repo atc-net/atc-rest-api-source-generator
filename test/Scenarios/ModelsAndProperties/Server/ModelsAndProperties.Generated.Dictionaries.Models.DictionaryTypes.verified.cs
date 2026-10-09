@@ -31,4 +31,4 @@ public sealed record DictionaryTypes(
     Dictionary<string, double>? NumberDictionary = null,
     Dictionary<string, bool>? BooleanDictionary = null,
     Dictionary<string, Address>? AddressDictionary = null,
-    Dictionary<string, object>? StringArrayDictionary = null);
+    Dictionary<string, List<string>>? StringArrayDictionary = null);
