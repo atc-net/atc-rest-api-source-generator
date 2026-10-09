@@ -23,9 +23,18 @@ public class OAuthDependencyInjectionExtractorTests
         Assert.Contains("namespace Demo.PetStore.Generated.OAuth;", result, StringComparison.Ordinal);
         Assert.Contains("public static class OAuthServiceCollectionExtensions", result, StringComparison.Ordinal);
 
-        // The registration method is named after the last project-name segment and binds "OAuth:{projectName}".
+        // The registration method is named after the last project-name segment and binds "OAuth:{projectName}" - each
+        // option read from the section by generated code, not through the reflection-based configuration binder (which
+        // never sees generated code in a trimmed or Native AOT app)
         Assert.Contains("public static IServiceCollection AddPetStoreOAuthAuthentication(", result, StringComparison.Ordinal);
-        Assert.Contains(".BindConfiguration(\"OAuth:Demo.PetStore\");", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("BindConfiguration", result, StringComparison.Ordinal);
+        Assert.Contains("configuration.GetSection(\"OAuth:Demo.PetStore\")", result, StringComparison.Ordinal);
+        foreach (var option in new[] { "TokenUrl", "ClientId", "ClientSecret", "Scopes", "RefreshBufferSeconds" })
+        {
+            Assert.Contains($"section[\"{option}\"]", result, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("RefreshUrl", result, StringComparison.Ordinal);
         Assert.Contains("services.AddHttpClient<IOAuthTokenProvider, OAuthTokenProvider>(\"OAuthTokenProvider\");", result, StringComparison.Ordinal);
         Assert.Contains("services.AddTransient<OAuthAuthenticationHandler>();", result, StringComparison.Ordinal);
 

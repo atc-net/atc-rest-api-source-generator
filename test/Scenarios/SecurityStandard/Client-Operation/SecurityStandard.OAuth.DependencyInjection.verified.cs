@@ -44,7 +44,36 @@ public static class OAuthServiceCollectionExtensions
     {
         // Configure options from appsettings.json
         var optionsBuilder = services.AddOptions<OAuthClientOptions>()
-            .BindConfiguration("OAuth:SecurityStandard");
+            .Configure<global::Microsoft.Extensions.Configuration.IConfiguration>((options, configuration) =>
+            {
+                var section = configuration.GetSection("OAuth:SecurityStandard");
+                if (section["TokenUrl"] is { } tokenUrl)
+                {
+                    options.TokenUrl = tokenUrl;
+                }
+
+                if (section["ClientId"] is { } clientId)
+                {
+                    options.ClientId = clientId;
+                }
+
+                if (section["ClientSecret"] is { } clientSecret)
+                {
+                    options.ClientSecret = clientSecret;
+                }
+
+                if (section["Scopes"] is { } scopes)
+                {
+                    options.Scopes = scopes;
+                }
+
+                if (section["RefreshBufferSeconds"] is { } refreshBufferSeconds)
+                {
+                    options.RefreshBufferSeconds = int.TryParse(refreshBufferSeconds, global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var seconds)
+                        ? seconds
+                        : throw new InvalidOperationException($"'{refreshBufferSeconds}' at OAuth:SecurityStandard:RefreshBufferSeconds is not a whole number of seconds.");
+                }
+            });
 
         // Apply additional configuration if provided
         if (configure is not null)
