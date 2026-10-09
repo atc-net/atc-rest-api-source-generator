@@ -188,9 +188,32 @@ public static class OpenApiDocumentValidator
             foreach (var operation in path.Value?.Operations ?? [])
             {
                 var operationId = operation.Value?.OperationId ?? $"{operation.Key.Method} {path.Key}";
-                foreach (var parameter in (path.Value!.Parameters ?? []).Concat(operation.Value?.Parameters ?? []))
+                var resolved = (path.Value!.Parameters ?? [])
+                    .Concat(operation.Value?.Parameters ?? [])
+                    .Select(parameter => parameter.Resolve().Parameter)
+                    .OfType<OpenApiParameter>()
+                    .ToList();
+
+                // ATC_API_OPR038: a form object's property is sent by its own name - one another query parameter has
+                var queryNames = new HashSet<string>(
+                    resolved.Where(p => p.In == ParameterLocation.Query && p.Name is not null).Select(p => p.Name!),
+                    StringComparer.Ordinal);
+                foreach (var queryObject in resolved.Select(p => p.GetQueryObject()).OfType<OpenApiParameterExtensions.QueryObject>().Where(o => !o.DeepObject))
                 {
-                    if (parameter.Resolve().Parameter is { } p && p.IsUnbindable())
+                    foreach (var property in queryObject.Properties.Where(p => queryNames.Contains(p.WireName)))
+                    {
+                        diagnostics.Add(new DiagnosticMessage(
+                            RuleIdentifiers.QueryObjectKeyCollision,
+                            $"Property '{property.WireName}' of the query object '{queryObject.ParameterName}' of operation '{operationId}' is sent by its own name ('form', 'explode'), which another query parameter of the operation has; both would be one key.",
+                            DiagnosticSeverity.Error,
+                            sourceFilePath,
+                            Suggestions: ["Send the object as 'style: deepObject' (its keys are 'paging[limit]'), or rename the parameter or the property"]));
+                    }
+                }
+
+                foreach (var p in resolved)
+                {
+                    if (p.IsUnbindable())
                     {
                         var inPath = p.In == ParameterLocation.Path;
                         diagnostics.Add(new DiagnosticMessage(

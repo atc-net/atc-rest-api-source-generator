@@ -765,6 +765,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ParameterValueNotBindable = "ATC_API_OPR037";
 
+    /// <summary>
+    /// ATC_API_OPR038: An object in the query sent as 'form' with 'explode' (each property by its own name) has a
+    /// property named like another query parameter of the operation - both would be one key. Error, every strategy.
+    /// </summary>
+    public const string QueryObjectKeyCollision = "ATC_API_OPR038";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

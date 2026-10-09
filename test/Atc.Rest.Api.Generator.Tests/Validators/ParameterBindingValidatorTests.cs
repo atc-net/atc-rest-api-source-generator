@@ -141,6 +141,50 @@ public class ParameterBindingValidatorTests
         Assert.Contains(reported, e => e.Message.Contains("deleteThings", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("in: query", true)]
+    [InlineData("in: query, style: deepObject, explode: true", false)]
+    public void Validate_AFormObjectPropertyNamedLikeAnotherQueryParameter_IsAnError(
+        string declaration,
+        bool collides)
+    {
+        var document = Parse(
+            $$"""
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  parameters:
+                    - { name: paging, {{declaration}}, schema: { $ref: '#/components/schemas/Paging' } }
+                    - { name: limit, in: query, schema: { type: integer } }
+                  responses:
+                    '200': { description: OK }
+            components:
+              schemas:
+                Paging:
+                  type: object
+                  properties:
+                    page: { type: integer }
+                    limit: { type: integer }
+            """);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.None, document, [], TestFilePath);
+
+        var errors = diagnostics.Where(d => d.RuleId == RuleIdentifiers.QueryObjectKeyCollision).ToList();
+        if (collides)
+        {
+            var error = Assert.Single(errors);
+            Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+            Assert.Contains("'limit'", error.Message, StringComparison.Ordinal);
+            Assert.Contains("'paging'", error.Message, StringComparison.Ordinal);
+            Assert.Contains("listThings", error.Message, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Empty(errors);
+        }
+    }
+
     private static string Operation(
         string declaration,
         string schema)
