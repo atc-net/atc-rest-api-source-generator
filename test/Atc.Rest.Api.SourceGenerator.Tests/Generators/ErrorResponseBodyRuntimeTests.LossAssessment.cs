@@ -46,7 +46,7 @@ public partial class ErrorResponseBodyRuntimeTests
             AssessLevelImprove,
             "A declared 400 model without errors, but validation writes them",
             "The specification declares a 400 model (ApiProblem) with no errors property, while the generated ValidationFilter writes a ValidationProblemDetails. The body fits the schema (extra properties are allowed), but the field errors of our own validation are only in Content.",
-            "Decide: an analyzer hint when a declared 400 model has no errors property while validation is on, or read a validation 400 as ValidationProblemDetails whatever model is declared."),
+            "Done where the client can: the C# EndpointPerOperation client gives the field errors next to the declared model (BadRequestValidationErrors), the TypeScript clients as ValidationError.errors. A cell stays lossy where the declared model is all a client exposes; declare the 400 as ValidationProblemDetails to keep the field errors typed everywhere."),
         new(
             AssessStringDeclaredValidation,
             AssessLevelImprove,
