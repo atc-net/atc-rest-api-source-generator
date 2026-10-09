@@ -5,11 +5,18 @@ info:
   description: >-
     Monta.yaml is the Monta Partner API specification as Monta publishes it. Every Charge and Site the API returns
     has an id, but the specification leaves `id` out of their required lists, so the generated property would be a
-    `long?` that every caller has to unwrap. This overlay adds it; download a new version of the specification and
-    the fix is applied again.
+    `long?` that every caller has to unwrap. This overlay adds it, and removes the `pageable` query parameter no
+    client can send; download a new version of the specification and the fixes are applied again.
 extends: Monta.yaml
 actions:
   # An update of an array appends to it: `id` is added to the existing required lists
   - target: $.components.schemas['Charge','Site'].required
     description: Every Charge and Site the API returns has an id
     update: [id]
+
+  # `pageable` is a nested object (Spring's Pageable, whose `sort` holds an array of objects) in the query, which
+  # OpenAPI defines no serialization for - the generated client cannot send it (ATC_API_OPR037). Removed, so the
+  # warning names nothing this client could use.
+  - target: $.paths.*.*.parameters[?(@.name == 'pageable')]
+    description: A nested object in the query has no serialization
+    remove: true
