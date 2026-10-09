@@ -59,7 +59,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
 
         if (!string.IsNullOrEmpty(parameters.OddNameHere))
         {
-            queryParams.Add($"odd \"name\" \\ here={Uri.EscapeDataString(parameters.OddNameHere)}");
+            queryParams.Add($"odd%20%22name%22%20%5C%20here={Uri.EscapeDataString(parameters.OddNameHere)}");
         }
 
         if (parameters.Discount.HasValue)

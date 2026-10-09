@@ -966,7 +966,7 @@ public static class HttpClientExtractor
                     builder.AppendLine();
                     builder.AppendLine($"if ({paramAccess} is not null && global::System.Linq.Enumerable.Any({paramAccess}))");
                     builder.AppendLine("{");
-                    builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{value}}}\");");
+                    builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{value}}}\");");
                     builder.AppendLine("}");
                     continue;
                 }
@@ -987,7 +987,7 @@ public static class HttpClientExtractor
                         : BuildEncodedExpression(paramAccess, paramType);
                     if (isRequired)
                     {
-                        builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{reservedValue}}}\");");
+                        builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{reservedValue}}}\");");
                     }
                     else
                     {
@@ -996,7 +996,7 @@ public static class HttpClientExtractor
                         builder.AppendLine();
                         builder.AppendLine($"if ({nullCheck})");
                         builder.AppendLine("{");
-                        builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{reservedValue}}}\");");
+                        builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{reservedValue}}}\");");
                         builder.AppendLine("}");
                     }
 
@@ -1011,14 +1011,14 @@ public static class HttpClientExtractor
                         : $"Uri.EscapeDataString({paramAccess}.ToWireValue()!)";
                     if (isRequired)
                     {
-                        builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{wireValue}}}\");");
+                        builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{wireValue}}}\");");
                     }
                     else
                     {
                         builder.AppendLine();
                         builder.AppendLine($"if ({paramAccess} is not null)");
                         builder.AppendLine("{");
-                        builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{wireValue}}}\");");
+                        builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{wireValue}}}\");");
                         builder.AppendLine("}");
                     }
 
@@ -1029,7 +1029,7 @@ public static class HttpClientExtractor
                 if (isRequired)
                 {
                     var valueExpression = BuildEncodedExpression(paramAccess, paramType);
-                    builder.AppendLine($"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{valueExpression}}}\");");
+                    builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{valueExpression}}}\");");
                 }
                 else
                 {
@@ -1045,7 +1045,7 @@ public static class HttpClientExtractor
                     builder.AppendLine();
                     builder.AppendLine($"if ({nullCheck})");
                     builder.AppendLine("{");
-                    builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(param.Name!)}={{{valueExpression}}}\");");
+                    builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{valueExpression}}}\");");
                     builder.AppendLine("}");
                 }
             }
@@ -1971,7 +1971,7 @@ public static class HttpClientExtractor
         foreach (var property in queryObject.Properties)
         {
             var access = $"{local}.{property.WireName.ToPascalCaseForDotNet()}";
-            var key = InterpolatedName(Uri.EscapeDataString(queryObject.KeyOf(property)));
+            var key = QueryKey(queryObject.KeyOf(property));
             var schema = (IOpenApiSchema?)property.Schema.WrappedEnum() ?? property.Schema;
             var type = property.Schema.ToCSharpTypeForModel(property.Required);
             var value = WireValueHelper.IsIntegerEnum(schema)
@@ -1995,8 +1995,13 @@ public static class HttpClientExtractor
         builder.AppendLine("}");
     }
 
-    private static string InterpolatedName(string name)
-        => CSharpLiteralHelper.EscapeString(name).Replace("{", "{{").Replace("}", "}}");
+    /// <summary>
+    /// A query key as the URI carries it, escaped as its value is: <c>page[size]</c> is <c>page%5Bsize%5D</c>, and a
+    /// name with <c>&amp;</c>, <c>=</c>, <c>#</c> or a space stays one key. The escaped text holds nothing a C#
+    /// interpolated string would read (no quote, backslash or brace).
+    /// </summary>
+    private static string QueryKey(string name)
+        => Uri.EscapeDataString(name);
 
     private static void AppendQueryArrayForeach(
         StringBuilder builder,
@@ -2037,7 +2042,7 @@ public static class HttpClientExtractor
         {
             builder.AppendLine($"foreach (var item in {paramAccess})");
             builder.AppendLine("{");
-            builder.AppendLine(4, $"queryParams.Add($\"{InterpolatedName(paramName)}={{{encodedItem}}}\");");
+            builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(paramName)}={{{encodedItem}}}\");");
             builder.AppendLine("}");
         }
         else
@@ -2047,7 +2052,7 @@ public static class HttpClientExtractor
             builder.AppendLine("{");
             builder.AppendLine(4, $"foreach (var item in {paramAccess})");
             builder.AppendLine(4, "{");
-            builder.AppendLine(8, $"queryParams.Add($\"{InterpolatedName(paramName)}={{{encodedItem}}}\");");
+            builder.AppendLine(8, $"queryParams.Add($\"{QueryKey(paramName)}={{{encodedItem}}}\");");
             builder.AppendLine(4, "}");
             builder.AppendLine("}");
         }

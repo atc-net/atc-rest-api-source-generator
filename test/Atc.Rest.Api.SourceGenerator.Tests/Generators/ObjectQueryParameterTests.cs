@@ -247,8 +247,6 @@ public sealed class ObjectQueryParameterTests
 
         var wire = await (Task<List<string>>)assembly.GetType("ErrorBodies.RuntimeTest.QueryProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [typedClient])!;
 
-        // Atc.Rest.Client writes a key as given (its issue 0014): filter[name] from the EndpointPerOperation client,
-        // filter%5Bname%5D from the typed client - the same key to a server
-        Assert.Equal(ExpectedWire, wire.Select(w => w.Replace("[", "%5B", StringComparison.Ordinal).Replace("]", "%5D", StringComparison.Ordinal)), StringComparer.Ordinal);
+        Assert.Equal(ExpectedWire, wire, StringComparer.Ordinal);
     }
 }
