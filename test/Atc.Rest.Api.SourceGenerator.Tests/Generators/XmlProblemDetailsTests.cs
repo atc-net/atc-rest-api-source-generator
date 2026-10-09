@@ -185,7 +185,7 @@ public sealed class XmlProblemDetailsTests
                 "handler 404, problem+json first: 404 application/problem+json json",
                 "thrown 500: 500 application/problem+xml; charset=utf-8 status=500 title=An error occurred while processing your request. detail=",
                 "unmatched route: 404 application/problem+xml; charset=utf-8 status=404 title=Not Found detail=",
-                "validation 400: 400 application/problem+xml; charset=utf-8 status=400 title=One or more validation errors occurred. detail= errors=Request.name:1",
+                "validation 400: 400 application/problem+xml; charset=utf-8 status=400 title=One or more validation errors occurred. detail= errors=name:1",
                 "malformed body: 400 application/problem+xml; charset=utf-8 status=400 title=Bad Request detail=The XML request body is invalid: The 'name' start tag on line 1 position 7 does not match the end tag of 'pet'. Line 1, position 15.",
             ],
             rows,
@@ -230,7 +230,7 @@ public sealed class XmlProblemDetailsTests
             [
                 "GetPet(404): 404 ProblemDetails status=404 title=Not Found detail=No pet 404",
                 "GetPet(500): 500 ProblemDetails status=500 title=An error occurred while processing your request. detail=",
-                "AddPet(far-too-long): 400 ValidationProblemDetails status=400 title=One or more validation errors occurred. detail= errors=Request.name:1",
+                "AddPet(far-too-long): 400 ValidationProblemDetails status=400 title=One or more validation errors occurred. detail= errors=name:1",
             ],
             rows,
             StringComparer.Ordinal);

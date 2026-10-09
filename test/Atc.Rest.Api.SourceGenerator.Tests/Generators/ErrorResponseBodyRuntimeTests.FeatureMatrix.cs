@@ -754,6 +754,9 @@ public partial class ErrorResponseBodyRuntimeTests
                 {
                     result["detail"] = (string?)problem["detail"];
                     result["errors"] = problem["errors"] is JsonObject errors ? new JsonArray([.. errors.Select(e => (JsonNode)e.Key)]) : new JsonArray();
+                    result["messages"] = problem["errors"] is JsonObject fieldErrors
+                        ? new JsonArray([.. fieldErrors.SelectMany(e => e.Value is JsonArray texts ? texts.Select(t => (JsonNode?)t?.ToString()) : [])])
+                        : new JsonArray();
                 }
 
                 return result;
@@ -1254,7 +1257,7 @@ public partial class ErrorResponseBodyRuntimeTests
         const describe = (e: any) => ({ kind: 'threw', errorName: e?.name ?? null, ctor: e?.constructor?.name ?? null, code: e?.code ?? null, cause: e?.cause?.code ?? e?.cause?.name ?? null, isApiError: e instanceof ApiError, isAxiosError: e?.isAxiosError === true, error: `${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}` });
 
         // A rejected request as the client exposes it: the status, the error's class, its message and field errors
-        const rejectedOf = (e: any, arm: string | null) => ({ kind: 'error', arm, status: e?.status ?? 0, errorName: e?.name ?? null, detail: e?.detail ?? null, errors: Object.keys(e?.errors ?? {}), error: String(e?.message ?? e).slice(0, 300) });
+        const rejectedOf = (e: any, arm: string | null) => ({ kind: 'error', arm, status: e?.status ?? 0, errorName: e?.name ?? null, detail: e?.detail ?? null, errors: Object.keys(e?.errors ?? {}), messages: Object.values(e?.errors ?? {}).flat().map(String), error: String(e?.message ?? e).slice(0, 300) });
 
         // Until the server holds the probe's slow read (at most ten seconds): a cancel is sent only then
         async function waitStarted(probe: string) {
@@ -1572,22 +1575,10 @@ public partial class ErrorResponseBodyRuntimeTests
     /// client wrote PascalCase; Zod refused a date-time with an offset; a C# client threw on an enum value the server
     /// added later, fixed by the extensible enums) - all fixed. The network, timeout and validation cases came in with
     /// 15 red: the Axios client's timeout rejected with a CanceledError and the C# resilience handler's timeout did
-    /// not cover a body that stalls - fixed; the field errors of a ValidationException remain.
+    /// not cover a body that stalls - fixed; Atc.Rest.MinimalApi 3.0 keeps the field errors of a ValidationException a
+    /// handler throws - fixed.
     /// </summary>
-    private static readonly HashSet<string> KnownFeatureFailures = new(StringComparer.Ordinal)
-    {
-        // Atc.Rest.MinimalApi answers a ValidationException with a ProblemDetails, not a ValidationProblemDetails: its
-        // field errors are lost on the way (to be fixed in Atc.Rest.MinimalApi)
-        "validation: the handler throws FluentValidation's ValidationException [cs-epo]",
-        "validation: the handler throws FluentValidation's ValidationException [cs-epo-classic-enums]",
-        "validation: the handler throws FluentValidation's ValidationException [cs-typed]",
-        "validation: the handler throws FluentValidation's ValidationException [cs-typed-throw]",
-        "validation: the handler throws FluentValidation's ValidationException [ts-fetch]",
-        "validation: the handler throws FluentValidation's ValidationException [ts-axios]",
-        "validation: the handler throws FluentValidation's ValidationException [ts-fetch-zod]",
-        "validation: the handler throws FluentValidation's ValidationException [ts-fetch-reactquery]",
-        "validation: the handler throws FluentValidation's ValidationException [ts-fetch-swr]",
-    };
+    private static readonly HashSet<string> KnownFeatureFailures = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Every generated client runs every feature against the generated server as the specification and the
@@ -1773,6 +1764,16 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, client, Rejected(null), cancelled: false)["verdict"]);
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ValidationError", "name"), cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ApiError", "name"), cancelled: false)["verdict"]);
+
+        // Atc.Rest.MinimalApi 3.0 writes the failures as field errors, with no detail: the message reaches the caller in
+        // the field error's messages, as for a 400 from the validation filter
+        JsonObject FieldErrors(
+            string? errorName,
+            params string[] messages)
+            => new() { ["kind"] = "error", ["status"] = 400, ["errorName"] = errorName, ["error"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("name"), ["messages"] = new JsonArray([.. messages.Select(m => (JsonNode)m)]) };
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, client, FieldErrors(null, "'Name' must be a known thing."), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, tsFetch, FieldErrors("ValidationError", "'Name' must be a known thing."), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, tsFetch, FieldErrors("ValidationError"), cancelled: false)["verdict"]);
     }
 
     /// <summary>
@@ -1998,7 +1999,9 @@ public partial class ErrorResponseBodyRuntimeTests
                     return Cell(VerdictFail, $"{kind} {status}: expected a 400 ({(string?)observed["error"]})", summary);
                 }
 
-                if (!((string?)observed["detail"] ?? (string?)observed["error"] ?? string.Empty).Contains("must be a known thing", StringComparison.Ordinal))
+                // In the detail, the error's message or a field error's messages (Atc.Rest.MinimalApi 3.0: no detail)
+                var messages = observed["messages"] is JsonArray texts ? texts.Select(t => (string?)t ?? string.Empty) : [];
+                if (!messages.Prepend((string?)observed["detail"] ?? (string?)observed["error"] ?? string.Empty).Any(m => m.Contains("must be a known thing", StringComparison.Ordinal)))
                 {
                     return Cell(VerdictFail, "the validator's message did not reach the caller: " + (string?)observed["error"], summary);
                 }

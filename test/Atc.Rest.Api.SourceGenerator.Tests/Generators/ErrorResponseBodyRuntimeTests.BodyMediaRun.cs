@@ -553,10 +553,9 @@ public partial class ErrorResponseBodyRuntimeTests
             { Id: 404 } => new JsonObject { ["kind"] = "problem", ["title"] = "Not Found", ["detail"] = null, ["errors"] = null },
             { Id: 500 } => new JsonObject { ["kind"] = "problem", ["title"] = "An error occurred while processing your request.", ["detail"] = null, ["errors"] = null },
 
-            // The key is the request property's path (Atc.Rest.MinimalApi issue 13: the XML name "name" once it lands); in
-            // a list, the invalid item's index (the second user)
-            { User: JsonArray } => new JsonObject { ["kind"] = "problem", ["title"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("Request[1].name") },
-            _ => new JsonObject { ["kind"] = "problem", ["title"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("Request.name") },
+            // The key is the name the client sent; in a list, the invalid item's index (the second user)
+            { User: JsonArray } => new JsonObject { ["kind"] = "problem", ["title"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("[1].name") },
+            _ => new JsonObject { ["kind"] = "problem", ["title"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("name") },
         };
 
     /// <summary>

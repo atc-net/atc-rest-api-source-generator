@@ -41,7 +41,7 @@ test.describe('Users import', () => {
     // An invalid second user: the validation filter names that item
     await xml.fill(usersXml(`${stamp}-invalid`, 'D'));
     await page.getByTestId('users-import').click();
-    await expect(status).toHaveText(/^400: Request\[1\]\.firstName: /);
+    await expect(status).toHaveText(/^400: \[1\]\.firstName: /);
     await expect(rows).toHaveCount(0);
   });
 });

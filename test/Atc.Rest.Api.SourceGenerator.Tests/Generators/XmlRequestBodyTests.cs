@@ -208,8 +208,7 @@ public sealed class XmlRequestBodyTests
             await host.PostAsync("/pets", "application/xml", """<pet id="1"><name>unclosed</pet>""", accept: null),
             await host.PostAsync("/pets", "application/xml", """<!DOCTYPE pet [<!ENTITY x "y">]><pet id="1"><name>&x;</name></pet>""", accept: null),
 
-            // The validation filter runs on the bound model. Its key is "Request.name" until atc-rest-minimalapi treats a
-            // body bound by BindAsync like [FromBody] (atc-rest-minimalapi/issues/13-xml-request-body-validation-keys.md)
+            // The validation filter runs on the bound model, keyed by the name the client sent
             await host.PostAsync("/pets", "application/xml", """<pet id="1"><name>a name that is much too long for the limit</name></pet>""", accept: null),
             await host.PostAsync("/pets", "application/xml", """<pet id="1"></pet>""", accept: null),
             await host.PostAsync("/notes", "application/xml", """<note><text>Hi</text></note>""", accept: null),
@@ -224,7 +223,7 @@ public sealed class XmlRequestBodyTests
                 "415 application/problem+json title=Unsupported Media Type",
                 "400 application/problem+json title=Bad Request",
                 "400 application/problem+json title=Bad Request",
-                "400 application/problem+json errors=Request.name",
+                "400 application/problem+json errors=name",
                 "400 application/problem+json title=Bad Request",
                 "201 application/xml; charset=utf-8 <note><text>Hi via application/xml</text></note>",
                 "415 application/problem+json title=Unsupported Media Type",
@@ -300,6 +299,100 @@ public sealed class XmlRequestBodyTests
         Assert.DoesNotContain("XmlAttribute", person, StringComparison.Ordinal);
         Assert.DoesNotContain("XmlElement(\"zip\")", address, StringComparison.Ordinal);
         Assert.Empty(CompilationVerificationHarness.CompileGeneratedSources(sources, includeMinimalApi: true));
+    }
+
+    /// <summary>
+    /// A validation error names the field as the client sent it (Atc.Rest.MinimalApi 3.0 treats a body bound by
+    /// <c>BindAsync</c> as the body): an XML request by its XML names, nested ones too; a JSON request to the same
+    /// operation by its JSON names; a missing body under the empty key.
+    /// </summary>
+    [Fact]
+    public async Task Server_ValidationErrors_AreKeyedByTheNamesTheClientSent()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /people:
+                post:
+                  operationId: addPerson
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Person'
+                      application/xml:
+                        schema:
+                          $ref: '#/components/schemas/Person'
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Person:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      maxLength: 5
+                      xml:
+                        name: surname
+                    address:
+                      $ref: '#/components/schemas/Address'
+                  xml:
+                    name: person
+                Address:
+                  type: object
+                  properties:
+                    city:
+                      type: string
+                      maxLength: 3
+                      xml:
+                        name: town
+            """;
+        const string handlerSource = """"
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace ErrorBodies.RuntimeTest;
+
+            public sealed class AddPersonHandlerImpl : IAddPersonHandler
+            {
+                public System.Threading.Tasks.Task<AddPersonResult> ExecuteAsync(AddPersonParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                    => System.Threading.Tasks.Task.FromResult(AddPersonResult.NoContent());
+            }
+
+            public static class PersonRegistration
+            {
+                public static void Register(IServiceCollection services)
+                    => services.AddScoped<IAddPersonHandler, AddPersonHandlerImpl>();
+            }
+            """";
+        await using var host = await XmlTestHost.StartAsync(yaml, handlerSource, "ErrorBodies.RuntimeTest.PersonRegistration");
+
+        var rows = new List<string>
+        {
+            await host.PostAsync("/people", "application/xml", "<person><surname>Ada</surname></person>", accept: null),
+            await host.PostAsync("/people", "application/xml", "<person><surname>Lovelace</surname></person>", accept: null),
+            await host.PostAsync("/people", "application/json", """{"name":"Lovelace"}""", accept: null),
+            await host.PostAsync("/people", "application/xml", "<person><address><town>London</town></address></person>", accept: null),
+            await host.PostAsync("/people", "application/json", """{"address":{"city":"London"}}""", accept: null),
+            await host.PostAsync("/people", "application/json", string.Empty, accept: null),
+        };
+
+        Assert.Equal(
+            [
+                "204  ",
+                "400 application/problem+json errors=surname",
+                "400 application/problem+json errors=name",
+                "400 application/problem+json errors=address.town",
+                "400 application/problem+json errors=address.city",
+                "400 application/problem+json errors=",
+            ],
+            rows,
+            StringComparer.Ordinal);
     }
 
     [Theory]
