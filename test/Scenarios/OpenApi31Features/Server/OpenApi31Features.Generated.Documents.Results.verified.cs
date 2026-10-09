@@ -49,11 +49,8 @@ public sealed class CreateDocumentResult : IResult
     /// <summary>
     /// 400 Bad Request - Bad request.
     /// </summary>
-    /// <remarks>
-    /// Without errors, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared Error, so a client reading Error finds it empty. Pass a Error to send the declared body.
-    /// </remarks>
-    public static CreateDocumentResult BadRequest(Error? errors = null)
-        => new(errors is null ? TypedResults.StatusCode(400) : JsonTypeInfoHttpResult.Of(errors, "application/json", 400));
+    public static CreateDocumentResult BadRequest(Error errors)
+        => new(JsonTypeInfoHttpResult.Of(errors, "application/json", 400));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

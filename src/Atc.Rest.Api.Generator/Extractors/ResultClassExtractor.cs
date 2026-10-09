@@ -855,6 +855,26 @@ public static class ResultClassExtractor
             return methods;
         }
 
+        // A declared model that cannot hold the ProblemDetails the host writes for an empty error response is required:
+        // the call without it would leave a client reading the model with an empty one
+        if (shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject && !shape.CanHoldProblemDetails)
+        {
+            List<ParameterBaseParameters> requiredParameters = [CreateParameter(valueType, valueName, nullable: false, isReference: true, defaultValue: null)];
+            if (isTooManyRequests)
+            {
+                requiredParameters.Add(CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
+            }
+
+            methods.Add(CreateErrorFactory(
+                className,
+                doc,
+                name,
+                requiredParameters,
+                Wrap(written)));
+
+            return methods;
+        }
+
         List<ParameterBaseParameters> valueParameters = [CreateParameter(valueType, valueName, nullable: true, isReference: true, defaultValue: "null")];
         if (isTooManyRequests)
         {
@@ -870,7 +890,7 @@ public static class ResultClassExtractor
             valueParameters,
             Wrap($"{valueName} is null ? TypedResults.StatusCode({status}) : {written}"),
             remark: shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject
-                ? $"Without {valueName}, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared {valueType}, so a client reading {valueType} finds it empty. Pass a {valueType} to send the declared body."
+                ? $"Without {valueName}, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), so a client reading {valueType} gets only the fields it shares with a ProblemDetails. Pass a {valueType} to send the declared body."
                 : null));
 
         return methods;

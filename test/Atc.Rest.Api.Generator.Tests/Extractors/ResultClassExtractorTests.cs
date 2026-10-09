@@ -247,9 +247,10 @@ public class ResultClassExtractorTests
     }
 
     /// <summary>
-    /// A status with a declared model takes the model optionally: called without it, the response has no body of its
-    /// own and the host writes its ProblemDetails - not the declared model, so a client reading that model sees its
-    /// fields empty. The factory says so where a handler author reads it.
+    /// A status whose declared model can hold a ProblemDetails (here a <c>title</c>) takes the model optionally: called
+    /// without it, the response has no body of its own and the host writes its ProblemDetails - which fills only the
+    /// model's ProblemDetails fields. The factory says so where a handler author reads it. (A model that cannot hold a
+    /// ProblemDetails is a required argument, see DeclaredErrorModelFactoryTests.)
     /// </summary>
     [Fact]
     public void Extract_With404DeclaringAModel_DocumentsWhatTheEmptyCallWrites()
@@ -285,6 +286,8 @@ public class ResultClassExtractorTests
                                 Missing:
                                   type: object
                                   properties:
+                                    title:
+                                      type: string
                                     code:
                                       type: string
                             """;

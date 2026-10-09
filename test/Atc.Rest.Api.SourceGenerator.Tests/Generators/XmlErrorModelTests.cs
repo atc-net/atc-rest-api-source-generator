@@ -93,7 +93,6 @@ public sealed class XmlErrorModelTests
             public static async Task<List<string>> RunAsync()
                 => [
                     await WireAsync("GET /reports/404", GetReportResult.NotFound(new ErrorInfo(Code: "R404", Message: "No report & more"))),
-                    await WireAsync("GET /reports/405", GetReportResult.NotFound()),
                 ];
 
             private static async Task<string> WireAsync(string route, IResult result)
@@ -222,7 +221,6 @@ public sealed class XmlErrorModelTests
         Assert.Equal(
             [
                 "GET /reports/404\t404\tapplication/xml; charset=utf-8\t<error code=\"R404\"><message>No report &amp; more</message></error>",
-                "GET /reports/405\t404\t\t",
             ],
             wire,
             StringComparer.Ordinal);

@@ -656,7 +656,9 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <summary>
     /// Every handler call shape that compiled against 2.x error factories - for a spec that declares no
     /// error bodies, and for the declared-model 400 / default - still compiles against the 3.0 factories
-    /// (no removed overloads, no CS0121 ambiguities).
+    /// (no removed overloads, no CS0121 ambiguities). The one deliberate break: a factory for a declared model
+    /// that cannot hold a ProblemDetails takes the model (<c>Custom.BadRequest()</c> is gone), see
+    /// <see cref="DeclaredErrorModelFactoryTests"/>.
     /// </summary>
     [Fact]
     public void HandlerCallShapesFrom2x_StillCompile()
@@ -697,7 +699,6 @@ public partial class ErrorResponseBodyRuntimeTests
                         None.GatewayTimeout(new ProblemDetails()),
                         None.ServiceUnavailable(),
                         None.ServiceUnavailable("m"),
-                        Custom.BadRequest(),
                         Custom.BadRequest(new ErrorResponse("c", "m")),
                         Fallback.Error(new ErrorResponse("c", "m")),
                     ];
@@ -823,7 +824,9 @@ public partial class ErrorResponseBodyRuntimeTests
     ///   <item>an inline error schema on a spec whose paths share one first segment;</item>
     ///   <item>an array of inline objects as error body next to one as success body (distinct item types);</item>
     ///   <item>a media type with a quoted parameter; a declared non-400 <c>ValidationProblemDetails</c>;</item>
-    ///   <item>the 2.x call <c>TooManyRequests(30)</c> on a 429 that declares a model.</item>
+    ///   <item>a 429 that declares a model which cannot hold a ProblemDetails: the deliberate 3.0 break - the model is
+    ///   required (<c>TooManyRequests(envelope, 30)</c>); the 2.x calls <c>TooManyRequests()</c> /
+    ///   <c>TooManyRequests(30)</c> no longer compile (<see cref="DeclaredErrorModelFactoryTests"/>).</item>
     /// </list>
     /// </summary>
     [Fact]
@@ -941,6 +944,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
         const string calls = """
             using Microsoft.AspNetCore.Mvc;
+            using ErrorBodies.Generated.Models;
             using Thing = ErrorBodies.Generated.Results.GetThingResult;
 
             namespace ErrorBodies.CompatCheck;
@@ -952,8 +956,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     [
                         Thing.NotFound("not found"),
                         Thing.Conflict(5),
-                        Thing.TooManyRequests(),
-                        Thing.TooManyRequests(30),
+                        Thing.TooManyRequests(new ErrorEnvelope(null), 30),
                         Thing.UnprocessableEntity(new ValidationProblemDetails()),
                     ];
             }

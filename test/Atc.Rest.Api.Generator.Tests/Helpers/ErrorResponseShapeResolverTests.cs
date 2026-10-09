@@ -117,6 +117,67 @@ public class ErrorResponseShapeResolverTests
         Assert.Equal(expected, ErrorResponseShapeResolver.IsJsonMediaType(mediaType));
     }
 
+    /// <summary>
+    /// Whether a declared error model can hold the ProblemDetails a host writes for an empty error response: it has a
+    /// <c>title</c>, <c>status</c> or <c>detail</c> (case-insensitive, also through <c>allOf</c>). Only then may the
+    /// handler's factory be called without the model.
+    /// </summary>
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/ApiError' }", false)]
+    [InlineData("{ type: object, properties: { message: { type: string } } }", false)]
+    [InlineData("{ $ref: '#/components/schemas/ApiProblem' }", true)]
+    [InlineData("{ type: object, properties: { status: { type: integer } } }", true)]
+    [InlineData("{ type: object, properties: { Detail: { type: string } } }", true)]
+    [InlineData("{ allOf: [ { $ref: '#/components/schemas/ApiProblem' }, { type: object, properties: { code: { type: string } } } ] }", true)]
+    [InlineData("{ $ref: '#/components/schemas/Derived' }", true)]
+    [InlineData("{ type: string }", false)]
+    [InlineData("{ $ref: '#/components/schemas/ProblemDetails' }", true)]
+    public void CanHoldProblemDetails_IsTrue_ForAModelWithATitleStatusOrDetail(
+        string schema,
+        bool expected)
+    {
+        var yaml = $$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /items:
+                get:
+                  operationId: getItems
+                  responses:
+                    '404':
+                      description: Not found
+                      content:
+                        application/json:
+                          schema: {{schema}}
+            components:
+              schemas:
+                ApiError:
+                  type: object
+                  properties:
+                    code: { type: string }
+                    message: { type: string }
+                ApiProblem:
+                  type: object
+                  properties:
+                    title: { type: string }
+                    detail: { type: string }
+                Derived:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiProblem'
+                    - type: object
+                      properties:
+                        code: { type: string }
+                ProblemDetails:
+                  type: object
+                  properties:
+                    title: { type: string }
+            """;
+        var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, "items.yaml");
+        var response = document!.Paths!["/items"].Operations![HttpMethod.Get].Responses!["404"];
+
+        Assert.Equal(expected, ErrorResponseShapeResolver.Resolve(response).CanHoldProblemDetails);
+    }
+
     [Fact]
     public void ToProducesCall_DeclaredProblem_ProducesProblemWithStatusConstant()
     {

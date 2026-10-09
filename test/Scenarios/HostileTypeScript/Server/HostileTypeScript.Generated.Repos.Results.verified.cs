@@ -85,20 +85,14 @@ public sealed class ReposGetResult : IResult
     /// <summary>
     /// 404 Not Found - Not found - the error schema is named like the client's own.
     /// </summary>
-    /// <remarks>
-    /// Without error, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared ApiError, so a client reading ApiError finds it empty. Pass a ApiError to send the declared body.
-    /// </remarks>
-    public static ReposGetResult NotFound(ApiError? error = null)
-        => new(error is null ? TypedResults.StatusCode(404) : JsonTypeInfoHttpResult.Of(error, "application/json", 404));
+    public static ReposGetResult NotFound(ApiError error)
+        => new(JsonTypeInfoHttpResult.Of(error, "application/json", 404));
 
     /// <summary>
     /// 422 Unprocessable Entity - Invalid - the error schema is named like the client's own.
     /// </summary>
-    /// <remarks>
-    /// Without error, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared ValidationError, so a client reading ValidationError finds it empty. Pass a ValidationError to send the declared body.
-    /// </remarks>
-    public static ReposGetResult UnprocessableEntity(ValidationError? error = null)
-        => new(error is null ? TypedResults.StatusCode(422) : JsonTypeInfoHttpResult.Of(error, "application/json", 422));
+    public static ReposGetResult UnprocessableEntity(ValidationError error)
+        => new(JsonTypeInfoHttpResult.Of(error, "application/json", 422));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

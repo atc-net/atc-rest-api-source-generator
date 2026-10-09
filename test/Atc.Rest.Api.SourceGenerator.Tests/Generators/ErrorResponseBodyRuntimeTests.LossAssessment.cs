@@ -58,7 +58,7 @@ public partial class ErrorResponseBodyRuntimeTests
             AssessLevelImprove,
             "An empty factory call on a status with a declared model",
             "NotFound() / UnprocessableEntity() without a value on a status whose specification declares a model: the host writes its ProblemDetails, which is not the declared model, so the declared fields stay null and the ProblemDetails fields are only in Content.",
-            "Done: the factory's remarks say what a call without the model writes, and to pass the model for the declared body. Still open (a breaking change): offer the call without the model only where the declared model can hold a ProblemDetails."),
+            "Done: the call without the model exists only where the declared model can hold a ProblemDetails (a title, status or detail property); there the host's ProblemDetails fills those, and the model's other fields stay null. Every other declared model is a required argument."),
         new(
             AssessCustomFormat,
             AssessLevelDesign,
