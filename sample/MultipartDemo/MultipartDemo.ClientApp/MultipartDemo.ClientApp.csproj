@@ -6,9 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- TEMP (3.0 development): direct reference to the unreleased trim- and Native AOT-ready atc-rest-client.
-         Replace with the released PackageReference before release. -->
-    <ProjectReference Include="..\..\..\..\atc-rest-client\src\Atc.Rest.Client\Atc.Rest.Client.csproj" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
   </ItemGroup>
 

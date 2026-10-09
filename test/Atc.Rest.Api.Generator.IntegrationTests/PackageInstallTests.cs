@@ -48,11 +48,9 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
             """;
 
     /// <summary>
-    /// TEMP (3.0 development): the unreleased trim- and Native AOT-ready atc-rest-client, next to this repository.
-    /// Replace with the released <c>PackageReference</c> before release.
+    /// The trim- and Native AOT-ready Atc.Rest.Client the generated per-operation client needs.
     /// </summary>
-    private string AtcRestClientReference
-        => $"""<ProjectReference Include="{Path.GetFullPath(Path.Combine(package.RepositoryRoot, "..", "atc-rest-client", "src", "Atc.Rest.Client", "Atc.Rest.Client.csproj"))}" />""";
+    private const string AtcRestClientReference = """<PackageReference Include="Atc.Rest.Client" Version="2.2.0" />""";
 
     [Fact]
     public async Task APackedGenerator_GeneratesAClientThatCompiles_InAStrictConsumer()
