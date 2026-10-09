@@ -292,7 +292,7 @@ public sealed class XmlRequestBodyTests
         var person = sources.Single(s => s.Source.Contains("record Person(", StringComparison.Ordinal)).Source;
         var address = sources.Single(s => s.Source.Contains("record Address(", StringComparison.Ordinal)).Source;
 
-        // The validation filter maps an XML request's keys through these (atc-rest-minimalapi/issues/13); a name the
+        // The validation filter keys an XML request's errors by these names; a name the
         // XML shares with JSON (id as an attribute, zip) needs none
         Assert.Contains("[property: global::System.Xml.Serialization.XmlElement(\"surname\")] string? Name", person, StringComparison.Ordinal);
         Assert.Contains("[property: global::System.Xml.Serialization.XmlElement(\"town\")] string? City", address, StringComparison.Ordinal);

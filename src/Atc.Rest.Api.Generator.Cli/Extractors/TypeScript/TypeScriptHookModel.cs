@@ -47,7 +47,7 @@ internal static class TypeScriptHookModel
     }
 
     /// <summary>
-    /// Emits Option A from issues/001-feedback.md: a useState/useEffect/useRef-backed hook
+    /// Emits a useState/useEffect/useRef-backed hook
     /// that consumes the AsyncGenerator-style client method and accumulates items into local
     /// state. Aborts on unmount or param change, swallows AbortError, exposes a 4-state
     /// status machine plus cancel/reset controls.

@@ -9,7 +9,7 @@ using static Atc.Rest.Api.Generator.Cli.Extractors.TypeScript.TypeScriptHookMode
 /// Generates per-segment TanStack Query (React Query) hook files from OpenAPI operations.
 /// GET operations become useQuery hooks; POST/PUT/PATCH/DELETE become useMutation hooks.
 /// Streaming operations (x-return-async-enumerable) become useXxxStream hooks backed by
-/// useState + useEffect + AbortController. Hook contract: see issues/001-feedback.md.
+/// useState + useEffect + AbortController.
 /// </summary>
 [SuppressMessage("Design", "MA0051:Method is too long", Justification = "Code generation methods require sequential StringBuilder operations.")]
 public static class TypeScriptReactQueryHookExtractor

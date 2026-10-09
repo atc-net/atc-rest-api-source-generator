@@ -13,7 +13,7 @@
     <!-- NOTE: Microsoft.AspNetCore.OpenApi cannot be referenced here. It requires
          Microsoft.OpenApi >= 2.12.0 && < 3.0.0, while this repo pins 3.7.0 (NU1107). That is why
          HttpQueryRuntimeTests covers the Kestrel/QUERY behaviour but not what the runtime OpenAPI
-         document contains - see issues/http-query-support.md, SV-6. -->
+         document contains. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <!-- Property-based tests of the escapers and sanitisers: any string, not a handful of odd ones -->
     <PackageReference Include="CsCheck" Version="4.9.1" />

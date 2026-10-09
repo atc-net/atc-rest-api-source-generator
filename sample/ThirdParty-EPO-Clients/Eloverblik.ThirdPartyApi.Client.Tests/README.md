@@ -26,7 +26,7 @@ Scenario/
 
 ## Gotchas worth knowing
 
-- **`ExecuteAsync` returns the *concrete* result type**, not `IXEndpointResult`. Because that type is sealed and only constructible from an `Atc.Rest.Client` `EndpointResponse`, a mocked endpoint cannot return a substituted result — it must hand back a real one. That is the sole reason `EndpointResultFactory` exists; it disappears once generated result factories ship (item 2.1 / 10.9 in `issues/client-testing.md`).
+- **`ExecuteAsync` returns the *concrete* result type**, not `IXEndpointResult`. Because that type is sealed and only constructible from an `Atc.Rest.Client` `EndpointResponse`, a mocked endpoint cannot return a substituted result — it must hand back a real one. That is the sole reason `EndpointResultFactory` exists; it disappears once the generator emits result factories for tests.
 - **Endpoints need `IHttpMessageFactory`.** These tests resolve it from a container built with the generated `AddEloverblikApiThirdPartyApiEndpoints()`, then pair it with a `StubHttpClientFactory`.
 - **`OutputType=Exe` is required** for `xunit.v3`, and `sample/` projects inherit no shared props or `.editorconfig`.
 

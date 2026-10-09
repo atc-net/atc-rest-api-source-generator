@@ -30,7 +30,7 @@ MeteringPointReportService.cs    # stand-in for real consumer domain code
 
 - **`OutputType=Exe` is required.** `xunit.v3` reports *"zero tests ran"* without it.
 - **No inherited config.** Projects under `sample/` inherit neither `test/Directory.Build.props` nor `test/.editorconfig`, so this project declares its own package versions and analyzer relaxations.
-- **Generated models are positional records with no defaults.** A test touching two fields must still pass all 23 arguments — hence `ModelBuilder`. Tracked as a Phase 2 follow-up in `issues/client-testing.md`.
+- **Generated models are positional records with no defaults.** A test touching two fields must still pass all 23 arguments — hence `ModelBuilder`.
 
 ## Running
 
