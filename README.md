@@ -169,13 +169,13 @@ app.Run();
 | Package | When | Version |
 |---------|------|---------|
 | [`Atc.Rest.MinimalApi`](https://www.nuget.org/packages/Atc.Rest.MinimalApi) | Server: validation filter, global error handler, endpoint definitions | **3.x** with generator 3.x (they ship together - see [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3)) |
-| [`Atc.Rest.Client`](https://www.nuget.org/packages/Atc.Rest.Client) | C# client in `EndpointPerOperation` mode | 2.2.0 or later: trim- and Native AOT-ready (URL-encoded forms, a body with its own media type, JSON options several client libraries compose, escaped query keys) |
+| [`Atc.Rest.Client`](https://www.nuget.org/packages/Atc.Rest.Client) | C# client in `EndpointPerOperation` mode | 2.3.0 or later: trim- and Native AOT-ready (URL-encoded forms, a body with its own media type, JSON options several client libraries compose, escaped query keys, a multipart field sent as a JSON part) |
 | [`Atc`](https://www.nuget.org/packages/Atc) | C# client in `EndpointPerOperation` mode | 3.x |
 
 ```xml
 <PackageReference Include="Atc.Rest.MinimalApi" Version="3.*" />
 <PackageReference Include="Atc" Version="3.*" />
-<PackageReference Include="Atc.Rest.Client" Version="2.2.0" />
+<PackageReference Include="Atc.Rest.Client" Version="2.3.0" />
 ```
 
 ## 🏗️ Architecture
