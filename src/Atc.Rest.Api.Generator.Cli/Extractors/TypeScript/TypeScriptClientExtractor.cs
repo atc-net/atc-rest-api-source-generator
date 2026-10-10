@@ -1203,6 +1203,12 @@ public static class TypeScriptClientExtractor
         {
             foreach (var prop in bodySchema.Properties)
             {
+                // An object, a map or a composition has no text - String() would send '[object Object]' (ATC_API_OPR037)
+                if (prop.Value.HasNoTextForm())
+                {
+                    continue;
+                }
+
                 var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
                 var isFileProperty = false;
                 var isFileArrayProperty = false;
@@ -1255,7 +1261,7 @@ public static class TypeScriptClientExtractor
     /// A URL-encoded form body: the model's fields in a <c>URLSearchParams</c> (the runtime sends it as
     /// <c>application/x-www-form-urlencoded</c>), a list as one field per item, a <c>Date</c> (with
     /// <c>--convert-dates</c>) as its ISO text. A file has no URL-encoded form and is left out (ATC_API_OPR031
-    /// reports it).
+    /// reports it), as is an object, a map or a composition, which has no text (ATC_API_OPR037).
     /// </summary>
     private static void AppendUrlEncodedBody(
         StringBuilder sb,
@@ -1269,8 +1275,9 @@ public static class TypeScriptClientExtractor
         var properties = bodySchema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
         foreach (var prop in properties)
         {
+            // A file has no URL-encoded form; an object, a map or a composition has no text (ATC_API_OPR037)
             var (isFile, _) = prop.Value.GetFileUploadInfo();
-            if (isFile)
+            if (isFile || prop.Value.HasNoTextForm())
             {
                 continue;
             }

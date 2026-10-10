@@ -1668,6 +1668,57 @@ public class TypeScriptClientExtractorTests
         Assert.DoesNotContain("FormData", content, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Address' }")]
+    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
+    [InlineData("multipart/form-data", "{ type: object, additionalProperties: { type: string } }")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Address' }")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: object, additionalProperties: { type: string } }")]
+    public void Extract_FormFieldWithNoTextForm_IsLeftOut(
+        string mediaType,
+        string fieldYaml)
+    {
+        // An object, a map or a list of objects has no text form: String() would send '[object Object]'
+        // (ATC_API_OPR037 warns)
+        var document = ParseYaml($$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /upload:
+                post:
+                  operationId: upload
+                  requestBody:
+                    required: true
+                    content:
+                      {{mediaType}}:
+                        schema:
+                          $ref: '#/components/schemas/UploadForm'
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Address:
+                  type: object
+                  properties:
+                    street: { type: string }
+                UploadForm:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    field: {{fieldYaml}}
+            """);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(".append('name', String(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain(".append('field'", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_UrlEncodedFormBodyWithConvertDates_WritesADateAsTheLocalCalendarDay()
     {

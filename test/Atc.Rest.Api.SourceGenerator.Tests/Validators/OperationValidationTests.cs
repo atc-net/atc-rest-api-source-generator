@@ -2219,7 +2219,8 @@ public class OperationValidationTests
             [],
             TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
 
-        // Assert: the form beside JSON, and the object field; nothing for the form-only and the JSON-only operations
+        // Assert: the form beside JSON; nothing for the form-only and the JSON-only operations, nor for the object field
+        // (ATC_API_OPR037, Validate_FormFieldWithNoTextForm_ReportsOPR037)
         Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
         Assert.Collection(
             diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
@@ -2227,12 +2228,63 @@ public class OperationValidationTests
             {
                 Assert.Contains("'postFormOrJson' request body (application/x-www-form-urlencoded)", m, StringComparison.Ordinal);
                 Assert.Contains("as JSON only", m, StringComparison.Ordinal);
-            },
-            m =>
-            {
-                Assert.Contains("'postNestedForm' request body (application/x-www-form-urlencoded) field 'pet' is an object", m, StringComparison.Ordinal);
-                Assert.Contains("no form encoding", m, StringComparison.Ordinal);
             });
+    }
+
+    [Theory]
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Address' }")]
+    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Composed' }")]
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Either' }")]
+    [InlineData("multipart/form-data", "{ type: object, additionalProperties: { type: string } }")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Address' }")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Composed' }")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Either' }")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: object, additionalProperties: { type: string } }")]
+    public void Validate_FormFieldWithNoTextForm_ReportsOPR037(
+        string mediaType,
+        string fieldYaml)
+    {
+        // Arrange: a form field that is an object, a map or a composition has no text form - a client cannot send it,
+        // a server cannot bind it
+        var document = ParseYaml(FormWithFieldYaml(mediaType, fieldYaml));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId is Generator.RuleIdentifiers.ParameterValueNotBindable or Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert: one warning (a client leaves the field out; a server generator raises it to an error)
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(Generator.RuleIdentifiers.ParameterValueNotBindable, diagnostic.RuleId);
+        Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains($"'upload' request body ({mediaType}) field 'field'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("the generated clients leave it out", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{ type: string }")]
+    [InlineData("{ type: array, items: { type: integer } }")]
+    [InlineData("{ $ref: '#/components/schemas/Color' }")]
+    [InlineData("{ allOf: [ { $ref: '#/components/schemas/Color' } ], description: Wrapped }")]
+    [InlineData("{ type: string, format: binary }")]
+    public void Validate_FormFieldWithATextForm_ReportsNoOPR037(
+        string fieldYaml)
+    {
+        var document = ParseYaml(FormWithFieldYaml("multipart/form-data", fieldYaml));
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId is Generator.RuleIdentifiers.ParameterValueNotBindable or Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        Assert.Empty(diagnostics);
     }
 
     [Fact]
@@ -3358,4 +3410,59 @@ public class OperationValidationTests
                      description: Too many requests
 
            """;
+
+    private static string FormWithFieldYaml(
+        string mediaType,
+        string fieldYaml)
+        => $$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /upload:
+                post:
+                  operationId: upload
+                  requestBody:
+                    required: true
+                    content:
+                      {{mediaType}}:
+                        schema:
+                          $ref: '#/components/schemas/UploadForm'
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Address:
+                  type: object
+                  title: Address
+                  properties:
+                    street: { type: string }
+                Other:
+                  type: object
+                  title: Other
+                  properties:
+                    code: { type: integer }
+                Composed:
+                  title: Composed
+                  allOf:
+                    - $ref: '#/components/schemas/Address'
+                    - $ref: '#/components/schemas/Other'
+                Either:
+                  title: Either
+                  oneOf:
+                    - $ref: '#/components/schemas/Address'
+                    - $ref: '#/components/schemas/Other'
+                Color:
+                  type: string
+                  title: Color
+                  enum: [red, dark-blue]
+                UploadForm:
+                  type: object
+                  title: UploadForm
+                  properties:
+                    name: { type: string }
+                    field: {{fieldYaml}}
+            """;
 }

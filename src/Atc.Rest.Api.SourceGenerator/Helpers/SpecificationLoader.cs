@@ -117,8 +117,9 @@ internal static class SpecificationLoader
     }
 
     /// <summary>
-    /// The diagnostics a server generator reports: a parameter whose value cannot be bound (<c>ATC_API_OPR037</c>, a
-    /// warning to a client, which leaves it out) is an error - the server's code could not bind it.
+    /// The diagnostics a server generator reports: a parameter or a form field whose value cannot be bound
+    /// (<c>ATC_API_OPR037</c>, a warning to a client, which leaves it out) is an error - the server's code could not
+    /// bind it.
     /// </summary>
     /// <param name="diagnostics">The validation diagnostics.</param>
     /// <returns>The diagnostics, with those warnings as errors.</returns>

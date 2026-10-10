@@ -760,8 +760,9 @@ public static class RuleIdentifiers
 
     /// <summary>
     /// ATC_API_OPR037: A parameter's value is one the generated code cannot bind or send - an object other than a
-    /// flat model in the query (as deepObject or form with explode), or a 'oneOf'/'anyOf'/'allOf' without a type.
-    /// A warning (a client leaves the parameter out; a server generator raises it to an error), an error in the path.
+    /// flat model in the query (as deepObject or form with explode), or a 'oneOf'/'anyOf'/'allOf' without a type -
+    /// or a form field that is an object, a map or a composition, which has no form encoding. A warning (a client
+    /// leaves the parameter or the field out; a server generator raises it to an error), an error in the path.
     /// </summary>
     public const string ParameterValueNotBindable = "ATC_API_OPR037";
 

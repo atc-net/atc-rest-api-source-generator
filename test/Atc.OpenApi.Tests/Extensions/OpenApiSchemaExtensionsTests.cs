@@ -2060,6 +2060,63 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal("object", new OpenApiSchema { Type = JsonSchemaType.Array }.GetArrayItemType());
     }
 
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", true)]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Address' } }", true)]
+    [InlineData("{ $ref: '#/components/schemas/Composed' }", true)]
+    [InlineData("{ $ref: '#/components/schemas/Either' }", true)]
+    [InlineData("{ type: object, additionalProperties: { type: string } }", true)]
+    [InlineData("{ allOf: [ { $ref: '#/components/schemas/Address' } ], description: Wrapped }", true)]
+    [InlineData("{ type: string }", false)]
+    [InlineData("{ type: integer, format: int64 }", false)]
+    [InlineData("{ type: array, items: { type: string } }", false)]
+    [InlineData("{ $ref: '#/components/schemas/Color' }", false)]
+    [InlineData("{ allOf: [ { $ref: '#/components/schemas/Color' } ], description: Wrapped }", false)]
+    [InlineData("{ type: string, format: binary }", false)]
+    [InlineData("{ description: Anything }", false)]
+    public void HasNoTextForm_IsTrueForAnObjectAMapOrAComposition(
+        string fieldYaml,
+        bool expected)
+    {
+        var doc = ParseYaml($$"""
+            openapi: 3.0.3
+            info:
+              title: T
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Address:
+                  type: object
+                  properties:
+                    street: { type: string }
+                Other:
+                  type: object
+                  properties:
+                    code: { type: integer }
+                Composed:
+                  allOf:
+                    - $ref: '#/components/schemas/Address'
+                    - $ref: '#/components/schemas/Other'
+                Either:
+                  oneOf:
+                    - $ref: '#/components/schemas/Address'
+                    - $ref: '#/components/schemas/Other'
+                Color:
+                  type: string
+                  enum: [red, dark-blue]
+                Form:
+                  type: object
+                  properties:
+                    field: {{fieldYaml}}
+            """);
+        Assert.NotNull(doc);
+
+        var field = doc.Components!.Schemas!["Form"].Properties!["field"];
+
+        Assert.Equal(expected, field.HasNoTextForm());
+    }
+
     private static void AssertNicknameIsNullable(string yaml)
     {
         var document = ParseYaml(yaml);

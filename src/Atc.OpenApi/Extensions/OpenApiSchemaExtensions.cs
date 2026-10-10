@@ -863,6 +863,26 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// Whether the value has no text form - an object, a map, a composition without a type, or an array of any of
+        /// them - so it is no form field (or query value) a client can send or a server can bind. An enum or a model
+        /// wrapped as <c>allOf: [$ref]</c> is judged as what it wraps; an untyped schema is its text.
+        /// </summary>
+        /// <returns>True for a value with no text form.</returns>
+        public bool HasNoTextForm()
+        {
+            var value = (IOpenApiSchema?)schema.SingleWrappedReference() ?? schema;
+            if (value.Type?.HasFlag(JsonSchemaType.Array) == true)
+            {
+                return value.Items is { } items && items.HasNoTextForm();
+            }
+
+            return value.Type?.HasFlag(JsonSchemaType.Object) == true ||
+                   value.Properties is { Count: > 0 } ||
+                   ((value.Type is null || value.Type == JsonSchemaType.Null) &&
+                    (value.OneOf is { Count: > 0 } || value.AnyOf is { Count: > 0 } || value.AllOf is { Count: > 0 }));
+        }
+
+        /// <summary>
         /// Whether a model property of this schema can be null (so a client checks it before sending it): its C#
         /// type is nullable, or a reference type (a string, a <c>Uri</c>, an object). A required value type cannot.
         /// </summary>

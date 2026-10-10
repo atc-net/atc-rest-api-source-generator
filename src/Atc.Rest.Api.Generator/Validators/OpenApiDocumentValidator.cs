@@ -225,10 +225,45 @@ public static class OpenApiDocumentValidator
                             Suggestions: ["Send the object as 'style: deepObject' or 'form' with 'explode: true' with one value per property, declare its properties as parameters of their own, send it in a request body, or give the parameter a 'content' map"]));
                     }
                 }
+
+                // A form field is flat: an object, a map or a composition (or a list of one) has no form encoding
+                foreach (var field in FormFieldsWithNoTextForm(operation.Value))
+                {
+                    diagnostics.Add(new DiagnosticMessage(
+                        RuleIdentifiers.ParameterValueNotBindable,
+                        $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition, which has no form encoding; the generated clients leave it out, a server cannot be generated.",
+                        DiagnosticSeverity.Warning,
+                        sourceFilePath,
+                        Suggestions: ["Declare the field as a scalar, a list of scalars or a file, or declare the body as application/json"]));
+                }
             }
         }
 
         return diagnostics;
+    }
+
+    /// <summary>
+    /// The fields of an operation's form body (a form-only body; beside JSON the body is JSON) whose value has no text
+    /// form (see <see cref="OpenApiSchemaExtensions"/>' <c>HasNoTextForm</c>).
+    /// </summary>
+    private static IEnumerable<(string MediaType, string Name)> FormFieldsWithNoTextForm(
+        OpenApiOperation? operation)
+    {
+        if (operation?.RequestBody?.Content is not { Count: > 0 } content ||
+            content.Any(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Json) ||
+            operation.GetFormBodyMediaType() is not { } mediaType)
+        {
+            yield break;
+        }
+
+        var (_, properties, _) = operation.GetFormBodySchemaInfo();
+        foreach (var property in properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            if (property.Value.HasNoTextForm())
+            {
+                yield return (mediaType, property.Key);
+            }
+        }
     }
 
     /// <summary>
@@ -2638,21 +2673,6 @@ public static class OpenApiDocumentValidator
                 if (hasJson)
                 {
                     yield return $"Operation '{operationId}' request body ({form}) is not generated: the body is sent and bound as JSON only.";
-                }
-            }
-
-            // A form is flat: a field that is an object, or a list of objects, has no form encoding
-            if (!hasJson && operation.GetFormBodyMediaType() is { } formMediaType)
-            {
-                var (_, formProperties, _) = operation.GetFormBodySchemaInfo();
-                foreach (var property in formProperties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
-                {
-                    var itemSchema = property.Value.IsOfType(JsonSchemaType.Array) ? property.Value.Items : property.Value;
-                    if ((itemSchema is OpenApiSchemaReference { Target: { } target } && (target.IsOfType(JsonSchemaType.Object) || target.Properties is { Count: > 0 })) ||
-                        itemSchema is OpenApiSchema { Properties.Count: > 0 })
-                    {
-                        yield return $"Operation '{operationId}' request body ({formMediaType}) field '{property.Key}' is an object, which has no form encoding: the generated clients send its text, not its properties. Declare it as a scalar, a list of scalars or a file, or declare the body as application/json.";
-                    }
                 }
             }
 

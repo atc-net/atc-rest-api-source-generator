@@ -13,7 +13,8 @@ public static class FormBodyHelper
     /// Appends the statements that add every non-file field of the form model read through
     /// <paramref name="requestAccess"/> to <paramref name="fieldsVariable"/>, a
     /// <c>List&lt;KeyValuePair&lt;string, string&gt;&gt;</c> (what <c>FormUrlEncodedContent</c> takes). A file has no
-    /// URL-encoded form and is left out; ATC_API_OPR031 reports it.
+    /// URL-encoded form and is left out (ATC_API_OPR031 reports it), as is a field that is an object, a map or a
+    /// composition, which has no text (ATC_API_OPR037).
     /// </summary>
     /// <param name="builder">The builder to append to.</param>
     /// <param name="schema">The form model's schema (a component).</param>
@@ -37,8 +38,9 @@ public static class FormBodyHelper
 
         foreach (var property in schema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
         {
+            // A file has no URL-encoded form; an object, a map or a composition has no text (ATC_API_OPR037)
             var (isFile, _) = property.Value.GetFileUploadInfo();
-            if (isFile)
+            if (isFile || property.Value.HasNoTextForm())
             {
                 continue;
             }
@@ -71,7 +73,8 @@ public static class FormBodyHelper
     /// <summary>
     /// Appends the statements that add every field of the multipart form model read through
     /// <paramref name="requestAccess"/>: a file through <see cref="MultipartPartWriter.File"/>, a list of files one
-    /// by one, a list of scalars as one text part per item, a scalar as its wire text.
+    /// by one, a list of scalars as one text part per item, a scalar as its wire text. A field that is an object, a map
+    /// or a composition has no text and is left out (ATC_API_OPR037).
     /// </summary>
     /// <param name="builder">The builder to append to.</param>
     /// <param name="schema">The form model's schema (a component).</param>
@@ -100,6 +103,12 @@ public static class FormBodyHelper
 
         foreach (var property in schema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
         {
+            // An object, a map or a composition has no text: left out (ATC_API_OPR037)
+            if (property.Value.HasNoTextForm())
+            {
+                continue;
+            }
+
             var propertyName = property.Key.ToPascalCaseForDotNet();
             var access = $"{requestAccess}.{propertyName}";
             var (isFile, isFileList) = property.Value.GetFileUploadInfo();

@@ -381,22 +381,7 @@ public static class OpenApiParameterExtensions
 
     // An object, or a composition without a type, or an array of either
     private static bool IsUnbindableValue(IOpenApiSchema? schema)
-    {
-        if (schema is null)
-        {
-            return false;
-        }
-
-        if (schema.Type?.HasFlag(JsonSchemaType.Array) == true)
-        {
-            return schema.Items is { } items && IsUnbindableValue((IOpenApiSchema?)items.SingleWrappedReference() ?? items);
-        }
-
-        return schema.Type?.HasFlag(JsonSchemaType.Object) == true ||
-               schema.Properties is { Count: > 0 } ||
-               ((schema.Type is null || schema.Type == JsonSchemaType.Null) &&
-                (schema.OneOf is { Count: > 0 } || schema.AnyOf is { Count: > 0 } || schema.AllOf is { Count: > 0 }));
-    }
+        => schema?.HasNoTextForm() == true;
 
     private static ParameterStyle DefaultStyleFor(ParameterLocation? location)
         => location is ParameterLocation.Query or ParameterLocation.Cookie
