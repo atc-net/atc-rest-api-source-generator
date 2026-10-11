@@ -62,6 +62,18 @@ public sealed class MultipartJsonPartRuntimeTests
                 manifest:
                   type: string
                   format: binary
+                choice:
+                  $ref: '#/components/schemas/Destination'
+            Locker:
+              type: object
+              required: [locker_id]
+              properties:
+                locker_id:
+                  type: integer
+            Destination:
+              oneOf:
+                - $ref: '#/components/schemas/Address'
+                - $ref: '#/components/schemas/Locker'
         """;
 
     /// <summary>
@@ -190,6 +202,41 @@ public sealed class MultipartJsonPartRuntimeTests
         var errors = JsonNode.Parse(body)!["errors"]!.AsObject();
         Assert.Equal(["address"], errors.Select(e => e.Key), StringComparer.Ordinal);
         Assert.DoesNotContain("not json", body, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("5")]
+    [InlineData("[1]")]
+    [InlineData("{ not json")]
+    [InlineData("""{"locker_id":"twelve"}""")]
+    public async Task Server_ACompositionPartThatIsNoArm_IsA400NamingTheField(
+        string choice)
+    {
+        await using var host = await StartAsync(useRequestDelegateGenerator: false);
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("parcel"), "label");
+        AddJson(form, "address", """{"street":"Main Street 1"}""", asFilePart: false);
+        AddJson(form, "choice", choice, asFilePart: false);
+
+        var (status, body) = await PostAsync(host, form);
+
+        Assert.True(status == 400, $"{status}: {body}");
+        var errors = JsonNode.Parse(body)!["errors"]!.AsObject();
+        Assert.Equal(["choice"], errors.Select(e => e.Key), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public async Task Server_ACompositionPart_IsRead()
+    {
+        await using var host = await StartAsync(useRequestDelegateGenerator: false);
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("parcel"), "label");
+        AddJson(form, "address", """{"street":"Main Street 1"}""", asFilePart: false);
+        AddJson(form, "choice", """{"locker_id":12}""", asFilePart: false);
+
+        var (status, body) = await PostAsync(host, form);
+
+        Assert.True(status == 200, $"{status}: {body}");
     }
 
     [Fact]
