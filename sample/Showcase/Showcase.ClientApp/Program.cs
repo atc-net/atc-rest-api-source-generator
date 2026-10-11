@@ -321,7 +321,8 @@ try
         var formDataRequest = new FileAsFormDataRequest(
             ItemName: "Q4 Financial Report",
             File: new StreamFileContent(objectFileStream, "financial-report.txt"),
-            Items: ["finance", "quarterly", "confidential"]);
+            Items: ["finance", "quarterly", "confidential"],
+            Metadata: new FileMetadata(Author: "Contoso Finance", Confidential: true));
 
         await filesClient
             .UploadSingleObjectWithFileAsFormDataAsync(
@@ -332,6 +333,7 @@ try
         Console.WriteLine("   Uploaded object with file successfully:");
         Console.WriteLine($"   - ItemName: {formDataRequest.ItemName}");
         Console.WriteLine($"   - Tags: [{string.Join(", ", formDataRequest.Items)}]");
+        Console.WriteLine($"   - Metadata (an application/json part): {formDataRequest.Metadata}");
         Console.WriteLine($"   - File size: {objectFileContent.Length} bytes");
     }
 

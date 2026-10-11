@@ -11,6 +11,7 @@ export type * from './Document';
 export type * from './DocumentSummary';
 export type * from './ExceptionTestResponse';
 export type * from './FileAsFormDataRequest';
+export type * from './FileMetadata';
 export type * from './FilesAsFormDataRequest';
 export type * from './NotificationEvent';
 export type * from './NotificationEvents';

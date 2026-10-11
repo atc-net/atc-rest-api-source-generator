@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseMutationOptions } from '@tanstack/react-query';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
+import type { FileMetadata } from '../models';
 
 const filesKeys = {
   all: ['files'] as const,
@@ -39,11 +40,11 @@ export function useGetFileById(options?: Omit<UseMutationOptions<Blob, ApiError,
 }
 
 /** Upload a file as FormData */
-export function useUploadSingleObjectWithFileAsFormData(options?: Omit<UseMutationOptions<void, ApiError, { itemName?: string; file?: Blob | File; items?: string[] }>, 'mutationFn'>) {
+export function useUploadSingleObjectWithFileAsFormData(options?: Omit<UseMutationOptions<void, ApiError, { itemName?: string; file?: Blob | File; items?: string[]; metadata?: FileMetadata }>, 'mutationFn'>) {
   const api = useApiService();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { itemName?: string; file?: Blob | File; items?: string[] }) => {
+    mutationFn: async (data: { itemName?: string; file?: Blob | File; items?: string[]; metadata?: FileMetadata }) => {
       const result = await api.files.uploadSingleObjectWithFileAsFormData(data);
       if (result.status === 'ok') {
         return;

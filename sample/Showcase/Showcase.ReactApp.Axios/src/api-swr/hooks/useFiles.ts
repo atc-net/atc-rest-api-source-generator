@@ -3,6 +3,7 @@ import { useSWRConfig } from 'swr';
 import useSWRMutation, { type SWRMutationConfiguration } from 'swr/mutation';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
+import type { FileMetadata } from '../models';
 
 const filesKeys = {
   all: ['files'] as const,
@@ -43,10 +44,10 @@ export function useGetFileById(config?: SWRMutationConfiguration<Blob, ApiError,
 }
 
 /** Upload a file as FormData */
-export function useUploadSingleObjectWithFileAsFormData(config?: SWRMutationConfiguration<void, ApiError, typeof filesKeys.all, { itemName?: string; file?: Blob | File; items?: string[] }>) {
+export function useUploadSingleObjectWithFileAsFormData(config?: SWRMutationConfiguration<void, ApiError, typeof filesKeys.all, { itemName?: string; file?: Blob | File; items?: string[]; metadata?: FileMetadata }>) {
   const api = useApiService();
   const { mutate } = useSWRConfig();
-  return useSWRMutation<void, ApiError, typeof filesKeys.all, { itemName?: string; file?: Blob | File; items?: string[] }>(
+  return useSWRMutation<void, ApiError, typeof filesKeys.all, { itemName?: string; file?: Blob | File; items?: string[]; metadata?: FileMetadata }>(
     filesKeys.all,
     async (_key, { arg }) => {
       const data = arg;

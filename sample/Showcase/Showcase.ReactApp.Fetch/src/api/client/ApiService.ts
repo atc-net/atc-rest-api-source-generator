@@ -9,6 +9,7 @@ import { TestingClient } from './TestingClient';
 import { UsersClient } from './UsersClient';
 
 export class ApiService {
+  readonly baseUrl: string;
   readonly accounts: AccountsClient;
   readonly documents: DocumentsClient;
   readonly files: FilesClient;
@@ -18,6 +19,7 @@ export class ApiService {
   readonly users: UsersClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     const api = new ApiClient(baseUrl, options);
     this.accounts = new AccountsClient(api);
     this.documents = new DocumentsClient(api);

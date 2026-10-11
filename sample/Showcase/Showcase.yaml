@@ -1620,9 +1620,20 @@ components:
           type: array
           items:
             type: string
+        metadata:
+          $ref: '#/components/schemas/FileMetadata'
       required:
         - itemName
         - items
+    FileMetadata:
+      title: FileMetadata
+      description: About an uploaded file; in a multipart form it is an application/json part.
+      type: object
+      properties:
+        author:
+          type: string
+        confidential:
+          type: boolean
     FilesAsFormDataRequest:
       title: FilesAsFormDataRequest
       type: object
