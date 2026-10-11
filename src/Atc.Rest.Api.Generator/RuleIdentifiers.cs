@@ -178,6 +178,11 @@ public static class RuleIdentifiers
     /// </summary>
     public const string HealthChecksPackageRecommended = "ATC_API_DEP010";
 
+    /// <summary>
+    /// ATC_API_DEP011: Client EndpointPerOperation mode requires Atc.Rest.Client 2.3.0 or later.
+    /// </summary>
+    public const string AtcRestClientTooOld = "ATC_API_DEP011";
+
     // ========== OpenAPI Validation Rules (VAL) ==========
 
     /// <summary>

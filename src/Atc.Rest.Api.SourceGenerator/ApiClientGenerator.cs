@@ -11,6 +11,10 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiClientGenerator : IIncrementalGenerator
 {
+    // The Atc.Rest.Client an EndpointPerOperation client needs: 2.3.0 added WithFormJsonField (an object field of a
+    // multipart form as an application/json part)
+    private static readonly Version MinimumAtcRestClientVersion = new(2, 3, 0);
+
     /// <summary>
     /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the client code as the output.
     /// </summary>
@@ -41,8 +45,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         var packageReferencesProvider = context.CompilationProvider
             .Select(static (compilation, _) => new ClientPackageReferences
             {
-                HasAtcRestClient = compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.Equals("Atc.Rest.Client", StringComparison.OrdinalIgnoreCase)),
+                AtcRestClientVersion = compilation.ReferencedAssemblyNames
+                    .FirstOrDefault(a => a.Name.Equals("Atc.Rest.Client", StringComparison.OrdinalIgnoreCase))?.Version,
                 HasResilience = compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.Equals("Microsoft.Extensions.Http.Resilience", StringComparison.OrdinalIgnoreCase)),
                 HasHttpClientFactory = compilation.ReferencedAssemblyNames
@@ -107,9 +111,16 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
 
         // Check for Atc.Rest.Client reference when using EndpointPerOperation mode
-        if (config.GenerationMode == GenerationModeType.EndpointPerOperation && !packages.HasAtcRestClient)
+        if (config.GenerationMode == GenerationModeType.EndpointPerOperation && packages.AtcRestClientVersion is null)
         {
             DiagnosticHelpers.ReportClientRequiresAtcRestClient(productionContext);
+            return;
+        }
+
+        // ... in a version that has every member the generated client calls
+        if (config.GenerationMode == GenerationModeType.EndpointPerOperation && packages.AtcRestClientVersion < MinimumAtcRestClientVersion)
+        {
+            DiagnosticHelpers.ReportAtcRestClientTooOld(productionContext, MinimumAtcRestClientVersion, packages.AtcRestClientVersion!);
             return;
         }
 
@@ -196,7 +207,11 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// </summary>
     private sealed record ClientPackageReferences
     {
-        public bool HasAtcRestClient { get; init; }
+        /// <summary>
+        /// The referenced Atc.Rest.Client's assembly version (it follows the package version), or null when it is not
+        /// referenced.
+        /// </summary>
+        public Version? AtcRestClientVersion { get; init; }
 
         public bool HasResilience { get; init; }
 

@@ -283,6 +283,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_DEP011: Client EndpointPerOperation mode requires Atc.Rest.Client 2.3.0 or later.
+    /// </summary>
+    public static readonly DiagnosticDescriptor AtcRestClientTooOld = new(
+        RuleIdentifiers.AtcRestClientTooOld,
+        "Atc.Rest.Client Version Too Old",
+        "The EndpointPerOperation generation mode requires Atc.Rest.Client {0} or later, and the project references {1}. Update the Atc.Rest.Client package reference.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI014: Resilience extensions require Microsoft.Extensions.Http.Resilience reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ResilienceRequiresPackage = new(
@@ -729,6 +740,21 @@ internal static class DiagnosticHelpers
         context.ReportDiagnostic(Diagnostic.Create(
             ClientRequiresAtcRestClient,
             Location.None));
+    }
+
+    /// <summary>
+    /// Reports that the client EndpointPerOperation mode requires a newer Atc.Rest.Client than the one referenced.
+    /// </summary>
+    public static void ReportAtcRestClientTooOld(
+        SourceProductionContext context,
+        Version minimum,
+        Version referenced)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            AtcRestClientTooOld,
+            Location.None,
+            minimum.ToString(3),
+            referenced.ToString(3)));
     }
 
     /// <summary>

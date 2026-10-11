@@ -87,6 +87,24 @@ public class GeneratorDiagnosticsTests
         Assert.DoesNotContain("ATC_API_DEP003", Run(new ApiClientGenerator(), [Spec(Yaml), Marker(".atc-rest-api-client", """{ "generationMode": "EndpointPerOperation" }""")], Full()));
     }
 
+    /// <summary>
+    /// The generated EndpointPerOperation client calls members Atc.Rest.Client added in 2.3.0 (WithFormJsonField); an
+    /// older package is an error naming the version, not a compile error in generated code.
+    /// </summary>
+    [Fact]
+    public void Client_WithAnAtcRestClientOlderThanTheMinimum_ReportsDEP011()
+    {
+        var marker = Marker(".atc-rest-api-client", """{ "generationMode": "EndpointPerOperation" }""");
+        var diagnostics = RunDiagnostics(new ApiClientGenerator(), [Spec(Yaml), marker], Plus(Without("Atc.Rest.Client"), "Atc.Rest.Client", "2.2.0.0"));
+        var error = Assert.Single(diagnostics, d => d.Id == "ATC_API_DEP011");
+        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+        Assert.Contains("2.2.0", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        Assert.Contains("2.3.0", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+        Assert.DoesNotContain("ATC_API_DEP011", Run(new ApiClientGenerator(), [Spec(Yaml), marker], Full()));
+        Assert.DoesNotContain("ATC_API_DEP011", Run(new ApiClientGenerator(), [Spec(Yaml), Marker(".atc-rest-api-client", """{ "generationMode": "TypedClient" }""")], Plus(Without("Atc.Rest.Client"), "Atc.Rest.Client", "2.2.0.0")));
+    }
+
     [Fact]
     public void Client_WithRetryPoliciesButWithoutResilience_ReportsDEP005()
     {
@@ -446,16 +464,17 @@ public class GeneratorDiagnosticsTests
             .ToList();
 
     /// <summary>
-    /// A reference set plus an empty assembly under the given name, standing in for a package the test host does
-    /// not reference itself.
+    /// A reference set plus an empty assembly under the given name (and version), standing in for a package the test
+    /// host does not reference itself.
     /// </summary>
     private static List<MetadataReference> Plus(
         List<MetadataReference> references,
-        string assemblyName)
+        string assemblyName,
+        string assemblyVersion = "1.0.0.0")
     {
         var stub = CSharpCompilation.Create(
             assemblyName,
-            [CSharpSyntaxTree.ParseText("namespace Stub { internal static class Marker { } }")],
+            [CSharpSyntaxTree.ParseText($$"""[assembly: System.Reflection.AssemblyVersion("{{assemblyVersion}}")] namespace Stub { internal static class Marker { } }""")],
             CompilationVerificationHarness.GetMinimalReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         return [.. references, stub.ToMetadataReference()];
