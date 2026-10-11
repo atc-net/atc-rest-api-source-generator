@@ -1705,6 +1705,24 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
+    public void Extract_MultipartModelField_IsImported_ByTheClientAndTheHooks()
+    {
+        // The method's form type names the field's model ({ ...; field?: Address }): the file imports it
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", "{ $ref: '#/components/schemas/Address' }"));
+        Assert.NotNull(document);
+
+        var (_, client) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+        var reactQuery = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document, headerContent: null), f => f.Content.Contains("field?: Address", StringComparison.Ordinal)).Content;
+        var swr = Assert.Single(TypeScriptSwrHookExtractor.Extract(document, headerContent: null), f => f.Content.Contains("field?: Address", StringComparison.Ordinal)).Content;
+
+        foreach (var content in new[] { client, reactQuery, swr })
+        {
+            Assert.Contains("field?: Address", content, StringComparison.Ordinal);
+            Assert.Contains("import type { Address } from '../models';", content, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void Extract_MultipartFieldWithNoTextForm_WithEncodingOtherThanJson_IsLeftOut()
     {
         var document = ParseYaml(FormFieldYaml("multipart/form-data", "{ $ref: '#/components/schemas/Address' }", "text/plain"));
