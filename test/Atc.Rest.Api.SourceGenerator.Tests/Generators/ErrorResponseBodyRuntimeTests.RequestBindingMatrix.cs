@@ -144,6 +144,13 @@ public partial class ErrorResponseBodyRuntimeTests
                 count: { type: integer, format: int32 }
                 tags: { type: array, items: { type: string } }
                 file: { type: string, format: binary }
+                address: { $ref: '#/components/schemas/Address' }
+            Address:
+              type: object
+              required: [street]
+              properties:
+                street: { type: string }
+                post_code: { type: string }
             Thing:
               type: object
               required: [name]
@@ -984,6 +991,19 @@ public partial class ErrorResponseBodyRuntimeTests
                 ["file"] = new JsonObject { ["fileName"] = "f é.bin", ["contentType"] = "application/pdf", ["base64"] = Convert.ToBase64String(bytes) },
             },
             Expected: Expect(("Name", "doc é"), ("Count", "2"), ("Tags", "a b|c"), ("File", fileText), ("@contentType", "multipart/form-data"))));
+
+        // An object field of a multipart form: an application/json part, with the API's property names (post_code)
+        cases.Add(new RequestBindingCase(
+            "body: multipart/form-data with an object field (an application/json part)",
+            "body",
+            "BindMultipart",
+            Multipart: new JsonObject
+            {
+                ["name"] = "doc é",
+                ["file"] = new JsonObject { ["fileName"] = "f é.bin", ["contentType"] = "application/pdf", ["base64"] = Convert.ToBase64String(bytes) },
+                ["address"] = new JsonObject { ["street"] = "Main Street é 1", ["postCode"] = "1000" },
+            },
+            Expected: Expect(("Name", "doc é"), ("File", fileText), ("Street", "Main Street é 1"), ("PostCode", "1000"), ("@contentType", "multipart/form-data"))));
 
         // A URL-encoded form: every scalar formatting (a boolean, a fractional number, an offset, an enum wire name) and
         // a list as repeated keys; the values carry the characters a careless encoder gets wrong (+, &, =, %)

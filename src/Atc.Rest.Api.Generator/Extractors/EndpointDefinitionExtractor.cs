@@ -1621,7 +1621,7 @@ using Microsoft.AspNetCore.Builder;
             DefaultValue: null));
 
         // For form flattening, add individual form parameters instead of [AsParameters]
-        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName)>();
+        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName, string? JsonValue)>();
         var routeParameterNames = new List<(string ParamName, string PropName)>();
         if (requiresFormFlattening)
         {
@@ -1638,11 +1638,36 @@ using Microsoft.AspNetCore.Builder;
             var (_, properties, formRequired) = operation.GetFormBodySchemaInfo();
             if (properties is not null)
             {
+                // A field sent as an application/json part (an object, a map or a composition) is no form binding's: the
+                // wire-form-binding step reads it as JSON and keeps it on the request (WireBindingExtensions.FormJson)
+                var hasJsonParts = properties.Any(p => FormBodyHelper.IsMultipartJsonPart(operation, p.Key, p.Value));
+                if (hasJsonParts)
+                {
+                    methodParameters.Add(new ParameterBaseParameters(
+                        Attributes: null,
+                        GenericTypeName: null,
+                        IsGenericListType: false,
+                        TypeName: "HttpContext",
+                        IsNullableType: false,
+                        IsReferenceType: true,
+                        Name: "httpContext",
+                        DefaultValue: null));
+                    otherParameterNames.Add("httpContext");
+                }
+
                 foreach (var kvp in properties)
                 {
                     var propName = kvp.Key;
                     var propSchema = kvp.Value;
                     var pascalPropName = propName.ToPascalCaseForDotNet();
+
+                    if (FormBodyHelper.IsMultipartJsonPart(operation, propName, propSchema))
+                    {
+                        var valueType = FormBodyHelper.JsonPartValueType(propSchema);
+                        var accessor = propSchema.IsOfType(JsonSchemaType.Array) ? "FormJsonList" : "FormJson";
+                        formParameterNames.Add((string.Empty, pascalPropName, valueType, formRequired.Contains(propName), false, propName, $"WireBindingExtensions.{accessor}<{valueType}>(httpContext, {CSharpLiteralHelper.ToStringLiteral(propName)})"));
+                        continue;
+                    }
 
                     // Convert to camelCase for parameter name
                     var paramName = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
@@ -1708,7 +1733,7 @@ using Microsoft.AspNetCore.Builder;
                         Name: paramName,
                         DefaultValue: null));
 
-                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema), propName));
+                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema), propName, null));
                 }
             }
 
@@ -1822,8 +1847,15 @@ using Microsoft.AspNetCore.Builder;
             var requestArgs = string.Join(", ", formParameterNames.Select(p => $"{p.PropName}: {RequestArgument(p)}"));
 
             static string RequestArgument(
-                (string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName) p)
+                (string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName, string? JsonValue) p)
             {
+                // A field sent as JSON: as the wire-form-binding step read it (it answered a problem when a required one
+                // was missing)
+                if (p.JsonValue is not null)
+                {
+                    return p.IsRequired ? p.JsonValue + "!" : p.JsonValue;
+                }
+
                 var cleanTypeName = p.TypeName.TrimEnd('?');
 
                 // A field of many files: its own files out of the form's (an absent field is no files)

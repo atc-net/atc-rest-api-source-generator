@@ -308,6 +308,12 @@ public static class TypeScriptClientExtractor
             sb.Append("import { ").Append(string.Join(", ", xmlFunctions)).AppendLine(" } from '../helpers/xml';");
         }
 
+        // A JSON part of a multipart form, renamed to the API's property names
+        if (TypeScriptOperationHelper.ReferencesIdentifier(bodyText, "toWire"))
+        {
+            sb.AppendLine("import { toWire } from '../helpers/wireNames';");
+        }
+
         sb.Append(bodyText);
 
         return sb.ToString();
@@ -592,7 +598,10 @@ public static class TypeScriptClientExtractor
 
             // A raw file upload: the media types the request body declares
             var rawUploadMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList();
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption);
+
+            // A multipart form: its encoding (an object field is an application/json part, see FormBodyHelper.IsJsonPart)
+            var bodyMediaType = operation.RequestBody?.Content is { } bodyContent && bodyContent.TryGetValue(bodyContentType, out var declaredBody) ? declaredBody : null;
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption, bodyMediaType, wireNames);
         }
     }
 
@@ -707,7 +716,9 @@ public static class TypeScriptClientExtractor
         string? xmlOption = null,
         string? modelOrFileAccept = null,
         IReadOnlyList<string>? rawUploadMediaTypes = null,
-        string? securityOption = null)
+        string? securityOption = null,
+        IOpenApiMediaType? bodyMediaType = null,
+        TypeScriptWireNames? wireNames = null)
     {
         // Build parameter list
         var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -772,7 +783,7 @@ public static class TypeScriptClientExtractor
 
         if (hasBody && isFileUpload)
         {
-            AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes);
+            AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes, bodyMediaType, wireNames);
         }
         else if (hasBody && isUrlEncodedForm)
         {
@@ -1158,7 +1169,9 @@ public static class TypeScriptClientExtractor
         IOpenApiSchema bodySchema,
         string bodyContentType,
         TypeScriptNamingStrategy namingStrategy,
-        IReadOnlyList<string>? rawUploadMediaTypes = null)
+        IReadOnlyList<string>? rawUploadMediaTypes = null,
+        IOpenApiMediaType? bodyMediaType = null,
+        TypeScriptWireNames? wireNames = null)
     {
         // A raw binary upload: the file, sent as the declared media type (a server that accepts only it answers any
         // other with 415). One concrete media type is sent as it; a wildcard or several send the file's own type when
@@ -1203,13 +1216,28 @@ public static class TypeScriptClientExtractor
         {
             foreach (var prop in bodySchema.Properties)
             {
-                // An object, a map or a composition has no text - String() would send '[object Object]' (ATC_API_OPR037)
+                var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
+
+                // An object, a map or a composition has no text - String() would send '[object Object]': an
+                // application/json part (a list of one a part per item) with the API's property names, as a JSON body
+                // is sent; left out when its encoding names another media type (ATC_API_OPR037)
                 if (prop.Value.HasNoTextForm())
                 {
+                    if (FormBodyHelper.IsJsonPart(prop.Value, prop.Key, bodyMediaType))
+                    {
+                        var isList = prop.Value.IsOfType(JsonSchemaType.Array);
+                        var shape = wireNames?.ShapeOf(isList ? prop.Value.Items : prop.Value);
+                        var value = isList ? "item" : "data." + propName;
+                        var json = "new Blob([JSON.stringify(" + (shape is null ? value : "toWire(" + value + ", " + shape + ")") + ")], { type: 'application/json' })";
+                        sb.Append(isList
+                                ? "        for (const item of data." + propName + " ?? []) formData.append('"
+                                : "        if (data." + propName + " != null) formData.append('")
+                            .Append(prop.Key).Append("', ").Append(json).AppendLine(");");
+                    }
+
                     continue;
                 }
 
-                var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
                 var isFileProperty = false;
                 var isFileArrayProperty = false;
 

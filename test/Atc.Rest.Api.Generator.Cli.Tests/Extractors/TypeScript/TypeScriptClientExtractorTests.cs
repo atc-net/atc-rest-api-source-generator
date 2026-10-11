@@ -1669,54 +1669,63 @@ public class TypeScriptClientExtractorTests
     }
 
     [Theory]
-    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Address' }")]
-    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
-    [InlineData("multipart/form-data", "{ type: object, additionalProperties: { type: string } }")]
-    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Address' }")]
-    [InlineData("application/x-www-form-urlencoded", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
-    [InlineData("application/x-www-form-urlencoded", "{ type: object, additionalProperties: { type: string } }")]
-    public void Extract_FormFieldWithNoTextForm_IsLeftOut(
-        string mediaType,
+    [InlineData("{ $ref: '#/components/schemas/Address' }")]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
+    [InlineData("{ type: object, additionalProperties: { type: string } }")]
+    public void Extract_UrlEncodedFieldWithNoTextForm_IsLeftOut(
         string fieldYaml)
     {
-        // An object, a map or a list of objects has no text form: String() would send '[object Object]'
+        // An object, a map or a list of objects has no URL-encoded form: String() would send '[object Object]'
         // (ATC_API_OPR037 warns)
-        var document = ParseYaml($$"""
-            openapi: 3.0.3
-            info:
-              title: Test
-              version: 1.0.0
-            paths:
-              /upload:
-                post:
-                  operationId: upload
-                  requestBody:
-                    required: true
-                    content:
-                      {{mediaType}}:
-                        schema:
-                          $ref: '#/components/schemas/UploadForm'
-                  responses:
-                    '204':
-                      description: Stored
-            components:
-              schemas:
-                Address:
-                  type: object
-                  properties:
-                    street: { type: string }
-                UploadForm:
-                  type: object
-                  properties:
-                    name: { type: string }
-                    field: {{fieldYaml}}
-            """);
+        var document = ParseYaml(FormFieldYaml("application/x-www-form-urlencoded", fieldYaml));
         Assert.NotNull(document);
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         Assert.Contains(".append('name', String(", content, StringComparison.Ordinal);
         Assert.DoesNotContain(".append('field'", content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "        if (data.field != null) formData.append('field', new Blob([JSON.stringify(data.field)], { type: 'application/json' }));")]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Address' } }", "        for (const item of data.field ?? []) formData.append('field', new Blob([JSON.stringify(item)], { type: 'application/json' }));")]
+    [InlineData("{ type: object, additionalProperties: { type: string } }", "        if (data.field != null) formData.append('field', new Blob([JSON.stringify(data.field)], { type: 'application/json' }));")]
+    public void Extract_MultipartFieldWithNoTextForm_IsAJsonPart(
+        string fieldYaml,
+        string expected)
+    {
+        // An object, a map or a list of objects in a multipart form is an application/json part (one per item)
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", fieldYaml));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(expected, content, StringComparison.Ordinal);
+        Assert.DoesNotContain("toWire", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MultipartFieldWithNoTextForm_WithEncodingOtherThanJson_IsLeftOut()
+    {
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", "{ $ref: '#/components/schemas/Address' }", "text/plain"));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.DoesNotContain(".append('field'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MultipartJsonPart_WithRenamedProperties_IsSentWithTheApiNames()
+    {
+        // The model's camelCase names are renamed back to the API's (street_name), as a JSON body is
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", "{ $ref: '#/components/schemas/Address' }").Replace("street: { type: string }", "street_name: { type: string }", StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("import { toWire } from '../helpers/wireNames';", content, StringComparison.Ordinal);
+        Assert.Contains("formData.append('field', new Blob([JSON.stringify(toWire(data.field, 'Address'))], { type: 'application/json' }));", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1816,4 +1825,41 @@ public class TypeScriptClientExtractorTests
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    private static string FormFieldYaml(
+        string mediaType,
+        string fieldYaml,
+        string encodingContentType = "")
+        => $$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /upload:
+                post:
+                  operationId: upload
+                  requestBody:
+                    required: true
+                    content:
+                      {{mediaType}}:
+                        schema:
+                          $ref: '#/components/schemas/UploadForm'
+                        {{(encodingContentType.Length == 0 ? string.Empty : "encoding: { field: { contentType: '" + encodingContentType + "' } }")}}
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Address:
+                  type: object
+                  properties:
+                    street: { type: string }
+                UploadForm:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    file: { type: string, format: binary }
+                    field: {{fieldYaml}}
+            """;
 }

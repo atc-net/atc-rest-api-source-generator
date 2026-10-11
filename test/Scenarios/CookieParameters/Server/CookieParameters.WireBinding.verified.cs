@@ -2,7 +2,6 @@
 #nullable enable
 #pragma warning disable CS1591
 
-using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System;
@@ -10,13 +9,17 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 
 namespace CookieParameters.Generated;
@@ -29,6 +32,21 @@ namespace CookieParameters.Generated;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false)
 {
+    /// <summary>
+    /// Reads a value sent as JSON with the given options (see <see cref="Json{T}"/>), or null for any other.
+    /// </summary>
+    public Func<string, JsonSerializerOptions, object?>? ReadJson { get; init; }
+
+    /// <summary>
+    /// A value sent as JSON - an object, a map or a composition in a multipart form, an application/json part
+    /// (a list of one a part per item) - read through the metadata the app's JSON options resolve.
+    /// </summary>
+    public static WireParameter Json<T>(string @in, string name, string typeName, bool isArray = false)
+        => new(@in, name, null, typeName, null, isArray)
+        {
+            ReadJson = (text, options) => JsonSerializer.Deserialize(text, global::CookieParameters.Generated.GeneratedJsonOptions.TypeInfo<T>(options)),
+        };
+
     /// <summary>
     /// An object in the query: each property by its own key - <c>{name}[{property}]</c> (deepObject) or the
     /// property's name (form, explode) - checked as the property's type, and handed to the binder as one value
@@ -96,6 +114,11 @@ public static class WireBindingExtensions
 {
     private const string CookieHeaderPrefix = "x-cookie-";
 
+    // The request item a field read as JSON is kept under, for the endpoint
+    private const string FormJsonKey = "\u001Fform-json:";
+
+    private static readonly JsonSerializerOptions FallbackJsonOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
     private const string QueryStringKey = "\u001Fquerystring";
 
     private const char ItemSeparator = '\u001F';
@@ -157,7 +180,7 @@ public static class WireBindingExtensions
         var checks = new List<FormField>();
         foreach (var (field, required, isFile) in fields)
         {
-            checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray));
+            checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray, field.ReadJson));
         }
 
         builder.Add(endpoint =>
@@ -205,6 +228,15 @@ public static class WireBindingExtensions
                 }
 
                 var errors = CheckForm(form, checks, out var rewritten);
+                if (await ReadJsonFieldsAsync(context, form, checks) is { } jsonErrors)
+                {
+                    errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                    foreach (var (name, messages) in jsonErrors)
+                    {
+                        errors[name] = messages;
+                    }
+                }
+
                 if (errors is not null)
                 {
                     await global::Microsoft.AspNetCore.Http.Results.ValidationProblem(errors).ExecuteAsync(context);
@@ -223,7 +255,102 @@ public static class WireBindingExtensions
         return builder;
     }
 
-    private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray);
+    private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, Func<string, JsonSerializerOptions, object?>? ReadJson);
+
+    /// <summary>
+    /// The value of a field the form step read as JSON (see <see cref="WireParameter.Json{T}"/>), or the
+    /// default when it was not sent.
+    /// </summary>
+    public static T? FormJson<T>(HttpContext context, string name)
+        => context.Items.TryGetValue(FormJsonKey + name, out var value) && value is T typed ? typed : default;
+
+    /// <summary>
+    /// The items of a list field the form step read as JSON, a part each (see
+    /// <see cref="WireParameter.Json{T}"/>), or null when none was sent.
+    /// </summary>
+    public static List<T>? FormJsonList<T>(HttpContext context, string name)
+        => context.Items.TryGetValue(FormJsonKey + name, out var value) && value is List<object> items ? items.Cast<T>().ToList() : null;
+
+    // The fields sent as JSON, read through the app's JSON options and kept for the endpoint: a part is a
+    // form value or - what a browser sends for a Blob - a file of the field's name. The parts that are no
+    // such value and the required fields that are missing (a JSON null is none), by field name, or null.
+    private static async Task<Dictionary<string, string[]>?> ReadJsonFieldsAsync(
+        HttpContext context,
+        IFormCollection form,
+        List<FormField> fields)
+    {
+        Dictionary<string, string[]>? errors = null;
+        JsonSerializerOptions? options = null;
+        foreach (var field in fields)
+        {
+            if (field.ReadJson is not { } readJson)
+            {
+                continue;
+            }
+
+            var parts = new List<string>();
+            if (form.TryGetValue(field.Name, out var values))
+            {
+                parts.AddRange(values.Where(v => !string.IsNullOrEmpty(v)).Select(v => v!));
+            }
+
+            foreach (var file in form.Files.GetFiles(field.Name))
+            {
+                using var reader = new StreamReader(file.OpenReadStream());
+                parts.Add(await reader.ReadToEndAsync(context.RequestAborted));
+            }
+
+            options ??= context.RequestServices.GetService<IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>>()?.Value.SerializerOptions ?? FallbackJsonOptions;
+            var items = new List<object>();
+            var invalid = false;
+            foreach (var part in field.IsArray ? parts : parts.Take(1))
+            {
+                object? value;
+                try
+                {
+                    value = readJson(part, options);
+                }
+                catch (JsonException)
+                {
+                    invalid = true;
+                    break;
+                }
+
+                if (value is not null)
+                {
+                    items.Add(value);
+                }
+                else if (field.IsArray)
+                {
+                    // A list of models holds no null
+                    invalid = true;
+                    break;
+                }
+            }
+
+            if (invalid)
+            {
+                errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                errors[field.Name] = [$"The {field.Name} field is not a valid {field.TypeName}."];
+                continue;
+            }
+
+            if (items.Count == 0)
+            {
+                if (field.Required)
+                {
+                    errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                    errors[field.Name] = [$"The {field.Name} field is required."];
+                }
+
+                continue;
+            }
+
+            context.Items[FormJsonKey + field.Name] = field.IsArray ? items : items[0];
+        }
+
+        return errors;
+    }
 
     // The form as the binder reads it (an enum by its member name); the values it cannot bind and the
     // required fields that are missing, by field name, or null
@@ -237,6 +364,12 @@ public static class WireBindingExtensions
         Dictionary<string, StringValues>? values = null;
         foreach (var field in fields)
         {
+            // A field sent as JSON is read by ReadJsonFieldsAsync
+            if (field.ReadJson is not null)
+            {
+                continue;
+            }
+
             if (field.IsFile)
             {
                 if (field.Required && form.Files.GetFiles(field.Name).Count == 0)

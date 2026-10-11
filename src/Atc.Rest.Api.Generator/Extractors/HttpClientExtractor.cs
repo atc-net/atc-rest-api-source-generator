@@ -1478,7 +1478,7 @@ public static class HttpClientExtractor
         else if (schemaBasedMultipartSchema is not null && hasParameters)
         {
             // Schema-based multipart/form-data with object containing file properties
-            GenerateSchemaBasedMultipartFormData(builder, schemaBasedMultipartSchema, requestAccess);
+            GenerateSchemaBasedMultipartFormData(builder, schemaBasedMultipartSchema, FormBodyHelper.FindMultipartFormData(operation), requestAccess);
             builder.AppendLine();
             AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");
         }
@@ -2224,20 +2224,24 @@ public static class HttpClientExtractor
 
     /// <summary>
     /// Generates code for schema-based multipart/form-data requests.
-    /// Creates MultipartFormDataContent with StringContent for text fields and StreamContent for binary fields.
+    /// Creates MultipartFormDataContent with StringContent for text fields, StreamContent for binary fields and
+    /// JsonContent for an object, a map or a composition.
     /// </summary>
     private static void GenerateSchemaBasedMultipartFormData(
         StringBuilder builder,
         IOpenApiSchema schema,
+        IOpenApiMediaType? multipart,
         string requestAccess)
     {
         builder.AppendLine("using var content = new MultipartFormDataContent();");
         builder.AppendLine();
 
-        // A file is a StreamContent with its own content type; a text field a StringContent
+        // A file is a StreamContent with its own content type; a text field a StringContent; an object an
+        // application/json part written through the client's serializer options (as a JSON body is)
         FormBodyHelper.AppendMultipartFields(
             builder,
             schema,
+            multipart,
             requestAccess,
             new MultipartPartWriter(
                 File: (sb, indent, name, file) =>
@@ -2251,7 +2255,8 @@ public static class HttpClientExtractor
                     sb.AppendLine();
                     sb.AppendLine(indent, $"content.Add(fileContent, {CSharpLiteralHelper.ToStringLiteral(name)}, {file}.FileName);");
                 },
-                Text: (sb, indent, name, text) => sb.AppendLine(indent, $"content.Add(new StringContent({text}), {CSharpLiteralHelper.ToStringLiteral(name)});")));
+                Text: (sb, indent, name, text) => sb.AppendLine(indent, $"content.Add(new StringContent({text}), {CSharpLiteralHelper.ToStringLiteral(name)});"),
+                Json: (sb, indent, name, value) => sb.AppendLine(indent, $"content.Add(jsonSerializerOptions.ToJsonContent({value}), {CSharpLiteralHelper.ToStringLiteral(name)});")));
     }
 
     /// <summary>

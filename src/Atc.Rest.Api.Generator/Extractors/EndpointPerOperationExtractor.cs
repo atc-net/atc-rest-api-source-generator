@@ -1270,7 +1270,7 @@ public static class EndpointPerOperationExtractor
                     else
                     {
                         // A model - WithFile/WithFormField calls for each property
-                        GenerateMultipartFormDataCode(sb, multipartSchema, openApiDoc);
+                        GenerateMultipartFormDataCode(sb, multipartSchema, operation.RequestBody.Content[contentType!], openApiDoc);
                     }
                 }
             }
@@ -2278,11 +2278,13 @@ public static class EndpointPerOperationExtractor
 
     /// <summary>
     /// Generates code for multipart/form-data requests with schema-based content.
-    /// Maps schema properties to WithFile() for binary properties and WithFormField() for others.
+    /// Maps schema properties to WithFile() for binary properties, WithFormJsonField() for an object, a map or a
+    /// composition, and WithFormField() for others.
     /// </summary>
     private static void GenerateMultipartFormDataCode(
         StringBuilder sb,
         IOpenApiSchema modelSchema,
+        IOpenApiMediaType multipart,
         OpenApiDocument openApiDoc)
     {
         // A model without properties, or one the document does not have: the whole model as the body
@@ -2293,14 +2295,17 @@ public static class EndpointPerOperationExtractor
             return;
         }
 
-        // A file through WithFile (with its metadata), a text field through WithFormField
+        // A file through WithFile (with its metadata), a text field through WithFormField, an object through
+        // WithFormJsonField (an application/json part written by the request builder's serializer, as a JSON body is)
         FormBodyHelper.AppendMultipartFields(
             sb,
             schema,
+            multipart,
             "parameters.Request",
             new MultipartPartWriter(
                 File: (b, indent, name, file) => b.AppendLine(indent, $"requestBuilder.WithFile({file}.OpenReadStream(), {CSharpLiteralHelper.ToStringLiteral(name)}, {file}.FileName, {file}.ContentType);"),
-                Text: (b, indent, name, text) => b.AppendLine(indent, $"requestBuilder.WithFormField({CSharpLiteralHelper.ToStringLiteral(name)}, {text});")));
+                Text: (b, indent, name, text) => b.AppendLine(indent, $"requestBuilder.WithFormField({CSharpLiteralHelper.ToStringLiteral(name)}, {text});"),
+                Json: (b, indent, name, value) => b.AppendLine(indent, $"requestBuilder.WithFormJsonField({CSharpLiteralHelper.ToStringLiteral(name)}, {value});")));
     }
 
     /// <summary>

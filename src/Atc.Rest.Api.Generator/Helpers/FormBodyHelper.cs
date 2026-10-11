@@ -73,16 +73,20 @@ public static class FormBodyHelper
     /// <summary>
     /// Appends the statements that add every field of the multipart form model read through
     /// <paramref name="requestAccess"/>: a file through <see cref="MultipartPartWriter.File"/>, a list of files one
-    /// by one, a list of scalars as one text part per item, a scalar as its wire text. A field that is an object, a map
-    /// or a composition has no text and is left out (ATC_API_OPR037).
+    /// by one, a list of scalars as one text part per item, a scalar as its wire text, and an object, a map or a
+    /// composition as an application/json part through <see cref="MultipartPartWriter.Json"/> (a list of one as a part
+    /// per item, see <see cref="IsJsonPart"/>). A field whose encoding names another media type is left out
+    /// (ATC_API_OPR037).
     /// </summary>
     /// <param name="builder">The builder to append to.</param>
     /// <param name="schema">The form model's schema (a component).</param>
+    /// <param name="multipart">The multipart/form-data media type, for its <c>encoding</c>.</param>
     /// <param name="requestAccess">The expression that reads the model, e.g. <c>parameters.Request</c>.</param>
     /// <param name="writer">How a part is added.</param>
     public static void AppendMultipartFields(
         StringBuilder builder,
         IOpenApiSchema schema,
+        IOpenApiMediaType? multipart,
         string requestAccess,
         MultipartPartWriter writer)
     {
@@ -103,14 +107,21 @@ public static class FormBodyHelper
 
         foreach (var property in schema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
         {
-            // An object, a map or a composition has no text: left out (ATC_API_OPR037)
+            var propertyName = property.Key.ToPascalCaseForDotNet();
+            var access = $"{requestAccess}.{propertyName}";
+
+            // An object, a map or a composition has no text: an application/json part (a list of one a part per
+            // item), or - when its encoding names another media type - left out (ATC_API_OPR037)
             if (property.Value.HasNoTextForm())
             {
+                if (IsJsonPart(property.Value, property.Key, multipart))
+                {
+                    AppendJsonParts(builder, property.Key, property.Value, requestAccess, propertyName, writer);
+                }
+
                 continue;
             }
 
-            var propertyName = property.Key.ToPascalCaseForDotNet();
-            var access = $"{requestAccess}.{propertyName}";
             var (isFile, isFileList) = property.Value.GetFileUploadInfo();
             var isList = property.Value.IsOfType(JsonSchemaType.Array);
             var isEnum = WireValueHelper.IsStringEnum(property.Value);
@@ -155,6 +166,101 @@ public static class FormBodyHelper
 
             builder.AppendLine();
         }
+    }
+
+    /// <summary>
+    /// Whether a field of a multipart form is sent as an <c>application/json</c> part: a value with no text form (an
+    /// object, a map or a composition, or a list of one - a part per item; see <c>HasNoTextForm</c>), which OpenAPI
+    /// encodes as JSON unless the form's <c>encoding</c> gives the field another media type.
+    /// </summary>
+    /// <param name="field">The field's schema.</param>
+    /// <param name="fieldName">The field's name, the key of its <c>encoding</c>.</param>
+    /// <param name="multipart">The multipart/form-data media type, for its <c>encoding</c>.</param>
+    /// <returns><see langword="true"/> for a JSON part.</returns>
+    public static bool IsJsonPart(
+        IOpenApiSchema field,
+        string fieldName,
+        IOpenApiMediaType? multipart)
+    {
+        if (field is null)
+        {
+            throw new ArgumentNullException(nameof(field));
+        }
+
+        if (!field.HasNoTextForm())
+        {
+            return false;
+        }
+
+        // The encoding may list several media types; any JSON one is what the generated code writes
+        return multipart?.Encoding is not { } encoding ||
+               !encoding.TryGetValue(fieldName, out var fieldEncoding) ||
+               string.IsNullOrWhiteSpace(fieldEncoding.ContentType) ||
+               fieldEncoding.ContentType!.Split(',').Any(ErrorResponseShapeResolver.IsJsonMediaType);
+    }
+
+    /// <summary>
+    /// Whether a field of an operation's form body is sent as an application/json part: the operation declares a
+    /// multipart/form-data body, and the field is a JSON part of it (see <see cref="IsJsonPart"/>). A server bound field
+    /// by field reads such a field as JSON.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="fieldName">The field's name.</param>
+    /// <param name="field">The field's schema.</param>
+    /// <returns><see langword="true"/> for a JSON part.</returns>
+    public static bool IsMultipartJsonPart(
+        OpenApiOperation operation,
+        string fieldName,
+        IOpenApiSchema field)
+        => FindMultipartFormData(operation) is { } multipart &&
+           IsJsonPart(field, fieldName, multipart);
+
+    /// <summary>
+    /// The C# type of the value one JSON part carries: the field's type, or its item's for a list of one (a part per
+    /// item).
+    /// </summary>
+    /// <param name="field">The field's schema.</param>
+    /// <returns>The C# type, without <c>?</c>.</returns>
+    public static string JsonPartValueType(IOpenApiSchema field)
+    {
+        if (field is null)
+        {
+            throw new ArgumentNullException(nameof(field));
+        }
+
+        // A map is the model's Dictionary<string, TValue>
+        var value = field.IsOfType(JsonSchemaType.Array) && field.Items is { } items ? items : field;
+        return (value.GetDictionaryTypeString(isRequired: true) ?? value.ToCSharpType(isRequired: true, registry: null)).TrimEnd('?');
+    }
+
+    /// <summary>
+    /// Whether a field of the form body the generated code sends (see <c>GetFormBodyMediaType</c>) has no encoding
+    /// there (ATC_API_OPR037): a value with no text form in a URL-encoded form, or in a multipart form whose
+    /// <c>encoding</c> gives it a media type other than JSON (see <see cref="IsJsonPart"/>).
+    /// </summary>
+    /// <param name="formMediaType">The form's media type, as the document declares it.</param>
+    /// <param name="form">The form's media type object, for its <c>encoding</c>.</param>
+    /// <param name="fieldName">The field's name.</param>
+    /// <param name="field">The field's schema.</param>
+    /// <returns><see langword="true"/> when the field cannot be sent.</returns>
+    public static bool HasNoFormEncoding(
+        string formMediaType,
+        IOpenApiMediaType? form,
+        string fieldName,
+        IOpenApiSchema field)
+    {
+        if (formMediaType is null)
+        {
+            throw new ArgumentNullException(nameof(formMediaType));
+        }
+
+        if (field is null)
+        {
+            throw new ArgumentNullException(nameof(field));
+        }
+
+        return field.HasNoTextForm() &&
+               !(IsMultipartFormData(formMediaType) && IsJsonPart(field, fieldName, form));
     }
 
     /// <summary>
@@ -222,5 +328,52 @@ public static class FormBodyHelper
     /// <returns>The declared key, or <see langword="null"/> when the body has no multipart/form-data.</returns>
     public static string? FindMultipartFormDataMediaType(
         IDictionary<string, IOpenApiMediaType>? content)
-        => content?.Keys.FirstOrDefault(key => key.Split(';')[0].Trim().Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase));
+        => content?.Keys.FirstOrDefault(IsMultipartFormData);
+
+    /// <summary>
+    /// The multipart/form-data media type object of an operation's request body (see
+    /// <see cref="FindMultipartFormDataMediaType"/>), for its <c>encoding</c>.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>The media type object, or <see langword="null"/> when the body has no multipart/form-data.</returns>
+    public static IOpenApiMediaType? FindMultipartFormData(
+        OpenApiOperation operation)
+        => operation?.RequestBody?.Content is { } content &&
+           FindMultipartFormDataMediaType(content) is { } mediaType
+            ? content[mediaType]
+            : null;
+
+    private static bool IsMultipartFormData(string mediaType)
+        => mediaType.Split(';')[0].Trim().Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase);
+
+    // An application/json part of the value, or one per item of a list
+    private static void AppendJsonParts(
+        StringBuilder builder,
+        string fieldName,
+        IOpenApiSchema field,
+        string requestAccess,
+        string propertyName,
+        MultipartPartWriter writer)
+    {
+        if (field.IsOfType(JsonSchemaType.Array))
+        {
+            builder.AppendLine($"if ({requestAccess}?.{propertyName} is not null)");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"foreach (var item in {requestAccess}.{propertyName})");
+            builder.AppendLine(4, "{");
+            writer.Json(builder, 8, fieldName, "item");
+            builder.AppendLine(4, "}");
+            builder.AppendLine("}");
+        }
+        else
+        {
+            var variable = char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+            builder.AppendLine($"if ({requestAccess}?.{propertyName} is {{ }} {variable})");
+            builder.AppendLine("{");
+            writer.Json(builder, 4, fieldName, variable);
+            builder.AppendLine("}");
+        }
+
+        builder.AppendLine();
+    }
 }

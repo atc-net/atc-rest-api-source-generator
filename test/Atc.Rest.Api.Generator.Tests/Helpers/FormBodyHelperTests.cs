@@ -71,14 +71,21 @@ public class FormBodyHelperTests
                     tags: { type: array, items: { type: string } }
                     count: { type: integer, format: int32 }
                     color: { $ref: '#/components/schemas/Color' }
+                    address: { $ref: '#/components/schemas/Address' }
+                    addresses: { type: array, items: { $ref: '#/components/schemas/Address' } }
+                Address:
+                  type: object
+                  properties:
+                    street: { type: string }
             """);
         var schema = document.Components!.Schemas!["Upload"];
         var sb = new StringBuilder();
         var writer = new MultipartPartWriter(
             File: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(" + expression + ", \"" + name + "\");"),
-            Text: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(new StringContent(" + expression + "), \"" + name + "\");"));
+            Text: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(new StringContent(" + expression + "), \"" + name + "\");"),
+            Json: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(Json(" + expression + "), \"" + name + "\");"));
 
-        FormBodyHelper.AppendMultipartFields(sb, schema, "parameters.Request", writer);
+        FormBodyHelper.AppendMultipartFields(sb, schema, multipart: null, "parameters.Request", writer);
         var code = sb.ToString();
 
         // A file: one part
@@ -123,6 +130,25 @@ public class FormBodyHelperTests
             code,
             StringComparison.Ordinal);
         Assert.Contains("content.Add(new StringContent(color.ToWireValue()), \"color\");", code, StringComparison.Ordinal);
+
+        // An object: an application/json part; a list of objects: one per item
+        Assert.Contains(
+            "if (parameters.Request?.Address is { } address)" + Environment.NewLine +
+            "{" + Environment.NewLine +
+            "    content.Add(Json(address), \"address\");" + Environment.NewLine +
+            "}" + Environment.NewLine,
+            code,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "if (parameters.Request?.Addresses is not null)" + Environment.NewLine +
+            "{" + Environment.NewLine +
+            "    foreach (var item in parameters.Request.Addresses)" + Environment.NewLine +
+            "    {" + Environment.NewLine +
+            "        content.Add(Json(item), \"addresses\");" + Environment.NewLine +
+            "    }" + Environment.NewLine +
+            "}" + Environment.NewLine,
+            code,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -131,7 +157,7 @@ public class FormBodyHelperTests
         var document = OpenApiDocumentHelper.ParseYaml(FormYaml);
         var schema = document.Components!.Schemas!["Form"];
 
-        Assert.Throws<ArgumentNullException>(() => FormBodyHelper.AppendMultipartFields(new StringBuilder(), schema, "parameters.Request", null!));
+        Assert.Throws<ArgumentNullException>(() => FormBodyHelper.AppendMultipartFields(new StringBuilder(), schema, multipart: null, "parameters.Request", null!));
     }
 
     [Theory]

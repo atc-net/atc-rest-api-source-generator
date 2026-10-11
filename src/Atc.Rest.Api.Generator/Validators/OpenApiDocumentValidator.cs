@@ -226,15 +226,23 @@ public static class OpenApiDocumentValidator
                     }
                 }
 
-                // A form field is flat: an object, a map or a composition (or a list of one) has no form encoding
-                foreach (var field in FormFieldsWithNoTextForm(operation.Value))
+                // An object, a map or a composition (or a list of one) is an application/json part of a multipart form;
+                // a URL-encoded form has no encoding for it, nor has a multipart form whose encoding names another type
+                foreach (var field in FormFieldsWithNoFormEncoding(operation.Value))
                 {
-                    diagnostics.Add(new DiagnosticMessage(
-                        RuleIdentifiers.ParameterValueNotBindable,
-                        $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition, which has no form encoding; the generated clients leave it out, a server cannot be generated.",
-                        DiagnosticSeverity.Warning,
-                        sourceFilePath,
-                        Suggestions: ["Declare the field as a scalar, a list of scalars or a file, or declare the body as application/json"]));
+                    diagnostics.Add(field.EncodingContentType is null
+                        ? new DiagnosticMessage(
+                            RuleIdentifiers.ParameterValueNotBindable,
+                            $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition, which has no URL-encoded form; the generated clients leave it out, a server cannot be generated.",
+                            DiagnosticSeverity.Warning,
+                            sourceFilePath,
+                            Suggestions: ["Declare the field as a scalar, a list of scalars or a file, declare the body as multipart/form-data (the field is then an application/json part), or declare the body as application/json"])
+                        : new DiagnosticMessage(
+                            RuleIdentifiers.ParameterValueNotBindable,
+                            $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition whose encoding names '{field.EncodingContentType}', which the generated code cannot write (only an application/json part); the generated clients leave it out, a server cannot be generated.",
+                            DiagnosticSeverity.Warning,
+                            sourceFilePath,
+                            Suggestions: ["Leave out the field's encoding contentType, or set it to application/json"]));
                 }
             }
         }
@@ -243,10 +251,11 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// The fields of an operation's form body (a form-only body; beside JSON the body is JSON) whose value has no text
-    /// form (see <see cref="OpenApiSchemaExtensions"/>' <c>HasNoTextForm</c>).
+    /// The fields of an operation's form body (a form-only body; beside JSON the body is JSON), in the form the
+    /// generated code sends (multipart before URL-encoded), that have no encoding there (see
+    /// <see cref="FormBodyHelper.HasNoFormEncoding"/>), with the media type the multipart encoding names, if any.
     /// </summary>
-    private static IEnumerable<(string MediaType, string Name)> FormFieldsWithNoTextForm(
+    private static IEnumerable<(string MediaType, string Name, string? EncodingContentType)> FormFieldsWithNoFormEncoding(
         OpenApiOperation? operation)
     {
         if (operation?.RequestBody?.Content is not { Count: > 0 } content ||
@@ -256,12 +265,17 @@ public static class OpenApiDocumentValidator
             yield break;
         }
 
+        var form = content[mediaType];
         var (_, properties, _) = operation.GetFormBodySchemaInfo();
         foreach (var property in properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
         {
-            if (property.Value.HasNoTextForm())
+            if (FormBodyHelper.HasNoFormEncoding(mediaType, form, property.Key, property.Value))
             {
-                yield return (mediaType, property.Key);
+                var encodingContentType = FormBodyHelper.FindMultipartFormDataMediaType(content) == mediaType &&
+                                          form.Encoding?.TryGetValue(property.Key, out var encoding) == true
+                    ? encoding.ContentType
+                    : null;
+                yield return (mediaType, property.Key, encodingContentType);
             }
         }
     }

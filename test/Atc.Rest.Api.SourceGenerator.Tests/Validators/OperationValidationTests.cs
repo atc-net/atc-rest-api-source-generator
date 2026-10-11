@@ -2220,7 +2220,7 @@ public class OperationValidationTests
             TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
 
         // Assert: the form beside JSON; nothing for the form-only and the JSON-only operations, nor for the object field
-        // (ATC_API_OPR037, Validate_FormFieldWithNoTextForm_ReportsOPR037)
+        // (ATC_API_OPR037, Validate_FormFieldWithNoFormEncoding_ReportsOPR037)
         Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
         Assert.Collection(
             diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
@@ -2232,23 +2232,21 @@ public class OperationValidationTests
     }
 
     [Theory]
-    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Address' }")]
-    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
-    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Composed' }")]
-    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Either' }")]
-    [InlineData("multipart/form-data", "{ type: object, additionalProperties: { type: string } }")]
-    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Address' }")]
-    [InlineData("application/x-www-form-urlencoded", "{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
-    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Composed' }")]
-    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Either' }")]
-    [InlineData("application/x-www-form-urlencoded", "{ type: object, additionalProperties: { type: string } }")]
-    public void Validate_FormFieldWithNoTextForm_ReportsOPR037(
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Address' }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: array, items: { $ref: '#/components/schemas/Address' } }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Composed' }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Either' }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: object, additionalProperties: { type: string } }", "")]
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Address' }", "text/plain")]
+    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }", "application/xml")]
+    public void Validate_FormFieldWithNoFormEncoding_ReportsOPR037(
         string mediaType,
-        string fieldYaml)
+        string fieldYaml,
+        string encodingContentType)
     {
-        // Arrange: a form field that is an object, a map or a composition has no text form - a client cannot send it,
-        // a server cannot bind it
-        var document = ParseYaml(FormWithFieldYaml(mediaType, fieldYaml));
+        // Arrange: a URL-encoded field that is an object, a map or a composition has no text form, nor has a multipart
+        // field whose encoding names a media type other than JSON - a client cannot send it, a server cannot bind it
+        var document = ParseYaml(FormWithFieldYaml(mediaType, fieldYaml, encodingContentType));
         Assert.NotNull(document);
 
         // Act
@@ -2264,6 +2262,34 @@ public class OperationValidationTests
         Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Contains($"'upload' request body ({mediaType}) field 'field'", diagnostic.Message, StringComparison.Ordinal);
         Assert.Contains("the generated clients leave it out", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "")]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Address' } }", "")]
+    [InlineData("{ $ref: '#/components/schemas/Composed' }", "")]
+    [InlineData("{ $ref: '#/components/schemas/Either' }", "")]
+    [InlineData("{ type: object, additionalProperties: { type: string } }", "")]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "application/json")]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "application/vnd.contoso+json")]
+    public void Validate_MultipartFieldWithNoTextForm_IsAJsonPart_ReportsNoOPR037(
+        string fieldYaml,
+        string encodingContentType)
+    {
+        // Arrange: a multipart field that is an object, a map or a composition is an application/json part, OpenAPI's
+        // default for it (a list of one is a part per item)
+        var document = ParseYaml(FormWithFieldYaml("multipart/form-data", fieldYaml, encodingContentType));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId is Generator.RuleIdentifiers.ParameterValueNotBindable or Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert
+        Assert.Empty(diagnostics);
     }
 
     [Theory]
@@ -3413,7 +3439,8 @@ public class OperationValidationTests
 
     private static string FormWithFieldYaml(
         string mediaType,
-        string fieldYaml)
+        string fieldYaml,
+        string encodingContentType = "")
         => $$"""
             openapi: 3.0.3
             info:
@@ -3429,6 +3456,7 @@ public class OperationValidationTests
                       {{mediaType}}:
                         schema:
                           $ref: '#/components/schemas/UploadForm'
+                        {{(encodingContentType.Length == 0 ? string.Empty : "encoding: { field: { contentType: '" + encodingContentType + "' } }")}}
                   responses:
                     '204':
                       description: Stored

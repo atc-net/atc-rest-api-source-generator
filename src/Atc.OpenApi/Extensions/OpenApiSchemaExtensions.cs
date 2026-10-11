@@ -864,7 +864,8 @@ public static class OpenApiSchemaExtensions
 
         /// <summary>
         /// Whether the value has no text form - an object, a map, a composition without a type, or an array of any of
-        /// them - so it is no form field (or query value) a client can send or a server can bind. An enum or a model
+        /// them - so it is no URL-encoded form field (or query value) a client can send or a server can bind; in a
+        /// multipart form it is sent as an application/json part. An enum or a model
         /// wrapped as <c>allOf: [$ref]</c> is judged as what it wraps; an untyped schema is its text.
         /// </summary>
         /// <returns>True for a value with no text form.</returns>
