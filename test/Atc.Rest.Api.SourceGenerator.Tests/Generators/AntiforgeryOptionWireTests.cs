@@ -39,6 +39,18 @@ public sealed class AntiforgeryOptionWireTests
               responses:
                 '204':
                   description: Uploaded
+          /addresses:
+            post:
+              operationId: createAddress
+              requestBody:
+                required: true
+                content:
+                  multipart/form-data:
+                    schema:
+                      $ref: '#/components/schemas/AddressForm'
+              responses:
+                '204':
+                  description: Created
         components:
           schemas:
             NoteForm:
@@ -50,6 +62,15 @@ public sealed class AntiforgeryOptionWireTests
               type: object
               properties:
                 file: { type: string, format: binary }
+            Address:
+              type: object
+              properties:
+                street: { type: string }
+            AddressForm:
+              type: object
+              required: [address]
+              properties:
+                address: { $ref: '#/components/schemas/Address' }
         """;
 
     private const string HandlerSource = """"
@@ -69,10 +90,17 @@ public sealed class AntiforgeryOptionWireTests
                 => System.Threading.Tasks.Task.FromResult(UploadFileResult.NoContent());
         }
 
+        public sealed class CreateAddressHandlerImpl : ICreateAddressHandler
+        {
+            public System.Threading.Tasks.Task<CreateAddressResult> ExecuteAsync(CreateAddressParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(CreateAddressResult.NoContent());
+        }
+
         public static class NoteRegistration
         {
             public static void Register(IServiceCollection services)
             {
+                services.AddScoped<ICreateAddressHandler, CreateAddressHandlerImpl>();
                 services.AddScoped<ICreateNoteHandler, CreateNoteHandlerImpl>();
                 services.AddScoped<IUploadFileHandler, UploadFileHandlerImpl>();
             }
@@ -111,5 +139,44 @@ public sealed class AntiforgeryOptionWireTests
         using var upload = new MultipartFormDataContent { { new ByteArrayContent([1, 2, 3]), "file", "a.bin" } };
         using var uploaded = await client.PostAsync(new Uri("/files", UriKind.Relative), upload, TestContext.Current.CancellationToken);
         Assert.True((int)uploaded.StatusCode == expectedStatus, $"{(int)uploaded.StatusCode}: {await uploaded.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
+    }
+
+    /// <summary>
+    /// A multipart form whose only field is an application/json part binds no field through the framework (the form
+    /// step reads it): it is validated for antiforgery all the same.
+    /// </summary>
+    [Theory]
+    [InlineData(false, false, 204)]
+    [InlineData(true, false, 400)]
+    [InlineData(false, true, 204)]
+    [InlineData(true, true, 400)]
+    public async Task AFormOfJsonPartsPostedWithoutAToken_IsAcceptedByDefault_AndRejectedWithUseAntiforgery(
+        bool useAntiforgery,
+        bool useRequestDelegateGenerator,
+        int expectedStatus)
+    {
+        var marker = $$"""
+            {
+              "useMinimalApiPackage": "Enabled",
+              "useValidationFilter": "Enabled",
+              "useGlobalErrorHandler": "Enabled",
+              "useAntiforgery": {{(useAntiforgery ? "true" : "false")}}
+            }
+            """;
+        await using var host = await XmlTestHost.StartAsync(
+            Yaml,
+            HandlerSource,
+            "ErrorBodies.RuntimeTest.NoteRegistration",
+            configure: app => app.UseAntiforgery(),
+            configureServices: services => services.AddAntiforgery(),
+            serverMarker: marker,
+            useRequestDelegateGenerator: useRequestDelegateGenerator);
+
+        using var client = new HttpClient { BaseAddress = host.BaseAddress };
+        using var address = new StringContent("""{"street":"Main Street 1"}""", Encoding.UTF8, "application/json");
+        using var form = new MultipartFormDataContent { { address, "address" } };
+        using var response = await client.PostAsync(new Uri("/addresses", UriKind.Relative), form, TestContext.Current.CancellationToken);
+
+        Assert.True((int)response.StatusCode == expectedStatus, $"{(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
     }
 }

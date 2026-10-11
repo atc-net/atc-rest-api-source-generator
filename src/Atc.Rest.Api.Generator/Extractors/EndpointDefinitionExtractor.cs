@@ -1038,6 +1038,13 @@ using Microsoft.AspNetCore.Builder;
                 builder.AppendLine();
                 builder.Append("    .DisableAntiforgery()");
             }
+            else if (HasJsonParts(operation))
+            {
+                // A field sent as an application/json part is read by the form step, not bound by the framework: a form
+                // of only such fields binds nothing from the form, so the endpoint asks for the validation itself
+                builder.AppendLine();
+                builder.Append("    .WithMetadata(new global::Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute())");
+            }
         }
         else if (operation.RequiresFormBindingFlattening() && operation.GetFormBodyMediaTypes() is { Count: > 0 } formMediaTypes)
         {
@@ -1055,6 +1062,11 @@ using Microsoft.AspNetCore.Builder;
 
         builder.AppendLine(";");
     }
+
+    // Whether a field of the operation's form body is an application/json part (read by the form step)
+    private static bool HasJsonParts(OpenApiOperation operation)
+        => operation.GetFormBodySchemaInfo().Properties is { } properties &&
+           properties.Any(p => FormBodyHelper.IsMultipartJsonPart(operation, p.Key, p.Value));
 
     private static void GenerateSecurityMetadata(
         StringBuilder builder,
