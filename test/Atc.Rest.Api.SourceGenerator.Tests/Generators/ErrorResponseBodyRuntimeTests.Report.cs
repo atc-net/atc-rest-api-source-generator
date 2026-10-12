@@ -138,6 +138,7 @@ public partial class ErrorResponseBodyRuntimeTests
         var current = HistoryEntry(matrix);
         var previous = await ReadLastHistoryEntryAsync(historyPath);
         matrix["changes"] = ChangesSince(previous, current);
+        matrix["history"] = RunHistory([.. CommittedHistoryEntries(root), (current, null, null)]);
         await File.WriteAllTextAsync(historyPath, current.ToJsonString() + Environment.NewLine, TestContext.Current.CancellationToken);
 
         var json = matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
@@ -204,6 +205,56 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             Assert.All(cells!.AsArray(), cell => Assert.False(string.IsNullOrWhiteSpace((string?)reasons[key]?[(string)cell!])));
         }
+    }
+
+    /// <summary>
+    /// The run history says, run by run, what changed against the run before: the totals, the cells whose verdict
+    /// changed, and the cases that came and went - the newest run first, a run recorded twice only once.
+    /// </summary>
+    [Fact]
+    public void RunHistory_SaysWhatEachRunChangedAgainstTheOneBefore()
+    {
+        static JsonObject Run(
+            string generatedAt,
+            string commit,
+            params (string Cell, string Verdict)[] cells)
+            => new()
+            {
+                ["generatedAt"] = generatedAt,
+                ["commit"] = commit,
+                ["uncommittedFiles"] = 0,
+                ["totals"] = new JsonObject(),
+                ["cells"] = new JsonObject(cells.Select(c => new KeyValuePair<string, JsonNode?>(c.Cell, c.Verdict))),
+            };
+
+        var first = Run("2026-10-01 10:00:00 +02:00", "aaaaaaaa", ("guard|open|cs-epo", "pass"), ("guard|open|ts-fetch", "fail"), ("guard|gone|cs-epo", "pass"));
+        var second = Run("2026-10-02 10:00:00 +02:00", "bbbbbbbb", ("guard|open|cs-epo", "pass"), ("guard|open|ts-fetch", "pass"), ("feature|new case|cs-epo", "lossy"), ("feature|new case|ts-fetch", "pass"));
+
+        var history = RunHistory([(first, "1111111", "docs: the first run"), (first.DeepClone().AsObject(), "1111112", "docs: the same run again"), (second, null, null)]);
+
+        Assert.Equal(2, history.Count);
+        var newest = history[0]!.AsObject();
+        Assert.Equal("bbbbbbbb", (string?)newest["commit"]);
+        Assert.Null(newest["reportCommit"]);
+        Assert.Equal(4, (int?)newest["cells"]);
+        Assert.Equal(3, (int?)newest["verdicts"]!["pass"]);
+        Assert.Equal(1, (int?)newest["verdicts"]!["lossy"]);
+        var changed = Assert.Single(newest["changed"]!.AsArray())!;
+        Assert.Equal("guard|open|ts-fetch", (string?)changed["cell"]);
+        Assert.Equal("fail", (string?)changed["from"]);
+        Assert.Equal("pass", (string?)changed["to"]);
+        Assert.Equal(2, (int?)newest["added"]);
+        Assert.Equal(1, (int?)newest["removed"]);
+        Assert.Equal("feature|new case", (string?)Assert.Single(newest["addedCases"]!.AsArray()));
+        Assert.Equal("guard|gone", (string?)Assert.Single(newest["removedCases"]!.AsArray()));
+
+        var oldest = history[1]!.AsObject();
+        Assert.Equal("aaaaaaaa", (string?)oldest["commit"]);
+        Assert.Equal("1111111", (string?)oldest["reportCommit"]);
+        Assert.Equal("docs: the first run", (string?)oldest["subject"]);
+        Assert.Equal(1, (int?)oldest["verdicts"]!["fail"]);
+        Assert.Empty(oldest["changed"]!.AsArray());
+        Assert.Null(oldest["added"]);
     }
 
     /// <summary>
@@ -554,6 +605,130 @@ public partial class ErrorResponseBodyRuntimeTests
             ["added"] = new JsonArray([.. now.Keys.Where(k => !before.ContainsKey(k)).Order(StringComparer.Ordinal).Select(k => (JsonNode)k)]),
             ["removed"] = new JsonArray([.. before.Keys.Where(k => !now.ContainsKey(k)).Order(StringComparer.Ordinal).Select(k => (JsonNode)k)]),
         };
+    }
+
+    /// <summary>
+    /// The runs git keeps: every committed version of the history file (it holds one run), oldest first, with the
+    /// commit that recorded it. A shallow clone has fewer, and without git there are none.
+    /// </summary>
+    private static List<(JsonObject Entry, string? ReportCommit, string? Subject)> CommittedHistoryEntries(
+        string root)
+    {
+        var entries = new List<(JsonObject Entry, string? ReportCommit, string? Subject)>();
+        var path = $"{ReportFolderName}/{ReportHistoryFileName}";
+        var log = GitText(root, $"log --reverse --format=%h%x09%s -- {path}") ?? string.Empty;
+        foreach (var line in log.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var parts = line.Split('\t', 2);
+            if (parts.Length != 2 || !Regex.IsMatch(parts[0], "^[0-9a-f]{7,40}$", RegexOptions.None, TimeSpan.FromSeconds(1)))
+            {
+                continue;
+            }
+
+            var json = GitText(root, $"show {parts[0]}:{path}")?.Split('\n').LastOrDefault(l => l.StartsWith("{\"generatedAt\"", StringComparison.Ordinal));
+            if (json is not null && TryParseJson(json.Trim()) is JsonObject entry)
+            {
+                entries.Add((entry, parts[0], parts[1]));
+            }
+        }
+
+        return entries;
+    }
+
+    // git's standard output as UTF-8 text (case names are not all ASCII), or null when git fails or is not there
+    private static string? GitText(
+        string root,
+        string arguments)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo("git", arguments)
+        {
+            WorkingDirectory = root,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8,
+        };
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start);
+            if (process is null)
+            {
+                return null;
+            }
+
+            process.ErrorDataReceived += (_, _) => { };
+            process.BeginErrorReadLine();
+            var text = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return process.ExitCode == 0 ? text : null;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The runs, newest first, each with what it changed against the run before it: its totals, the cells whose
+    /// verdict changed (at most 200 are listed), and how many cells - and which cases - are new or gone. The oldest
+    /// run has nothing to be compared with. A run recorded by more than one commit is one run.
+    /// </summary>
+    private static JsonArray RunHistory(
+        IReadOnlyList<(JsonObject Entry, string? ReportCommit, string? Subject)> runs)
+    {
+        const int maxListed = 200;
+        static string CaseOf(string cell)
+            => cell[..cell.LastIndexOf('|')];
+
+        var history = new List<JsonNode>();
+        Dictionary<string, string>? before = null;
+        string? lastGeneratedAt = null;
+        foreach (var (entry, reportCommit, subject) in runs)
+        {
+            var generatedAt = (string?)entry["generatedAt"];
+            if (generatedAt is not null && string.Equals(generatedAt, lastGeneratedAt, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            lastGeneratedAt = generatedAt;
+            var now = entry["cells"]?.AsObject().ToDictionary(c => c.Key, c => (string)c.Value!, StringComparer.Ordinal) ?? new Dictionary<string, string>(StringComparer.Ordinal);
+            var run = new JsonObject
+            {
+                ["generatedAt"] = generatedAt,
+                ["commit"] = (string?)entry["commit"],
+                ["uncommittedFiles"] = (int?)entry["uncommittedFiles"],
+                ["reportCommit"] = reportCommit,
+                ["subject"] = subject,
+                ["cells"] = now.Count,
+                ["verdicts"] = new JsonObject(now.Values.GroupBy(v => v, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => new KeyValuePair<string, JsonNode?>(g.Key, g.Count()))),
+                ["totals"] = entry["totals"]?.DeepClone(),
+                ["changed"] = new JsonArray(),
+            };
+            if (before is not null)
+            {
+                var previous = before;
+                var changed = now
+                    .Where(c => previous.TryGetValue(c.Key, out var was) && !string.Equals(was, c.Value, StringComparison.Ordinal))
+                    .OrderBy(c => c.Key, StringComparer.Ordinal)
+                    .ToList();
+                var added = now.Keys.Where(k => !previous.ContainsKey(k)).ToList();
+                var removed = previous.Keys.Where(k => !now.ContainsKey(k)).ToList();
+                run["changed"] = new JsonArray([.. changed.Take(maxListed).Select(c => (JsonNode)new JsonObject { ["cell"] = c.Key, ["from"] = previous[c.Key], ["to"] = c.Value })]);
+                run["changedCount"] = changed.Count;
+                run["added"] = added.Count;
+                run["removed"] = removed.Count;
+                run["addedCases"] = new JsonArray([.. added.Select(CaseOf).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Take(maxListed).Select(c => (JsonNode)c)]);
+                run["removedCases"] = new JsonArray([.. removed.Select(CaseOf).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Take(maxListed).Select(c => (JsonNode)c)]);
+            }
+
+            history.Add(run);
+            before = now;
+        }
+
+        history.Reverse();
+        return new JsonArray([.. history]);
     }
 
     /// <summary>

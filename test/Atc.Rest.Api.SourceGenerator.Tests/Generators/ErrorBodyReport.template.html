@@ -195,6 +195,23 @@
   table.glance tr[data-go] { cursor: pointer; }
   table.glance .bar { min-width: 180px; }
   .callout.warn { background: var(--lossy-soft); border-left: 3px solid var(--lossy); border-radius: 6px; padding: 8px 12px; }
+  .trend { display: flex; align-items: flex-end; gap: 3px; height: 84px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+  .tcol { flex: 1 1 0; min-width: 6px; max-width: 34px; height: 100%; display: flex; align-items: flex-end; padding: 0; border: 0; background: none; cursor: pointer; }
+  .tcol span { display: flex; flex-direction: column-reverse; width: 100%; border-radius: 3px 3px 0 0; overflow: hidden; }
+  .tcol:hover span, .tcol:focus-visible span { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tcol i { display: block; }
+  .tcol .pass { background: var(--pass); } .tcol .lossy { background: var(--lossy); } .tcol .fail, .tcol .harness { background: var(--fail); } .tcol .platform { background: var(--platform); }
+  .runs { display: grid; gap: 6px; }
+  .run { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .run[open] { border-color: var(--accent); }
+  .run summary { display: grid; grid-template-columns: minmax(150px, 1.3fr) minmax(90px, 0.8fr) minmax(90px, 0.8fr) minmax(110px, 1.2fr) minmax(150px, 1.6fr); gap: 6px 12px; align-items: center; padding: 8px 12px; cursor: pointer; font-size: 13px; }
+  .run summary .num { font-variant-numeric: tabular-nums; }
+  .run summary .when { font-weight: 500; }
+  .run-body { display: grid; gap: 10px; padding: 4px 12px 12px; }
+  .hd { display: inline-block; font: 500 11px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 2px 7px; border-radius: 999px; margin-right: 4px; white-space: nowrap; }
+  .hd.chg { background: var(--design-soft); color: var(--design); } .hd.add { background: var(--pass-soft); color: var(--pass); } .hd.rem { background: var(--na-soft); color: var(--na); }
+  ul.cases { font-size: 12.5px; max-height: 260px; overflow: auto; }
+  @media (max-width: 760px) { .run summary { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
@@ -332,6 +349,7 @@
 
   <section id="tab-changes" role="tabpanel" hidden>
     <div class="panel" id="changes"></div>
+    <div class="panel" id="history"></div>
   </section>
 
   <section id="tab-method" role="tabpanel" hidden>
@@ -1377,6 +1395,7 @@ document.addEventListener('click', (e) => {
       <tr><td>support</td><td>Every scenario × C# generator from the compile gate (<code>errors</code>, <code>warnings</code>, <code>files</code>, the scenario's OpenAPI version) and the strict-tsc matrix when its gate has run.</td></tr>
       <tr><td>diagnostics</td><td>Every rule id with <code>tested</code> | <code>tested elsewhere</code> | <code>untested</code> and a note.</td></tr>
       <tr><td>changes</td><td>Against the previous history line: <code>changed</code> [{cell, from, to}], <code>added</code>, <code>removed</code>.</td></tr>
+      <tr><td>history</td><td>Every run git keeps, newest first (each committed version of the history file is one run): { generatedAt, commit, reportCommit, subject, cells, verdicts, totals } and, against the run before it, <code>changed</code> [{cell, from, to}] (at most 200, <code>changedCount</code> has them all), <code>added</code> / <code>removed</code> (cell counts) and <code>addedCases</code> / <code>removedCases</code> (<code>matrix|case</code>). A shallow clone has fewer runs.</td></tr>
       <tr><td>provenance</td><td>Commit, uncommitted file count, <code>packages</code> (the Atc.Rest.MinimalApi and Atc.Rest.Client versions the run used), .NET and Node versions, OS.</td></tr>
     </tbody></table></div>
     <h3>Verdicts</h3>
@@ -1398,6 +1417,73 @@ document.addEventListener('click', (e) => {
       <li><b>Regenerate this page</b> before a release or after a change to a matrix, from a clean tree (the banner says when a run is not reproducible), and commit <code>docs/test-suite-report.*</code> with the change.</li>
       <li><b>Private data</b>: a downstream production specification never goes into a case, a fixture or this page; describe it generically.</li>
     </ul>`;
+})();
+
+// Run history: every run git keeps (each committed version of the history file is one run), newest first, with
+// what it changed against the run before it
+(function renderHistory() {
+  const runs = REPORT?.history ?? [];
+  if (runs.length === 0) {
+    $('#history').innerHTML = '<h2>Run history</h2><p>This report was generated without a run history.</p>';
+    return;
+  }
+
+  const order = ['pass', 'lossy', 'fail', 'harness', 'platform', 'na'];
+  const maxCells = Math.max(...runs.map((r) => r.cells), 1);
+  const day = (r) => String(r.generatedAt ?? '').slice(0, 16);
+  const countsText = (r) => order.filter((v) => r.verdicts?.[v]).map((v) => `${r.verdicts[v].toLocaleString()} ${v}`).join(' · ');
+  const cellParts = (key) => { const [m, c, cl] = key.split('|'); return [MATRIX_NAMES[m] ?? m, c, cl]; };
+  const caseParts = (key) => { const at = key.indexOf('|'); return [MATRIX_NAMES[key.slice(0, at)] ?? key.slice(0, at), key.slice(at + 1)]; };
+  const deltaHtml = (r) => r.added === undefined
+    ? '<span class="counts">the oldest run git keeps</span>'
+    : [
+      r.changedCount ? `<span class="hd chg">${r.changedCount} changed</span>` : '',
+      r.added ? `<span class="hd add">+${r.added.toLocaleString()}</span>` : '',
+      r.removed ? `<span class="hd rem">−${r.removed.toLocaleString()}</span>` : '',
+    ].join('') || '<span class="counts">no change</span>';
+
+  // Oldest on the left: a column per run, as tall as its cells against the largest run, coloured by verdict
+  const trend = [...runs].reverse().map((r, i) => {
+    const index = runs.length - 1 - i;
+    const segments = order.filter((v) => v !== 'na' && r.verdicts?.[v]).map((v) => `<i class="${v}" style="flex:${r.verdicts[v]} 0 ${v === 'pass' ? 0 : 2}px"></i>`).join('');
+    return `<button class="tcol" data-run="${index}" title="${esc(day(r))} · ${esc(r.commit ?? '')} · ${r.cells.toLocaleString()} cells · ${esc(countsText(r))}"><span style="height:${(r.cells / maxCells * 100).toFixed(1)}%">${segments}</span></button>`;
+  }).join('');
+
+  const first = runs[runs.length - 1];
+  $('#history').innerHTML = `<h2>Run history</h2>
+    <p>Every run that was committed, newest first: ${runs.length} runs since ${esc(day(first))}. Each line says what the run changed against the run before it - cells whose verdict changed, cells that are new, cells that are gone. Open a run for the cells. The data comes from git: each committed version of <code>docs/test-suite-report.history.jsonl</code> is one run.</p>
+    <div class="trend" role="img" aria-label="Cells checked per run, oldest on the left">${trend}</div>
+    <div class="counts">cells checked per run, oldest on the left - ${first.cells.toLocaleString()} then, ${runs[0].cells.toLocaleString()} now · click a column to open its run</div>
+    <div class="runs">${runs.map((r, i) => {
+      const fails = (r.verdicts?.fail ?? 0) + (r.verdicts?.harness ?? 0);
+      const changed = r.changed ?? [];
+      return `<details class="run" id="run-${i}">
+        <summary>
+          <span class="when">${esc(day(r))}${i === 0 ? ' <span class="v pass">this run</span>' : ''}</span>
+          <span class="mono">${esc(r.commit ?? '')}${r.uncommittedFiles ? '<span class="counts" title="The run came from an uncommitted working tree"> +' + esc(r.uncommittedFiles) + '</span>' : ''}</span>
+          <span class="num">${r.cells.toLocaleString()} cells</span>
+          <span>${fails ? `<span class="v fail">${fails} fail</span> ` : ''}${r.verdicts?.lossy ? `<span class="v lossy">${r.verdicts.lossy} lossy</span>` : ''}</span>
+          <span class="delta">${deltaHtml(r)}</span>
+        </summary>
+        <div class="run-body">
+          ${r.subject ? `<p class="counts">recorded by <span class="mono">${esc(r.reportCommit)}</span> · ${esc(r.subject)}</p>` : (i === 0 ? '<p class="counts">not committed yet when this page was written</p>' : '')}
+          <p class="counts">${esc(countsText(r))}</p>
+          ${changed.length ? `<h3>Changed verdicts${r.changedCount > changed.length ? ` <span class="counts">the first ${changed.length} of ${r.changedCount}</span>` : ''}</h3>
+            <div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th>Was</th><th>Became</th></tr></thead><tbody>${changed.map((x) => { const [m, c, cl] = cellParts(x.cell); return `<tr data-open="${esc(x.cell)}" tabindex="0" title="Open this cell as it is in this report"><td>${esc(m)}</td><td>${esc(c)}</td><td class="mono">${esc(cl)}</td><td><span class="v ${esc(x.from)}">${esc(x.from)}</span></td><td><span class="v ${esc(x.to)}">${esc(x.to)}</span></td></tr>`; }).join('')}</tbody></table></div>` : ''}
+          ${(r.addedCases ?? []).length ? `<h3>New cases <span class="counts">${r.added.toLocaleString()} cells${r.addedCases.length >= 200 ? ' · the first 200 cases' : ''}</span></h3><ul class="tight cases">${r.addedCases.map((k) => { const [m, c] = caseParts(k); return `<li><span class="counts">${esc(m)}</span> ${esc(c)}</li>`; }).join('')}</ul>` : ''}
+          ${(r.removedCases ?? []).length ? `<h3>Cases gone <span class="counts">${r.removed.toLocaleString()} cells${r.removedCases.length >= 200 ? ' · the first 200 cases' : ''}</span></h3><ul class="tight cases">${r.removedCases.map((k) => { const [m, c] = caseParts(k); return `<li><span class="counts">${esc(m)}</span> ${esc(c)}</li>`; }).join('')}</ul>` : ''}
+          ${r.added === undefined ? '<p class="counts">Nothing older to compare it with.</p>' : (!changed.length && !r.added && !r.removed ? '<p class="counts">The same cells with the same verdicts as the run before.</p>' : '')}
+        </div>
+      </details>`;
+    }).join('')}</div>`;
+
+  $('#history').addEventListener('click', (e) => {
+    const column = e.target.closest('.tcol');
+    if (!column) return;
+    const run = document.getElementById('run-' + column.dataset.run);
+    run.open = true;
+    run.scrollIntoView({ block: 'center' });
+  });
 })();
 
 // Tabs. A matrix that runs against more than one host or document is one tab with a switch (its variants); each
