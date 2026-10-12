@@ -13,14 +13,13 @@ public class TypeScriptAxiosApiClientExtractorTests
     [Fact]
     public void Generate_AxiosConfig_ForwardsTextResponseType()
     {
-        // Axios picks the wire-level parser from its responseType config. For raw text
-        // bodies the generated config must select 'text' so axios does NOT JSON.parse; a
-        // JSON operation's 'json' is forwarded, and a hand-written request without one
-        // leaves it unset (the Content-Type decides).
+        // Every body is asked for as bytes (so its text is decoded by its charset); what the operation reads travels
+        // as bodyType: 'text' keeps the text as it is, 'json' parses a success whatever its Content-Type says, and a
+        // request without a response type lets the Content-Type decide ('auto').
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
-            "responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,",
+            "bodyType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType ?? 'auto',",
             result,
             StringComparison.Ordinal);
     }
@@ -246,10 +245,12 @@ public class TypeScriptAxiosApiClientExtractorTests
         // operation keeps ''); a schema check only sees a body that is there.
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, zodRuntimeValidate: true);
 
-        Assert.Contains("const successReadAsJson = this.responseType === 'json' && (status ?? 200) < 400;", result, StringComparison.Ordinal);
+        Assert.Contains("const successReadAsJson = bodyType === 'json' && (status ?? 200) < 400;", result, StringComparison.Ordinal);
         Assert.Contains("if (!successReadAsJson && !contentType.includes('application/json') && !contentType.includes('+json')) return data;", result, StringComparison.Ordinal);
-        Assert.Contains("responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,", result, StringComparison.Ordinal);
-        Assert.Contains("if ((response.data as unknown) === '' && response.config?.responseType !== 'text') {", result, StringComparison.Ordinal);
+        Assert.Contains("responseType: 'arraybuffer',", result, StringComparison.Ordinal);
+        Assert.Contains("bodyType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType ?? 'auto',", result, StringComparison.Ordinal);
+        Assert.Contains("data = decodeText(data as ArrayBuffer, rawContentType);", result, StringComparison.Ordinal);
+        Assert.Contains("if ((response.data as unknown) === '' && bodyTypeOf(response.config) !== 'text') {", result, StringComparison.Ordinal);
         Assert.Contains("if (parseSchema && expectsJson && response.data !== undefined) {", result, StringComparison.Ordinal);
     }
 }

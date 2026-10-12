@@ -114,6 +114,23 @@ public static class TypeScriptErrorExtractor
         sb.AppendLine();
         sb.AppendLine("  return statusText.length > 0 ? statusText : `HTTP ${status}`;");
         sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/**");
+        sb.AppendLine(" * The text of a body: its bytes in the charset the `Content-Type` names - UTF-8 without one, or when the runtime");
+        sb.AppendLine(" * does not know the name. (A response's own `text()` reads every body as UTF-8, whatever its charset.)");
+        sb.AppendLine(" */");
+        sb.AppendLine("export function decodeText(bytes: ArrayBuffer | ArrayBufferView, contentType?: string | null): string {");
+        sb.AppendLine("  const charset = /;\\s*charset\\s*=\\s*\"?([^\";\\s]+)/i.exec(contentType ?? '')?.[1];");
+        sb.AppendLine("  if (charset) {");
+        sb.AppendLine("    try {");
+        sb.AppendLine("      return new TextDecoder(charset).decode(bytes);");
+        sb.AppendLine("    } catch {");
+        sb.AppendLine("      // A charset the runtime does not know: read as UTF-8");
+        sb.AppendLine("    }");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+        sb.AppendLine("  return new TextDecoder().decode(bytes);");
+        sb.AppendLine("}");
 
         return sb.ToString();
     }

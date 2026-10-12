@@ -71,6 +71,8 @@ public partial class ErrorResponseBodyRuntimeTests
         ["stub-problem-casing"] = (503, "Application/Problem+JSON; charset=utf-8", "{\"title\":\"Casing\",\"status\":503,\"detail\":\"casing down\"}", "a ProblemDetails under a mixed-case media type"),
         ["stub-vendor-json"] = (503, "application/vnd.error+json", "{\"message\":\"vendor down\"}", "a vendor +json object"),
         ["stub-utf8-text"] = (503, "text/plain; charset=utf-8", "nede: æøå – 🚫", "non-ASCII text"),
+        ["stub-latin1-text"] = (503, "text/plain; charset=iso-8859-1", "nede: æøå", "text in ISO-8859-1, as its Content-Type says"),
+        ["stub-utf16-text"] = (503, "text/plain; charset=utf-16le", "nede: æøå", "text in UTF-16, as its Content-Type says"),
         ["stub-json-string"] = (503, "application/json", "\"42\"", "a JSON string that reads like a number"),
     };
 
@@ -2551,7 +2553,10 @@ public partial class ErrorResponseBodyRuntimeTests
                         context.Response.ContentType = stub.ContentType;
                     }
 
-                    await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(stub.Body), context.RequestAborted);
+                    // The bytes are in the charset the Content-Type names (UTF-8 without one)
+                    var charset = stub.ContentType is not null && System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(stub.ContentType, out var mediaType) ? mediaType.CharSet : null;
+                    var encoding = charset is null ? new UTF8Encoding(encoderShouldEmitUTF8Identifier: false) : Encoding.GetEncoding(charset);
+                    await context.Response.Body.WriteAsync(encoding.GetBytes(stub.Body), context.RequestAborted);
                     return;
                 }
 

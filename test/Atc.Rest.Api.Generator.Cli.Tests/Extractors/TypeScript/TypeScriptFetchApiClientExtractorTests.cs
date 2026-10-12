@@ -19,7 +19,9 @@ public class TypeScriptFetchApiClientExtractorTests
 
         // The handleResponse branch must call response.text() when the caller asked for
         // text. Otherwise the raw body silently degrades to a Blob.
-        Assert.Contains("await response.text()", result, StringComparison.Ordinal);
+        Assert.Contains("await readText(response)", result, StringComparison.Ordinal);
+        Assert.Contains("return decodeText(await response.arrayBuffer(), response.headers.get('Content-Type'));", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("response.text()", result, StringComparison.Ordinal);
         Assert.Contains("isText", result, StringComparison.Ordinal);
     }
 
@@ -40,7 +42,7 @@ public class TypeScriptFetchApiClientExtractorTests
         // Regression: the new text branch must NOT break the existing JSON / Blob paths.
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
 
-        Assert.Contains("await response.json()", result, StringComparison.Ordinal);
+        Assert.Contains("JSON.parse(await readText(response))", result, StringComparison.Ordinal);
         Assert.Contains("await response.blob()", result, StringComparison.Ordinal);
     }
 

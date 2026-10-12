@@ -25,7 +25,6 @@ public partial class ErrorResponseBodyRuntimeTests
         "OpenAPI 3.1 / 3.2 documents beyond the request-binding matrix's 3.1 twin (type arrays, null on the wire, a const, a tuple): the other matrices run a 3.0.3 specification; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
         "The React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies: the error path is the same `ApiError`.",
         "A browser runtime: the TypeScript clients run on Node, so CORS and header exposure are not observed.",
-        "Text bodies in a charset other than UTF-8 in the TypeScript clients.",
         "Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407.",
         "Node's fetch resends a request answered 421 on a reused connection on a new one (the Fetch standard), and now and then fails the resent body (UND_ERR_REQ_CONTENT_LENGTH_MISMATCH, about 2 in 100 against Kestrel): such a Fetch cell is platform.",
     ];

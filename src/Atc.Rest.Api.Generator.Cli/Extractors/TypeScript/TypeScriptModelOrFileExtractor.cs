@@ -37,12 +37,14 @@ public static class TypeScriptModelOrFileExtractor
     }
 
     /// <summary>
-    /// The Axios <c>responseType</c> of a request: a file, or a model or a file, is asked for as bytes.
+    /// The Axios <c>responseType</c> of a request - always bytes, so a text body is decoded by the charset its
+    /// Content-Type names (the adapters differ: Node's reads every text as UTF-8) - and its <c>bodyType</c>: what the
+    /// operation reads (JSON, text, or a file's bytes), which <c>transformResponse</c> goes by.
     /// </summary>
     public static string AxiosResponseType(bool hasModelOrFile)
         => hasModelOrFile
-            ? "      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType,"
-            : "      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType,";
+            ? "      responseType: 'arraybuffer',\n      bodyType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType ?? 'auto',"
+            : "      responseType: 'arraybuffer',\n      bodyType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType ?? 'auto',";
 
     /// <summary>
     /// Appends the Axios read of a model answer that was asked for as bytes: its body (JSON or XML) is read back as text
@@ -62,7 +64,7 @@ public static class TypeScriptModelOrFileExtractor
         sb.AppendLine("    if (options?.modelOrFile && response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined' && response.data instanceof Blob) {");
         sb.AppendLine("      const modelContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();");
         sb.AppendLine("      if (/^(application\\/json|application\\/xml|text\\/xml)$|\\+(json|xml)$/.test((modelContentType.split(';')[0] ?? '').trim())) {");
-        sb.AppendLine("        let body: unknown = await response.data.text();");
+        sb.AppendLine("        let body: unknown = decodeText(await response.data.arrayBuffer(), modelContentType);");
         sb.AppendLine("        for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {");
         sb.AppendLine("          body = transform.call({}, body, response.headers);");
         sb.AppendLine("        }");

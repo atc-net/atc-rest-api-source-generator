@@ -65,3 +65,20 @@ export function errorMessage(status: number, statusText: string, body: unknown, 
 
   return statusText.length > 0 ? statusText : `HTTP ${status}`;
 }
+
+/**
+ * The text of a body: its bytes in the charset the `Content-Type` names - UTF-8 without one, or when the runtime
+ * does not know the name. (A response's own `text()` reads every body as UTF-8, whatever its charset.)
+ */
+export function decodeText(bytes: ArrayBuffer | ArrayBufferView, contentType?: string | null): string {
+  const charset = /;\s*charset\s*=\s*"?([^";\s]+)/i.exec(contentType ?? '')?.[1];
+  if (charset) {
+    try {
+      return new TextDecoder(charset).decode(bytes);
+    } catch {
+      // A charset the runtime does not know: read as UTF-8
+    }
+  }
+
+  return new TextDecoder().decode(bytes);
+}

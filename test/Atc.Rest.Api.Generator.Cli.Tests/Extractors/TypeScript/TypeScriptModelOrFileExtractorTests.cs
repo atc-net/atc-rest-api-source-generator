@@ -87,9 +87,9 @@ public class TypeScriptModelOrFileExtractorTests
         var client = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, hasModelOrFile: true);
 
         Assert.Contains("  modelOrFile?: boolean;", client, StringComparison.Ordinal);
-        Assert.Contains("responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer'", client, StringComparison.Ordinal);
+        Assert.Contains("bodyType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer'", client, StringComparison.Ordinal);
         Assert.Contains("if (options?.modelOrFile && response.status >= 200 && response.status < 300", client, StringComparison.Ordinal);
-        Assert.Contains("let body: unknown = await response.data.text();", client, StringComparison.Ordinal);
+        Assert.Contains("let body: unknown = decodeText(await response.data.arrayBuffer(), modelContentType);", client, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -104,9 +104,22 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
             errorLength += errorRead;
         }
 
+        var errorEncoding = System.Text.Encoding.UTF8;
+        if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
+        {
+            try
+            {
+                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+            }
+            catch (System.ArgumentException)
+            {
+                errorEncoding = System.Text.Encoding.UTF8;
+            }
+        }
+
         var errorContent = errorLength > MaxErrorBytes
-            ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
-            : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
+            ? errorEncoding.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
+            : errorEncoding.GetString(errorBuffer, 0, errorLength);
         throw global::PetStoreSimple.Generated.ApiException.From(response, errorContent);
     }
 }

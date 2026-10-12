@@ -61,7 +61,7 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasWireNames,
         bool hasXml)
     {
-        sb.AppendLine("import { ApiError, errorMessage } from '../errors/ApiError';");
+        sb.AppendLine("import { ApiError, decodeText, errorMessage } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
         if (hasXml)
         {
@@ -179,6 +179,11 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasXml)
     {
         TypeScriptResultArms.AppendFitToArms(sb);
+        sb.AppendLine("/** A body as text, in the charset its Content-Type names (fetch's own text() reads every body as UTF-8). */");
+        sb.AppendLine("async function readText(response: Response): Promise<string> {");
+        sb.AppendLine("  return decodeText(await response.arrayBuffer(), response.headers.get('Content-Type'));");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly options: ApiClientOptions;");
@@ -366,7 +371,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    const readXmlError = options?.xml?.errors?.[String(response.status)] ?? options?.xml?.errors?.['default'];");
         sb.AppendLine("    if (readXmlError && !response.ok && isXmlMediaType(response.headers.get('Content-Type'))) {");
         sb.AppendLine("      try {");
-        sb.AppendLine("        const errorModel = readXmlError(parseXml(await response.clone().text()));");
+        sb.AppendLine("        const errorModel = readXmlError(parseXml(await readText(response.clone())));");
         sb.AppendLine("        const errorHeaders = new Headers(response.headers);");
         sb.AppendLine("        errorHeaders.set('Content-Type', 'application/json');");
         sb.AppendLine("        serverResponse = response;");
@@ -379,7 +384,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    // An XML body: read by the operation's mapping (no JSON handling)");
         sb.AppendLine("    if (options?.xml?.read && response.ok && response.status !== 204 && response.status !== 205 && isXmlMediaType(response.headers.get('Content-Type'))) {");
         sb.AppendLine("      try {");
-        sb.AppendLine("        return fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(await response.text())) as T, response } as ApiResult<T>, options.arms);");
+        sb.AppendLine("        return fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(await readText(response))) as T, response } as ApiResult<T>, options.arms);");
         sb.AppendLine("      } catch (parseError) {");
         sb.AppendLine("        return fitToArms({ status: 'parseError', error: parseError as Error, response }, options.arms);");
         sb.AppendLine("      }");
@@ -541,7 +546,7 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasWireNames,
         bool hasXml)
     {
-        const string parseJson = "await response.json()";
+        const string parseJson = "JSON.parse(await readText(response))";
 
         var wireParameter = hasWireNames ? ", wire?: WireShapes" : string.Empty;
         var signature = zodRuntimeValidate
@@ -574,14 +579,14 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      let data: unknown;");
         sb.AppendLine("      try {");
         sb.AppendLine("        if (isText) {");
-        sb.AppendLine("          data = await response.text();");
+        sb.AppendLine("          data = await readText(response);");
         sb.AppendLine("        } else if (isJson) {");
-        sb.AppendLine("          const text = await response.text();");
+        sb.AppendLine("          const text = await readText(response);");
         sb.AppendLine("          data = text.length === 0 ? undefined : JSON.parse(text);");
         sb.AppendLine("        } else if (responseType === 'blob' || contentType.length > 0) {");
         sb.AppendLine("          data = await response.blob();");
         sb.AppendLine("        } else {");
-        sb.AppendLine("          const text = await response.text();");
+        sb.AppendLine("          const text = await readText(response);");
         sb.AppendLine("          data = text.length === 0 ? undefined : text;");
         sb.AppendLine("        }");
         sb.AppendLine("      } catch (parseError) {");
@@ -639,7 +644,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("        if (contentType.includes('application/json') || contentType.includes('+json')) {");
         sb.Append("          data = ").Append(parseJson).AppendLine(";");
         sb.AppendLine("        } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {");
-        sb.AppendLine("          const text = await response.text();");
+        sb.AppendLine("          const text = await readText(response);");
         sb.AppendLine("          data = text.length > 0 ? text : undefined;");
         sb.AppendLine("        }");
         sb.AppendLine("      } catch {");
@@ -658,7 +663,7 @@ public static class TypeScriptFetchApiClientExtractor
         {
             // An application/problem+xml error (RFC 9457 Appendix B), read into a ProblemDetails object
             sb.AppendLine("      if (contentType.includes('application/problem+xml')) {");
-            sb.AppendLine("        const text = await response.text();");
+            sb.AppendLine("        const text = await readText(response);");
             sb.AppendLine("        errorBody = text.length > 0 ? readProblemXml(parseXml(text)) : undefined;");
             sb.AppendLine("      } else if (contentType.includes('application/json') || contentType.includes('+json')) {");
         }
@@ -669,7 +674,7 @@ public static class TypeScriptFetchApiClientExtractor
 
         sb.Append("        errorBody = ").Append(parseJson).AppendLine(";");
         sb.AppendLine("      } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {");
-        sb.AppendLine("        const text = await response.text();");
+        sb.AppendLine("        const text = await readText(response);");
         sb.AppendLine("        errorBody = text.length > 0 ? text : undefined;");
         sb.AppendLine("      }");
         sb.AppendLine("    } catch {");

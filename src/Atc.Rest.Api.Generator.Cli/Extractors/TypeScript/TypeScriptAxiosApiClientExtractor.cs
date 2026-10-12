@@ -62,8 +62,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasXml)
     {
         sb.AppendLine("import axios from 'axios';");
-        sb.AppendLine("import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';");
-        sb.AppendLine("import { ApiError, errorMessage } from '../errors/ApiError';");
+        sb.AppendLine("import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';");
+        sb.AppendLine("import { ApiError, decodeText, errorMessage } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
         if (hasXml)
         {
@@ -188,6 +188,15 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasModelOrFile)
     {
         TypeScriptResultArms.AppendFitToArms(sb);
+        sb.AppendLine("/** A request's config with what the operation reads: every body is asked for as bytes (responseType), and bodyType says what to make of them. */");
+        sb.AppendLine("type BodyRequestConfig = AxiosRequestConfig & { bodyType?: 'json' | 'text' | 'arraybuffer' | 'auto' };");
+        sb.AppendLine();
+        sb.AppendLine("/** What the operation reads: its bodyType ('auto': whatever the Content-Type says), or - for a request made without one - its responseType. */");
+        sb.AppendLine("function bodyTypeOf(config: unknown): string | undefined {");
+        sb.AppendLine("  const request = config as BodyRequestConfig | undefined;");
+        sb.AppendLine("  return request?.bodyType ?? request?.responseType;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly client: AxiosInstance;");
@@ -272,10 +281,18 @@ public static class TypeScriptAxiosApiClientExtractor
         const string jsonParse = "JSON.parse(data)";
 
         sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>, status?: number) {");
-        sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
-        sb.AppendLine("        if (this.responseType === 'text') return data;");
-        sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '').toLowerCase();");
-        sb.AppendLine("        const successReadAsJson = this.responseType === 'json' && (status ?? 200) < 400;");
+        sb.AppendLine("        const bodyType = bodyTypeOf(this);");
+        sb.AppendLine("        const rawContentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("        // Every body arrives as bytes: its text is decoded by the charset the Content-Type names, which the");
+        sb.AppendLine("        // adapters do not agree on (Node's http adapter and the fetch adapter read every text as UTF-8)");
+        sb.AppendLine("        if ((this as BodyRequestConfig).bodyType !== 'arraybuffer' && (Object.prototype.toString.call(data) === '[object ArrayBuffer]' || ArrayBuffer.isView(data))) {");
+        sb.AppendLine("          data = decodeText(data as ArrayBuffer, rawContentType);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
+        sb.AppendLine("        if (bodyType === 'text') return data;");
+        sb.AppendLine("        const contentType = rawContentType.toLowerCase();");
+        sb.AppendLine("        const successReadAsJson = bodyType === 'json' && (status ?? 200) < 400;");
         sb.AppendLine("        if (!successReadAsJson && !contentType.includes('application/json') && !contentType.includes('+json')) return data;");
         sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
         sb.AppendLine("      }],");
@@ -376,8 +393,8 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
-            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
-            sb.AppendLine("    });");
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
+            sb.AppendLine("    } as BodyRequestConfig);");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
             sb.AppendLine("    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);");
@@ -411,8 +428,8 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
-            sb.AppendLine("    });");
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
+            sb.AppendLine("    } as BodyRequestConfig);");
         }
 
         sb.AppendLine();
@@ -425,7 +442,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      const fileType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
         sb.AppendLine("      (response as { data: unknown }).data = response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined'");
         sb.AppendLine("        ? new Blob([bytes], fileType ? { type: fileType } : undefined)");
-        sb.AppendLine("        : new TextDecoder().decode(bytes);");
+        sb.AppendLine("        : decodeText(bytes, fileType);");
         sb.AppendLine("    }");
         sb.AppendLine();
 
@@ -532,7 +549,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    if (response.status < 200 || response.status >= 300) {");
         sb.AppendLine("      // The error body is read like any error body: as text, then a ProblemDetails / model / JSON string, or text");
-        sb.AppendLine("      const text = response.data ? await new Response(response.data).text() : '';");
+        sb.AppendLine("      const text = response.data ? decodeText(await new Response(response.data).arrayBuffer(), String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '')) : '';");
         sb.AppendLine("      const result = await this.handleResponse<T>({ ...response, data: text, config: { ...response.config, responseType: 'text' } } as unknown as AxiosResponse<T>);");
         sb.AppendLine("      if ('error' in result) {");
         sb.AppendLine("        throw result.error;");
@@ -660,7 +677,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      }");
         sb.AppendLine();
         sb.AppendLine("      // An empty body is no data (a text operation keeps its empty string).");
-        sb.AppendLine("      if ((response.data as unknown) === '' && response.config?.responseType !== 'text') {");
+        sb.AppendLine("      if ((response.data as unknown) === '' && bodyTypeOf(response.config) !== 'text') {");
         sb.AppendLine("        (response as { data: unknown }).data = undefined;");
         sb.AppendLine("      }");
 
@@ -717,10 +734,10 @@ public static class TypeScriptAxiosApiClientExtractor
         // responseType 'text', or a download's error arrived as a Blob - is parsed here; a malformed one
         // (the UnparseableBody sentinel) or an empty one yields no body, so the message falls back to the status text.
         sb.AppendLine("    let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;");
-        sb.AppendLine("    let errorBodyIsRawText = response.config?.responseType === 'text' || response.config?.responseType === 'arraybuffer';");
+        sb.AppendLine("    let errorBodyIsRawText = bodyTypeOf(response.config) === 'text' || bodyTypeOf(response.config) === 'arraybuffer';");
         sb.AppendLine("    if (typeof Blob !== 'undefined' && errorBody instanceof Blob) {");
         sb.AppendLine("      // A download's error arrives as a Blob (responseType 'blob'): read it like any other error body.");
-        sb.AppendLine("      errorBody = await errorBody.text();");
+        sb.AppendLine("      errorBody = decodeText(await errorBody.arrayBuffer(), String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? ''));");
         sb.AppendLine("      errorBodyIsRawText = true;");
         sb.AppendLine("    }");
         sb.AppendLine();
