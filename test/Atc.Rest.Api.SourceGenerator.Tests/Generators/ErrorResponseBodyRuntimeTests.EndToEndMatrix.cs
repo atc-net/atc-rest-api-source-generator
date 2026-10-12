@@ -399,8 +399,8 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictFail, (string)StatusTypeScriptVerdict(partialCase, notModifiedWire with { Status = 206 }, new JsonObject { ["arm"] = "ok", ["httpStatus"] = 206, ["data"] = null })["verdict"]!);
 
         // TypedClient Throw: the exception carries the status and the body.
-        Assert.Equal(VerdictPass, (string)TypedClientVerdict(noneWire, throwStyle: true, ["case", $"HttpRequestException: HTTP 404 (Not Found): {problem404}"])["verdict"]!);
-        Assert.Equal(VerdictFail, (string)TypedClientVerdict(noneWire, throwStyle: true, ["case", "HttpRequestException: HTTP 404 (Not Found): "])["verdict"]!);
+        Assert.Equal(VerdictPass, (string)TypedClientVerdict(noneWire, throwStyle: true, ["case", $"ApiException: HTTP 404 (Not Found): {problem404}"])["verdict"]!);
+        Assert.Equal(VerdictFail, (string)TypedClientVerdict(noneWire, throwStyle: true, ["case", "ApiException: HTTP 404 (Not Found): "])["verdict"]!);
         Assert.Equal(VerdictFail, (string)TypedClientVerdict(noneWire, throwStyle: true, ["case", "returned normally"])["verdict"]!);
 
         // TypedClient Result: an error has no parsed model.
@@ -1405,8 +1405,8 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             return success
                 ? outcome == "returned normally" ? Cell(VerdictPass, "returned normally", outcome) : Cell(VerdictFail, "a success threw", outcome)
-                : outcome.StartsWith($"HttpRequestException: HTTP {finalStatus} ", StringComparison.Ordinal) && outcome.EndsWith(": " + body, StringComparison.Ordinal)
-                    ? Cell(VerdictPass, "HttpRequestException with the status and the body (not a success)", outcome)
+                : outcome.StartsWith($"ApiException: HTTP {finalStatus} ", StringComparison.Ordinal) && outcome.EndsWith(": " + body, StringComparison.Ordinal)
+                    ? Cell(VerdictPass, "ApiException with the status and the body (not a success)", outcome)
                     : Cell(VerdictFail, $"expected HttpRequestException for {finalStatus}", outcome);
         }
 
@@ -1508,14 +1508,14 @@ public partial class ErrorResponseBodyRuntimeTests
                     : Cell(VerdictFail, "a success status threw", outcome);
             }
 
-            var expectedStart = $"HttpRequestException: HTTP {wire.Status} ";
+            var expectedStart = $"ApiException: HTTP {wire.Status} ";
             if (!outcome.StartsWith(expectedStart, StringComparison.Ordinal))
             {
                 return Cell(VerdictFail, $"expected '{expectedStart}…'", outcome);
             }
 
             return outcome.EndsWith(": " + body, StringComparison.Ordinal) || (body.Length == 0 && outcome.EndsWith("): ", StringComparison.Ordinal))
-                ? Cell(VerdictPass, "HttpRequestException with the status and the body", outcome)
+                ? Cell(VerdictPass, "ApiException with the status and the body", outcome)
                 : Cell(VerdictFail, "the exception does not carry the error body", outcome);
         }
 

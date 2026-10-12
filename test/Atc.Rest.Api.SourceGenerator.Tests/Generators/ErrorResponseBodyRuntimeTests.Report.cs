@@ -57,7 +57,6 @@ public partial class ErrorResponseBodyRuntimeTests
         "A real JWT: the bearer handler reads a plain-text token that spells out subject, scopes and roles.",
         "OpenID Connect.",
         "A limiter partitioned by IP: every client runs on one machine, so the limited operations partition by user.",
-        "Retry-After in the typed client's Throw style: an `HttpRequestException` carries the status and the body, not the headers.",
     ];
 
     /// <summary>

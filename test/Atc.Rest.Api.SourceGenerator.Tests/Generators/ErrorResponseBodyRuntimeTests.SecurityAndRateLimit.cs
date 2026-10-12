@@ -410,6 +410,12 @@ public partial class ErrorResponseBodyRuntimeTests
                             {
                                 ["status"] = inner is HttpRequestException { StatusCode: { } code } ? (int)code : 0,
                                 ["threw"] = inner.GetType().Name + ": " + Short(inner.Message),
+
+                                // The Throw style's ApiException carries the response's headers
+                                ["retryAfter"] = inner.GetType().GetProperty("Headers")?.GetValue(inner) is IReadOnlyDictionary<string, IEnumerable<string>> responseHeaders &&
+                                                 responseHeaders.TryGetValue("Retry-After", out var retryAfterValues)
+                                    ? string.Join(",", retryAfterValues)
+                                    : null,
                             });
                         }
                     }
@@ -585,8 +591,16 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictFail, (string?)GuardVerdict(forbidden, client, Calls(Call(403, "ForbiddenContent => ProblemDetails {\"Status\":403,\"Detail\":\"not yours\"}")), [forbids with { Body = "{\"status\":403}" }])["verdict"]);
 
         var typedThrow = GuardClients.Single(c => c.Id == "cs-typed-Throw");
-        Assert.Equal(VerdictPass, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "HttpRequestException: HTTP 401 (Unauthorized): {\"status\":401}" }), [challenge])["verdict"]);
-        Assert.Equal(VerdictFail, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "HttpRequestException: HTTP 401 (Unauthorized): " }), [challenge])["verdict"]);
+
+        // The Throw style throws the generated ApiException - a bare HttpRequestException has no headers - with the
+        // status and the body, and a 429's Retry-After among its headers
+        Assert.Equal(VerdictPass, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "ApiException: HTTP 401 (Unauthorized): {\"status\":401}" }), [challenge])["verdict"]);
+        Assert.Equal(VerdictFail, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "ApiException: HTTP 401 (Unauthorized): " }), [challenge])["verdict"]);
+        Assert.Equal(VerdictFail, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "HttpRequestException: HTTP 401 (Unauthorized): {\"status\":401}" }), [challenge])["verdict"]);
+        JsonObject Thrown429(string? retryAfter)
+            => new() { ["status"] = 429, ["threw"] = "ApiException: HTTP 429 (Too Many Requests): {\"status\":429}", ["retryAfter"] = retryAfter };
+        Assert.Equal(VerdictPass, (string?)GuardVerdict(limited, typedThrow, Calls(new JsonObject { ["status"] = 200 }, new JsonObject { ["status"] = 200 }, Thrown429("60")), Log(200, 200, 429))["verdict"]);
+        Assert.Equal(VerdictFail, (string?)GuardVerdict(limited, typedThrow, Calls(new JsonObject { ["status"] = 200 }, new JsonObject { ["status"] = 200 }, Thrown429(null)), Log(200, 200, 429))["verdict"]);
 
         var ts = GuardClients.Single(c => c.Id == "ts-fetch");
         JsonObject TsCall(
@@ -696,9 +710,9 @@ public partial class ErrorResponseBodyRuntimeTests
                 {
                     problems.Add($"call {i + 1}: threw {threw}");
                 }
-                else if (status >= 400 && (threw is null || !threw.Contains($"HTTP {status}", StringComparison.Ordinal) || !threw.Contains($"\"status\":{status}", StringComparison.Ordinal)))
+                else if (status >= 400 && (threw is null || !threw.StartsWith("ApiException: ", StringComparison.Ordinal) || !threw.Contains($"HTTP {status}", StringComparison.Ordinal) || !threw.Contains($"\"status\":{status}", StringComparison.Ordinal)))
                 {
-                    problems.Add($"call {i + 1}: expected an HttpRequestException carrying HTTP {status} and the body, got '{threw ?? "returned normally"}'");
+                    problems.Add($"call {i + 1}: expected the generated ApiException carrying HTTP {status} and the body, got '{threw ?? "returned normally"}'");
                 }
             }
             else
@@ -747,7 +761,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 }
             }
 
-            if (status == 429 && guardCase.RetryAfter is { } wanted && !isThrow && (string?)call["retryAfter"] != wanted)
+            if (status == 429 && guardCase.RetryAfter is { } wanted && (string?)call["retryAfter"] != wanted)
             {
                 problems.Add($"call {i + 1}: Retry-After '{(string?)call["retryAfter"] ?? "(none)"}' exposed, expected '{wanted}'");
             }

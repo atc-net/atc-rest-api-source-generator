@@ -90,9 +90,6 @@ public sealed class PagesClient : IPagesClient
         var errorContent = errorLength > MaxErrorBytes
             ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
             : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
-        throw new HttpRequestException(
-            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
-            inner: null,
-            response.StatusCode);
+        throw global::Pagination.Generated.ApiException.From(response, errorContent);
     }
 }

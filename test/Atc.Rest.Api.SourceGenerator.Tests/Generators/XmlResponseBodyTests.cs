@@ -382,7 +382,7 @@ public sealed class XmlResponseBodyTests
                 ?
                 [
                     $"GetPet(1): {pet} accept=application/xml | application/problem+json",
-                    "GetPet(404): THROWS HttpRequestException NotFound accept=application/xml | application/problem+json",
+                    "GetPet(404): THROWS ApiException NotFound accept=application/xml | application/problem+json",
                     $"ListPets(): {pets} accept=application/xml | application/problem+json",
                     $"CreatePet(NewPet): {created} accept=text/xml | application/problem+json",
                     $"GetReport(7): {report} accept=application/vnd.acme.report+xml | application/problem+json",

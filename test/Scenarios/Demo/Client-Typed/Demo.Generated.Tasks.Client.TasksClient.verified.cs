@@ -132,9 +132,6 @@ public sealed class TasksClient : ITasksClient
         var errorContent = errorLength > MaxErrorBytes
             ? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + "…"
             : System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);
-        throw new HttpRequestException(
-            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
-            inner: null,
-            response.StatusCode);
+        throw global::Demo.Generated.ApiException.From(response, errorContent);
     }
 }

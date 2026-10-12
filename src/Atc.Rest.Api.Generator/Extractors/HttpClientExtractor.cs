@@ -454,7 +454,7 @@ public static class HttpClientExtractor
         var contentForAnalysis = contentPreview.ToString();
 
         // Add the EnsureSuccessAsync helper method that reads error body before throwing
-        methods.Add(CreateEnsureSuccessMethod());
+        methods.Add(CreateEnsureSuccessMethod($"global::{NamespaceBuilder.BuildBase(projectName)}.{ApiExceptionExtractor.ClassNameFor(openApiDoc.Components?.Schemas?.Keys)}"));
 
         // Result style replaces the throw-on-status behaviour with envelope builders.
         if (resultStyle == TypedClientResultStyleType.Result)
@@ -2468,9 +2468,11 @@ public static class HttpClientExtractor
 
     /// <summary>
     /// Creates the EnsureSuccessAsync helper method that reads error response body before throwing.
-    /// This replaces the standard EnsureSuccessStatusCode() to preserve error details.
+    /// This replaces the standard EnsureSuccessStatusCode() to preserve error details: it throws the generated
+    /// exception (<see cref="ApiExceptionExtractor"/>), which carries the status, the body and the headers.
     /// </summary>
-    private static MethodParameters CreateEnsureSuccessMethod()
+    private static MethodParameters CreateEnsureSuccessMethod(
+        string exceptionTypeName)
     {
         var sb = new StringBuilder();
         sb.AppendLine("if (response.IsSuccessStatusCode)");
@@ -2493,10 +2495,7 @@ public static class HttpClientExtractor
         sb.AppendLine("var errorContent = errorLength > MaxErrorBytes");
         sb.AppendLine(4, "? System.Text.Encoding.UTF8.GetString(errorBuffer, 0, MaxErrorBytes) + \"…\"");
         sb.AppendLine(4, ": System.Text.Encoding.UTF8.GetString(errorBuffer, 0, errorLength);");
-        sb.AppendLine("throw new HttpRequestException(");
-        sb.AppendLine(4, "$\"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}\",");
-        sb.AppendLine(4, "inner: null,");
-        sb.Append(4, "response.StatusCode);");
+        sb.Append($"throw {exceptionTypeName}.From(response, errorContent);");
 
         return new MethodParameters(
             DocumentationTags: null,

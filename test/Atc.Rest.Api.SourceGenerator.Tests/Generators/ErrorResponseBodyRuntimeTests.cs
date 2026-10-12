@@ -1268,7 +1268,7 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.NotEmpty(getFailures);
         Assert.All(getFailures, r =>
         {
-            Assert.StartsWith("HttpRequestException: HTTP ", r[1], StringComparison.Ordinal);
+            Assert.StartsWith("ApiException: HTTP ", r[1], StringComparison.Ordinal);
             Assert.Contains("\"status\":", r[1], StringComparison.Ordinal);
         });
     }

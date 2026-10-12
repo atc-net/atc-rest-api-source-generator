@@ -311,9 +311,15 @@ public class ApiClientGenerator : IIncrementalGenerator
             GenerateApiClientJsonOptions(generatedContext, openApiDoc, projectName);
         }
 
-        // The typed clients read and write JSON through the metadata their options resolve (trim- and AOT-safe)
+        // The typed clients read and write JSON through the metadata their options resolve (trim- and AOT-safe), and
+        // throw one exception for an error response: an HttpRequestException with the response's headers and body
         if (config.GenerationMode != GenerationModeType.EndpointPerOperation)
         {
+            var exceptionName = ApiExceptionExtractor.ClassNameFor(modelNames);
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.{exceptionName}.g.cs",
+                SourceText.From(ApiExceptionExtractor.Generate(NamespaceBuilder.BuildBase(projectName), exceptionName).NormalizeForSourceOutput(), Encoding.UTF8));
+
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
                 SourceText.From(GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
