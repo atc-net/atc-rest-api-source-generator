@@ -68,7 +68,6 @@ public partial class ErrorResponseBodyRuntimeTests
         "A browser runtime: the React Query and SWR hooks render with React on jsdom in Node.",
         "The hooks on a 304: a browser cache sends the condition, not a hook.",
         "The hooks with a timeout of the caller's own (a hook takes no AbortSignal: its timeout is the operation's x-retry-timeout-seconds), and a cancelled SWR read (SWR hands its fetcher no signal).",
-        "A refused connection (no server listening) and a DNS failure: the wire failures run against a server that answers.",
         "Webhooks and output caching.",
     ];
 

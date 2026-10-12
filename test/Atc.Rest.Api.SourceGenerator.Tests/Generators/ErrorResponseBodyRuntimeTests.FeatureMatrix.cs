@@ -13,13 +13,14 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// unknown value from the server; a date and a date-time round-tripped; a conditional 304; a read the client
 /// cancels before the response and one it cancels mid-body (the server must see the cancellation); the wire failures -
 /// a connection reset mid-body, a server that never answers (the client's own timeout and the operation's
-/// x-retry-timeout-seconds), a body that stalls after the headers - and a handler that throws a ValidationException.
+/// x-retry-timeout-seconds), a body that stalls after the headers, a port no server listens on and a host name that
+/// does not resolve - and a handler that throws a ValidationException.
 /// </summary>
 /// <remarks>
 /// Not exercised: a browser runtime (the hooks render with
 /// React on jsdom in Node); the React Query and SWR hooks on a 304 (a browser cache sends the condition, not a
 /// hook); a cancelled SWR read (SWR hands its fetcher no signal); the hooks with a timeout of the caller's own (a hook
-/// takes no signal); a refused connection; webhooks and output caching.
+/// takes no signal); webhooks and output caching.
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
@@ -591,6 +592,9 @@ public partial class ErrorResponseBodyRuntimeTests
             private const string ShortTimeoutClient = "short-timeout";
             private const string ResilientClient = "resilient";
 
+            // The HttpClient of a case that is sent to an address of its own (no server there): this prefix + the address
+            private const string AddressClient = "address:";
+
             private static string serverAddress = string.Empty;
 
             public static async System.Threading.Tasks.Task<Dictionary<string, string>> RunAsync(string baseAddress, string casesJson, bool typed, string clientId)
@@ -611,6 +615,10 @@ public partial class ErrorResponseBodyRuntimeTests
                     c.BaseAddress = new Uri(baseAddress);
                     c.Timeout = TimeSpan.FromSeconds(15);
                 }).AddHttpMessageHandler<ProbeStampHandler>().AddApiResilience(ResiliencePolicies.OneSecond);
+                foreach (var address in JsonNode.Parse(casesJson)!.AsArray().Select(item => (string?)item!["address"]).Where(a => a is not null).Distinct(StringComparer.Ordinal))
+                {
+                    services.AddHttpClient(AddressClient + address, c => c.BaseAddress = new Uri(address!)).AddHttpMessageHandler<ProbeStampHandler>();
+                }
 
                 using var provider = services.BuildServiceProvider();
                 foreach (var item in JsonNode.Parse(casesJson)!.AsArray())
@@ -710,6 +718,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 {
                     "client-timeout" => ShortTimeoutClient,
                     "retry-timeout" or "stall-timeout" => ResilientClient,
+                    _ when (string?)c["address"] is { } address => AddressClient + address,
                     _ => httpClientName,
                 };
 
@@ -738,6 +747,7 @@ public partial class ErrorResponseBodyRuntimeTests
                         ["type"] = ex.GetType().Name,
                         ["inner"] = ex.InnerException?.GetType().Name,
                         ["httpRequestException"] = ex is HttpRequestException,
+                        ["httpRequestError"] = (ex as HttpRequestException)?.HttpRequestError.ToString(),
                         ["callerToken"] = ex is OperationCanceledException oce && cts.IsCancellationRequested && oce.CancellationToken == cts.Token,
                         ["error"] = ex.GetType().Name + ": " + Short(ex.Message),
                     };
@@ -1297,7 +1307,7 @@ public partial class ErrorResponseBodyRuntimeTests
           const queryClient = hooks === 'reactquery' ? new QueryClient({ defaultOptions: { queries: { retry: false } } }) : null;
           const options = optionsFor(c, headers);
           return ({ children }: any) => {
-            const inner = React.createElement(ApiProvider, { baseUrl, options }, children);
+            const inner = React.createElement(ApiProvider, { baseUrl: c.address ?? baseUrl, options }, children);
             if (hooks === 'reactquery') return React.createElement(QueryClientProvider, { client: queryClient }, inner);
             return React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0 } }, inner);
           };
@@ -1476,7 +1486,8 @@ public partial class ErrorResponseBodyRuntimeTests
             if (hooks) {
               record = { ...record, ...(await viaHooks(c)) };
             } else {
-              const api: any = new ApiService(baseUrl, optionsFor(c, { ...c.headers, 'X-Probe': `ts-${which}|${c.name}` }));
+              // A case with an address of its own is sent there: no server listens, or no host has the name
+              const api: any = new ApiService(c.address ?? baseUrl, optionsFor(c, { ...c.headers, 'X-Probe': `ts-${which}|${c.name}` }));
               record = { ...record, ...(await viaClient(api, c)) };
             }
           } catch (err: any) {
@@ -1551,6 +1562,8 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("network: no answer, the client's own timeout (C#: HttpClient.Timeout; TypeScript: the caller's AbortSignal.timeout)", "network", "FeatureHang", "net", new JsonObject { ["scenario"] = "client-timeout" }));
         cases.Add(new("network: no answer, the operation's x-retry-timeout-seconds", "network", "FeatureTimeout", "net", new JsonObject { ["scenario"] = "retry-timeout" }));
         cases.Add(new("network: headers, then a body that stalls, the operation's x-retry-timeout-seconds", "network", "FeatureStallTimeout", "net", new JsonObject { ["scenario"] = "stall-timeout" }));
+        cases.Add(new("network: no server listens on the port (connection refused)", "network", "FeatureReset", "net", new JsonObject { ["scenario"] = "refused" }));
+        cases.Add(new("network: the host name does not resolve", "network", "FeatureReset", "net", new JsonObject { ["scenario"] = "dns" }));
         cases.Add(new("validation: the handler throws FluentValidation's ValidationException", "validation", "FeatureInvalid", "invalid", new JsonObject()));
         return cases;
     }
@@ -1733,6 +1746,45 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("Error", "ECONNRESET", isAxiosError: true), cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), client, new JsonObject { ["kind"] = "hung" }, cancelled: false)["verdict"]);
+
+        // No server on the port, a host name that does not resolve: the transport's network error naming which - an
+        // HttpRequestException with its HttpRequestError, fetch's TypeError with the cause's code, an AxiosError with
+        // its code - never the other failure, a bare error, an ApiError or a call that hangs
+        foreach (var (scenario, requestError, otherRequestError, code, otherCode) in ((string, string, string, string, string)[])[
+            ("refused", "ConnectionError", "NameResolutionError", "ECONNREFUSED", "ENOTFOUND"),
+            ("dns", "NameResolutionError", "ConnectionError", "ENOTFOUND", "ECONNREFUSED")])
+        {
+            JsonObject Refused(string? error)
+            {
+                var threw = Threw("HttpRequestException", "SocketException", httpRequestException: true);
+                threw["httpRequestError"] = error;
+                return threw;
+            }
+
+            JsonObject TsRefused(
+                string errorName,
+                string? cause,
+                string? errorCode = null,
+                bool isAxiosError = false)
+            {
+                var threw = TsThrew(errorName, errorCode, isAxiosError);
+                threw["cause"] = cause;
+                return threw;
+            }
+
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), client, Refused(requestError), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Refused(otherRequestError), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Refused(null), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, new JsonObject { ["kind"] = "hung" }, cancelled: false)["verdict"]);
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", code), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", otherCode), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", null), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsThrew("ApiError", isApiError: true), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, code, isAxiosError: true), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, otherCode, isAxiosError: true), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, code), cancelled: false)["verdict"]);
+        }
 
         // HttpClient.Timeout: a TaskCanceledException with an inner TimeoutException, not the caller's token
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("client-timeout"), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
@@ -2090,6 +2142,28 @@ public partial class ErrorResponseBodyRuntimeTests
                     ? Cell(VerdictPass, "the transport's network error: the connection broke", summary)
                     : Cell(VerdictFail, "expected the transport's network error, got " + error, summary);
 
+            case "refused":
+            case "dns":
+            {
+                // The request never reaches a server: the transport's network error, naming which of the two it was
+                var what = scenario == "refused" ? "no server listens on the port" : "the host name does not resolve";
+                if (isCSharp)
+                {
+                    var requestError = scenario == "refused" ? "ConnectionError" : "NameResolutionError";
+                    return (bool?)observed["httpRequestException"] == true && (string?)observed["httpRequestError"] == requestError
+                        ? Cell(VerdictPass, $"{what}: an HttpRequestException whose HttpRequestError is {requestError}", $"{summary} {requestError}")
+                        : Cell(VerdictFail, $"{what}: expected an HttpRequestException whose HttpRequestError is {requestError}, got {error} (HttpRequestError {(string?)observed["httpRequestError"] ?? "none"})", summary);
+                }
+
+                // Without a network at all a resolver answers "try again" for any name
+                string[] codes = scenario == "refused" ? ["ECONNREFUSED"] : ["ENOTFOUND", "EAI_AGAIN"];
+                var networkCode = (isAxios ? observed["code"] : observed["cause"])?.ToString();
+                var isTransportError = isAxios ? (bool?)observed["isAxiosError"] == true : type == "TypeError";
+                return isTransportError && codes.Contains(networkCode, StringComparer.Ordinal)
+                    ? Cell(VerdictPass, $"{what}: the transport's network error naming it ({networkCode}{(isAxios ? " as the AxiosError's code" : " as the TypeError's cause")})", summary)
+                    : Cell(VerdictFail, $"{what}: expected {(isAxios ? "an AxiosError with the code" : "a TypeError whose cause has the code")} {string.Join(" or ", codes)}, got {error} ({networkCode ?? "no code"})", summary);
+            }
+
             case "client-timeout":
                 if (isCSharp)
                 {
@@ -2228,7 +2302,11 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     private static JsonArray FeatureCasesJson(IEnumerable<FeatureCase> cases)
-        => new([
+    {
+        // The two cases that never reach the server are sent to an address of their own (`address`): a loopback port
+        // nothing listens on, and a host under .invalid, which no resolver answers (RFC 2606)
+        var refused = new Lazy<string>(ClosedLoopbackAddress);
+        return new([
             .. cases.Select(c =>
             {
                 var item = new JsonObject
@@ -2243,9 +2321,30 @@ public partial class ErrorResponseBodyRuntimeTests
                     item[argument.Key] = argument.Value?.DeepClone();
                 }
 
+                switch ((string?)c.Arguments["scenario"])
+                {
+                    case "refused":
+                        item["address"] = refused.Value;
+                        break;
+                    case "dns":
+                        item["address"] = "http://atc-feature-matrix-no-such-host.invalid:8080";
+                        break;
+                }
+
                 return (JsonNode)item;
             }),
         ]);
+    }
+
+    // A loopback address no server listens on: the port of a listener that was started and stopped again
+    private static string ClosedLoopbackAddress()
+    {
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return $"http://127.0.0.1:{port}";
+    }
 
     private static Dictionary<string, Dictionary<string, JsonObject>> RunFeatureTypeScriptClients(
         Uri baseAddress,
