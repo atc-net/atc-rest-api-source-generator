@@ -107,14 +107,32 @@ public static class MediaTypeNormalizer
              own.IsOfType(JsonSchemaType.Object) ||
              own.IsOfType(JsonSchemaType.Array)));
 
-    // Nothing or the same component twice; two inline schemas are not compared - they are told apart by being two
+    // Nothing twice, the same component twice, or two schemas that are written out the same
     private static bool IsSameSchema(
         IOpenApiSchema? first,
         IOpenApiSchema? second)
-        => (first is null && second is null) ||
-           (first is OpenApiSchemaReference one &&
-            second is OpenApiSchemaReference other &&
-            string.Equals(one.Reference.Id, other.Reference.Id, StringComparison.Ordinal));
+    {
+        if (first is null || second is null)
+        {
+            return first is null && second is null;
+        }
+
+        if (first is OpenApiSchemaReference one)
+        {
+            return second is OpenApiSchemaReference other &&
+                   string.Equals(one.Reference.Id, other.Reference.Id, StringComparison.Ordinal);
+        }
+
+        return second is not OpenApiSchemaReference &&
+               string.Equals(Written(first), Written(second), StringComparison.Ordinal);
+    }
+
+    private static string Written(IOpenApiSchema schema)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        schema.SerializeAsV31(new OpenApiJsonWriter(writer));
+        return writer.ToString();
+    }
 
     // Every content map of the document that is its owner's (a reference's is its component's), with what it belongs to
     private static IEnumerable<(string Where, IDictionary<string, IOpenApiMediaType> Content)> ContentOf(

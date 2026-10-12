@@ -38,13 +38,35 @@ public class MediaTypeDeclaredTwiceValidatorTests
         Assert.Empty(Messages(document));
     }
 
+    /// <summary>
+    /// The same holds for a schema written out twice (what a Java generator emits for its two JSON media types): the
+    /// same schema is no warning, whether a reference or inline - one that differs in anything is.
+    /// </summary>
+    [Theory]
+    [InlineData("{ type: object, properties: { name: { type: string } } }", "{ type: object, properties: { name: { type: string } } }", false)]
+    [InlineData("{ type: object, properties: { name: { type: string } } }", "{ type: object, properties: { name: { type: integer } } }", true)]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Pet' } }", "{ type: array, items: { $ref: '#/components/schemas/Pet' } }", false)]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Pet' } }", "{ type: array, items: { $ref: '#/components/schemas/Cat' } }", true)]
+    [InlineData("{ $ref: '#/components/schemas/Pet' }", "{ type: object, properties: { name: { type: string } } }", true)]
+    public void Validate_AnInlineSchemaDeclaredTwice_IsAWarningOnlyWhenItDiffers(
+        string firstSchema,
+        string secondSchema,
+        bool warns)
+    {
+        var document = Parse(secondSchema, firstSchema);
+
+        Assert.Equal(warns ? 1 : 0, Messages(document).Count);
+    }
+
     private static List<string> Messages(OpenApiDocument document)
         => OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, document, [], TestFilePath)
             .Where(d => d.RuleId == RuleIdentifiers.MediaTypeDeclaredTwice)
             .Select(d => d.Message)
             .ToList();
 
-    private static OpenApiDocument Parse(string secondSchema)
+    private static OpenApiDocument Parse(
+        string secondSchema,
+        string firstSchema = "{ $ref: '#/components/schemas/Pet' }")
     {
         var yaml = $$"""
             openapi: 3.0.3
@@ -60,7 +82,7 @@ public class MediaTypeDeclaredTwiceValidatorTests
                       description: OK
                       content:
                         application/json:
-                          schema: { $ref: '#/components/schemas/Pet' }
+                          schema: {{firstSchema}}
                         application/json; charset=utf-8:
                           schema: {{secondSchema}}
             components:
