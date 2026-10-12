@@ -742,8 +742,8 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownRequestBindingFailures.Contains(f.Key)).ToList();
-        var fixedCells = KnownRequestBindingFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+        var unexpected = failures.Where(f => !KnownRequestBindingFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownRequestBindingFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
 
         Assert.True(
             unexpected.Count == 0,
@@ -780,8 +780,8 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownRequestBinding31Failures.Contains(f.Key)).ToList();
-        var fixedCells = KnownRequestBinding31Failures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+        var unexpected = failures.Where(f => !KnownRequestBinding31Failures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownRequestBinding31Failures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
 
         Assert.True(
             unexpected.Count == 0,
@@ -817,8 +817,8 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownPlainRequestBindingFailures.Contains(f.Key)).ToList();
-        var fixedCells = KnownPlainRequestBindingFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+        var unexpected = failures.Where(f => !KnownPlainRequestBindingFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownPlainRequestBindingFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
 
         Assert.True(
             unexpected.Count == 0,
@@ -1478,7 +1478,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// and Axios on its fetch adapter labelling a FormData body from Node <c>application/x-www-form-urlencoded</c>,
     /// which the generated client now names multipart itself) - all fixed.
     /// </summary>
-    private static readonly HashSet<string> KnownRequestBindingFailures = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> KnownRequestBindingFailures = new(StringComparer.Ordinal)
     {
     };
 
@@ -1490,17 +1490,19 @@ public partial class ErrorResponseBodyRuntimeTests
     /// The cells that fail today from the OpenAPI 3.1 document, as <c>case [client]</c>, each with the reason it is
     /// accepted.
     /// </summary>
-    private static readonly HashSet<string> KnownRequestBinding31Failures = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> KnownRequestBinding31Failures = new(StringComparer.Ordinal)
     {
     };
 
-    private static readonly HashSet<string> KnownPlainRequestBindingFailures = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> KnownPlainRequestBindingFailures = new(StringComparer.Ordinal)
     {
         // Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the framework's own 400 for a
         // missing required query parameter names no parameter (a ProblemDetails from the host wiring, no `errors`),
         // and a body missing a required property reaches the handler as null. Documented under "Without
         // Atc.Rest.MinimalApi" in Working with Error Responses; .NET 10's AddValidation() is the way to validate there.
-        "server: query: the required parameter is missing [wire]",
-        "server: body: the required property is missing [wire]",
+        ["server: query: the required parameter is missing [wire]"] =
+            "Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the framework's own 400 names no parameter (a ProblemDetails from the host wiring, no errors). AddValidation() is the way to validate on this host.",
+        ["server: body: the required property is missing [wire]"] =
+            "Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the body reaches the handler with the required property null. AddValidation() is the way to validate on this host.",
     };
 }

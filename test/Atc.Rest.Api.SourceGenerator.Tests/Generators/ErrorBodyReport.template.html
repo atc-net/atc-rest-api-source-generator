@@ -50,13 +50,13 @@
   header { display: grid; gap: 10px; }
   .lead { font-size: 16px; }
   .meta { color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; position: sticky; top: 0; background: var(--bg); z-index: 2; }
-  .tabs button { font: inherit; font-weight: 500; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 12px; cursor: pointer; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); flex-wrap: wrap; position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  .tabs button { font: inherit; font-weight: 500; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 9px; cursor: pointer; white-space: nowrap; }
   .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
   .tabs button:focus-visible, .chipbox label:focus-within, select:focus-visible, input:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .tabs .sep { flex: 1 1 auto; }
   section[hidden] { display: none !important; }
-  section[role="tabpanel"] { display: grid; gap: 16px; }
+  section[role="tabpanel"], .matrix-host { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; align-content: start; }
   .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
   .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: stretch; }
@@ -144,8 +144,8 @@
   dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
   dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; word-break: break-word; }
   .note { background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; }
-  .banner { background: #fff4e5; border: 1px solid #f0c47a; border-radius: 8px; padding: 10px 14px; margin: 12px 0; color: #5a3b00; }
-  .cell-ok { color: #1a7f37; } .cell-bad { color: #b42318; font-weight: 600; } .cell-dim { color: var(--muted); }
+  .banner { background: var(--lossy-soft); border: 1px solid var(--lossy); border-radius: 8px; padding: 10px 14px; margin: 12px 0; color: var(--ink); }
+  .cell-ok { color: var(--pass); } .cell-bad { color: var(--fail); font-weight: 600; } .cell-dim { color: var(--muted); }
   .axes td, .axes th { font-size: 13px; }
   ul.tight { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
   .ask { border-left: 3px solid var(--lossy); padding: 4px 0 4px 12px; display: grid; gap: 4px; }
@@ -157,13 +157,57 @@
   .kv-table td:first-child { white-space: nowrap; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; }
   #agent-summary { max-height: 340px; overflow: auto; }
   @media (prefers-reduced-motion: no-preference) { .bar i { transition: width 0.3s ease; } }
+  .table-wrap.tall { max-height: calc(100vh - var(--tabs-height, 96px) - 16px); overflow: auto; scroll-margin-top: calc(var(--tabs-height, 96px) + 8px); }
+  .matrix thead th { z-index: 2; }
+  .matrix th:first-child, .matrix td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
+  .matrix thead th:first-child { z-index: 3; background: var(--surface-2); }
+  .matrix td.cell:focus-visible, tr[data-open]:focus-visible, tr[data-pick]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  tr[data-open], tr[data-pick] { cursor: pointer; }
+  tr[data-pick][aria-current="true"] td { background: var(--accent-soft); }
+  .dhead { display: flex; justify-content: space-between; gap: 12px; align-items: start; flex-wrap: wrap; }
+  .dnav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  #detail-inner:focus { outline: none; }
+  .tb { display: inline-block; margin-left: 6px; font: 600 10.5px/1 "IBM Plex Mono", ui-monospace, monospace; padding: 2px 6px; border-radius: 999px; vertical-align: 1px; }
+  .tb.bad { background: var(--fail-soft); color: var(--fail); } .tb.known { background: var(--design-soft); color: var(--design); }
+  .topline { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+  .tools { display: flex; gap: 8px; align-items: center; }
+  .find { position: relative; }
+  #find { width: min(320px, 70vw); }
+  #find-results { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; width: min(560px, calc(100vw - 32px)); max-height: 60vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); display: grid; }
+  #find-results[hidden] { display: none; }
+  #find-results button { display: grid; gap: 2px; text-align: left; font: inherit; color: inherit; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; cursor: pointer; }
+  #find-results button:hover, #find-results button:focus-visible { background: var(--surface-2); outline: none; }
+  #find-results .more { padding: 8px 12px; }
+  .tabs .div { width: 1px; background: var(--line); margin: 8px 4px; }
+  .variants { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .variants .label { font: 500 11px/1 "IBM Plex Mono", ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .segs { display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 14px; border: 0; border-right: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; }
+  .seg:last-child { border-right: 0; }
+  .seg[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+  .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .dv { display: inline-block; font: 600 10.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 1px 5px; border-radius: 4px; background: var(--design-soft); color: var(--design); vertical-align: 1px; }
+  .matrix td.cur { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-soft); }
+  .matrix td.cell { scroll-margin: calc(var(--tabs-height, 96px) + 56px) 16px 16px 160px; }
+  dialog.beside { position: fixed; inset: 0 0 0 auto; margin: 0; width: 560px; max-width: 100vw; height: 100vh; max-height: 100vh; border-width: 0 0 0 1px; border-radius: 0; box-shadow: -8px 0 24px rgb(0 0 0 / 0.12); z-index: 20; }
+  dialog.beside .inner { max-height: 100vh; }
+  body.detail-beside { padding-right: 576px; }
+  table.glance tr[data-go] { cursor: pointer; }
+  table.glance .bar { min-width: 180px; }
+  .callout.warn { background: var(--lossy-soft); border-left: 3px solid var(--lossy); border-radius: 6px; padding: 8px 12px; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <div class="eyebrow">atc-rest-api-source-generator · test-suite report · a recorded run, not a claim</div>
-    <h1>Test-suite report</h1>
+    <div class="topline">
+      <h1>Test-suite report</h1>
+      <div class="tools">
+        <div class="find"><input type="search" id="find" placeholder="Find a case in any matrix  ( / )" autocomplete="off" aria-label="Find a case in any matrix"><div id="find-results" hidden></div></div>
+        <button class="btn" id="theme" title="Switch between light and dark">Light / dark</button>
+      </div>
+    </div>
     <p class="lead">What the generated code has been proven to do: the generated server on Kestrel with every generated client calling it over HTTP (error bodies for every status, body media types, request binding, security and rate limiting, streaming and the other features), the compile gate over every scenario and generator, the diagnostics coverage and the Playwright apps. Every cell is the result of a real run.</p>
     <div class="meta" id="provenance"></div>
   </header>
@@ -171,19 +215,19 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
+    <span class="div"></span>
     <button role="tab" aria-selected="false" data-tab="matrix">Error bodies</button>
-    <button role="tab" aria-selected="false" data-tab="media">Body media types</button>
+    <button role="tab" aria-selected="false" data-tab="media">Body media</button>
     <button role="tab" aria-selected="false" data-tab="binding">Request binding</button>
-    <button role="tab" aria-selected="false" data-tab="matrixplain">Error bodies &middot; MapEndpoints host</button>
-    <button role="tab" aria-selected="false" data-tab="bindingplain">Request binding &middot; MapEndpoints host</button>
-    <button role="tab" aria-selected="false" data-tab="binding31">Request binding &middot; OpenAPI 3.1</button>
     <button role="tab" aria-selected="false" data-tab="guard">Security &amp; rate limiting</button>
     <button role="tab" aria-selected="false" data-tab="feature">Features</button>
+    <span class="div"></span>
     <button role="tab" aria-selected="false" data-tab="support">Feature support</button>
-    <button role="tab" aria-selected="false" data-tab="diagnostics">Diagnostics coverage</button>
+    <button role="tab" aria-selected="false" data-tab="diagnostics">Diagnostics</button>
     <button role="tab" aria-selected="false" data-tab="playwright">Playwright</button>
-    <button role="tab" aria-selected="false" data-tab="changes">Changes since previous run</button>
-    <button role="tab" aria-selected="false" data-tab="method">How it was tested</button>
+    <span class="div"></span>
+    <button role="tab" aria-selected="false" data-tab="changes">Changes</button>
+    <button role="tab" aria-selected="false" data-tab="method">Method</button>
     <span class="sep"></span>
     <button role="tab" aria-selected="false" data-tab="agents">For agents</button>
     <button role="tab" aria-selected="false" data-tab="readiness" id="tab-btn-readiness" hidden>3.0 readiness</button>
@@ -191,6 +235,7 @@
 
   <section id="tab-overview" role="tabpanel">
     <div class="hero" id="hero"></div>
+    <div class="panel" id="matrices"></div>
     <div class="grid-3" id="personas"></div>
     <div class="panel" id="attention"></div>
     <div class="grid-2">
@@ -235,24 +280,7 @@
   </section>
 
   <section id="tab-matrix" role="tabpanel" hidden>
-    <div class="panel filters">
-      <div class="row"><span class="label">Declared</span><div class="chipbox" id="f-decl"></div></div>
-      <div class="row"><span class="label">Clients</span><div class="chipbox" id="f-client"></div></div>
-      <div class="row"><span class="label">Scenario</span><div class="chipbox" id="f-group"></div></div>
-      <div class="row">
-        <span class="label">Handler</span>
-        <select id="f-handler"><option value="all">value and empty call</option><option value="value">with a value</option><option value="empty">empty call</option></select>
-        <span class="label">Status</span>
-        <input type="search" id="f-status" placeholder="404, 4xx, 50…" size="12">
-        <span class="label">Show</span>
-        <select id="f-verdict"><option value="all">all rows</option><option value="nonpass">rows with a non-pass cell</option><option value="fail">rows with a fail</option><option value="lossy">rows with a lossy cell</option><option value="formatsdiffer">rows where the C# formats differ</option></select>
-        <label class="chipbox"><label><input type="checkbox" id="f-compact"> compact cells</label></label>
-        <button class="btn" id="f-reset" title="Check every chip and show all rows">Reset</button>
-        <button class="btn" id="f-clear" title="Un-check every chip, to pick a few">Clear</button>
-      </div>
-      <div class="counts" id="f-count"></div>
-    </div>
-    <div class="table-wrap" id="matrix-wrap"><table class="matrix" id="matrix"></table></div>
+    <div id="matrix-host"></div>
   </section>
 
   <section id="tab-media" role="tabpanel" hidden>
@@ -318,7 +346,7 @@
     <div class="panel" id="readiness"></div>
   </section>
 
-  <dialog id="detail"><div class="inner" id="detail-inner"></div></dialog>
+  <dialog id="detail"><div class="inner" id="detail-inner" tabindex="-1"></div></dialog>
 </main>
 
 <script>
@@ -377,6 +405,360 @@ const STORE = 'ebm2:';
 function store(key, value) { try { localStorage.setItem(STORE + key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
 function load(key, fallback) { try { const v = localStorage.getItem(STORE + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Shared by every matrix: the registry the cell dialog and the links read, the known (ratcheted) cells, the filter
+// chips, and the dialog itself - one for all matrices, opened by a click on a cell, a link (#tab/case/client) or a
+// row of "Needs attention" and "Changes since previous run".
+// ---------------------------------------------------------------------------------------------------------------
+const MATRIX = {};
+const RATCHET = Object.fromEntries(Object.entries(REPORT?.ratchet ?? {}).map(([m, cells]) => [m, new Set(cells)]));
+const cellName = (c, clientId) => `${c.id} [${clientId || 'wire'}]`;
+const knownReason = (key, c, clientId) => REPORT?.ratchetReasons?.[key]?.[cellName(c, clientId)] ?? '';
+// A fail the matrix's ratchet lists is shown as known
+const shownVerdict = (key, c, clientId, verdict) => (verdict === 'fail' && RATCHET[key]?.has(cellName(c, clientId)) ? 'known' : verdict);
+const vHtml = (key, c, clientId, verdict) => { const v = shownVerdict(key, c, clientId, verdict); return `<span class="v ${esc(v)}">${esc(v)}</span>`; };
+const shortGroup = (cl) => cl.group.replace('C# EndpointPerOperation', 'C# EPO');
+const shortLabel = (cl) => cl.label.replace('errorResponseFormat: ', '').replace('typedClientResultStyle: ', '');
+const clientTh = (cl) => `<th title="${esc(cl.group + ' · ' + cl.label)}">${esc(shortGroup(cl))}<br>${esc(shortLabel(cl))}</th>`;
+const chipsHtml = (name, items) => `<div class="chipbox" data-chips="${name}">${items.map((it) => `<label><input type="checkbox" value="${esc(it.id)}"> ${esc(it.label)}</label>`).join('')}</div>`;
+const readChips = (host, name) => [...host.querySelectorAll(`[data-chips="${name}"] input:checked`)].map((i) => i.value);
+function syncChips(host, name, values) { for (const i of host.querySelectorAll(`[data-chips="${name}"] input`)) i.checked = values.includes(i.value); }
+function setCompact(on) {
+  store('compact', on); document.body.classList.toggle('compact', on);
+  for (const i of document.querySelectorAll('[data-f="compact"]')) i.checked = on;
+}
+function pretty(body) { try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; } }
+
+// The filters a matrix shares with its variants (the MapEndpoints host, the OpenAPI 3.1 document)
+const SHARED = {};
+
+// A variant matrix is read against its baseline: the same case in the matrix it is a variant of. Request ids differ
+// from run to run and are no difference.
+const noIds = (s) => String(s ?? '').replace(/\b[0-9A-Z]{13}:[0-9A-F]{8}\b/g, '').replace(/\b00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}\b/g, '');
+function differs(key, c, clientId) {
+  const base = MATRIX[key]?.baseline;
+  if (!base) return false;
+  const b = base.get(c.id);
+  if (!b) return true;
+  const mine = clientId ? c.clients[clientId] : c.wire;
+  const theirs = clientId ? b.clients[clientId] : b.wire;
+  if (!mine || !theirs) return Boolean(mine) !== Boolean(theirs);
+  return clientId
+    ? mine.verdict !== theirs.verdict || noIds(mine.summary) !== noIds(theirs.summary)
+    : mine.verdict !== theirs.verdict || mine.status !== theirs.status || (mine.mediaType ?? '') !== (theirs.mediaType ?? '');
+}
+const diffMark = (key, c, clientId) => (MATRIX[key]?.baseline?.has(c.id) && differs(key, c, clientId) ? ' <span class="dv" title="Differs from the same cell in the matrix this is a variant of - open the cell to compare">≠</span>' : '');
+function baselineRow(key, c, clientId) {
+  const m = MATRIX[key];
+  if (!m.baseline) return '';
+  const b = m.baseline.get(c.id);
+  if (!b) return `<dt>${esc(m.baselineName)}</dt><dd>This case is only in this variant.</dd>`;
+  const theirs = clientId ? b.clients[clientId] : b.wire;
+  if (!theirs) return '';
+  return `<dt>${esc(m.baselineName)}</dt><dd>${differs(key, c, clientId)
+    ? `<span class="dv">≠</span> <span class="v ${esc(theirs.verdict)}">${esc(theirs.verdict)}</span> ${esc(clientId ? theirs.summary : `${theirs.status} ${theirs.mediaType ?? ''}`)}`
+    : 'The same there.'}</dd>`;
+}
+
+let openedCell = null;
+let activeTab = 'overview';
+function setHash(...parts) { try { history.replaceState(null, '', '#' + parts.map(encodeURIComponent).join('/')); } catch { /* no history here */ } }
+const rowsOf = (m, idx) => (m.rows().includes(idx) ? m.rows() : m.cases.map((_, i) => i));
+const columnsOf = (m, c) => [...(c.wire ? [''] : []), ...m.shownClients().filter((id) => c.clients[id])];
+// With room for it the detail is a panel beside the matrix, which stays in view; on a narrow window it is a dialog
+const BESIDE = window.matchMedia('(min-width: 1200px)');
+
+// The open cell is marked in its table and kept in view
+function markCell() {
+  document.querySelector('td.cur')?.classList.remove('cur');
+  if (!openedCell) return;
+  const td = document.querySelector(`table[data-matrix="${openedCell.key}"] td[data-case="${openedCell.idx}"][data-client="${openedCell.clientId}"]`);
+  if (td) { td.classList.add('cur'); td.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+}
+function openCell(key, idx, clientId = '') {
+  const m = MATRIX[key];
+  const c = m?.cases[idx];
+  if (!c) return false;
+  if (!c.clients[clientId]) clientId = c.wire ? '' : (columnsOf(m, c)[0] ?? Object.keys(c.clients)[0] ?? '');
+  openedCell = { key, idx, clientId };
+  const rows = rowsOf(m, idx);
+  setHash(m.tab, c.id, clientId || 'wire');
+  $('#detail-inner').innerHTML = `
+    <div class="dhead"><h2>${esc(m.title(c))}</h2>
+      <div class="dnav"><span class="counts">row ${rows.indexOf(idx) + 1} of ${rows.length}</span>
+        <button class="btn" data-nav="-1,0" title="Previous row (arrow up)">↑</button><button class="btn" data-nav="1,0" title="Next row (arrow down)">↓</button>
+        <button class="btn" data-nav="0,-1" title="Previous column (arrow left)">←</button><button class="btn" data-nav="0,1" title="Next column (arrow right)">→</button>
+        <button class="copy" data-copy="${esc(location.href)}" title="Copy a link to this cell">copy link</button>
+        <button class="btn" id="detail-close" title="Close (Esc)">Close</button></div></div>` + m.detail(c, clientId);
+  const dialog = $('#detail');
+  if (!dialog.open) {
+    const beside = BESIDE.matches;
+    dialog.classList.toggle('beside', beside);
+    document.body.classList.toggle('detail-beside', beside);
+    if (beside) dialog.show(); else dialog.showModal();
+  }
+  $('#detail-inner').scrollTop = 0;
+  $('#detail-inner').focus({ preventScroll: true });
+  markCell();
+  return true;
+}
+function closeCell() { if ($('#detail').open) $('#detail').close(); }
+function navCell(dr, dc) {
+  if (!openedCell) return;
+  const m = MATRIX[openedCell.key];
+  const rows = rowsOf(m, openedCell.idx);
+  const idx = rows[rows.indexOf(openedCell.idx) + dr] ?? openedCell.idx;
+  const cols = columnsOf(m, m.cases[idx]);
+  const at = cols.indexOf(openedCell.clientId);
+  openCell(openedCell.key, idx, cols[Math.max(at, 0) + dc] ?? (at < 0 ? cols[0] : openedCell.clientId) ?? '');
+}
+function openById(key, caseId, clientId) {
+  const m = MATRIX[key];
+  const idx = m ? m.cases.findIndex((c) => c.id === caseId) : -1;
+  if (idx < 0) { if (MATRIX_TABS[key]) selectTab(MATRIX_TABS[key]); return false; }
+  selectTab(m.tab);
+  return openCell(key, idx, !clientId || clientId === 'wire' ? '' : clientId);
+}
+$('#detail').addEventListener('click', (e) => {
+  if (e.target === $('#detail') || e.target.closest('#detail-close')) { closeCell(); return; }
+  const nav = e.target.closest('[data-nav]');
+  if (nav) { const [dr, dc] = nav.dataset.nav.split(',').map(Number); navCell(dr, dc); return; }
+  const pick = e.target.closest('tr[data-pick]');
+  if (pick && openedCell) openCell(openedCell.key, openedCell.idx, pick.dataset.pick);
+});
+$('#detail').addEventListener('close', () => {
+  // Closed and opened again at once (a link to another cell): the new cell stays
+  if ($('#detail').open) return;
+  openedCell = null;
+  document.body.classList.remove('detail-beside');
+  markCell();
+  setHash(activeTab);
+});
+document.addEventListener('click', (e) => {
+  const td = e.target.closest('td[data-case]');
+  const table = td?.closest('table[data-matrix]');
+  if (table) { openCell(table.dataset.matrix, Number(td.dataset.case), td.dataset.client); return; }
+  const open = e.target.closest('[data-open]');
+  if (open) { const [m, c, cl] = open.dataset.open.split('|'); openById(m, c, cl); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  const typing = e.target.matches?.('input, select, textarea');
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('td[data-case], tr[data-open], tr[data-pick], tr[data-go]')) { e.preventDefault(); e.target.click(); return; }
+  if (!openedCell || typing) return;
+  // The detail beside the matrix is no modal dialog: Escape and the arrows are its own
+  if (e.key === 'Escape') { closeCell(); return; }
+  const d = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+  if (d) { e.preventDefault(); navCell(d[0], d[1]); }
+});
+
+// The parts of a cell's detail every matrix shares
+function wireFacts(w) {
+  return [esc(w.status), `<span class="mono">${esc(w.contentType ?? w.mediaType ?? '(no Content-Type)')}</span>`, w.bodyKind && esc(w.bodyKind),
+    w.fileName && `file name ${esc(w.fileName)}`, w.length != null && `${Number(w.length).toLocaleString()} bytes`, w.sha256 && `sha256 <span class="mono">${esc(w.sha256)}</span>`,
+    w.retryAfter && `Retry-After ${esc(w.retryAfter)}`, w.location && `Location <span class="mono">${esc(w.location)}</span>`].filter(Boolean).join(' · ');
+}
+function bodyBlock(title, body) {
+  const text = pretty(String(body ?? ''));
+  return `<div class="cmd"><h3>${esc(title)}</h3>${text ? copyButton(text) : ''}</div><pre>${esc(text || '(empty)')}</pre>`;
+}
+function knownRow(key, c, clientId, verdict) {
+  if (shownVerdict(key, c, clientId, verdict) !== 'known') return '';
+  return `<dt>Known</dt><dd>Expected to fail - the matrix's ratchet lists it. ${esc(knownReason(key, c, clientId))}</dd>`;
+}
+function allClientsTable(key, m, c, clientId) {
+  const rows = [
+    ...(c.wire ? [{ id: '', group: 'Server', label: 'the wire', verdict: c.wire.verdict, summary: `${c.wire.status} ${c.wire.mediaType ?? ''}` }] : []),
+    ...m.clients.filter((x) => c.clients[x.id]).map((x) => ({ id: x.id, group: x.group, label: x.label, verdict: c.clients[x.id].verdict, summary: c.clients[x.id].summary, cell: c.clients[x.id] }))];
+  return `<h3>Server and clients <span class="counts">click a row to see it</span></h3>
+    <div class="table-wrap"><table><tbody>${rows.map((r) => `<tr data-pick="${esc(r.id)}" tabindex="0" aria-current="${r.id === clientId}"><td>${esc(r.group)}<br><span class="counts">${esc(r.label)}</span></td><td>${vHtml(key, c, r.id, r.verdict)}${lossBadge(r.cell)}</td><td>${esc(r.summary)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function errorBodyDetail(key, m, c, clientId) {
+  const cl = m.clients.find((x) => x.id === clientId);
+  const cell = clientId ? c.clients[clientId] : null;
+  const a = ASSESS[cell?.assessment];
+  return `
+    <dl class="kv">
+      <dt>Case</dt><dd class="mono">${esc(c.id)}</dd>
+      <dt>Scenario</dt><dd>${esc(GROUP_LABELS[c.group] ?? c.group)}</dd>
+      <dt>Handler</dt><dd class="mono">${esc(c.handler)}</dd>
+      <dt>Wire</dt><dd>${vHtml(key, c, '', c.wire.verdict)} ${wireFacts(c.wire)}</dd>
+      <dt>Wire verdict</dt><dd>${esc(c.wire.why)}</dd>${knownRow(key, c, '', c.wire.verdict)}${baselineRow(key, c, '')}
+    </dl>
+    ${bodyBlock('Body on the wire', c.wire.body)}
+    ${cell ? `<h3>${esc(cl.group)} · ${esc(cl.label)}</h3>
+      <dl class="kv"><dt>Verdict</dt><dd>${vHtml(key, c, clientId, cell.verdict)}${lossBadge(cell)} ${esc(cell.why)}</dd>${knownRow(key, c, clientId, cell.verdict)}${baselineRow(key, c, clientId)}${cell.verdict === 'lossy' && LOSS_KINDS[cell.loss?.kind] ? `<dt>Lost</dt><dd>${LOSS_KINDS[cell.loss.kind].text}</dd>` : ''}${a ? `<dt>Assessment</dt><dd><span class="lvl ${esc(a.level)}">${esc(LEVELS[a.level]?.label)}</span> <b>${esc(a.title)}</b> <span class="counts">(suggested)</span><br>${esc(a.why)}<br><i>Proposal:</i> ${esc(a.proposal)}</dd>` : ''}</dl>
+      <pre>${esc(cell.summary)}</pre>` : ''}
+    ${allClientsTable(key, m, c, clientId)}`;
+}
+function caseDetail(key, m, c, clientId) {
+  const cl = m.clients.find((x) => x.id === clientId);
+  const cell = clientId ? c.clients[clientId] : null;
+  const w = c.wire;
+  return `
+    <dl class="kv">
+      <dt>Case</dt><dd class="mono">${esc(c.id)}</dd>
+      <dt>Group</dt><dd>${esc(c.group)}</dd>
+      ${c.operation ? `<dt>Operation</dt><dd class="mono">${esc(c.operation)}</dd>` : ''}${c.request ? `<dt>Request</dt><dd class="mono">${esc(c.request)}</dd>` : ''}${c.expects ? `<dt>Expects</dt><dd>${esc(c.expects)}</dd>` : ''}
+      ${w ? `<dt>Wire</dt><dd>${vHtml(key, c, '', w.verdict)} ${wireFacts(w)}</dd><dt>Wire verdict</dt><dd>${esc(w.why)}</dd>${knownRow(key, c, '', w.verdict)}${baselineRow(key, c, '')}` : ''}
+    </dl>
+    ${w && w.body !== '(binary)' ? bodyBlock('Body on the wire', w.body) : ''}
+    ${c.wireXml ? `<h3>XML first <span class="counts">the same request as a preferXml client sends it</span></h3>
+      <dl class="kv"><dt>Wire</dt><dd><span class="v ${esc(c.wireXml.verdict)}">${esc(c.wireXml.verdict)}</span> ${wireFacts(c.wireXml)}</dd><dt>Wire verdict</dt><dd>${esc(c.wireXml.why)}</dd></dl>
+      ${bodyBlock('Body on the wire, XML first', c.wireXml.body)}` : ''}
+    ${cell ? `<h3>${esc(cl.group)} · ${esc(cl.label)}</h3>
+      <dl class="kv"><dt>Verdict</dt><dd>${vHtml(key, c, clientId, cell.verdict)} ${esc(cell.why)}</dd>${knownRow(key, c, clientId, cell.verdict)}${baselineRow(key, c, clientId)}${cell.loss ? `<dt>Lost</dt><dd>${esc([cell.loss.kind, ...(cell.loss.fields ?? [])].join(' · '))}</dd>` : ''}${cell.server ? `<dt>Server saw</dt><dd class="mono">${esc(cell.server)}</dd>` : ''}</dl>
+      <pre>${esc(cell.summary)}</pre>` : ''}
+    ${allClientsTable(key, m, c, clientId)}`;
+}
+
+// The error-body matrix (the generated host, and the MapEndpoints host): filters, the table and its registry entry.
+// Both hosts keep one set of filters, and the MapEndpoints host is read against its `baseline` - the same case on the generated host.
+function mountErrorMatrix(key, tab, host, data, baseline) {
+  const cases = data.cases;
+  const clients = data.clients;
+  const declarations = data.declarations ?? REPORT.declarations;
+  const epoIds = clients.filter((c) => c.format).map((c) => c.id);
+  const indexOf = new Map(cases.map((c, i) => [c, i]));
+  const all = { decl: declarations.map((d) => d.id), client: clients.map((c) => c.id), group: Object.keys(GROUP_LABELS) };
+  const state = (SHARED.errorBodies ??= {
+    decl: load('decl', all.decl), client: load('client', all.client), group: load('group', all.group),
+    handler: load('handler', 'all'), status: '', verdict: load('verdict', 'all'), rev: 0,
+  });
+  let renderedRev = -1;
+  const lossCount = {};
+  const assessCount = {};
+  for (const c of cases) for (const id in c.clients) { const x = c.clients[id]; if (x.verdict !== 'lossy') continue; lossCount[x.loss?.kind] = (lossCount[x.loss?.kind] ?? 0) + 1; if (x.assessment) assessCount[x.assessment] = (assessCount[x.assessment] ?? 0) + 1; }
+  const levelOrder = { 'fix': 0, 'improve': 1, 'by-design': 2, 'good': 3 };
+  const assessments = [...(REPORT.assessments ?? [])].sort((a, b) => levelOrder[a.level] - levelOrder[b.level]);
+  host.innerHTML = `
+    <div class="panel filters">
+      <div class="row"><span class="label">Declared</span>${chipsHtml('decl', declarations.map((d) => ({ id: d.id, label: DECL_SHORT[d.id] ?? d.id })))}</div>
+      <div class="row"><span class="label">Clients</span>${chipsHtml('client', clients.map((c) => ({ id: c.id, label: `${shortGroup(c)} · ${shortLabel(c)}` })))}</div>
+      <div class="row"><span class="label">Scenario</span>${chipsHtml('group', Object.entries(GROUP_LABELS).map(([id, label]) => ({ id, label })))}</div>
+      <div class="row">
+        <span class="label">Handler</span>
+        <select data-f="handler"><option value="all">value and empty call</option><option value="value">with a value</option><option value="empty">empty call</option></select>
+        <span class="label">Status</span>
+        <input type="search" data-f="status" placeholder="404, 4xx, 50…" size="12">
+        <span class="label">Show</span>
+        <select data-f="verdict"><option value="all">all rows</option><option value="nonpass">rows with a non-pass cell</option><option value="fail">rows with a fail</option><option value="lossy">rows with a lossy cell</option><option value="formatsdiffer">rows where the C# formats differ</option>${baseline ? `<option value="differs">${esc(baseline.option)}</option>` : ''}${
+          assessments.map((a) => `<option value="assess:${esc(a.id)}">${esc(LEVELS[a.level]?.label ?? a.level)}: ${esc(a.title)} (${assessCount[a.id] ?? 0})</option>`).join('')}${
+          Object.entries(LOSS_KINDS).map(([kind, k]) => `<option value="loss:${kind}">lossy: ${esc(k.name)} (${lossCount[kind] ?? 0})</option>`).join('')}</select>
+        <label class="chipbox"><label><input type="checkbox" data-f="compact"> compact cells</label></label>
+        <button class="btn" data-f="reset" title="Check every chip and show all rows">Reset</button>
+        <button class="btn" data-f="clear" title="Un-check every chip, to pick a few">Clear</button>
+      </div>
+      <div class="counts" data-f="count"></div>
+    </div>
+    <div class="table-wrap tall"><table class="matrix" data-matrix="${esc(key)}"></table></div>`;
+  const f = (name) => host.querySelector(`[data-f="${name}"]`);
+  let visibleIdx = [];
+  host.classList.add('matrix-host');
+
+  function persist() { for (const k of ['decl', 'client', 'group', 'handler', 'verdict']) store(k, state[k]); }
+  function sync() {
+    for (const k of ['decl', 'client', 'group']) syncChips(host, k, state[k]);
+    f('handler').value = state.handler; f('status').value = state.status; f('verdict').value = state.verdict;
+    // A stored choice this dataset no longer has (an assessment that is gone) would hide every row
+    if (f('verdict').value !== state.verdict) { state.verdict = 'all'; f('verdict').value = 'all'; }
+  }
+  function statusMatches(status) {
+    const q = state.status.toLowerCase();
+    if (!q) return true;
+    const s = String(status);
+    if (/^\dxx$/.test(q)) return s[0] === q[0];
+    if (/^\d{3}$/.test(q)) return s === q;
+    return s.startsWith(q);
+  }
+  function handlerMatches(c) {
+    if (state.handler === 'all') return true;
+    const empty = c.mode.endsWith('-empty') || /\(\)$/.test(c.handler);
+    return state.handler === 'empty' ? empty : !empty;
+  }
+  function formatsDiffer(c) {
+    const vals = epoIds.map((id) => c.clients[id]?.summary.replace(/^\d{3} · /, '')).filter((x) => x !== undefined);
+    return new Set(vals).size > 1;
+  }
+  function verdictMatches(c, shownClients) {
+    const cells = shownClients.map((cl) => c.clients[cl.id]).filter(Boolean);
+    if (state.verdict.startsWith('assess:')) return cells.some((x) => x.verdict === 'lossy' && x.assessment === state.verdict.slice(7));
+    if (state.verdict.startsWith('loss:')) return cells.some((x) => x.verdict === 'lossy' && x.loss?.kind === state.verdict.slice(5));
+    const verdicts = cells.map((x) => x.verdict);
+    switch (state.verdict) {
+      case 'nonpass': return verdicts.some((v) => v !== 'pass') || c.wire.verdict !== 'pass';
+      case 'fail': return verdicts.includes('fail') || verdicts.includes('harness') || c.wire.verdict === 'fail';
+      case 'lossy': return verdicts.includes('lossy');
+      case 'formatsdiffer': return formatsDiffer(c);
+      case 'differs': return differs(key, c, '') || shownClients.some((cl) => differs(key, c, cl.id));
+      default: return true;
+    }
+  }
+  function render() {
+    const shownClients = clients.filter((c) => state.client.includes(c.id));
+    renderedRev = ++state.rev;
+    // Rows: one per (declaration-or-scenario, status, handler); columns: wire + each client.
+    const visible = cases.filter((c) => state.group.includes(c.group) &&
+      ((!DECL_GROUPS.includes(c.group) && c.group !== 'validation') || state.decl.includes(c.operation)) &&
+      statusMatches(c.status) && handlerMatches(c) && verdictMatches(c, shownClients));
+    visible.sort((a, b) => a.status - b.status || String(a.operation).localeCompare(String(b.operation)) || a.mode.localeCompare(b.mode));
+    visibleIdx = visible.map((c) => indexOf.get(c));
+    f('count').textContent = `${visible.length} of ${cases.length} cases · ${shownClients.length} of ${clients.length} clients`;
+    const table = host.querySelector('table.matrix');
+    if (visible.length === 0) { table.innerHTML = '<tbody><tr><td class="empty">No case matches the filters.</td></tr></tbody>'; return; }
+
+    const compareFormats = epoIds.length > 1 && epoIds.every((id) => shownClients.some((s) => s.id === id));
+    let html = `<thead><tr><th>Status</th><th class="decl">Declared / scenario</th><th>Handler</th><th>Server wire</th>${shownClients.map(clientTh).join('')}</tr></thead><tbody>`;
+    for (const c of visible) {
+      const idx = indexOf.get(c);
+      const same = compareFormats && c.group === 'sweep' && c.operation !== 'setAllNone'
+        ? (formatsDiffer(c) ? '<span class="diff">C# formats differ</span>' : '<span class="same">C# formats identical</span>') : '';
+      html += `<tr>
+        <td class="status">${esc(c.status)}<small>${esc(GROUP_LABELS[c.group] ?? c.group)}</small></td>
+        <td>${esc(DECL_SHORT[c.operation] ?? c.operation)}<br>${same}</td>
+        <td class="mono" style="font-size:11.5px">${esc(c.handler)}</td>
+        <td class="wire cell" tabindex="0" data-case="${idx}" data-client="">${vHtml(key, c, '', c.wire.verdict)}${diffMark(key, c, '')} <span class="ct">${esc(c.wire.mediaType)}</span><span class="s">${esc(c.wire.bodyKind)} · ${esc(c.wire.body.slice(0, 140))}</span></td>
+        ${shownClients.map((cl) => { const cell = c.clients[cl.id]; return cell
+          ? `<td class="cell" tabindex="0" data-case="${idx}" data-client="${cl.id}">${vHtml(key, c, cl.id, cell.verdict)}${lossBadge(cell)}${diffMark(key, c, cl.id)}<span class="s">${esc(cell.summary)}</span></td>`
+          : `<td class="cell"><span class="v na">not reachable</span><span class="s">no generated method calls it</span></td>`; }).join('')}
+      </tr>`;
+    }
+    table.innerHTML = html + '</tbody>';
+    markCell();
+  }
+
+  // Show the matrix with every filter open, but for the given ones (the Overview's tiles, pivot and review rows)
+  function show(patch, select = true) {
+    Object.assign(state, { decl: all.decl, client: all.client, group: all.group, handler: 'all', status: '', verdict: 'all' }, patch);
+    persist(); sync(); render();
+    if (select) selectTab(tab);
+  }
+
+  for (const k of ['decl', 'client', 'group']) {
+    host.querySelector(`[data-chips="${k}"]`).addEventListener('change', () => { state[k] = readChips(host, k); store(k, state[k]); render(); });
+  }
+  f('handler').addEventListener('change', (e) => { state.handler = e.target.value; store('handler', state.handler); render(); });
+  f('verdict').addEventListener('change', (e) => { state.verdict = e.target.value; store('verdict', state.verdict); render(); });
+  f('status').addEventListener('input', (e) => { state.status = e.target.value.trim(); render(); });
+  f('compact').addEventListener('change', (e) => setCompact(e.target.checked));
+  f('clear').addEventListener('click', () => { state.decl = []; state.client = []; state.group = []; persist(); sync(); render(); });
+  f('reset').addEventListener('click', () => show({}, false));
+
+  MATRIX[key] = {
+    tab, cases, clients, show,
+    baseline: baseline ? new Map(baseline.cases.map((c) => [c.id, c])) : null, baselineName: baseline?.name,
+    // The other host changed the filters they share
+    refresh: () => { if (renderedRev !== state.rev) { sync(); render(); } },
+    rows: () => visibleIdx,
+    shownClients: () => clients.filter((c) => state.client.includes(c.id)).map((c) => c.id),
+    title: (c) => `${c.status} · ${DECL_SHORT[c.operation] ?? c.operation}`,
+    detail: (c, clientId) => errorBodyDetail(key, MATRIX[key], c, clientId),
+  };
+  sync();
+  render();
+  return { show, all };
+}
+
 function renderMissing() {
   document.querySelector('main').insertAdjacentHTML('beforeend', '<div class="panel"><p>This page was opened as a template: no run data is embedded. Generate it with the <code>Report_EndToEndErrorBodyMatrix</code> test.</p></div>');
 }
@@ -389,7 +771,6 @@ if (!REPORT) {
   for (const c of cases) {
     if (c.operation.startsWith('getStatus')) DECL_SHORT[c.operation] = 'HTTP ' + c.operation.slice('getStatus'.length);
   }
-  const epoIds = clients.filter((c) => c.format).map((c) => c.id);
 
   // Provenance
   const p = REPORT.provenance;
@@ -427,7 +808,7 @@ if (!REPORT) {
   const colKeys = [...REPORT.declarations.map((d) => d.id), ...SCENARIO_COLS];
   const colLabel = (k) => SCENARIO_COLS.includes(k) ? GROUP_LABELS[k] : (DECL_SHORT[k] ?? k);
   const inCol = (c, k) => SCENARIO_COLS.includes(k) ? c.group === k : (c.operation === k && DECL_GROUPS.includes(c.group));
-  function tally(list) { const t = { pass: 0, lossy: 0, fail: 0, platform: 0 }; for (const v of list) if (t[v] !== undefined) t[v]++; return t; }
+  function tally(list) { const t = Object.fromEntries(VERDICTS.map((v) => [v, 0])); for (const v of list) if (t[v] !== undefined) t[v]++; return t; }
   function barHtml(t) {
     const total = VERDICTS.reduce((s, v) => s + t[v], 0) || 1;
     return `<div class="bar">${VERDICTS.map((v) => t[v] ? `<i class="${v}" style="width:${(t[v] / total * 100).toFixed(1)}%"></i>` : '').join('')}</div>` +
@@ -446,11 +827,8 @@ if (!REPORT) {
     const td = e.target.closest('td[data-col]');
     if (!td) return;
     const col = td.dataset.col;
-    state.decl = REPORT.declarations.some((d) => d.id === col) ? [col] : REPORT.declarations.map((d) => d.id);
-    state.group = REPORT.declarations.some((d) => d.id === col) ? [...DECL_GROUPS] : [col];
-    if (td.dataset.client) state.client = [td.dataset.client];
-    state.verdict = 'all';
-    syncFilters(); selectTab('matrix'); renderMatrix();
+    const isDeclaration = REPORT.declarations.some((d) => d.id === col);
+    EB.show({ ...(isDeclaration ? { decl: [col], group: [...DECL_GROUPS] } : { group: [col] }), ...(td.dataset.client ? { client: [td.dataset.client] } : {}) });
   });
 
   // Every status code: one tile each.
@@ -469,13 +847,7 @@ if (!REPORT) {
   }).join('');
   $('#codes').addEventListener('click', (e) => {
     const tile = e.target.closest('[data-code]');
-    if (!tile) return;
-    state.decl = REPORT.declarations.map((d) => d.id);
-    state.group = Object.keys(GROUP_LABELS);
-    state.client = clients.map((c) => c.id);
-    state.status = tile.dataset.code;
-    state.verdict = 'all';
-    syncFilters(); selectTab('matrix'); renderMatrix();
+    if (tile) EB.show({ status: tile.dataset.code });
   });
 
   // Findings: every non-pass client verdict, grouped by client + reason.
@@ -490,7 +862,7 @@ if (!REPORT) {
       findings.get(key).cases.push(c);
     }
   }
-  const order = { fail: 0, platform: 1, lossy: 2 };
+  const order = { fail: 0, harness: 0, platform: 1, lossy: 2 };
   const rows = [...findings.values()].sort((a, b) => order[a.verdict] - order[b.verdict] || b.cases.length - a.cases.length);
   const clientLabel = (id) => { const c = clients.find((x) => x.id === id); return c ? `${c.group} · ${c.label}` : id; };
   const findingsTable = (list) => `<div class="table-wrap"><table><thead><tr><th>Verdict</th><th>Client</th><th>What</th><th class="num">Cells</th><th>Where</th></tr></thead><tbody>${list.map((r) => {
@@ -521,150 +893,26 @@ if (!REPORT) {
     const decls = [...new Set(hits.map((h) => DECL_SHORT[h.c.operation] ?? h.c.operation))].join(', ');
     return `<tr data-assess="${esc(a.id)}"><td><span class="lvl ${esc(a.level)}" title="${esc(LEVELS[a.level]?.text)}">${esc(LEVELS[a.level]?.label ?? a.level)}</span></td><td><b>${esc(a.title)}</b><br><span class="why">${esc(a.why)}</span></td><td class="num">${hits.length}</td><td>${esc(where)}<br><span class="counts">${esc(decls)}</span></td><td>${esc(a.proposal)}</td></tr>`;
   }).join('')}</tbody></table></div>`;
-  $('#f-verdict').insertAdjacentHTML('beforeend', assessments.map((a) => `<option value="assess:${esc(a.id)}">${esc(LEVELS[a.level]?.label ?? a.level)}: ${esc(a.title)} (${(assessCells[a.id] ?? []).length})</option>`).join(''));
   $('#review-lossy').addEventListener('click', (e) => {
     const tr = e.target.closest('tr[data-assess]');
-    if (!tr) return;
-    state.verdict = 'assess:' + tr.dataset.assess; state.decl = REPORT.declarations.map((d) => d.id); state.client = clients.map((c) => c.id); state.group = Object.keys(GROUP_LABELS); state.handler = 'all'; state.status = '';
-    for (const k of ['decl', 'client', 'group', 'handler', 'verdict']) store(k, state[k]);
-    syncFilters(); renderMatrix(); selectTab('matrix');
-  });
-  $('#f-verdict').insertAdjacentHTML('beforeend', Object.entries(LOSS_KINDS).map(([kind, k]) => `<option value="loss:${kind}">lossy: ${esc(k.name)} (${lossCount[kind] ?? 0})</option>`).join(''));
-
-  // Filters
-  const state = {
-    decl: load('decl', REPORT.declarations.map((d) => d.id)),
-    client: load('client', clients.map((c) => c.id)),
-    group: load('group', Object.keys(GROUP_LABELS)),
-    handler: load('handler', 'all'),
-    status: '',
-    verdict: load('verdict', 'all'),
-    compact: load('compact', false),
-  };
-  function chips(container, items, key) {
-    $(container).innerHTML = items.map((it) => `<label><input type="checkbox" value="${esc(it.id)}"> ${esc(it.label)}</label>`).join('');
-    $(container).addEventListener('change', () => {
-      state[key] = [...$(container).querySelectorAll('input:checked')].map((i) => i.value);
-      store(key, state[key]); renderMatrix();
-    });
-  }
-  chips('#f-decl', REPORT.declarations.map((d) => ({ id: d.id, label: DECL_SHORT[d.id] ?? d.id })), 'decl');
-  chips('#f-client', clients.map((c) => ({ id: c.id, label: `${c.group.replace('C# EndpointPerOperation', 'C# EPO')} · ${c.label.replace('errorResponseFormat: ', '').replace('typedClientResultStyle: ', '')}` })), 'client');
-  chips('#f-group', Object.entries(GROUP_LABELS).map(([id, label]) => ({ id, label })), 'group');
-  function syncFilters() {
-    for (const [sel, key] of [['#f-decl', 'decl'], ['#f-client', 'client'], ['#f-group', 'group']]) {
-      for (const input of $(sel).querySelectorAll('input')) input.checked = state[key].includes(input.value);
-    }
-    $('#f-handler').value = state.handler; $('#f-verdict').value = state.verdict; $('#f-status').value = state.status;
-    $('#f-compact').checked = state.compact; document.body.classList.toggle('compact', state.compact);
-  }
-  $('#f-handler').addEventListener('change', (e) => { state.handler = e.target.value; store('handler', state.handler); renderMatrix(); });
-  $('#f-verdict').addEventListener('change', (e) => { state.verdict = e.target.value; store('verdict', state.verdict); renderMatrix(); });
-  $('#f-status').addEventListener('input', (e) => { state.status = e.target.value.trim(); renderMatrix(); });
-  $('#f-compact').addEventListener('change', (e) => { state.compact = e.target.checked; store('compact', state.compact); document.body.classList.toggle('compact', state.compact); });
-  $('#f-clear').addEventListener('click', () => {
-    state.decl = []; state.client = []; state.group = [];
-    for (const k of ['decl', 'client', 'group']) store(k, state[k]);
-    syncFilters(); renderMatrix();
-  });
-  $('#f-reset').addEventListener('click', () => {
-    state.decl = REPORT.declarations.map((d) => d.id); state.client = clients.map((c) => c.id);
-    state.group = Object.keys(GROUP_LABELS); state.handler = 'all'; state.status = ''; state.verdict = 'all';
-    for (const k of ['decl', 'client', 'group', 'handler', 'verdict']) store(k, state[k]);
-    syncFilters(); renderMatrix();
+    if (tr) EB.show({ verdict: 'assess:' + tr.dataset.assess });
   });
 
-  function statusMatches(status) {
-    const q = state.status.toLowerCase();
-    if (!q) return true;
-    const s = String(status);
-    if (/^\dxx$/.test(q)) return s[0] === q[0];
-    if (/^\d{3}$/.test(q)) return s === q;
-    return s.startsWith(q);
+  // The matrix itself, and the same matrix against the MapEndpoints() host (the README's second path)
+  const EB = mountErrorMatrix('errorBodies', 'matrix', $('#matrix-host'), REPORT, null);
+  const plain = REPORT.errorBodiesPlain;
+  if (!plain) {
+    $('#matrixplain-intro').innerHTML = '<p>This report was generated without this matrix.</p>';
+  } else {
+    const plainCounts = {};
+    for (const c of plain.cases) for (const cell of Object.values(c.clients)) plainCounts[cell.verdict] = (plainCounts[cell.verdict] ?? 0) + 1;
+    $('#matrixplain-intro').innerHTML = `
+      <h2>Error bodies &middot; the <code>MapEndpoints()</code> host</h2>
+      <p>The same specification, handlers and clients as the <b>Error bodies</b> tab, against a server generated <i>without</i> <code>Atc.Rest.MinimalApi</code> (an empty marker, no package reference) and hosted the way the README's second path and three samples do: <code>builder.Services.AddProblemDetails()</code>, <code>app.UseExceptionHandler()</code>, <code>app.UseStatusCodePages()</code>, <code>app.MapEndpoints()</code>. What the package adds is not there, and the wire says so as <span class="v lossy">lossy</span>: nothing validates a request (the ValidationFilter), so the too-long value reaches the handler; an unhandled exception is the framework's 500 ProblemDetails (no <code>detail</code> outside Development) instead of the global error handler's exception &rarr; status mapping. Everything else - the generated factories, the host wiring's ProblemDetails for an empty error, the statuses below 400, the stubs - must be the same, and every client must read it the same.</p>
+      <p class="counts">${plain.cases.length} cases × ${plain.clients.length} clients: ${Object.entries(plainCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(plain.generatedAt)} in ${esc(plain.durationSeconds)} s · a <span class="dv">≠</span> marks a cell that differs from the Atc.Rest.MinimalApi host</p>
+      <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost"</code></p></div>`;
+    mountErrorMatrix('errorBodiesPlain', 'matrixplain', $('#matrixplain'), plain, { cases: REPORT.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
   }
-  function handlerMatches(c) {
-    if (state.handler === 'all') return true;
-    const empty = c.mode.endsWith('-empty') || /\(\)$/.test(c.handler);
-    return state.handler === 'empty' ? empty : !empty;
-  }
-  function formatsDiffer(c) {
-    const vals = epoIds.map((id) => c.clients[id]?.summary.replace(/^\d{3} · /, '')).filter((x) => x !== undefined);
-    return new Set(vals).size > 1;
-  }
-
-  function renderMatrix() {
-    const shownClients = clients.filter((c) => state.client.includes(c.id));
-    // Rows: one per (declaration-or-scenario, status, handler); columns: wire + each client.
-    const visible = cases.filter((c) => state.group.includes(c.group) &&
-      ((!DECL_GROUPS.includes(c.group) && c.group !== 'validation') || state.decl.includes(c.operation)) &&
-      statusMatches(c.status) && handlerMatches(c) && (() => {
-        const cells = shownClients.map((cl) => c.clients[cl.id]?.verdict).filter(Boolean);
-        if (state.verdict.startsWith('assess:')) {
-          return shownClients.some((cl) => c.clients[cl.id]?.verdict === 'lossy' && c.clients[cl.id].assessment === state.verdict.slice(7));
-        }
-        if (state.verdict.startsWith('loss:')) {
-          return shownClients.some((cl) => c.clients[cl.id]?.verdict === 'lossy' && c.clients[cl.id].loss?.kind === state.verdict.slice(5));
-        }
-        switch (state.verdict) {
-          case 'nonpass': return cells.some((v) => v !== 'pass') || c.wire.verdict !== 'pass';
-          case 'fail': return cells.includes('fail') || cells.includes('harness') || c.wire.verdict === 'fail';
-          case 'lossy': return cells.includes('lossy');
-          case 'formatsdiffer': return formatsDiffer(c);
-          default: return true;
-        }
-      })());
-    visible.sort((a, b) => a.status - b.status || String(a.operation).localeCompare(String(b.operation)) || a.mode.localeCompare(b.mode));
-    $('#f-count').textContent = `${visible.length} of ${cases.length} cases · ${shownClients.length} of ${clients.length} clients`;
-    if (visible.length === 0) { $('#matrix').innerHTML = '<tbody><tr><td class="empty">No case matches the filters.</td></tr></tbody>'; return; }
-
-    let html = `<thead><tr><th>Status</th><th class="decl">Declared / scenario</th><th>Handler</th><th>Server wire</th>${shownClients.map((c) => `<th title="${esc(c.group + ' · ' + c.label)}">${esc(c.group.replace('C# EndpointPerOperation', 'C# EPO'))}<br>${esc(c.label.replace('errorResponseFormat: ', '').replace('typedClientResultStyle: ', ''))}</th>`).join('')}</tr></thead><tbody>`;
-    for (const c of visible) {
-      const idx = cases.indexOf(c);
-      const same = epoIds.every((id) => shownClients.some((s) => s.id === id)) && c.group === 'sweep' && c.operation !== 'setAllNone'
-        ? (formatsDiffer(c) ? '<span class="diff">C# formats differ</span>' : '<span class="same">C# formats identical</span>') : '';
-      html += `<tr>
-        <td class="status">${esc(c.status)}<small>${esc(GROUP_LABELS[c.group] ?? c.group)}</small></td>
-        <td>${esc(DECL_SHORT[c.operation] ?? c.operation)}<br>${same}</td>
-        <td class="mono" style="font-size:11.5px">${esc(c.handler)}</td>
-        <td class="wire cell" data-case="${idx}" data-client=""><span class="v ${c.wire.verdict}">${c.wire.verdict}</span> <span class="ct">${esc(c.wire.mediaType)}</span><span class="s">${esc(c.wire.bodyKind)} · ${esc(c.wire.body.slice(0, 140))}</span></td>
-        ${shownClients.map((cl) => { const cell = c.clients[cl.id]; return cell
-          ? `<td class="cell" data-case="${idx}" data-client="${cl.id}"><span class="v ${cell.verdict}">${cell.verdict}</span>${lossBadge(cell)}<span class="s">${esc(cell.summary)}</span></td>`
-          : `<td class="cell"><span class="v na">not reachable</span><span class="s">no generated method calls it</span></td>`; }).join('')}
-      </tr>`;
-    }
-    $('#matrix').innerHTML = html + '</tbody>';
-  }
-  $('#matrix').addEventListener('click', (e) => {
-    const td = e.target.closest('td[data-case]');
-    if (td) openDetail(cases[Number(td.dataset.case)], td.dataset.client);
-  });
-
-  function pretty(body) { try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; } }
-  function openDetail(c, clientId) {
-    const cl = clients.find((x) => x.id === clientId);
-    const cell = clientId ? c.clients[clientId] : null;
-    $('#detail-inner').innerHTML = `
-      <div style="display:flex;justify-content:space-between;gap:12px;align-items:start"><h2>${esc(c.status)} · ${esc(DECL_SHORT[c.operation] ?? c.operation)}</h2><button class="btn" id="detail-close">Close</button></div>
-      <dl class="kv">
-        <dt>Case</dt><dd class="mono">${esc(c.id)}</dd>
-        <dt>Scenario</dt><dd>${esc(GROUP_LABELS[c.group] ?? c.group)}</dd>
-        <dt>Handler</dt><dd class="mono">${esc(c.handler)}</dd>
-        <dt>Wire</dt><dd><span class="v ${c.wire.verdict}">${c.wire.verdict}</span> ${esc(c.wire.status)} · <span class="mono">${esc(c.wire.contentType)}</span> · ${esc(c.wire.bodyKind)}${c.wire.retryAfter ? ` · Retry-After ${esc(c.wire.retryAfter)}` : ''}</dd>
-        <dt>Wire verdict</dt><dd>${esc(c.wire.why)}</dd>
-      </dl>
-      <h3>Body on the wire</h3><pre>${esc(pretty(c.wire.body))}</pre>
-      ${cell ? `<h3>${esc(cl.group)} · ${esc(cl.label)}</h3>
-        <dl class="kv"><dt>Verdict</dt><dd><span class="v ${cell.verdict}">${cell.verdict}</span>${lossBadge(cell)} ${esc(cell.why)}</dd>${cell.verdict === 'lossy' && LOSS_KINDS[cell.loss?.kind] ? `<dt>Lost</dt><dd>${LOSS_KINDS[cell.loss.kind].text}</dd>` : ''}${ASSESS[cell.assessment] ? `<dt>Assessment</dt><dd><span class="lvl ${esc(ASSESS[cell.assessment].level)}">${esc(LEVELS[ASSESS[cell.assessment].level]?.label)}</span> <b>${esc(ASSESS[cell.assessment].title)}</b> <span class="counts">(suggested)</span><br>${esc(ASSESS[cell.assessment].why)}<br><i>Proposal:</i> ${esc(ASSESS[cell.assessment].proposal)}</dd>` : ''}</dl>
-        <pre>${esc(cell.summary)}</pre>` : ''}
-      <h3>All clients</h3>
-      <div class="table-wrap"><table><tbody>${clients.map((x) => { const y = c.clients[x.id]; return y ? `<tr><td>${esc(x.group)}<br><span class="counts">${esc(x.label)}</span></td><td><span class="v ${y.verdict}">${y.verdict}</span>${lossBadge(y)}</td><td>${esc(y.summary)}</td></tr>` : ''; }).join('')}</tbody></table></div>`;
-    $('#detail-close').addEventListener('click', () => $('#detail').close());
-    $('#detail').showModal();
-  }
-  $('#detail').addEventListener('click', (e) => { if (e.target === $('#detail')) $('#detail').close(); });
-
-  syncFilters();
-  renderMatrix();
 
   // How it was tested
   $('#method').innerHTML = `
@@ -714,19 +962,126 @@ if (!REPORT) {
     <p class="counts">${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · ${wireTotal} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(media.generatedAt)} in ${esc(media.durationSeconds)} s</p>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsEveryBodyMediaType"</code> (fails on any fail cell).</p></div>`;
 
-  const groups = [...new Set(media.cases.map((c) => c.group))];
-  $('#media').innerHTML = groups.map((g) => {
-    const rows = media.cases.filter((c) => c.group === g);
-    return `<div class="panel"><h3>${esc(g)}</h3><div class="table-wrap"><table class="matrix"><thead><tr><th>Case</th><th>Server wire</th>${media.clients.map((cl) => `<th title="${esc(cl.group + ' · ' + cl.label)}">${esc(cl.group.replace('C# EndpointPerOperation', 'C# EPO'))}<br>${esc(cl.label.replace('typedClientResultStyle: ', '').replace('errorResponseFormat: ', ''))}</th>`).join('')}</tr></thead><tbody>${rows.map((c) => `<tr>
-      <td><b>${esc(c.id)}</b><br><span class="mono" style="font-size:11.5px">${esc(c.request)}</span></td>
-      <td class="wire cell" title="${esc(c.wire.why)}"><span class="v ${esc(c.wire.verdict)}">${esc(c.wire.verdict)}</span> <span class="ct">${esc(c.wire.status)} ${esc(c.wire.mediaType ?? '')}</span><span class="s">${esc(c.wire.fileName ? 'file name ' + c.wire.fileName + ' · ' : '')}${esc(c.wire.body === '(binary)' ? c.wire.length.toLocaleString() + ' bytes · sha256 ' + c.wire.sha256.slice(0, 12) + '…' : c.wire.body.slice(0, 120))}</span>${c.wireXml ? `<br><span class="v ${esc(c.wireXml.verdict)}">${esc(c.wireXml.verdict)}</span> <span class="ct">XML first: ${esc(c.wireXml.status)} ${esc(c.wireXml.mediaType ?? '')}</span><span class="s">${esc(c.wireXml.body.slice(0, 120))}</span>` : ''}</td>
-      ${media.clients.map((cl) => { const cell = c.clients[cl.id]; return cell ? `<td class="cell" title="${esc(cell.why)}"><span class="v ${esc(cell.verdict)}">${esc(cell.verdict)}</span>${cell.loss ? ` <span class="lk">${esc(cell.loss.kind)}</span>` : ''}<span class="s">${esc(cell.summary)}</span></td>` : '<td class="cell"><span class="v na">na</span></td>'; }).join('')}
-    </tr>`).join('')}</tbody></table></div></div>`;
-  }).join('');
+  mountCaseMatrix('bodyMedia', 'media', $('#media'), media);
 })();
 
-// A case x client matrix with a wire column (the request-binding and the security matrices)
-function renderCaseMatrix(introSel, bodySel, data, intro) {
+// A case x client matrix, one table per group (body media types, request binding, security, features): filters,
+// the tables and the registry entry the cell detail reads. Variants of one matrix (`share`) keep one set of filters,
+// and a variant is read against its `baseline` - the same case in the matrix it is a variant of.
+function mountCaseMatrix(key, tab, host, data, share, baseline) {
+  const cases = data.cases;
+  const clients = data.clients;
+  const prefix = (share ?? key) + ':';
+  const groups = [...new Set(cases.map((c) => c.group))];
+  const all = { client: clients.map((c) => c.id), group: groups };
+  // What is switched off is kept, so a client or a group a variant or a later run adds is shown
+  const state = (SHARED[prefix] ??= { clientOff: load(prefix + 'clientOff', []), groupOff: load(prefix + 'groupOff', []), verdict: load(prefix + 'verdict', 'all'), q: '', rev: 0 });
+  const on = (k) => all[k].filter((v) => !state[k + 'Off'].includes(v));
+  let renderedRev = -1;
+  host.innerHTML = `
+    <div class="panel filters">
+      <div class="row"><span class="label">Clients</span>${chipsHtml('client', clients.map((c) => ({ id: c.id, label: `${shortGroup(c)} · ${shortLabel(c)}` })))}</div>
+      <div class="row"><span class="label">Group</span>${chipsHtml('group', groups.map((g) => ({ id: g, label: g })))}</div>
+      <div class="row">
+        <span class="label">Case</span>
+        <input type="search" data-f="q" placeholder="a word of the case, operation or expectation" size="34">
+        <span class="label">Show</span>
+        <select data-f="verdict"><option value="all">all rows</option><option value="nonpass">rows with a non-pass cell</option><option value="fail">rows with a fail</option><option value="unexpected">rows with an unexpected fail</option><option value="known">rows with a known fail</option><option value="lossy">rows with a lossy cell</option>${baseline ? `<option value="differs">${esc(baseline.option)}</option>` : ''}</select>
+        <label class="chipbox"><label><input type="checkbox" data-f="compact"> compact cells</label></label>
+        <button class="btn" data-f="reset" title="Check every chip and show all rows">Reset</button>
+        <button class="btn" data-f="clear" title="Un-check every chip, to pick a few">Clear</button>
+      </div>
+      <div class="counts" data-f="count"></div>
+    </div>
+    <div data-f="tables" style="display:grid;gap:16px"></div>`;
+  const f = (name) => host.querySelector(`[data-f="${name}"]`);
+  let visibleIdx = [];
+  host.classList.add('matrix-host');
+
+  function persist() { for (const k of ['clientOff', 'groupOff', 'verdict']) store(prefix + k, state[k]); }
+  function sync() {
+    syncChips(host, 'client', on('client')); syncChips(host, 'group', on('group'));
+    f('verdict').value = state.verdict; f('q').value = state.q;
+    // A choice this variant does not have (the comparison with the baseline, on the baseline) would hide every row
+    if (f('verdict').value !== state.verdict) { state.verdict = 'all'; f('verdict').value = 'all'; }
+  }
+  function matches(c, shownClients) {
+    if (state.groupOff.includes(c.group)) return false;
+    const q = state.q.toLowerCase();
+    if (q && ![c.id, c.operation, c.request, c.expects].some((s) => String(s ?? '').toLowerCase().includes(q))) return false;
+    if (state.verdict === 'all') return true;
+    if (state.verdict === 'differs') return differs(key, c, '') || shownClients.some((cl) => differs(key, c, cl.id));
+    const raw = [...[c.wire, c.wireXml].filter(Boolean).map((w) => ['', w.verdict]), ...shownClients.filter((cl) => c.clients[cl.id]).map((cl) => [cl.id, c.clients[cl.id].verdict])];
+    const verdicts = raw.map(([id, v]) => shownVerdict(key, c, id, v));
+    switch (state.verdict) {
+      case 'nonpass': return verdicts.some((v) => v !== 'pass' && v !== 'na');
+      case 'fail': return verdicts.some((v) => v === 'fail' || v === 'known' || v === 'harness');
+      case 'unexpected': return verdicts.some((v) => v === 'fail' || v === 'harness');
+      case 'known': return verdicts.includes('known');
+      case 'lossy': return verdicts.includes('lossy');
+      default: return true;
+    }
+  }
+  const wireLine = (c, w, label, isXml) => `${isXml ? `<span class="v ${esc(w.verdict)}">${esc(w.verdict)}</span>` : vHtml(key, c, '', w.verdict) + diffMark(key, c, '')} <span class="ct">${label}${esc(w.status)} ${esc(w.mediaType ?? '')}</span><span class="s">${esc(w.fileName ? 'file name ' + w.fileName + ' · ' : '')}${esc(w.body === '(binary)' ? `${Number(w.length).toLocaleString()} bytes · sha256 ${String(w.sha256).slice(0, 12)}…` : String(w.body ?? '').slice(0, 120))}</span>`;
+  function render() {
+    renderedRev = ++state.rev;
+    const shownClients = clients.filter((c) => !state.clientOff.includes(c.id));
+    visibleIdx = [];
+    let html = '';
+    for (const g of groups) {
+      const rows = cases.map((c, i) => [c, i]).filter(([c]) => c.group === g && matches(c, shownClients));
+      if (rows.length === 0) continue;
+      visibleIdx.push(...rows.map(([, i]) => i));
+      const hasWire = rows.some(([c]) => c.wire);
+      html += `<div class="panel"><h3>${esc(g)} <span class="counts">${rows.length} case${rows.length === 1 ? '' : 's'}</span></h3><div class="table-wrap"><table class="matrix" data-matrix="${esc(key)}"><thead><tr><th>Case</th>${hasWire ? '<th>Server wire</th>' : ''}${shownClients.map(clientTh).join('')}</tr></thead><tbody>${rows.map(([c, i]) => `<tr>
+        <td><b>${esc(c.id)}</b>${baseline && !MATRIX[key].baseline.has(c.id) ? ' <span class="dv" title="Only in this variant">new</span>' : ''}<br><span class="mono" style="font-size:11.5px">${esc(c.request ?? c.operation ?? '')}${c.expects ? ' · expects ' + esc(c.expects) : ''}</span></td>
+        ${hasWire ? (c.wire ? `<td class="wire cell" tabindex="0" data-case="${i}" data-client="" title="${esc(c.wire.why)}">${wireLine(c, c.wire, '', false)}${c.wireXml ? `<br>${wireLine(c, c.wireXml, 'XML first: ', true)}` : ''}</td>` : '<td></td>') : ''}
+        ${shownClients.map((cl) => { const cell = c.clients[cl.id]; return cell
+          ? `<td class="cell" tabindex="0" data-case="${i}" data-client="${esc(cl.id)}" title="${esc(cell.why)}">${vHtml(key, c, cl.id, cell.verdict)}${cell.loss ? ` <span class="lk">${esc(cell.loss.kind)}</span>` : ''}${diffMark(key, c, cl.id)}<span class="s">${esc(cell.summary)}${cell.server ? ' · server ' + esc(cell.server) : ''}</span></td>`
+          : '<td><span class="v na">na</span></td>'; }).join('')}
+      </tr>`).join('')}</tbody></table></div></div>`;
+    }
+    f('count').textContent = `${visibleIdx.length} of ${cases.length} cases · ${shownClients.length} of ${clients.length} clients`;
+    f('tables').innerHTML = html || '<div class="panel"><p class="empty">No case matches the filters.</p></div>';
+    markCell();
+  }
+  function show(patch, select = true) {
+    Object.assign(state, { clientOff: [], groupOff: [], verdict: 'all', q: '' }, patch);
+    persist(); sync(); render();
+    if (select) selectTab(tab);
+  }
+
+  for (const k of ['client', 'group']) {
+    host.querySelector(`[data-chips="${k}"]`).addEventListener('change', () => {
+      const checked = readChips(host, k);
+      // Keep what is switched off in another variant's own groups
+      state[k + 'Off'] = [...state[k + 'Off'].filter((v) => !all[k].includes(v)), ...all[k].filter((v) => !checked.includes(v))];
+      persist(); render();
+    });
+  }
+  f('verdict').addEventListener('change', (e) => { state.verdict = e.target.value; persist(); render(); });
+  f('q').addEventListener('input', (e) => { state.q = e.target.value.trim(); render(); });
+  f('compact').addEventListener('change', (e) => setCompact(e.target.checked));
+  f('clear').addEventListener('click', () => show({ clientOff: [...all.client], groupOff: [...all.group] }, false));
+  f('reset').addEventListener('click', () => show({}, false));
+
+  MATRIX[key] = {
+    tab, cases, clients, show,
+    baseline: baseline ? new Map(baseline.cases.map((c) => [c.id, c])) : null, baselineName: baseline?.name,
+    rows: () => visibleIdx,
+    shownClients: () => on('client'),
+    title: (c) => c.id,
+    detail: (c, clientId) => caseDetail(key, MATRIX[key], c, clientId),
+    // Another variant changed the filters they share
+    refresh: () => { if (renderedRev !== state.rev) { sync(); render(); } },
+  };
+  sync();
+  render();
+}
+
+// A matrix's tab: what it is (the intro, with its totals) and the matrix itself
+function renderCaseMatrix(key, tab, data, intro, share, baseline) {
+  const introSel = `#${tab}-intro`;
   if (!data) { $(introSel).innerHTML = `<p>This report was generated without this matrix.</p>`; return; }
   const counts = {};
   for (const c of data.cases) for (const cell of Object.values(c.clients)) counts[cell.verdict] = (counts[cell.verdict] ?? 0) + 1;
@@ -734,48 +1089,34 @@ function renderCaseMatrix(introSel, bodySel, data, intro) {
   const wireCounts = {};
   for (const c of wire) wireCounts[c.wire.verdict] = (wireCounts[c.wire.verdict] ?? 0) + 1;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  $(introSel).innerHTML = intro + `<p class="counts">${data.cases.length} cases × ${data.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}${wire.length ? ` · ${wire.length} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}` : ''} · run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</p>`;
-  const groups = [...new Set(data.cases.map((c) => c.group))];
-  $(bodySel).innerHTML = groups.map((g) => {
-    const rows = data.cases.filter((c) => c.group === g);
-    const hasWire = rows.some((c) => c.wire);
-    return `<div class="panel"><h3>${esc(g)}</h3><div class="table-wrap"><table class="matrix"><thead><tr><th>Case</th>${hasWire ? '<th>Server wire</th>' : ''}${data.clients.map((cl) => `<th title="${esc(cl.group + ' · ' + cl.label)}">${esc(cl.group.replace('C# EndpointPerOperation', 'C# EPO'))}<br>${esc(cl.label.replace('typedClientResultStyle: ', '').replace('errorResponseFormat: ', ''))}</th>`).join('')}</tr></thead><tbody>${rows.map((c) => `<tr>
-      <td><b>${esc(c.id)}</b><br><span class="mono" style="font-size:11.5px">${esc(c.operation ?? '')}${c.expects ? ' · expects ' + esc(c.expects) : ''}</span></td>
-      ${hasWire ? (c.wire ? `<td class="wire cell" title="${esc(c.wire.why)}"><span class="v ${esc(c.wire.verdict)}">${esc(c.wire.verdict)}</span> <span class="ct">${esc(c.wire.status)} ${esc(c.wire.mediaType ?? '')}</span><span class="s">${esc(String(c.wire.body ?? '').slice(0, 120))}</span></td>` : '<td class="cell"></td>') : ''}
-      ${data.clients.map((cl) => { const cell = c.clients[cl.id]; return cell ? `<td class="cell" title="${esc(cell.why)}"><span class="v ${esc(cell.verdict)}">${esc(cell.verdict)}</span><span class="s">${esc(cell.summary)}${cell.server ? ' · server ' + esc(cell.server) : ''}</span></td>` : '<td class="cell"><span class="v na">na</span></td>'; }).join('')}
-    </tr>`).join('')}</tbody></table></div></div>`;
-  }).join('');
+  $(introSel).innerHTML = intro + `<p class="counts">${data.cases.length} cases × ${data.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}${wire.length ? ` · ${wire.length} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}` : ''} · run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s · click a cell for the whole answer</p>`;
+  mountCaseMatrix(key, tab, $('#' + tab), data, share, baseline?.cases ? baseline : null);
 }
 
-renderCaseMatrix('#binding-intro', '#binding', REPORT?.requestBinding, `
+renderCaseMatrix('requestBinding', 'binding', REPORT?.requestBinding, `
   <h2>Request binding</h2>
   <p>The generated server with handlers that answer with what they were given, and every generated client calling it with values in the path, the query string, headers, cookies and the body (JSON, a <code>+json</code> media type, multipart). Each cell compares what the server bound with what the client was given; the last group sends, without a client, the requests no typed client can send - a value of the wrong type, a missing required value, a malformed body, a media type the operation does not take, a body that is too large - and checks the server's answer (the status as an RFC 9457 problem, naming the parameter).</p>
   <p><b>Not exercised.</b> ${notExercisedHtml('requestBinding')}</p>
-  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds"</code></p></div>`);
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds"</code></p></div>`, 'requestBinding');
 
 // The README's second path: MapEndpoints() without Atc.Rest.MinimalApi, the host wiring written by hand
-renderCaseMatrix('#matrixplain-intro', '#matrixplain', REPORT?.errorBodiesPlain, `
-  <h2>Error bodies &middot; the <code>MapEndpoints()</code> host</h2>
-  <p>The same specification, handlers and clients as the <b>Error bodies</b> tab, against a server generated <i>without</i> <code>Atc.Rest.MinimalApi</code> (an empty marker, no package reference) and hosted the way the README's second path and three samples do: <code>builder.Services.AddProblemDetails()</code>, <code>app.UseExceptionHandler()</code>, <code>app.UseStatusCodePages()</code>, <code>app.MapEndpoints()</code>. What the package adds is not there, and the wire says so as <span class="v lossy">lossy</span>: nothing validates a request (the ValidationFilter), so the too-long value reaches the handler; an unhandled exception is the framework's 500 ProblemDetails (no <code>detail</code> outside Development) instead of the global error handler's exception &rarr; status mapping. Everything else - the generated factories, the host wiring's ProblemDetails for an empty error, the statuses below 400, the stubs - must be the same, and every client must read it the same.</p>
-  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost"</code></p></div>`);
-
-renderCaseMatrix('#bindingplain-intro', '#bindingplain', REPORT?.requestBindingPlain, `
+renderCaseMatrix('requestBindingPlain', 'bindingplain', REPORT?.requestBindingPlain, `
   <h2>Request binding &middot; the <code>MapEndpoints()</code> host</h2>
   <p>The <b>Request binding</b> matrix against the server generated without <code>Atc.Rest.MinimalApi</code> and hosted by hand (<code>AddProblemDetails</code>, <code>UseExceptionHandler</code>, <code>UseStatusCodePages</code>, <code>MapEndpoints</code>). The binding is the same generated code, so every client's values bind the same. What the server answers a request it cannot bind comes from the framework and the host wiring there: a wrong type, a malformed body, a media type the operation does not take and a body that is too large are the same problems; a missing required query parameter is a ProblemDetails that names no parameter, and a body missing a required property reaches the handler - nothing validates without the ValidationFilter (the two <span class="v known">known</span> cells; .NET 10's <code>AddValidation()</code> is the way to validate on this host).</p>
-  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost"</code></p></div>`);
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost"</code></p></div>`, 'requestBinding', { cases: REPORT?.requestBinding?.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
 
-renderCaseMatrix('#binding31-intro', '#binding31', REPORT?.requestBinding31, `
+renderCaseMatrix('requestBinding31', 'binding31', REPORT?.requestBinding31, `
   <h2>Request binding &middot; an OpenAPI 3.1 document</h2>
   <p>The <b>Request binding</b> specification as an OpenAPI 3.1 document (<code>openapi: 3.1.0</code>), with one more body operation that uses what 3.1 adds: a nullable member and a nullable array as type arrays (<code>type: [string, 'null']</code>), a <code>const</code>, a tuple (<code>prefixItems</code>, generated as a record read and written as the JSON array) and the <code>examples</code> keyword. Every 3.0 case binds the same from the 3.1 document; the 3.1 body is sent with every member, with the nullable members <code>null</code> on the wire, and with them absent - the server must bind <code>null</code> for both.</p>
-  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_WithAnOpenApi31Document"</code></p></div>`);
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_WithAnOpenApi31Document"</code></p></div>`, 'requestBinding', { cases: REPORT?.requestBinding?.cases, name: 'OpenAPI 3.0', option: 'rows that differ from the OpenAPI 3.0 document' });
 
-renderCaseMatrix('#guard-intro', '#guard', REPORT?.guard, `
+renderCaseMatrix('guard', 'guard', REPORT?.guard, `
   <h2>Security &amp; rate limiting</h2>
   <p>The generated server with two test authentication schemes (a bearer token that spells out subject, scopes and roles; an API key) and every generated client calling its secured and rate-limited operations - without credentials, with the wrong ones, with the right ones, and past a limiter's budget. Each cell lists the statuses the client saw, call by call, against what the specification and the documented contract say; the server's own log of the cell's requests (<i>server</i>) proves what the client's retry policy did with a 429: a <code>Retry-After</code> past the cap is handed back at once, a short one is waited for and the retry succeeds, a 429 without one is retried with the policy's back-off.</p>
   <p><b>Not exercised.</b> ${notExercisedHtml('guard')}</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientIsGuardedAsTheSpecificationSays"</code></p></div>`);
 
-renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
+renderCaseMatrix('feature', 'feature', REPORT?.feature, `
   <h2>Features</h2>
   <p>The generated server with handlers that stream, page, echo and version, and every generated client - the C# EndpointPerOperation and typed clients, the TypeScript Fetch and Axios clients, the Fetch client with Zod runtime validation, and the React Query and SWR hooks rendered with React - running each feature against it over HTTP: Server-Sent Events, JSON Lines and a JSON array streamed as <code>IAsyncEnumerable</code>, each to the end, with the handler failing mid-stream, and cancelled by the client (the server must see the cancellation); a paginated read walked by its continuation (the infinite hooks walk it); a <code>oneOf</code> with a discriminator and a three-level <code>allOf</code> round-tripped through the client; an enum by its value and an unknown value from the server; a date and a date-time; a conditional 304.</p>
   <p><b>Not exercised.</b> ${notExercisedHtml('feature')}</p>
@@ -789,14 +1130,30 @@ renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
   const tsc = s.tsc;
   const tscByScenario = {};
   if (tsc) for (const combo of tsc.combinations ?? []) { const [sc] = combo.split('/'); (tscByScenario[sc] ??= { total: 0, failing: 0 }).total++; if ((tsc.failing ?? []).includes(combo)) tscByScenario[sc].failing++; }
+  const notClean = (x) => Object.values(x.generators).some((g) => g.errors || g.warnings) || Boolean(tscByScenario[x.name]?.failing);
   const versions = [...new Set(s.scenarios.map((x) => x.openApi))].sort();
   const byVersion = versions.map((v) => { const rows = s.scenarios.filter((x) => x.openApi === v); const bad = rows.filter((x) => Object.values(x.generators).some((g) => g.errors || g.warnings)).length; return `<b>OpenAPI ${esc(v)}</b>: ${rows.length} scenarios, ${rows.length - bad} compile clean for every generator`; }).join(' · ');
+  const failing = tsc?.failing ?? [];
   $('#support').innerHTML = `<h2>Feature support</h2>
     <p>Every scenario specification under <code>test/Scenarios</code> is given to every C# generator - with its marker folder when it has one, else the default marker - and the output is compiled the way a strict consumer does (nullable, documentation, warnings). A scenario with an overlay (<code>{Name}.overlay.yaml</code>, listed by its markers) is compiled as the overlay changes it in every column whose marker lists it; a column on the default marker gets the specification as it is, and the TypeScript column applies the overlay as <code>--overlay</code> does. A ✓ is a clean compilation; the compile gate (<code>GeneratorCompilationGateTests</code>) fails on anything else. The TypeScript column is the strict <code>tsc</code> matrix over the same specifications (Fetch and Axios × no hooks, React Query, SWR × Default and Full flavours), from its gate's data file.</p>
-    <p class="counts">${byVersion}${tsc ? ` · tsc matrix: ${(tsc.combinations ?? []).length} combinations, ${(tsc.failing ?? []).length} failing (run ${esc(tsc.generatedAt)})` : ' · tsc matrix: not run on this machine (<code>TypeScriptScenarioTscMatrixGateTests</code> writes <code>docs/test-suite-report.tsc-matrix.json</code>)'}</p>
-    <div class="table-wrap"><table class="matrix"><thead><tr><th>Scenario</th><th>OpenAPI</th>${s.generators.map((g) => `<th>${esc(g)}</th>`).join('')}<th>TypeScript (tsc)</th></tr></thead><tbody>
-    ${s.scenarios.map((x) => `<tr><td><b>${esc(x.name)}</b>${x.overlay ? ` <span class="counts" title="The markers list this overlay: the row is the specification as the overlay changes it">+ ${esc(x.overlay)}</span>` : ''}</td><td>${esc(x.openApi)}</td>${s.generators.map((g) => cellHtml(x.generators[g])).join('')}<td>${tscByScenario[x.name] ? (tscByScenario[x.name].failing ? `<span class="cell-bad">${tscByScenario[x.name].failing} of ${tscByScenario[x.name].total} failing</span>` : `<span class="cell-ok">✓ ${tscByScenario[x.name].total}</span>`) : '<span class="cell-dim">-</span>'}</td></tr>`).join('')}
-    </tbody></table></div>`;
+    <p class="counts">${byVersion}${tsc ? ` · tsc matrix: ${(tsc.combinations ?? []).length} combinations, ${failing.length} failing (run ${esc(tsc.generatedAt)})` : ' · tsc matrix: not run on this machine (<code>TypeScriptScenarioTscMatrixGateTests</code> writes <code>docs/test-suite-report.tsc-matrix.json</code>)'}</p>
+    ${failing.length ? `<details open><summary style="cursor:pointer"><span class="v fail">fail</span> ${failing.length} failing tsc combination${failing.length === 1 ? '' : 's'}</summary><ul class="tight mono" style="margin-top:8px">${failing.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></details>` : ''}
+    <div class="filters"><div class="row">
+      <span class="label">Scenario</span><input type="search" id="s-q" placeholder="a part of the name" size="22">
+      <span class="label">OpenAPI</span><select id="s-version"><option value="">every version</option>${versions.map((v) => `<option>${esc(v)}</option>`).join('')}</select>
+      <label class="chipbox"><label><input type="checkbox" id="s-bad"> only scenarios that are not clean</label></label>
+      <span class="counts" id="s-count"></span>
+    </div></div>
+    <div class="table-wrap"><table class="matrix"><thead><tr><th>Scenario</th><th>OpenAPI</th>${s.generators.map((g) => `<th>${esc(g)}</th>`).join('')}<th>TypeScript (tsc)</th></tr></thead><tbody id="s-rows"></tbody></table></div>`;
+  function render() {
+    const q = $('#s-q').value.trim().toLowerCase();
+    const rows = s.scenarios.filter((x) => (!q || x.name.toLowerCase().includes(q)) && (!$('#s-version').value || x.openApi === $('#s-version').value) && (!$('#s-bad').checked || notClean(x)));
+    $('#s-count').textContent = `${rows.length} of ${s.scenarios.length} scenarios`;
+    $('#s-rows').innerHTML = rows.map((x) => `<tr><td><b>${esc(x.name)}</b>${x.overlay ? ` <span class="counts" title="The markers list this overlay: the row is the specification as the overlay changes it">+ ${esc(x.overlay)}</span>` : ''}</td><td>${esc(x.openApi)}</td>${s.generators.map((g) => cellHtml(x.generators[g])).join('')}<td>${tscByScenario[x.name] ? (tscByScenario[x.name].failing ? `<span class="cell-bad">${tscByScenario[x.name].failing} of ${tscByScenario[x.name].total} failing</span>` : `<span class="cell-ok">✓ ${tscByScenario[x.name].total}</span>`) : '<span class="cell-dim">-</span>'}</td></tr>`).join('')
+      || `<tr><td class="empty" colspan="${s.generators.length + 3}">No scenario matches the filters.</td></tr>`;
+  }
+  $('#s-q').addEventListener('input', render); $('#s-version').addEventListener('change', render); $('#s-bad').addEventListener('change', render);
+  render();
 })();
 
 // Diagnostics coverage: every rule id and how it is tested
@@ -804,10 +1161,30 @@ renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
   const d = REPORT?.diagnostics;
   if (!d) { $('#diagnostics').innerHTML = '<p>No diagnostics data in this run.</p>'; return; }
   const count = (st) => d.rules.filter((r) => r.status === st).length;
-  const families = [...new Set(d.rules.map((r) => r.id.replace(/^ATC_API_/, '').replace(/\d+$/, '')))];
+  const familyOf = (r) => r.id.replace(/^ATC_API_/, '').replace(/\d+$/, '');
+  const families = [...new Set(d.rules.map(familyOf))];
+  const statuses = ['tested', 'tested elsewhere', 'untested'];
   $('#diagnostics').innerHTML = `<h2>Diagnostics coverage</h2>
     <p>Every diagnostic the generator can report (<code>RuleIdentifiers</code>) and whether a test exercises it: <b>tested</b> - a test in the source-generator test assembly names its code (<code>RuleCoverageTests</code> enforces this); <b>tested elsewhere</b> - the exclusion names the test project; <b>untested</b> - the recorded reason. ${count('tested')} tested, ${count('tested elsewhere')} tested elsewhere, ${count('untested')} untested of ${d.rules.length}.</p>
-    ${families.map((fam) => { const rows = d.rules.filter((r) => r.id.replace(/^ATC_API_/, '').replace(/\d+$/, '') === fam); return `<h3>${esc(fam)} <span class="counts">${rows.filter((r) => r.status !== 'untested').length} of ${rows.length}</span></h3><div class="table-wrap"><table><tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.id)}</td><td>${r.status === 'untested' ? '<span class="v fail">untested</span>' : r.status === 'tested' ? '<span class="v pass">tested</span>' : '<span class="v lossy">tested elsewhere</span>'}</td><td class="counts">${esc(r.note ?? '')}</td></tr>`).join('')}</tbody></table></div>`; }).join('')}`;
+    <div class="filters"><div class="row">
+      <span class="label">Rule</span><input type="search" id="d-q" placeholder="OPR018, SEC, a word of the note" size="28">
+      <span class="label">Show</span><select id="d-status"><option value="">every rule</option>${statuses.map((st) => `<option value="${st}">${st} (${count(st)})</option>`).join('')}</select>
+      <span class="counts" id="d-count"></span>
+    </div></div>
+    <div id="d-list" style="display:grid;gap:12px"></div>`;
+  function render() {
+    const q = $('#d-q').value.trim().toLowerCase();
+    const st = $('#d-status').value;
+    const shown = d.rules.filter((r) => (!st || r.status === st) && (!q || r.id.toLowerCase().includes(q) || String(r.note ?? '').toLowerCase().includes(q)));
+    $('#d-count').textContent = `${shown.length} of ${d.rules.length} rules`;
+    $('#d-list').innerHTML = families.map((fam) => {
+      const rows = shown.filter((r) => familyOf(r) === fam);
+      const every = d.rules.filter((r) => familyOf(r) === fam);
+      return rows.length === 0 ? '' : `<h3>${esc(fam)} <span class="counts">${every.filter((r) => r.status !== 'untested').length} of ${every.length} tested</span></h3><div class="table-wrap"><table><tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.id)}</td><td>${r.status === 'untested' ? '<span class="v fail">untested</span>' : r.status === 'tested' ? '<span class="v pass">tested</span>' : '<span class="v lossy">tested elsewhere</span>'}</td><td class="counts">${esc(r.note ?? '')}</td></tr>`).join('')}</tbody></table></div>`;
+    }).join('') || '<p class="empty">No rule matches the filters.</p>';
+  }
+  $('#d-q').addEventListener('input', render); $('#d-status').addEventListener('change', render);
+  render();
 })();
 
 // Playwright: the Showcase apps, when the suite has run on this machine
@@ -826,10 +1203,11 @@ renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
   if (!ch) { $('#changes').innerHTML = '<p>No history in this run.</p>'; return; }
   if (!ch.previous) { $('#changes').innerHTML = '<h2>Changes since previous run</h2><p>This is the first run recorded in <code>docs/test-suite-report.history.jsonl</code>; the next run will be compared with it.</p>'; return; }
   const cellRow = (key) => { const [m, c, cl] = key.split('|'); return `<td>${esc(m)}</td><td>${esc(c)}</td><td>${esc(cl)}</td>`; };
+  const openRow = (key) => `<tr data-open="${esc(key)}" tabindex="0" title="Open this cell">`;
   $('#changes').innerHTML = `<h2>Changes since previous run</h2>
-    <p>Previous run ${esc(ch.previous.generatedAt)}, commit <span class="mono">${esc(ch.previous.commit)}</span>${ch.previous.uncommittedFiles ? ` + ${ch.previous.uncommittedFiles} uncommitted files` : ''}; this run commit <span class="mono">${esc(REPORT.provenance.commit)}</span>. ${ch.changed.length} cells changed verdict, ${ch.added.length} cells are new, ${ch.removed.length} cells are gone.</p>
-    ${ch.changed.length ? `<h3>Changed</h3><div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th>Was</th><th>Now</th></tr></thead><tbody>${ch.changed.map((x) => `<tr>${cellRow(x.cell)}<td><span class="v ${esc(x.from)}">${esc(x.from)}</span></td><td><span class="v ${esc(x.to)}">${esc(x.to)}</span></td></tr>`).join('')}</tbody></table></div>` : '<p>No cell changed its verdict.</p>'}
-    ${ch.added.length ? `<details><summary style="cursor:pointer">${ch.added.length} new cells</summary><div class="table-wrap"><table><tbody>${ch.added.map((k) => `<tr>${cellRow(k)}</tr>`).join('')}</tbody></table></div></details>` : ''}
+    <p>Previous run ${esc(ch.previous.generatedAt)}, commit <span class="mono">${esc(ch.previous.commit)}</span>${ch.previous.uncommittedFiles ? ` + ${ch.previous.uncommittedFiles} uncommitted files` : ''}; this run commit <span class="mono">${esc(REPORT.provenance.commit)}</span>. ${ch.changed.length} cells changed verdict, ${ch.added.length} cells are new, ${ch.removed.length} cells are gone. Click a row to open its cell.</p>
+    ${ch.changed.length ? `<h3>Changed</h3><div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th>Was</th><th>Now</th></tr></thead><tbody>${ch.changed.map((x) => `${openRow(x.cell)}${cellRow(x.cell)}<td><span class="v ${esc(x.from)}">${esc(x.from)}</span></td><td><span class="v ${esc(x.to)}">${esc(x.to)}</span></td></tr>`).join('')}</tbody></table></div>` : '<p>No cell changed its verdict.</p>'}
+    ${ch.added.length ? `<details><summary style="cursor:pointer">${ch.added.length} new cells</summary><div class="table-wrap"><table><tbody>${ch.added.map((k) => `${openRow(k)}${cellRow(k)}</tr>`).join('')}</tbody></table></div></details>` : ''}
     ${ch.removed.length ? `<details><summary style="cursor:pointer">${ch.removed.length} cells gone</summary><div class="table-wrap"><table><tbody>${ch.removed.map((k) => `<tr>${cellRow(k)}</tr>`).join('')}</tbody></table></div></details>` : ''}`;
 })();
 
@@ -856,8 +1234,9 @@ const cmdFor = (test, explicit) => `dotnet test --project test/Atc.Rest.Api.Sour
 const copyButton = (text) => `<button class="copy" data-copy="${esc(text)}" title="Copy to clipboard">copy</button>`;
 document.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-copy]');
-  if (!b) return;
-  navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = 'copied'; setTimeout(() => { b.textContent = 'copy'; }, 1200); });
+  if (!b || b.textContent === 'copied') return;
+  const label = b.textContent;
+  navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = 'copied'; setTimeout(() => { b.textContent = label; }, 1200); });
 });
 
 (function renderTop() {
@@ -894,6 +1273,26 @@ document.addEventListener('click', (e) => {
       ${pw?.stale ? stat('stale', 'Playwright run older than this commit', 'warn') : pw ? stat(pw.failed ? `${pw.failed} failed` : 'green', `Playwright, ${pw.apps} apps${pw.flaky ? `, ${pw.flaky} flaky (passed on a retry)` : ''}`, pw.failed ? 'bad' : pw.flaky ? 'warn' : 'good') : stat('not run', 'Playwright (Showcase apps)', '')}
     </div>
     <p class="counts">Run ${esc(REPORT.generatedAt)} on commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ' + uncommitted changes' : ''} · regenerate: <code>${esc(cmdFor(REPORT_TEST, true))}</code> ${copyButton(cmdFor(REPORT_TEST, true))}</p>`;
+
+  // Every runtime matrix in one table: its size, its verdicts, and a way in
+  const verdictOrder = ['pass', 'lossy', 'fail', 'harness', 'platform', 'na'];
+  $('#matrices').innerHTML = `<h2>The runtime matrices</h2>
+    <p>One row per matrix: the generated server on Kestrel and every generated client calling it over HTTP. Click a row to open the matrix.</p>
+    <div class="table-wrap"><table class="glance"><thead><tr><th>Matrix</th><th class="num">Cases</th><th class="num">Clients</th><th>Verdicts</th><th></th></tr></thead><tbody>${matrices.map(([key, m]) => {
+      const judged = verdictOrder.filter((v) => v !== 'na').reduce((a, v) => a + (m.verdicts[v] ?? 0), 0) || 1;
+      const unexpectedHere = (s.unexpectedFailures ?? []).filter((k) => k.startsWith(key + '|')).length;
+      const nonPass = judged - (m.verdicts.pass ?? 0);
+      return `<tr data-go="${esc(MATRIX_TABS[key] ?? 'overview')}" tabindex="0"><td><b>${esc(MATRIX_NAMES[key] ?? key)}</b></td><td class="num">${m.cases}</td><td class="num">${m.clients}</td>
+        <td><div class="bar">${verdictOrder.filter((v) => v !== 'na' && m.verdicts[v]).map((v) => `<i class="${v}" style="width:${(m.verdicts[v] / judged * 100).toFixed(1)}%"></i>`).join('')}</div>
+          <div class="counts">${verdictOrder.filter((v) => m.verdicts[v]).map((v) => `${m.verdicts[v].toLocaleString()} ${v}`).join(' · ')}${m.knownFailures ? ` · the ${m.knownFailures} fail${m.knownFailures === 1 ? ' is' : 's are'} known` : ''}${unexpectedHere ? ` · <b>${unexpectedHere} unexpected</b>` : ''}</div></td>
+        <td>${nonPass > 0 && MATRIX[key] ? `<button class="btn" data-nonpass="${esc(key)}" title="Open the matrix with only the rows that have a cell that is not a pass">non-pass rows</button>` : ''}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  $('#matrices').addEventListener('click', (e) => {
+    const nonPass = e.target.closest('[data-nonpass]');
+    if (nonPass) { MATRIX[nonPass.dataset.nonpass].show({ verdict: 'nonpass' }); window.scrollTo({ top: 0 }); return; }
+    const row = e.target.closest('tr[data-go]');
+    if (row) { selectTab(row.dataset.go); window.scrollTo({ top: 0 }); }
+  });
 
   // One card per reader
   const cards = [
@@ -935,16 +1334,16 @@ document.addEventListener('click', (e) => {
   $('#attention').innerHTML = `<h2>Needs attention</h2>` +
     (unexpectedRows.length
       ? `<p><span class="v fail">fail</span> ${unexpectedRows.length} cell${unexpectedRows.length === 1 ? '' : 's'} no ratchet lists. Fix the generator, or - when the matrix is wrong or the gap is a design decision - record the cell in the matrix's known-failures set with its reason.</p>
-         <div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th></th></tr></thead><tbody>${unexpectedRows.map((r) => `<tr><td>${esc(MATRIX_NAMES[r.m] ?? r.m)}</td><td>${esc(r.c)}</td><td class="mono">${esc(r.cl)}</td><td><button class="btn" data-go="${esc(MATRIX_TABS[r.m] ?? 'overview')}">open</button></td></tr>`).join('')}</tbody></table></div>`
+         <div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th></th></tr></thead><tbody>${unexpectedRows.map((r) => `<tr><td>${esc(MATRIX_NAMES[r.m] ?? r.m)}</td><td>${esc(r.c)}</td><td class="mono">${esc(r.cl)}</td><td><button class="btn" data-open="${esc(`${r.m}|${r.c}|${r.cl}`)}">open</button></td></tr>`).join('')}</tbody></table></div>`
       : `<p><span class="v pass">0 unexpected</span> No cell fails that is not expected to.</p>`) +
     (knownRows.length
       ? `<details><summary style="cursor:pointer"><span class="v known">known</span> ${knownRows.length} cell${knownRows.length === 1 ? '' : 's'} expected to fail - the ratchets (a listed cell must fail; the test asks to remove it once it passes)</summary>
-         <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Matrix</th><th>Cell</th><th>Why (from the matrix's not-exercised list)</th></tr></thead><tbody>${knownRows.map((r) => {
-           const why = (REPORT.notExercised?.[r.m] ?? []).find((t) => /ratchet/i.test(t)) ?? '';
-           return `<tr><td>${esc(MATRIX_NAMES[r.m] ?? r.m)}</td><td class="mono">${esc(r.c)}</td><td>${esc(why)}</td></tr>`;
+         <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Matrix</th><th>Cell</th><th>Why (the reason its ratchet entry records)</th><th></th></tr></thead><tbody>${knownRows.map((r) => {
+           const why = REPORT.ratchetReasons?.[r.m]?.[r.c];
+           const [, c, cl] = /^(.*) \[([^\]]+)\]$/.exec(r.c) ?? [null, r.c, 'wire'];
+           return `<tr><td>${esc(MATRIX_NAMES[r.m] ?? r.m)}</td><td class="mono">${esc(r.c)}</td><td>${why ? esc(why) : '<span class="counts">this run recorded no reason</span>'}</td><td><button class="btn" data-open="${esc(`${r.m}|${c}|${cl}`)}">open</button></td></tr>`;
          }).join('')}</tbody></table></div></details>`
       : '');
-  $('#attention').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) selectTab(b.dataset.go); });
 })();
 
 // For agents: the data, the commands, the vocabulary and the conventions, in one place
@@ -963,6 +1362,8 @@ document.addEventListener('click', (e) => {
       <li>In this file: <code>const REPORT = {…}</code> at the start of the script - the whole dataset. <code>docs/test-suite-report.html</code> in the repository is the last committed run.</li>
       <li>Beside this page: <code>docs/test-suite-report.json</code> (the same object, indented) and <code>docs/test-suite-report.history.jsonl</code> (the last run's verdict per cell - what <b>Changes since previous run</b> is computed from; overwritten each run, git keeps the older ones); all three are committed together, so a new run is compared with the last committed one.</li>
       <li>In CI: the <code>test-suite-report</code> artifact of the build workflow.</li>
+      <li>A matrix that runs against more than one host or document is one tab with a switch: <code>#matrix</code> / <code>#matrixplain</code> (error bodies on the generated host / the <code>MapEndpoints()</code> host) and <code>#binding</code> / <code>#bindingplain</code> / <code>#binding31</code>. The variants share their filters, and a <b>≠</b> marks a cell that differs from the same cell on the generated host (the 3.0 document for 3.1).</li>
+      <li>A link to one cell: <code>#&lt;tab&gt;/&lt;case id&gt;/&lt;client id or wire&gt;</code> (each part URL-encoded) opens that cell's detail - the address shows it while a cell is open, and its <b>copy link</b> button copies it.</li>
     </ul>
     <h3>Shape of REPORT</h3>
     <div class="table-wrap"><table class="kv-table"><tbody>
@@ -970,6 +1371,7 @@ document.addEventListener('click', (e) => {
       <tr><td>cases</td><td>The error-body matrix: one object per case - <code>id</code>, <code>status</code>, <code>group</code> (scenario), <code>operation</code> (declaration), <code>handler</code>, <code>wire</code> { verdict, status, contentType, body, why } and <code>clients[clientId]</code> { verdict, why, summary, loss?, assessment? }.</td></tr>
       <tr><td>bodyMedia, requestBinding, guard, feature</td><td>The other matrices: { generatedAt, durationSeconds, clients[], cases[] } with the same cell shape; a case may carry <code>expects</code> and a <code>wire</code>.</td></tr>
       <tr><td>ratchet[key]</td><td>The cells each matrix expects to fail, as <code>case [clientId]</code> - mirrors the <code>Known…Failures</code> set in the matrix's test file. A fail not listed here fails the test; a listed cell that passes fails it too (remove it).</td></tr>
+      <tr><td>ratchetReasons[key]</td><td>Why each ratcheted cell is expected to fail: <code>case [clientId]</code> to the reason its <code>Known…Failures</code> entry records (a cell without a reason fails <code>RatchetReasons_GiveEveryKnownCellAReason</code>).</td></tr>
       <tr><td>notExercised[key]</td><td>What the matrix deliberately leaves out, one sentence each (<code>…NotExercised</code> arrays in <code>Report.cs</code>, checked against the cases by <code>NotExercised_NamesNothingAMatrixCovers</code>).</td></tr>
       <tr><td>clients, declarations, statusCodes, assessments</td><td>The axes of the error-body matrix and the suggested assessments of its lossy cells (<code>LossAssessment.cs</code>).</td></tr>
       <tr><td>support</td><td>Every scenario × C# generator from the compile gate (<code>errors</code>, <code>warnings</code>, <code>files</code>, the scenario's OpenAPI version) and the strict-tsc matrix when its gate has run.</td></tr>
@@ -991,21 +1393,114 @@ document.addEventListener('click', (e) => {
     <h3>Conventions</h3>
     <ul class="tight">
       <li><b>Adding a case</b>: add it to the matrix's case list (the <code>…Cases()</code> method in the file above) with its expected values; the verdict rules judge it like every other case. If it needs a new handler, add it to the matrix's handler source next to the cases.</li>
-      <li><b>A new fail</b>: fix the generator (test first), or record the cell as <code>case [client]</code> in the matrix's <code>Known…Failures</code> set and add the reason to its <code>…NotExercised</code> list. The matrix test fails until one of the two is done, and again when a known cell starts passing.</li>
+      <li><b>A new fail</b>: fix the generator (test first), or record the cell as <code>case [client]</code> in the matrix's <code>Known…Failures</code> map with its reason as the value (the page shows it next to the cell). The matrix test fails until one of the two is done, and again when a known cell starts passing.</li>
       <li><b>A new "not exercised"</b> line must name something no case covers (<code>NotExercised_NamesNothingAMatrixCovers</code>).</li>
       <li><b>Regenerate this page</b> before a release or after a change to a matrix, from a clean tree (the banner says when a run is not reproducible), and commit <code>docs/test-suite-report.*</code> with the change.</li>
       <li><b>Private data</b>: a downstream production specification never goes into a case, a fixture or this page; describe it generically.</li>
     </ul>`;
 })();
 
-// Tabs
+// Tabs. A matrix that runs against more than one host or document is one tab with a switch (its variants); each
+// variant keeps the address it always had (#matrixplain, #bindingplain, #binding31). The address names the tab and,
+// while a cell is open, the cell (#feature/<case>/<client>), so a link opens what its sender was looking at.
+const VARIANTS = {
+  matrix: [['matrix', 'Atc.Rest.MinimalApi host'], ['matrixplain', 'MapEndpoints() host']],
+  binding: [['binding', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['bindingplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['binding31', 'OpenAPI 3.1 document']],
+};
+const PARENT = {};
+for (const [parent, list] of Object.entries(VARIANTS)) {
+  for (const [tab] of list) {
+    PARENT[tab] = parent;
+    document.getElementById('tab-' + tab).insertAdjacentHTML('afterbegin', `<div class="variants" role="group" aria-label="What the matrix runs against"><span class="label">Run against</span><div class="segs">${list.map(([t, label]) => `<button class="seg" data-tab="${t}" aria-pressed="false">${esc(label)}</button>`).join('')}</div></div>`);
+  }
+}
 function selectTab(name) {
-  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
+  activeTab = name;
+  const top = PARENT[name] ?? name;
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === top));
+  for (const b of document.querySelectorAll('.variants button')) b.setAttribute('aria-pressed', String(b.dataset.tab === name));
   for (const s of document.querySelectorAll('section[role="tabpanel"]')) s.hidden = s.id !== 'tab-' + name;
   store('tab', name);
+  Object.values(MATRIX).find((m) => m.tab === name)?.refresh();
+  if (!openedCell) setHash(name);
 }
-for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => selectTab(b.dataset.tab));
-selectTab(location.hash && document.getElementById('tab-' + location.hash.slice(1)) ? location.hash.slice(1) : load('tab', 'overview'));
+function route() {
+  let parts;
+  try { parts = location.hash.slice(1).split('/').map(decodeURIComponent); } catch { return false; }
+  const [tab, caseId, clientId] = parts;
+  if (!tab || !document.getElementById('tab-' + tab)) return false;
+  selectTab(tab);
+  const key = Object.keys(MATRIX).find((k) => MATRIX[k].tab === tab);
+  if (caseId && key) openById(key, caseId, clientId);
+  else closeCell();
+  return true;
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.tabs button[data-tab], .variants button[data-tab]');
+  if (b) { closeCell(); selectTab(b.dataset.tab); }
+});
+
+// A tab whose matrix has failing cells says so: unexpected fails first, else the known ones
+const failing = Object.fromEntries(Object.entries(MATRIX_TABS).map(([m, tab]) => [tab, {
+  unexpected: (REPORT?.summary?.unexpectedFailures ?? []).filter((k) => k.startsWith(m + '|')).length,
+  known: (REPORT?.ratchet?.[m] ?? []).length,
+}]));
+for (const button of document.querySelectorAll('.tabs button[data-tab], .variants button[data-tab]')) {
+  const own = button.closest('.variants') !== null;
+  const tabs = Object.keys(failing).filter((t) => (own ? t : PARENT[t] ?? t) === button.dataset.tab);
+  const unexpected = tabs.reduce((a, t) => a + failing[t].unexpected, 0);
+  const known = tabs.reduce((a, t) => a + failing[t].known, 0);
+  if (unexpected) button.insertAdjacentHTML('beforeend', `<span class="tb bad" title="${unexpected} unexpected fail${unexpected === 1 ? '' : 's'}">${unexpected}</span>`);
+  else if (known) button.insertAdjacentHTML('beforeend', `<span class="tb known" title="${known} known fail${known === 1 ? '' : 's'} (ratchet)">${known}</span>`);
+}
+
+// Find a case in any matrix: every word must be in its id, operation, handler, request, expectation, status or group
+const find = $('#find');
+const findResults = $('#find-results');
+function runFind() {
+  const words = find.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) { findResults.hidden = true; return; }
+  const hits = [];
+  for (const [key, m] of Object.entries(MATRIX)) {
+    for (const c of m.cases) {
+      const text = [c.id, c.operation, c.handler, c.request, c.expects, c.status, GROUP_LABELS[c.group] ?? c.group].join(' ').toLowerCase();
+      if (words.every((w) => text.includes(w))) hits.push([key, c]);
+    }
+  }
+  findResults.hidden = false;
+  findResults.innerHTML = hits.length === 0 ? '<div class="counts more">No case matches.</div>'
+    : hits.slice(0, 40).map(([key, c]) => `<button data-open="${esc(`${key}|${c.id}|`)}"><b>${esc(MATRIX[key].title(c))}</b><span class="counts">${esc(MATRIX_NAMES[key] ?? key)} · ${esc(c.id)}</span></button>`).join('')
+      + (hits.length > 40 ? `<div class="counts more">${hits.length - 40} more - add a word</div>` : '');
+}
+find.addEventListener('input', runFind);
+find.addEventListener('focus', runFind);
+find.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { findResults.querySelector('button')?.click(); }
+  if (e.key === 'Escape') { findResults.hidden = true; find.blur(); }
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.find') || e.target.closest('#find-results button')) findResults.hidden = true; });
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.matches?.('input, select, textarea')) { e.preventDefault(); find.focus(); find.select(); }
+});
+
+// Light or dark: the system's choice until the reader makes one
+const applyTheme = (theme) => { if (theme) document.documentElement.dataset.theme = theme; else delete document.documentElement.dataset.theme; };
+applyTheme(load('theme', ''));
+$('#theme').addEventListener('click', () => {
+  const dark = (document.documentElement.dataset.theme ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+  store('theme', dark ? 'light' : 'dark');
+  applyTheme(dark ? 'light' : 'dark');
+});
+
+// The tall matrices scroll inside the window, below the tab bar - however many lines it wraps to
+const tabBar = document.querySelector('.tabs');
+const fitTabs = () => document.documentElement.style.setProperty('--tabs-height', tabBar.offsetHeight + 'px');
+new ResizeObserver(fitTabs).observe(tabBar);
+fitTabs();
+
+setCompact(load('compact', false));
+window.addEventListener('hashchange', route);
+if (!route()) { const stored = load('tab', 'overview'); selectTab(document.getElementById('tab-' + stored) ? stored : 'overview'); }
 </script>
 </body>
 </html>

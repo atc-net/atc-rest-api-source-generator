@@ -1578,7 +1578,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// not cover a body that stalls - fixed; Atc.Rest.MinimalApi 3.0 keeps the field errors of a ValidationException a
     /// handler throws - fixed.
     /// </summary>
-    private static readonly HashSet<string> KnownFeatureFailures = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> KnownFeatureFailures = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Every generated client runs every feature against the generated server as the specification and the
@@ -1607,8 +1607,8 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownFeatureFailures.Contains(f.Key)).ToList();
-        var fixedCells = KnownFeatureFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+        var unexpected = failures.Where(f => !KnownFeatureFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownFeatureFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
 
         Assert.True(
             unexpected.Count == 0,

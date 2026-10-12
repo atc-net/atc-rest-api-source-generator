@@ -121,6 +121,7 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["diagnostics"] = CollectDiagnosticsCoverage();
         matrix["playwright"] = CollectPlaywrightSummary(root);
         matrix["ratchet"] = Ratchets();
+        matrix["ratchetReasons"] = RatchetReasons();
         matrix["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1);
         matrix["summary"] = Summary(matrix);
 
@@ -191,6 +192,20 @@ public partial class ErrorResponseBodyRuntimeTests
             {
                 Assert.DoesNotContain(sentences, s => s.Contains("ratchet", StringComparison.OrdinalIgnoreCase));
             }
+        }
+    }
+
+    /// <summary>
+    /// A known failure is only known with its reason: every ratcheted cell has one, and the report shows it next to
+    /// the cell (the page once looked the reason up in the not-exercised sentences and found none).
+    /// </summary>
+    [Fact]
+    public void RatchetReasons_GiveEveryKnownCellAReason()
+    {
+        var reasons = RatchetReasons();
+        foreach (var (key, cells) in Ratchets())
+        {
+            Assert.All(cells!.AsArray(), cell => Assert.False(string.IsNullOrWhiteSpace((string?)reasons[key]?[(string)cell!])));
         }
     }
 
@@ -419,12 +434,32 @@ public partial class ErrorResponseBodyRuntimeTests
             ["errorBodies"] = new JsonArray(),
             ["errorBodiesPlain"] = new JsonArray(),
             ["bodyMedia"] = new JsonArray(),
-            ["requestBinding"] = new JsonArray([.. KnownRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
-            ["requestBindingPlain"] = new JsonArray([.. KnownPlainRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
-            ["requestBinding31"] = new JsonArray([.. KnownRequestBinding31Failures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
-            ["guard"] = new JsonArray([.. KnownGuardFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
-            ["feature"] = new JsonArray([.. KnownFeatureFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["requestBinding"] = new JsonArray([.. KnownRequestBindingFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["requestBindingPlain"] = new JsonArray([.. KnownPlainRequestBindingFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["requestBinding31"] = new JsonArray([.. KnownRequestBinding31Failures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["guard"] = new JsonArray([.. KnownGuardFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["feature"] = new JsonArray([.. KnownFeatureFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
         };
+
+    /// <summary>
+    /// Why each ratcheted cell is expected to fail, per matrix: <c>case [client]</c> to the reason its
+    /// <c>Known…Failures</c> entry records.
+    /// </summary>
+    private static JsonObject RatchetReasons()
+    {
+        var reasons = new JsonObject();
+        foreach (var (key, known) in ((string, Dictionary<string, string>)[])[
+            ("requestBinding", KnownRequestBindingFailures),
+            ("requestBindingPlain", KnownPlainRequestBindingFailures),
+            ("requestBinding31", KnownRequestBinding31Failures),
+            ("guard", KnownGuardFailures),
+            ("feature", KnownFeatureFailures)])
+        {
+            reasons[key] = new JsonObject(known.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => KeyValuePair.Create(k.Key, (JsonNode?)k.Value)));
+        }
+
+        return reasons;
+    }
 
     /// <summary>
     /// One line for the history: when, which commit, the verdict totals per matrix, and every cell's verdict (so

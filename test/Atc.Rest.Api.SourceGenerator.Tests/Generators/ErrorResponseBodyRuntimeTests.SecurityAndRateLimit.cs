@@ -323,8 +323,8 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownGuardFailures.Contains(f.Key)).ToList();
-        var fixedCells = KnownGuardFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+        var unexpected = failures.Where(f => !KnownGuardFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownGuardFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
 
         Assert.True(
             unexpected.Count == 0,
@@ -544,7 +544,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that
     /// passes fails the test asking to be removed.
     /// </summary>
-    private static readonly HashSet<string> KnownGuardFailures = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> KnownGuardFailures = new(StringComparer.Ordinal);
 
     /// <summary>
     /// The verdict is not blind: a wrong status, a missing accessor, a lost Retry-After, a 401 without a challenge and
