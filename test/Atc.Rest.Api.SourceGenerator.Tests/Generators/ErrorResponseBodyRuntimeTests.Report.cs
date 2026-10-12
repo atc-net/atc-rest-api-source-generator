@@ -21,7 +21,7 @@ public partial class ErrorResponseBodyRuntimeTests
         "The Development environment beyond one exception per host: the matrices run as Production, and Production_A5xxFromAnException_CarriesNothingOfIt_AndDevelopmentNamesIt checks that a Production 5xx carries nothing of the exception on either host and that Development names it.",
         "A server with the ValidationFilter or the global error handler switched off through the marker (the host without Atc.Rest.MinimalApi - MapEndpoints() with the wiring written by hand - has its own tabs).",
         "Network failures, timeouts and cancellation (the feature matrix runs a reset, a hang, a stall and a mid-body cancel).",
-        "HEAD, and 2xx statuses other than 200 and 204 on the sweep operations (every 1xx, 2xx and 3xx has its own operation under Statuses 1xx-3xx).",
+        "HEAD, and 2xx statuses other than 200 and 204 on the sweep operations (every 1xx, 2xx and 3xx has its own operation under Statuses 1xx-3xx; a HEAD answered 200 and 404 with the GET's headers and no body is read by every client in TypedClient_Head_IsASuccessOrAnErrorWithoutABody, OperationClient_Head_IsItsStatusWithoutABody and the TypeScript HEAD gate).",
         "What only OpenAPI 3.1 / 3.2 can say, beyond the request-binding matrix's 3.1 body (type arrays, null on the wire, a const, a tuple): every matrix also runs from its specification as a 3.1 document, which says what the 3.0 one says; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
         "The React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies: the error path is the same `ApiError`.",
         "A browser runtime: the TypeScript clients run on Node, so CORS and header exposure are not observed.",
@@ -53,7 +53,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// </summary>
     internal static readonly string[] GuardNotExercised =
     [
-        "A real JWT: the bearer handler reads a plain-text token that spells out subject, scopes and roles.",
+        "A real JWT in the matrix: its bearer handler reads a plain-text token that spells out subject, scopes and roles (GeneratedPolicies_ReadScopesAndRolesFromARealJwt runs the generated scope and role checks against signed JWTs read by AddJwtBearer).",
         "OpenID Connect.",
         "A limiter partitioned by IP: every client runs on one machine, so the limited operations partition by user.",
     ];
