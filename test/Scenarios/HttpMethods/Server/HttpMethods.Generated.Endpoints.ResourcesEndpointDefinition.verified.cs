@@ -53,6 +53,14 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         resources
+            .MapMethods("/", new[] { "HEAD" }, ProbeResources)
+            .WithName("ProbeResources")
+            .WithSummary("Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body)")
+            .Produces(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+
+        resources
             .MapMethods("/", new[] { "LINK" }, LinkResource)
             .WithName("LinkResource")
             .WithSummary("Link a resource (custom verb)")
@@ -75,6 +83,13 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
         => QueryResourcesResult.ToIResult(
                     await handler.ExecuteAsync(
                         parameters,
+                        cancellationToken));
+
+    internal async Task<IResult> ProbeResources(
+        [FromServices] IProbeResourcesHandler handler,
+        CancellationToken cancellationToken)
+        => ProbeResourcesResult.ToIResult(
+                    await handler.ExecuteAsync(
                         cancellationToken));
 
     internal async Task<IResult> LinkResource(

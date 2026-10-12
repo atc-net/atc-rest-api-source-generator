@@ -68,6 +68,16 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Resource>>())!;
     }
 
+    public async Task ProbeResourcesAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "resources";
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Head, url);
+
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task LinkResourceAsync(CancellationToken cancellationToken = default)
     {
         var url = "resources";

@@ -88,6 +88,12 @@ public static class TypeScriptReactQueryHookExtractor
         var hookInfos = new List<HookInfo>();
         foreach (var (path, method, operation) in operations)
         {
+            // A hook for the safe metadata verbs has no meaning - and as a mutation it would invalidate the queries.
+            if (method.ToUpperInvariant() is "HEAD" or "OPTIONS" or "TRACE")
+            {
+                continue;
+            }
+
             var info = ClassifyOperation(path, method, operation, openApiDoc, namingStrategy, writableSchemas);
             hookInfos.Add(info);
 

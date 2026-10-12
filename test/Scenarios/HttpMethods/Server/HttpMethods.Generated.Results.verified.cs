@@ -96,6 +96,39 @@ public sealed class QueryResourcesResult : IResult
 }
 
 /// <summary>
+/// Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class ProbeResourcesResult : IResult
+{
+    private readonly IResult innerResult;
+
+    private ProbeResourcesResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The headers the list would have.
+    /// </summary>
+    public static ProbeResourcesResult Ok()
+        => new(TypedResults.Ok());
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts ProbeResourcesResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(ProbeResourcesResult result)
+        => result.Result;
+}
+
+/// <summary>
 /// Link a resource (custom verb).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

@@ -9,6 +9,49 @@ public class TypeScriptSwrHookExtractorTests
             () => TypeScriptSwrHookExtractor.Extract(openApiDoc: null, headerContent: null));
     }
 
+    /// <summary>
+    /// HEAD, OPTIONS and TRACE read nothing a component renders and change nothing: they get no hook - least of all
+    /// a mutation that invalidates the cached queries - while the GET next to them keeps its own.
+    /// </summary>
+    [Theory]
+    [InlineData("head", "Head")]
+    [InlineData("options", "Options")]
+    [InlineData("trace", "Trace")]
+    public void Extract_ASafeMetadataVerb_GetsNoHook(
+        string method,
+        string name)
+    {
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info: { title: T, version: 1.0.0 }
+                     paths:
+                       /pets:
+                         get:
+                           operationId: listPets
+                           responses:
+                             '200':
+                               description: OK
+                               content:
+                                 application/json:
+                                   schema:
+                                     type: array
+                                     items: { type: string }
+                         {{method}}:
+                           operationId: {{method}}Pets
+                           responses:
+                             '200':
+                               description: OK
+                     """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("useListPets", content, StringComparison.Ordinal);
+        Assert.DoesNotContain($"use{name}Pets", content, StringComparison.Ordinal);
+        Assert.DoesNotContain($"{method}Pets(", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_NoPaths_ReturnsEmpty()
     {

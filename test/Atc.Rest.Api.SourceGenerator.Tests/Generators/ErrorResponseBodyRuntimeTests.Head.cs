@@ -89,13 +89,14 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
     /// <summary>
     /// A HEAD answer has no body, whatever its operation declares (a specification often gives its HEAD the content of
-    /// its GET) and whatever Content-Type and Content-Length it carries: the typed client reads none - a 200 is a
-    /// success without a value, a 404 is the error it is, and neither is a JSON error over the empty body.
+    /// its GET) and whatever Content-Type and Content-Length it carries: the typed client's HEAD method returns no
+    /// value - not a model that is never there - a 200 is a success, a 404 is the error it is, and neither is a JSON
+    /// error over the empty body.
     /// </summary>
     [Theory]
     [InlineData("Result", "there: 200 IsSuccess=True | missing: 404 IsSuccess=False")]
     [InlineData("Throw", "there: returned nothing | missing: ApiException NotFound")]
-    public async Task TypedClient_Head_IsASuccessOrAnErrorWithoutABody(
+    public async Task TypedClient_Head_ReturnsNoValue_AndReadsNoBody(
         string resultStyle,
         string expected)
     {
@@ -107,6 +108,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         var outcome = await (Task<string>)run.Invoke(null, [string.Equals(resultStyle, "Result", StringComparison.Ordinal)])!;
 
         Assert.Equal(expected, outcome);
+        var returns = assembly.GetTypes().Single(t => t.Name == "IErrorBodiesClient").GetMethod("HeadThingAsync")!.ReturnType;
+        Assert.DoesNotContain("Thing", returns.ToString(), StringComparison.Ordinal);
     }
 
     private const string HeadOperationProbe = """"
@@ -135,7 +138,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     try
                     {
                         var result = await provider.GetRequiredService<IHeadThingEndpoint>().ExecuteAsync(new HeadThingParameters(id));
-                        lines.Add($"{id}: {(int)result.StatusCode} IsOk={result.IsOk} IsNotFound={result.IsNotFound}");
+                        lines.Add($"{id}: {(int)result.StatusCode} IsOk={result.IsOk} IsNotFound={result.IsNotFound}{(result.IsNotFound ? $" NotFoundContent.Status={result.NotFoundContent.Status}" : string.Empty)}");
                     }
                     catch (Exception ex)
                     {
@@ -167,11 +170,12 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         """";
 
     /// <summary>
-    /// The same for the EndpointPerOperation client: a HEAD answer is its status - <c>IsOk</c>, <c>IsNotFound</c> - and
-    /// building the result reads no body.
+    /// The same for the EndpointPerOperation client: a HEAD answer is its status - <c>IsOk</c>, <c>IsNotFound</c> -
+    /// building the result reads no body, and the result has no <c>OkContent</c> to ask for a model that is never there.
+    /// The error accessor of a 404 without a body is still readable: a ProblemDetails of the status.
     /// </summary>
     [Fact]
-    public async Task OperationClient_Head_IsItsStatusWithoutABody()
+    public async Task OperationClient_Head_IsItsStatus_WithoutAValue()
     {
         var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientOperationMarker("ProblemDetails"), includeMinimalApi: false, HeadYaml);
         sources.Add(("Probe.cs", HeadOperationProbe));
@@ -180,6 +184,22 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
         var outcome = await (Task<string>)run.Invoke(null, [])!;
 
-        Assert.Equal("there: 200 IsOk=True IsNotFound=False | missing: 404 IsOk=False IsNotFound=True", outcome);
+        Assert.Equal("there: 200 IsOk=True IsNotFound=False | missing: 404 IsOk=False IsNotFound=True NotFoundContent.Status=404", outcome);
+        Assert.Null(assembly.GetTypes().Single(t => t.Name == "HeadThingEndpointResult").GetProperty("OkContent"));
+    }
+
+    /// <summary>
+    /// The server's side of it: the handler's result for a HEAD takes no value - <c>Ok()</c> - since the server could
+    /// not send one.
+    /// </summary>
+    [Fact]
+    public void Server_Head_ResultTakesNoValue()
+    {
+        var sources = Generate(new ApiServerGenerator(), ".atc-rest-api-server", ServerMarker, includeMinimalApi: true, HeadYaml);
+
+        var errors = CompilationVerificationHarness.CompileGeneratedSources(sources, includeMinimalApi: true);
+        Assert.Empty(errors);
+        var result = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true).GetTypes().Single(t => t.Name == "HeadThingResult");
+        Assert.Empty(result.GetMethod("Ok")!.GetParameters());
     }
 }

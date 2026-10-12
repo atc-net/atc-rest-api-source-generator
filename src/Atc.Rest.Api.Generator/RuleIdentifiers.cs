@@ -779,6 +779,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string QueryObjectKeyCollision = "ATC_API_OPR038";
 
+    /// <summary>
+    /// ATC_API_OPR039: A HEAD operation declares content for a response. A HEAD answer has no body, so the content
+    /// is not generated: no client returns a value for it and the server's result takes none. Warning, every strategy.
+    /// </summary>
+    public const string HeadResponseContentIgnored = "ATC_API_OPR039";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

@@ -8,6 +8,10 @@ namespace Atc.Rest.Api.Generator.Helpers;
 /// </summary>
 public static class ResponseRangeNormalizer
 {
+    // The ranges that were rewritten, kept on the operation: the parsed document is cached and rewritten in place, so
+    // a later validation of the same specification sees no range - and must still warn
+    private const string RewrittenKey = "atc:response-ranges-rewritten";
+
     /// <summary>
     /// Rewrites the status ranges of every operation's responses (the paths' and the webhooks').
     /// </summary>
@@ -26,7 +30,7 @@ public static class ResponseRangeNormalizer
         {
             foreach (var operation in pathItem?.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
             {
-                Rewrite(operation.Responses);
+                Rewrite(operation);
             }
         }
 
@@ -46,12 +50,37 @@ public static class ResponseRangeNormalizer
             ? responseKey[0] + "00"
             : null;
 
-    private static void Rewrite(OpenApiResponses? responses)
+    /// <summary>
+    /// The status ranges an operation declares - or declared, before the document was rewritten - each with its first
+    /// status and whether the operation declares that status itself (the range is then not generated).
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>The ranges, in the order declared.</returns>
+    public static IReadOnlyList<(string Range, string Status, bool StatusDeclared)> RangesOf(
+        OpenApiOperation? operation)
     {
-        if (responses is null || !responses.Keys.Any(k => FirstStatusOf(k) is not null))
+        if (operation?.Responses is not { } responses)
+        {
+            return [];
+        }
+
+        var rewritten = operation.Metadata is { } metadata && metadata.TryGetValue(RewrittenKey, out var recorded) && recorded is List<(string Range, string Status, bool StatusDeclared)> ranges
+            ? ranges
+            : [];
+        var statuses = new HashSet<string>(responses.Keys.Where(k => FirstStatusOf(k) is null), StringComparer.Ordinal);
+        return [.. rewritten, .. responses.Keys.Where(k => FirstStatusOf(k) is not null).Select(k => (k, FirstStatusOf(k)!, statuses.Contains(FirstStatusOf(k)!)))];
+    }
+
+    private static void Rewrite(OpenApiOperation? operation)
+    {
+        var responses = operation?.Responses;
+        if (operation is null || responses is null || !responses.Keys.Any(k => FirstStatusOf(k) is not null))
         {
             return;
         }
+
+        operation.Metadata ??= new Dictionary<string, object>(StringComparer.Ordinal);
+        operation.Metadata[RewrittenKey] = RangesOf(operation).ToList();
 
         // A range never replaces a status the operation declares; the order is kept
         var declared = responses.ToList();

@@ -56,6 +56,30 @@ public class ResponseRangeValidatorTests
         Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.ResponseStatusRange);
     }
 
+    /// <summary>
+    /// A parsed document is cached and rewritten in place after its validation: a second pass over the same
+    /// specification (the server and the client generator of one build, an IDE re-run) validates the rewritten
+    /// document - and still warns, with the same words.
+    /// </summary>
+    [Theory]
+    [InlineData("'2XX': { description: Any }")]
+    [InlineData("'200': { description: OK }\n        '2XX': { description: Any }")]
+    public void Validate_AfterTheDocumentIsNormalized_StillWarnsTheSame(
+        string responses)
+    {
+        var document = Parse(responses);
+        var before = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, document, [], TestFilePath)
+            .Where(d => d.RuleId == RuleIdentifiers.ResponseStatusRange).Select(d => d.Message).ToList();
+
+        ResponseRangeNormalizer.WithExplicitStatuses(document);
+        ResponseRangeNormalizer.WithExplicitStatuses(document);
+        var after = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, document, [], TestFilePath)
+            .Where(d => d.RuleId == RuleIdentifiers.ResponseStatusRange).Select(d => d.Message).ToList();
+
+        Assert.Single(before);
+        Assert.Equal(before, after);
+    }
+
     private static OpenApiDocument Parse(string responses)
     {
         var yaml = $$"""

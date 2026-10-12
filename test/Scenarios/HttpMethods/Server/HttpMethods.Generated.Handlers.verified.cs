@@ -38,6 +38,15 @@ public interface IQueryResourcesHandler
 }
 
 /// <summary>
+/// Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IProbeResourcesHandler
+{
+    Task<ProbeResourcesResult> ExecuteAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Link a resource (custom verb).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

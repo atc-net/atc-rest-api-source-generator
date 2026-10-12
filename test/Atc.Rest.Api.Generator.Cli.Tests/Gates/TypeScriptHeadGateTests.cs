@@ -3,8 +3,8 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Gates;
 /// <summary>
 /// Runtime gate for a HEAD operation of the generated clients (Fetch and Axios): a Node http server answers a HEAD as
 /// a server does - the Content-Type and the Content-Length of the GET's answer, and no body. The operation declares the
-/// GET's content, as specifications often do. A 200 must be <c>ok</c> without data and a 404 <c>notFound</c>; neither
-/// may be a <c>parseError</c> over the body that is not there. Self-skips without a Node toolchain, but fails under CI
+/// GET's content, as specifications often do. A 200 must be <c>ok</c> without data - and typed without a model - and a
+/// 404 <c>notFound</c>; neither may be a <c>parseError</c> over the body that is not there. Self-skips without a Node toolchain, but fails under CI
 /// where Node is provisioned.
 /// </summary>
 [Trait("Category", "TypeScriptToolchain")]
@@ -35,6 +35,14 @@ public sealed class TypeScriptHeadGateTests
         {
             GenerateClient(doc, Path.Combine(workDir, "fetch"), TypeScriptHttpClient.Fetch);
             GenerateClient(doc, Path.Combine(workDir, "axios"), TypeScriptHttpClient.Axios);
+
+            // No model for a body that is never there: the method is typed without a value
+            foreach (var client in (string[])["fetch", "axios"])
+            {
+                var things = File.ReadAllText(Path.Combine(workDir, client, "client", "ThingsClient.ts"));
+                Assert.DoesNotContain("Thing>", things, StringComparison.Ordinal);
+                Assert.DoesNotContain("import type { Thing }", things, StringComparison.Ordinal);
+            }
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), Harness);

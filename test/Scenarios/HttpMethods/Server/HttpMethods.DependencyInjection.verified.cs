@@ -22,6 +22,8 @@ public static class ServiceCollectionExtensions
         // services.AddScoped<ILinkResourceHandler, YourImplementation>();
         // Handler for IListResourcesHandler must be registered in the Domain project
         // services.AddScoped<IListResourcesHandler, YourImplementation>();
+        // Handler for IProbeResourcesHandler must be registered in the Domain project
+        // services.AddScoped<IProbeResourcesHandler, YourImplementation>();
         // Handler for IQueryResourcesHandler must be registered in the Domain project
         // services.AddScoped<IQueryResourcesHandler, YourImplementation>();
 

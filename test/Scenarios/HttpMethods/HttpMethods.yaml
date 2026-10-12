@@ -2,7 +2,7 @@ openapi: "3.2.0"
 info:
   version: 1.0.0
   title: HTTP Methods Test
-  description: OpenAPI 3.2 query method and additionalOperations (custom verbs) end-to-end
+  description: OpenAPI 3.2 query method, additionalOperations (custom verbs) and a HEAD end-to-end
 
 paths:
   /resources:
@@ -34,6 +34,24 @@ paths:
       responses:
         "200":
           description: Matching resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resource"
+    head:
+      operationId: probeResources
+      summary: Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body)
+      tags:
+        - resources
+      responses:
+        "200":
+          description: The headers the list would have
+          headers:
+            ETag:
+              schema:
+                type: string
           content:
             application/json:
               schema:

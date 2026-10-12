@@ -68,8 +68,9 @@ internal static class SpecificationLoader
             validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
         }
 
-        // A status range (2XX) is its first status for every generator (the validator has warned about it)
-        return ReportAndContinue(context, validationDiagnostics) ? ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc) : null;
+        // A status range (2XX) is its first status for every generator, and a HEAD's responses have no content (the
+        // validator has warned about both)
+        return ReportAndContinue(context, validationDiagnostics) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc)) : null;
     }
 
     /// <summary>
@@ -113,7 +114,7 @@ internal static class SpecificationLoader
             validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
         }
 
-        return ReportAndContinue(context, validationDiagnostics) ? ResponseRangeNormalizer.WithExplicitStatuses(document) : null;
+        return ReportAndContinue(context, validationDiagnostics) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(document)) : null;
     }
 
     /// <summary>

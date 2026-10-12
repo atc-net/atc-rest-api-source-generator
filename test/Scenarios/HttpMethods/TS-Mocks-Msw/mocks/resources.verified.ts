@@ -9,6 +9,9 @@ export const resourcesHandlers = [
     if (request.method !== 'QUERY') return;
     return HttpResponse.json([{ id: '00000000-0000-0000-0000-000000000001', name: 'sample-name' }]);
   }),
+  http.head('*/resources', () => {
+    return new HttpResponse(null, { status: 200 });
+  }),
   http.all('*/resources', ({ request }) => {
     if (request.method !== 'LINK') return;
     return new HttpResponse(null, { status: 204 });

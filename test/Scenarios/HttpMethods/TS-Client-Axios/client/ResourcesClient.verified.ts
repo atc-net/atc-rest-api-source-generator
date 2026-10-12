@@ -17,6 +17,12 @@ export type QueryResourcesResult =
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+export type ProbeResourcesResult =
+  | { status: 'ok'; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
+  | { status: 'parseError'; error: Error; response: AxiosResponse };
+
 export type LinkResourceResult =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
@@ -47,6 +53,14 @@ export class ResourcesClient {
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<QueryResourcesResult>;
+  }
+
+  /** Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body) */
+  async probeResources(signal?: AbortSignal): Promise<ProbeResourcesResult> {
+    return this.api.request<void>('HEAD', '/resources', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<ProbeResourcesResult>;
   }
 
   /** Link a resource (custom verb) */

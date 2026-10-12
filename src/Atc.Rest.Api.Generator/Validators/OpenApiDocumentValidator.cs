@@ -96,6 +96,7 @@ public static class OpenApiDocumentValidator
         diagnostics.AddRange(ValidatePaths(document, sourceFilePath));
         diagnostics.AddRange(ValidatePathsTheReaderDropped(diagnosticErrors, sourceFilePath));
         diagnostics.AddRange(ValidateResponseRanges(document, sourceFilePath));
+        diagnostics.AddRange(ValidateHeadResponses(document, sourceFilePath));
 
         // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it), and a parameter
         // whose value it cannot bind or send at all
@@ -1830,14 +1831,9 @@ public static class OpenApiDocumentValidator
                 }
 
                 var operationId = operation.OperationId ?? $"{operationEntry.Key.ToString().ToUpperInvariant()} {pathKey}";
-                foreach (var key in operation.Responses.Keys)
+                foreach (var (key, status, statusDeclared) in ResponseRangeNormalizer.RangesOf(operation))
                 {
-                    if (ResponseRangeNormalizer.FirstStatusOf(key) is not { } status)
-                    {
-                        continue;
-                    }
-
-                    var outcome = operation.Responses.ContainsKey(status)
+                    var outcome = statusDeclared
                         ? $"{status} is declared, so the range is not generated"
                         : $"it is generated as {status}";
                     diagnostics.Add(new DiagnosticMessage(
@@ -1846,6 +1842,39 @@ public static class OpenApiDocumentValidator
                         DiagnosticSeverity.Warning,
                         sourceFilePath));
                 }
+            }
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// Validates that no HEAD operation declares content for a response (ATC_API_OPR039): a HEAD answer has no body,
+    /// so the content is not generated. The normalizer removes it from the document after validation.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateHeadResponses(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        var pathItems = (document.Paths ?? []).Select(p => (p.Key, p.Value))
+            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, w.Value)));
+        foreach (var (pathKey, pathItem) in pathItems)
+        {
+            foreach (var operationEntry in pathItem?.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
+            {
+                var statuses = HeadResponseNormalizer.ResponsesWithContent(operationEntry.Key, operationEntry.Value);
+                if (statuses.Count == 0)
+                {
+                    continue;
+                }
+
+                var operationId = operationEntry.Value.OperationId ?? $"HEAD {pathKey}";
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.HeadResponseContentIgnored,
+                    $"Operation '{operationId}' is a HEAD and declares content for {string.Join(", ", statuses)}. A HEAD answer has no body, so the content is not generated: the clients return no value for it and the server's result takes none. Remove the content from the HEAD's responses (its headers are kept).",
+                    DiagnosticSeverity.Warning,
+                    sourceFilePath));
             }
         }
 

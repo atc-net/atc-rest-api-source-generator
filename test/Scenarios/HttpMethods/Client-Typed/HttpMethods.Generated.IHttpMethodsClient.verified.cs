@@ -25,5 +25,7 @@ public interface IHttpMethodsClient
         QueryResourcesParameters parameters,
         CancellationToken cancellationToken = default);
 
+    Task ProbeResourcesAsync(CancellationToken cancellationToken = default);
+
     Task LinkResourceAsync(CancellationToken cancellationToken = default);
 }
