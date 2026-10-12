@@ -108,11 +108,9 @@ test.describe('File Upload', () => {
     expect(sent.headers()['content-type']).toMatch(multipart);
     await expect(page.getByText(uploaded.meta[appType](file.name), { exact: true }).first()).toBeVisible();
 
-    // The handler names the stored file after the item name and the items: what reached the server. Atc.Rest.Client
-    // (the C# client's request builder) keeps only the last value of a repeated form field (atc-rest-client issue
-    // 0007): pinned here, so this fails - and is updated - once it sends every item
-    const items = appType === 'blazor' ? 'q3' : 'finance-q3';
-    expect(await findStoredFile(request, file.buffer)).toMatchObject({ fileName: `Quarterly-${items}.bin` });
+    // The handler names the stored file after the item name and the items: what reached the server - every item, from
+    // every client (Atc.Rest.Client before 2.3.0 kept only the last value of a repeated form field)
+    expect(await findStoredFile(request, file.buffer)).toMatchObject({ fileName: 'Quarterly-finance-q3.bin' });
   });
 
   test('files as the files of a model are one multipart/form-data body (uploadSingleObjectWithFilesAsFormData)', async ({ page, request, appType }) => {
