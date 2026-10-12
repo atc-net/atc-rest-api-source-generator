@@ -473,7 +473,7 @@ const SHARED = {};
 
 // A variant matrix is read against its baseline: the same case in the matrix it is a variant of. Request ids differ
 // from run to run and are no difference.
-const noIds = (s) => String(s ?? '').replace(/\b[0-9A-Z]{13}:[0-9A-F]{8}\b/g, '').replace(/\b00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}\b/g, '');
+const noIds = (s) => String(s ?? '').replace(/\b[0-9A-Z]{13}:[0-9A-F]{1,8}\b/g, '').replace(/\b00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}\b/g, '');
 function differs(key, c, clientId) {
   const base = MATRIX[key]?.baseline;
   if (!base) return false;
