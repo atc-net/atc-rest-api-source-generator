@@ -785,6 +785,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string HeadResponseContentIgnored = "ATC_API_OPR039";
 
+    /// <summary>
+    /// ATC_API_OPR040: A request body or a response declares two media types that are one for the generators -
+    /// 'application/json' and 'application/json; charset=utf-8', or a model under '*/*' next to 'application/json' -
+    /// with different schemas. The first is generated, the second is not. Warning, every strategy.
+    /// </summary>
+    public const string MediaTypeDeclaredTwice = "ATC_API_OPR040";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

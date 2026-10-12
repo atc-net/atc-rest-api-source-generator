@@ -7,6 +7,13 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// empty baseline: generated code a project with <c>IsAotCompatible</c> builds without IL warnings.
 /// </summary>
 /// <remarks>
+/// What the baseline still holds is not the generated code's: the <c>HttpMethods</c> scenario's root namespace is the
+/// name of a type in <c>Microsoft.AspNetCore.Http</c>, and the Request Delegate Generator writes an
+/// <c>[AsParameters]</c> type without <c>global::</c> inside <c>Microsoft.AspNetCore.Http.Generated</c> - so
+/// <c>typeof(HttpMethods.Generated...)</c> binds to that type and does not compile (CS0426, and the IL2065 that
+/// follows), per endpoint with parameters.
+/// </remarks>
+/// <remarks>
 /// It builds every combination in parallel on all cores, so it runs alone - beside it, the tests that time retries
 /// and timeouts miss their windows.
 /// </remarks>

@@ -8,6 +8,67 @@ namespace Atc.Rest.Api.Generator.Tests.Helpers;
 /// </summary>
 public class MediaTypeNormalizerTests
 {
+    private const string TwiceYaml = """
+        openapi: 3.0.3
+        info: { title: Contoso, version: 1.0.0 }
+        paths:
+          /pets:
+            post:
+              operationId: createPet
+              requestBody:
+                content:
+                  application/json:
+                    schema: { $ref: '#/components/schemas/Pet' }
+                  Application/JSON; charset=utf-8:
+                    schema: { $ref: '#/components/schemas/Cat' }
+              responses:
+                '201':
+                  description: Created
+                  content:
+                    application/json:
+                      schema: { $ref: '#/components/schemas/Pet' }
+                    application/json; charset=utf-8:
+                      schema: { $ref: '#/components/schemas/Pet' }
+                '400': { $ref: '#/components/responses/BadRequest' }
+        components:
+          responses:
+            BadRequest:
+              description: Bad
+              content:
+                application/json:
+                  schema: { $ref: '#/components/schemas/Pet' }
+                '*/*':
+                  schema: { type: object, properties: { code: { type: string } } }
+          schemas:
+            Pet: { type: object, properties: { name: { type: string } } }
+            Cat: { type: object, properties: { lives: { type: integer } } }
+        """;
+
+    /// <summary>
+    /// Two declarations that become one media type keep the first - and the one that is dropped is named when it
+    /// says something else (another schema), before the rewrite and after it; the same schema twice is nobody's loss.
+    /// </summary>
+    [Fact]
+    public void DroppedDeclarations_NamesWhatBecomesAMediaTypeAlreadyDeclared_WithAnotherSchema()
+    {
+        var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(TwiceYaml, $"twice-{Guid.NewGuid():N}.yaml");
+        Assert.NotNull(document);
+
+        var before = MediaTypeNormalizer.DroppedDeclarations(document);
+        MediaTypeNormalizer.WithCanonicalMediaTypes(document);
+        MediaTypeNormalizer.WithCanonicalMediaTypes(document);
+        var after = MediaTypeNormalizer.DroppedDeclarations(document);
+
+        Assert.Equal(
+            [
+                ("the request body of operation 'createPet'", "application/json", "Application/JSON; charset=utf-8"),
+                ("the response 'BadRequest' (components)", "application/json", "*/*"),
+            ],
+            before);
+        Assert.Equal(before, after);
+        Assert.Equal("Pet", ((OpenApiSchemaReference)document.Paths["/pets"].Operations![HttpMethod.Post].RequestBody!.Content!["application/json"].Schema!).Reference.Id);
+    }
+
     private const string Yaml = """
         openapi: 3.0.3
         info: { title: Contoso, version: 1.0.0 }

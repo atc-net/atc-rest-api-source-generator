@@ -97,6 +97,11 @@ public static class OpenApiDocumentValidator
         diagnostics.AddRange(ValidatePathsTheReaderDropped(diagnosticErrors, sourceFilePath));
         diagnostics.AddRange(ValidateResponseRanges(document, sourceFilePath));
         diagnostics.AddRange(ValidateHeadResponses(document, sourceFilePath));
+        diagnostics.AddRange(MediaTypeNormalizer.DroppedDeclarations(document).Select(dropped => new DiagnosticMessage(
+            RuleIdentifiers.MediaTypeDeclaredTwice,
+            $"{char.ToUpperInvariant(dropped.Where[0])}{dropped.Where.Substring(1)} declares the media type '{dropped.Dropped}', which is the same media type as '{dropped.Kept}' declared before it, with another schema: '{dropped.Kept}' is generated, '{dropped.Dropped}' is not. Declare the media type once.",
+            DiagnosticSeverity.Warning,
+            sourceFilePath)));
 
         // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it), and a parameter
         // whose value it cannot bind or send at all
