@@ -789,6 +789,7 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         var matrix = await CollectRequestBindingMatrixAsync(openApi31: true);
+        Assert.Equal("3.1.0", (string?)matrix["openApi"]);
         if (Environment.GetEnvironmentVariable("REQUESTBINDING_E2E_31_JSON") is { Length: > 0 } dumpPath)
         {
             await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
@@ -1306,6 +1307,7 @@ public partial class ErrorResponseBodyRuntimeTests
         return new JsonObject
         {
             ["generatedAt"] = started.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
+            ["openApi"] = OpenApiVersionOf(yaml),
             ["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1),
             ["clients"] = new JsonArray([.. RequestBindingClients.Select(c => (JsonNode)new JsonObject { ["id"] = c.Id, ["group"] = c.Group, ["label"] = c.Label })]),
             ["cases"] = casesArray,

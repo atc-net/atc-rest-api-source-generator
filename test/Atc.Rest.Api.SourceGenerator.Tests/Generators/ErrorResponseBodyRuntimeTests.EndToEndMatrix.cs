@@ -176,6 +176,35 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix from the specification as an OpenAPI 3.1 document: the server, every C# client and both
+    /// TypeScript clients are generated from it, and every cell must be what it is from the 3.0 document.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientReadsWhatTheServerWrites_WithAnOpenApi31Document()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the end-to-end matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectEndToEndMatrixAsync(openApi31: true);
+        Assert.Equal("3.1.0", (string?)matrix["openApi"]);
+        if (Environment.GetEnvironmentVariable("ERRORBODY_E2E_31_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(), TestContext.Current.CancellationToken);
+        }
+
+        var failures = FailingCells(matrix);
+        Assert.True(failures.Count == 0, $"{failures.Count} failing cells:\n" + string.Join("\n", failures.Take(80)));
+    }
+
+    /// <summary>
     /// A custom error model named like a schema of the specification (the Monta sample's <c>ErrorResponse</c> next
     /// to the spec's own <c>ErrorResponse</c>): the spec's model keeps its type for the <c>default</c> response - the
     /// custom one used to shadow it through the root namespace - and the custom model's accessor reads a body that
@@ -463,8 +492,10 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     private static async Task<JsonObject> CollectEndToEndMatrixAsync(
-        bool plainHost = false)
+        bool plainHost = false,
+        bool openApi31 = false)
     {
+        OpenApi31Run.Value = openApi31;
         var started = DateTimeOffset.Now;
         await using var host = await ErrorBodyHost.StartAsync(plainHost: plainHost);
 
@@ -597,6 +628,7 @@ public partial class ErrorResponseBodyRuntimeTests
         return new JsonObject
         {
             ["generatedAt"] = started.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
+            ["openApi"] = OpenApiVersionOf(Spec(Yaml)),
             ["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1),
             ["provenance"] = Provenance(),
             ["statusCodes"] = new JsonArray([
@@ -1849,7 +1881,7 @@ public partial class ErrorResponseBodyRuntimeTests
         try
         {
             var yamlPath = Path.Combine(work, ProjectName + ".yaml");
-            File.WriteAllText(yamlPath, Yaml);
+            File.WriteAllText(yamlPath, Spec(Yaml));
 
             var cli = FindCliExecutable();
             foreach (var client in (string[])["Fetch", "Axios"])

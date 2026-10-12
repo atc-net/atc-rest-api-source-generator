@@ -1574,7 +1574,7 @@ public partial class ErrorResponseBodyRuntimeTests
         string? yaml = null)
     {
         var additionalTexts = ImmutableArray.Create<AdditionalText>(
-            new CompilationVerificationHarness.InMemoryAdditionalText($"{ProjectName}.yaml", yaml ?? Yaml),
+            new CompilationVerificationHarness.InMemoryAdditionalText($"{ProjectName}.yaml", Spec(yaml ?? Yaml)),
             new CompilationVerificationHarness.InMemoryAdditionalText(markerFileName, markerContent));
 
         var compilation = CSharpCompilation.Create(
@@ -1750,6 +1750,44 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         return false;
+    }
+
+    // Set by a matrix that runs from an OpenAPI 3.1 document: every specification it generates from is then the
+    // same document as 3.1 (the generated server, each C# client, and the file the TypeScript CLI reads)
+    private static readonly AsyncLocal<bool> OpenApi31Run = new();
+
+    /// <summary>
+    /// The specification the running matrix generates from: as it is, or - in a run from an OpenAPI 3.1 document -
+    /// as that document.
+    /// </summary>
+    private static string Spec(string yaml)
+        => OpenApi31Run.Value ? AsOpenApi31(yaml) : yaml;
+
+    // The version a specification says it is written in ("openapi: 3.1.0"): what a matrix records of its run
+    private static string? OpenApiVersionOf(string yaml)
+        => Regex.Match(yaml, @"^openapi: (?<version>\S+)", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)) is { Success: true } match
+            ? match.Groups["version"].Value
+            : null;
+
+    /// <summary>
+    /// The specification as an OpenAPI 3.1 document: the version, and a nullable type as a type array
+    /// (<c>type: [string, 'null']</c>) - <c>nullable</c> is no 3.1 keyword. Nothing else in the matrices'
+    /// specifications is written differently in 3.1.
+    /// </summary>
+    private static string AsOpenApi31(string yaml)
+    {
+        var converted = Regex.Replace(
+            yaml.Replace("openapi: 3.0.3", "openapi: 3.1.0", StringComparison.Ordinal),
+            @"\{ type: (?<type>\w+), nullable: true \}",
+            "{ type: [${type}, 'null'] }",
+            RegexOptions.ExplicitCapture,
+            TimeSpan.FromSeconds(1));
+        if (!converted.Contains("openapi: 3.1.0", StringComparison.Ordinal) || converted.Contains("nullable:", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The specification is not an OpenAPI 3.1 document after the conversion: a version other than 3.0.3, or a nullable that is no '{ type: x, nullable: true }'.");
+        }
+
+        return converted;
     }
 
     private static string BuildYaml()

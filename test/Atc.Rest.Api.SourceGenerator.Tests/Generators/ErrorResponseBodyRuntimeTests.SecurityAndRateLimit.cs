@@ -335,6 +335,43 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix from the specification as an OpenAPI 3.1 document: the security schemes, the scopes and the
+    /// rate limits must guard every operation as they do from the 3.0 document.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientIsGuardedAsTheSpecificationSays_WithAnOpenApi31Document()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the security and rate-limit matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectGuardMatrixAsync(openApi31: true);
+        Assert.Equal("3.1.0", (string?)matrix["openApi"]);
+        if (Environment.GetEnvironmentVariable("GUARD_E2E_31_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownGuardFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownGuardFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownGuardFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
     /// Calls every case through a generated C# client against the live host, as many times as the case says, with
     /// the case's credentials on every request; each call's outcome is the status, the accessor the client offers
     /// for it, and the <c>Retry-After</c> it exposes.
@@ -813,14 +850,16 @@ public partial class ErrorResponseBodyRuntimeTests
             => text.Length > 120 ? text[..120] + "..." : text;
     }
 
-    private static async Task<JsonObject> CollectGuardMatrixAsync()
+    private static async Task<JsonObject> CollectGuardMatrixAsync(
+        bool openApi31 = false)
     {
+        OpenApi31Run.Value = openApi31;
         var started = DateTimeOffset.Now;
         var cases = GuardCases();
         var log = new ConcurrentQueue<(string Probe, GuardLogEntry Entry)>();
 
         await using var host = await XmlTestHost.StartAsync(
-            GuardYaml,
+            Spec(GuardYaml),
             GuardHandlerSource,
             "ErrorBodies.RuntimeTest.GuardRegistration",
             app => app.Use(async (context, next) =>
@@ -860,7 +899,7 @@ public partial class ErrorResponseBodyRuntimeTests
         var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var client in GuardClients.Where(c => c.Marker.Length > 0))
         {
-            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, GuardYaml);
+            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, Spec(GuardYaml));
             var usings = sources
                 .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
                 .Where(ns => ns.Length > 0)
@@ -906,6 +945,7 @@ public partial class ErrorResponseBodyRuntimeTests
         return new JsonObject
         {
             ["generatedAt"] = started.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
+            ["openApi"] = OpenApiVersionOf(Spec(GuardYaml)),
             ["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1),
             ["clients"] = new JsonArray([.. GuardClients.Select(c => (JsonNode)new JsonObject { ["id"] = c.Id, ["group"] = c.Group, ["label"] = c.Label })]),
             ["cases"] = casesArray,
@@ -936,7 +976,7 @@ public partial class ErrorResponseBodyRuntimeTests
         try
         {
             var yamlPath = Path.Combine(work, "ErrorBodies.yaml");
-            File.WriteAllText(yamlPath, GuardYaml);
+            File.WriteAllText(yamlPath, Spec(GuardYaml));
 
             var cli = FindCliExecutable();
             foreach (var client in (string[])["Fetch", "Axios"])

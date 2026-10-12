@@ -48,6 +48,35 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix from the specification as an OpenAPI 3.1 document: every file, upload and XML body must be read
+    /// as it is from the 3.0 document.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientReadsEveryBodyMediaType_WithAnOpenApi31Document()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the body media-type matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectBodyMediaMatrixAsync(openApi31: true);
+        Assert.Equal("3.1.0", (string?)matrix["openApi"]);
+        if (Environment.GetEnvironmentVariable("BODYMEDIA_E2E_31_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = BodyMediaFailingCells(matrix);
+        Assert.True(failures.Count == 0, $"{failures.Count} failing cells:\n" + string.Join("\n", failures.Take(80)));
+    }
+
+    /// <summary>
     /// The verdicts are not blind: a changed byte, content type or file name; a changed model field, status or media
     /// type; a file where a model is expected; a wrong error status, media type or body field; and a server that writes
     /// other bytes each fail - and what the server wrote passes.
@@ -199,14 +228,16 @@ public partial class ErrorResponseBodyRuntimeTests
         return failures;
     }
 
-    private static async Task<JsonObject> CollectBodyMediaMatrixAsync()
+    private static async Task<JsonObject> CollectBodyMediaMatrixAsync(
+        bool openApi31 = false)
     {
+        OpenApi31Run.Value = openApi31;
         var started = DateTimeOffset.Now;
         var cases = BodyMediaCases();
 
         // A proxy in front of the API answers /.../502 with its own HTML page: no generated code runs.
         await using var host = await XmlTestHost.StartAsync(
-            BodyMediaYaml,
+            Spec(BodyMediaYaml),
             BodyMediaHandlerSource,
             "ErrorBodies.RuntimeTest.BodyMediaRegistration",
             app => app.Use(async (context, next) =>
@@ -241,7 +272,7 @@ public partial class ErrorResponseBodyRuntimeTests
         var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var client in BodyMediaClients.Where(c => c.Marker.Length > 0))
         {
-            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, BodyMediaYaml);
+            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, Spec(BodyMediaYaml));
             var usings = sources
                 .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
                 .Where(ns => ns.Length > 0)
@@ -302,6 +333,7 @@ public partial class ErrorResponseBodyRuntimeTests
         return new JsonObject
         {
             ["generatedAt"] = started.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
+            ["openApi"] = OpenApiVersionOf(Spec(BodyMediaYaml)),
             ["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1),
             ["clients"] = new JsonArray([.. BodyMediaClients.Select(c => (JsonNode)new JsonObject { ["id"] = c.Id, ["group"] = c.Group, ["label"] = c.Label })]),
             ["cases"] = casesArray,
@@ -898,7 +930,7 @@ public partial class ErrorResponseBodyRuntimeTests
         try
         {
             var yamlPath = Path.Combine(work, "ErrorBodies.yaml");
-            File.WriteAllText(yamlPath, BodyMediaYaml);
+            File.WriteAllText(yamlPath, Spec(BodyMediaYaml));
 
             var cli = FindCliExecutable();
             foreach (var client in (string[])["Fetch", "Axios"])

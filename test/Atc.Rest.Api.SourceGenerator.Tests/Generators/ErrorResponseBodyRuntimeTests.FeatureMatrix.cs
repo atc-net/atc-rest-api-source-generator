@@ -1632,6 +1632,43 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix from the specification as an OpenAPI 3.1 document (its nullable member a type array): every
+    /// feature must run as it does from the 3.0 document.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientRunsEveryFeature_WithAnOpenApi31Document()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the feature matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectFeatureMatrixAsync(openApi31: true);
+        Assert.Equal("3.1.0", (string?)matrix["openApi"]);
+        if (Environment.GetEnvironmentVariable("FEATURE_E2E_31_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownFeatureFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownFeatureFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownFeatureFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
     /// The verdict is not blind: a short stream, a failure that does not surface, a cancellation the server did
     /// not see, a lost page, a changed echo, a lost base property, a date that became a date-time and a 304 that
     /// is not one each fail; the documented outcome passes.
@@ -2213,13 +2250,15 @@ public partial class ErrorResponseBodyRuntimeTests
         }
     }
 
-    private static async Task<JsonObject> CollectFeatureMatrixAsync()
+    private static async Task<JsonObject> CollectFeatureMatrixAsync(
+        bool openApi31 = false)
     {
+        OpenApi31Run.Value = openApi31;
         var started = DateTimeOffset.Now;
         var cases = FeatureCases();
 
         await using var host = await XmlTestHost.StartAsync(
-            FeatureYaml,
+            Spec(FeatureYaml),
             FeatureHandlerSource,
             "ErrorBodies.RuntimeTest.FeatureRegistration",
             app => app.Use(async (context, next) =>
@@ -2240,7 +2279,7 @@ public partial class ErrorResponseBodyRuntimeTests
         var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var client in FeatureClients.Where(c => c.Marker.Length > 0))
         {
-            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, FeatureYaml);
+            var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", client.Marker, includeMinimalApi: false, Spec(FeatureYaml));
             var usings = sources
                 .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
                 .Where(ns => ns.Length > 0)
@@ -2295,6 +2334,7 @@ public partial class ErrorResponseBodyRuntimeTests
         return new JsonObject
         {
             ["generatedAt"] = started.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
+            ["openApi"] = OpenApiVersionOf(Spec(FeatureYaml)),
             ["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1),
             ["clients"] = new JsonArray([.. FeatureClients.Select(c => (JsonNode)new JsonObject { ["id"] = c.Id, ["group"] = c.Group, ["label"] = c.Label })]),
             ["cases"] = casesArray,
@@ -2355,7 +2395,7 @@ public partial class ErrorResponseBodyRuntimeTests
         try
         {
             var yamlPath = Path.Combine(work, "ErrorBodies.yaml");
-            File.WriteAllText(yamlPath, FeatureYaml);
+            File.WriteAllText(yamlPath, Spec(FeatureYaml));
 
             var cli = FindCliExecutable();
             foreach (var (flavour, options) in ((string, string)[])[("fetch", "--client-type Fetch"), ("axios", "--client-type Axios"), ("fetch-zod", "--client-type Fetch --zod --zod-runtime-validate"), ("fetch-reactquery", "--client-type Fetch --hooks ReactQuery"), ("fetch-swr", "--client-type Fetch --hooks Swr")])

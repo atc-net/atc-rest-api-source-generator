@@ -120,7 +120,8 @@
   .filters .label { font: 500 11px/1 "IBM Plex Mono", ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); min-width: 92px; }
   .chipbox { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 0; min-width: 0; }
   .filters .row > .chipbox:only-of-type { flex: 1 1 0; }
-  .filters .row label.chipbox { flex: 0 0 auto; }
+  .filters .row label.chipbox { flex: 0 0 auto; min-width: max-content; }
+  .filters select, .filters input[type="search"] { max-width: 100%; }
   .chipbox label { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; background: var(--surface); font-size: 12.5px; user-select: none; }
   .chipbox input { margin: 0; accent-color: var(--accent); }
   .chipbox label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
@@ -323,6 +324,26 @@
   <section id="tab-binding31" role="tabpanel" hidden>
     <div class="panel" id="binding31-intro"></div>
     <div id="binding31"></div>
+  </section>
+
+  <section id="tab-matrix31" role="tabpanel" hidden>
+    <div class="panel" id="matrix31-intro"></div>
+    <div id="matrix31"></div>
+  </section>
+
+  <section id="tab-media31" role="tabpanel" hidden>
+    <div class="panel" id="media31-intro"></div>
+    <div id="media31"></div>
+  </section>
+
+  <section id="tab-guard31" role="tabpanel" hidden>
+    <div class="panel" id="guard31-intro"></div>
+    <div id="guard31"></div>
+  </section>
+
+  <section id="tab-feature31" role="tabpanel" hidden>
+    <div class="panel" id="feature31-intro"></div>
+    <div id="feature31"></div>
   </section>
 
   <section id="tab-guard" role="tabpanel" hidden>
@@ -932,6 +953,15 @@ if (!REPORT) {
     mountErrorMatrix('errorBodiesPlain', 'matrixplain', $('#matrixplain'), plain, { cases: REPORT.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
   }
 
+  // The same matrix from the specification as an OpenAPI 3.1 document
+  const errorBodies31 = REPORT.errorBodies31;
+  if (!errorBodies31) {
+    $('#matrix31-intro').innerHTML = '<p>This report was generated without this matrix.</p>';
+  } else {
+    $('#matrix31-intro').innerHTML = openApi31Intro('Error bodies', 'the <b>Error bodies</b> tab', errorBodies31, 'EndToEnd_EveryClientReadsWhatTheServerWrites_WithAnOpenApi31Document');
+    mountErrorMatrix('errorBodies31', 'matrix31', $('#matrix31'), errorBodies31, openApi30Baseline(REPORT.cases));
+  }
+
   // How it was tested
   $('#method').innerHTML = `
     <h2>How every cell was produced</h2>
@@ -980,8 +1010,26 @@ if (!REPORT) {
     <p class="counts">${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · ${wireTotal} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(media.generatedAt)} in ${esc(media.durationSeconds)} s</p>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsEveryBodyMediaType"</code> (fails on any fail cell).</p></div>`;
 
-  mountCaseMatrix('bodyMedia', 'media', $('#media'), media);
+  mountCaseMatrix('bodyMedia', 'media', $('#media'), media, 'bodyMedia');
 })();
+
+// A matrix from its specification as an OpenAPI 3.1 document is read against the run from the 3.0 document
+const MATRIX_TESTS_31 = {
+  bodyMedia31: 'EndToEnd_EveryClientReadsEveryBodyMediaType_WithAnOpenApi31Document',
+  guard31: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays_WithAnOpenApi31Document',
+  feature31: 'EndToEnd_EveryClientRunsEveryFeature_WithAnOpenApi31Document',
+};
+function reproduce31(test) { return `dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*${test}"`; }
+function openApi30Baseline(cases) { return { cases, name: 'OpenAPI 3.0', option: 'rows that differ from the OpenAPI 3.0 document' }; }
+function openApi31Intro(title, sameAs, data, test) {
+  const counts = {};
+  for (const c of data.cases) for (const cell of Object.values(c.clients)) counts[cell.verdict] = (counts[cell.verdict] ?? 0) + 1;
+  return `
+    <h2>${title} &middot; an OpenAPI 3.1 document</h2>
+    <p>The same specification, handlers, clients and cases as ${sameAs}, with the specification written as an OpenAPI 3.1 document (<code>openapi: ${esc(data.openApi ?? '3.1.0')}</code>; a nullable type is a type array, <code>type: [string, 'null']</code>): the server, every C# client and every TypeScript client are generated from it. A 3.1 document that says the same must give the same server and the same clients, so every cell must be what it is from the 3.0 document - a <span class="dv">≠</span> marks one that is not.</p>
+    <p class="counts">${data.cases.length} cases × ${data.clients.length} clients: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</p>
+    <div class="note"><p><b>Reproduce:</b> <code>${esc(reproduce31(test))}</code></p></div>`;
+}
 
 // A case x client matrix, one table per group (body media types, request binding, security, features): filters,
 // the tables and the registry entry the cell detail reads. Variants of one matrix (`share`) keep one set of filters,
@@ -1132,13 +1180,28 @@ renderCaseMatrix('guard', 'guard', REPORT?.guard, `
   <h2>Security &amp; rate limiting</h2>
   <p>The generated server with two test authentication schemes (a bearer token that spells out subject, scopes and roles; an API key) and every generated client calling its secured and rate-limited operations - without credentials, with the wrong ones, with the right ones, and past a limiter's budget. Each cell lists the statuses the client saw, call by call, against what the specification and the documented contract say; the server's own log of the cell's requests (<i>server</i>) proves what the client's retry policy did with a 429: a <code>Retry-After</code> past the cap is handed back at once, a short one is waited for and the retry succeeds, a 429 without one is retried with the policy's back-off.</p>
   <p><b>Not exercised.</b> ${notExercisedHtml('guard')}</p>
-  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientIsGuardedAsTheSpecificationSays"</code></p></div>`);
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientIsGuardedAsTheSpecificationSays"</code></p></div>`, 'guard');
 
 renderCaseMatrix('feature', 'feature', REPORT?.feature, `
   <h2>Features</h2>
   <p>The generated server with handlers that stream, page, echo and version, and every generated client - the C# EndpointPerOperation and typed clients, the TypeScript Fetch and Axios clients, the Fetch client with Zod runtime validation, and the React Query and SWR hooks rendered with React - running each feature against it over HTTP: Server-Sent Events, JSON Lines and a JSON array streamed as <code>IAsyncEnumerable</code>, each to the end, with the handler failing mid-stream, and cancelled by the client (the server must see the cancellation); a paginated read walked by its continuation (the infinite hooks walk it); a <code>oneOf</code> with a discriminator and a three-level <code>allOf</code> round-tripped through the client; an enum by its value and an unknown value from the server; a date and a date-time; a conditional 304; and the calls that get no response - a connection that resets mid-body, a server that never answers, a body that stalls, a port no server listens on and a host name that does not resolve - each of which must reject with the transport's own error, never an <code>ApiError</code>.</p>
   <p><b>Not exercised.</b> ${notExercisedHtml('feature')}</p>
-  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientRunsEveryFeature"</code></p></div>`);
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientRunsEveryFeature"</code></p></div>`, 'feature');
+
+// The twins from an OpenAPI 3.1 document: the case matrices (the error-body one is mounted with its matrix)
+for (const [key, tab, base, title, sameAs] of [
+  ['bodyMedia31', 'media31', 'bodyMedia', 'Body media types', 'the <b>Body media types</b> tab'],
+  ['guard31', 'guard31', 'guard', 'Security &amp; rate limiting', 'the <b>Security &amp; rate limiting</b> tab'],
+  ['feature31', 'feature31', 'feature', 'Features', 'the <b>Features</b> tab'],
+]) {
+  const data = REPORT?.[key];
+  if (!data) {
+    $(`#${tab}-intro`).innerHTML = '<p>This report was generated without this matrix.</p>';
+  } else {
+    $(`#${tab}-intro`).innerHTML = openApi31Intro(title, sameAs, data, MATRIX_TESTS_31[key]);
+    mountCaseMatrix(key, tab, $('#' + tab), data, base, REPORT?.[base]?.cases ? openApi30Baseline(REPORT[base].cases) : null);
+  }
+}
 
 // Feature support: every scenario specification through every C# generator (the compile gate), by OpenAPI version; the tsc matrix when its gate has run
 (function renderSupport() {
@@ -1234,9 +1297,9 @@ renderCaseMatrix('feature', 'feature', REPORT?.feature, `
 // The top of the Overview: the state of the run in one glance, a start for each reader, and what needs attention.
 // Everything here is computed from REPORT.summary (written by the test) and REPORT.ratchet.
 // ---------------------------------------------------------------------------------------------------------------
-const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features' };
-const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBinding31: 'binding31', guard: 'guard', feature: 'feature' };
-const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix' };
+const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features', errorBodies31: 'Error bodies · OpenAPI 3.1', bodyMedia31: 'Body media types · OpenAPI 3.1', guard31: 'Security & rate limiting · OpenAPI 3.1', feature31: 'Features · OpenAPI 3.1' };
+const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBinding31: 'binding31', guard: 'guard', feature: 'feature', errorBodies31: 'matrix31', bodyMedia31: 'media31', guard31: 'guard31', feature31: 'feature31' };
+const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix', errorBodies31: 'EndToEndMatrix', bodyMedia31: 'BodyMediaMatrix', guard31: 'SecurityAndRateLimit', feature31: 'FeatureMatrix' };
 const MATRIX_TESTS = {
   errorBodies: 'EndToEnd_EveryClientReadsWhatTheServerWrites',
   errorBodiesPlain: 'EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost',
@@ -1246,6 +1309,10 @@ const MATRIX_TESTS = {
   requestBinding31: 'EndToEnd_EveryClientSendsWhatTheServerBinds_WithAnOpenApi31Document',
   guard: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays',
   feature: 'EndToEnd_EveryClientRunsEveryFeature',
+  errorBodies31: 'EndToEnd_EveryClientReadsWhatTheServerWrites_WithAnOpenApi31Document',
+  bodyMedia31: 'EndToEnd_EveryClientReadsEveryBodyMediaType_WithAnOpenApi31Document',
+  guard31: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays_WithAnOpenApi31Document',
+  feature31: 'EndToEnd_EveryClientRunsEveryFeature_WithAnOpenApi31Document',
 };
 const REPORT_TEST = 'Report_EndToEndErrorBodyMatrix';
 const cmdFor = (test, explicit) => `dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*${test}"${explicit ? ' --explicit only' : ''}`;
@@ -1380,14 +1447,14 @@ document.addEventListener('click', (e) => {
       <li>In this file: <code>const REPORT = {…}</code> at the start of the script - the whole dataset. <code>docs/test-suite-report.html</code> in the repository is the last committed run.</li>
       <li>Beside this page: <code>docs/test-suite-report.json</code> (the same object, indented) and <code>docs/test-suite-report.history.jsonl</code> (the last run's verdict per cell - what <b>Changes since previous run</b> is computed from; overwritten each run, git keeps the older ones); all three are committed together, so a new run is compared with the last committed one.</li>
       <li>In CI: the <code>test-suite-report</code> artifact of the build workflow.</li>
-      <li>A matrix that runs against more than one host or document is one tab with a switch: <code>#matrix</code> / <code>#matrixplain</code> (error bodies on the generated host / the <code>MapEndpoints()</code> host) and <code>#binding</code> / <code>#bindingplain</code> / <code>#binding31</code>. The variants share their filters, and a <b>≠</b> marks a cell that differs from the same cell on the generated host (the 3.0 document for 3.1).</li>
+      <li>A matrix that runs against more than one host or document is one tab with a switch: <code>#matrix</code> / <code>#matrixplain</code> (error bodies on the generated host / the <code>MapEndpoints()</code> host) and <code>#binding</code> / <code>#bindingplain</code> / <code>#binding31</code>; every matrix also has its run from an OpenAPI 3.1 document (<code>#matrix31</code>, <code>#media31</code>, <code>#guard31</code>, <code>#feature31</code>). The variants share their filters, and a <b>≠</b> marks a cell that differs from the same cell on the generated host (the 3.0 document for 3.1).</li>
       <li>A link to one cell: <code>#&lt;tab&gt;/&lt;case id&gt;/&lt;client id or wire&gt;</code> (each part URL-encoded) opens that cell's detail - the address shows it while a cell is open, and its <b>copy link</b> button copies it.</li>
     </ul>
     <h3>Shape of REPORT</h3>
     <div class="table-wrap"><table class="kv-table"><tbody>
       <tr><td>summary</td><td><code>state</code> = <code>green</code> | <code>known-failures</code> | <code>regressions</code>; <code>unexpectedFailures</code> = cell keys <code>matrix|case|client</code>; <code>matrices[key]</code> = { cases, clients, verdicts{pass,lossy,fail,platform,na}, knownFailures }; <code>compileGate</code> = { scenarios, clean, generators }, <code>diagnostics</code> = { rules, tested }, <code>playwright</code> = { apps, failed, flaky } (flaky: failed, then passed on a retry - not a failure).</td></tr>
       <tr><td>cases</td><td>The error-body matrix: one object per case - <code>id</code>, <code>status</code>, <code>group</code> (scenario), <code>operation</code> (declaration), <code>handler</code>, <code>wire</code> { verdict, status, contentType, body, why } and <code>clients[clientId]</code> { verdict, why, summary, loss?, assessment? }.</td></tr>
-      <tr><td>bodyMedia, requestBinding, guard, feature</td><td>The other matrices: { generatedAt, durationSeconds, clients[], cases[] } with the same cell shape; a case may carry <code>expects</code> and a <code>wire</code>.</td></tr>
+      <tr><td>bodyMedia, requestBinding, guard, feature - and <code>…Plain</code> / <code>…31</code> (the MapEndpoints host, an OpenAPI 3.1 document)</td><td>The other matrices: { generatedAt, durationSeconds, clients[], cases[] } with the same cell shape; a case may carry <code>expects</code> and a <code>wire</code>.</td></tr>
       <tr><td>ratchet[key]</td><td>The cells each matrix expects to fail, as <code>case [clientId]</code> - mirrors the <code>Known…Failures</code> set in the matrix's test file. A fail not listed here fails the test; a listed cell that passes fails it too (remove it).</td></tr>
       <tr><td>ratchetReasons[key]</td><td>Why each ratcheted cell is expected to fail: <code>case [clientId]</code> to the reason its <code>Known…Failures</code> entry records (a cell without a reason fails <code>RatchetReasons_GiveEveryKnownCellAReason</code>).</td></tr>
       <tr><td>notExercised[key]</td><td>What the matrix deliberately leaves out, one sentence each (<code>…NotExercised</code> arrays in <code>Report.cs</code>, checked against the cases by <code>NotExercised_NamesNothingAMatrixCovers</code>).</td></tr>
@@ -1487,11 +1554,14 @@ document.addEventListener('click', (e) => {
 })();
 
 // Tabs. A matrix that runs against more than one host or document is one tab with a switch (its variants); each
-// variant keeps the address it always had (#matrixplain, #bindingplain, #binding31). The address names the tab and,
+// variant has an address of its own (#matrixplain, #bindingplain, #binding31, #matrix31, #media31, #guard31, #feature31). The address names the tab and,
 // while a cell is open, the cell (#feature/<case>/<client>), so a link opens what its sender was looking at.
 const VARIANTS = {
-  matrix: [['matrix', 'Atc.Rest.MinimalApi host'], ['matrixplain', 'MapEndpoints() host']],
+  matrix: [['matrix', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['matrixplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['matrix31', 'OpenAPI 3.1 document']],
+  media: [['media', 'OpenAPI 3.0 document'], ['media31', 'OpenAPI 3.1 document']],
   binding: [['binding', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['bindingplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['binding31', 'OpenAPI 3.1 document']],
+  guard: [['guard', 'OpenAPI 3.0 document'], ['guard31', 'OpenAPI 3.1 document']],
+  feature: [['feature', 'OpenAPI 3.0 document'], ['feature31', 'OpenAPI 3.1 document']],
 };
 const PARENT = {};
 for (const [parent, list] of Object.entries(VARIANTS)) {

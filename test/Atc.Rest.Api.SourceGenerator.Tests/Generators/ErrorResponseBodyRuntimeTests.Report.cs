@@ -22,7 +22,7 @@ public partial class ErrorResponseBodyRuntimeTests
         "A server with the ValidationFilter or the global error handler switched off through the marker (the host without Atc.Rest.MinimalApi - MapEndpoints() with the wiring written by hand - has its own tabs).",
         "Network failures, timeouts and cancellation (the feature matrix runs a reset, a hang, a stall and a mid-body cancel).",
         "HEAD, and 2xx statuses other than 200 and 204 on the sweep operations (every 1xx, 2xx and 3xx has its own operation under Statuses 1xx-3xx).",
-        "OpenAPI 3.1 / 3.2 documents beyond the request-binding matrix's 3.1 twin (type arrays, null on the wire, a const, a tuple): the other matrices run a 3.0.3 specification; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
+        "What only OpenAPI 3.1 / 3.2 can say, beyond the request-binding matrix's 3.1 body (type arrays, null on the wire, a const, a tuple): every matrix also runs from its specification as a 3.1 document, which says what the 3.0 one says; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
         "The React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies: the error path is the same `ApiError`.",
         "A browser runtime: the TypeScript clients run on Node, so CORS and header exposure are not observed.",
         "Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407.",
@@ -101,6 +101,12 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["requestBinding31"] = await CollectRequestBindingMatrixAsync(openApi31: true);
         matrix["guard"] = await CollectGuardMatrixAsync();
         matrix["feature"] = await CollectFeatureMatrixAsync();
+
+        // The other matrices from their specifications as OpenAPI 3.1 documents too
+        matrix["errorBodies31"] = await CollectEndToEndMatrixAsync(openApi31: true);
+        matrix["bodyMedia31"] = await CollectBodyMediaMatrixAsync(openApi31: true);
+        matrix["guard31"] = await CollectGuardMatrixAsync(openApi31: true);
+        matrix["feature31"] = await CollectFeatureMatrixAsync(openApi31: true);
         matrix["notExercised"] = new JsonObject
         {
             ["errorBodies"] = new JsonArray([.. EndToEndNotExercised.Select(s => (JsonNode)s)]),
@@ -487,6 +493,12 @@ public partial class ErrorResponseBodyRuntimeTests
             ["requestBinding31"] = new JsonArray([.. KnownRequestBinding31Failures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["guard"] = new JsonArray([.. KnownGuardFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["feature"] = new JsonArray([.. KnownFeatureFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+
+            // The twins from an OpenAPI 3.1 document expect what their matrix expects
+            ["errorBodies31"] = new JsonArray(),
+            ["bodyMedia31"] = new JsonArray(),
+            ["guard31"] = new JsonArray([.. KnownGuardFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["feature31"] = new JsonArray([.. KnownFeatureFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
         };
 
     /// <summary>
@@ -501,7 +513,9 @@ public partial class ErrorResponseBodyRuntimeTests
             ("requestBindingPlain", KnownPlainRequestBindingFailures),
             ("requestBinding31", KnownRequestBinding31Failures),
             ("guard", KnownGuardFailures),
-            ("feature", KnownFeatureFailures)])
+            ("feature", KnownFeatureFailures),
+            ("guard31", KnownGuardFailures),
+            ("feature31", KnownFeatureFailures)])
         {
             reasons[key] = new JsonObject(known.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => KeyValuePair.Create(k.Key, (JsonNode?)k.Value)));
         }
@@ -554,7 +568,7 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject matrix)
     {
         yield return ("errorBodies", matrix["cases"]!.AsArray().Select(c => c!.AsObject()));
-        foreach (var key in (string[])["errorBodiesPlain", "bodyMedia", "requestBinding", "requestBindingPlain", "requestBinding31", "guard", "feature"])
+        foreach (var key in (string[])["errorBodiesPlain", "errorBodies31", "bodyMedia", "bodyMedia31", "requestBinding", "requestBindingPlain", "requestBinding31", "guard", "guard31", "feature", "feature31"])
         {
             if (matrix[key]?["cases"] is JsonArray cases)
             {
