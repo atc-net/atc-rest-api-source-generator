@@ -215,6 +215,13 @@ public class StreamingWireFramingTests
     [Theory]
     [InlineData("ReadJsonSequenceAsync", "\u001e{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n")]
     [InlineData("ReadMultipartMixedAsync", "--b\r\nContent-Type: application/json\r\n\r\n{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\r\n--b--\r\n")]
+    [InlineData("ReadMultipartMixedAsync", "--b\r\nContent-Type: application/json; a-parameter-that-never-ends-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadJsonLinesAsync", "{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n")]
+    [InlineData("ReadJsonLinesAsync", "{\"id\":\"a line that never ends aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadServerSentEventsAsync", "data: {\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n\n")]
+    [InlineData("ReadServerSentEventsAsync", ": a comment that never ends aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadServerSentEventsAsync", "data: [1,\ndata: 2,\ndata: 3,\ndata: 4,\ndata: 5]\n\n")]
+    [InlineData("ReadServerSentEventsAsync", "data: [1,\r\ndata: 2,\r\ndata: 3,\r\ndata: 4,\r\ndata: 5,\r\n")]
     public async Task Reader_ARecordPastTheMaximum_IsInvalidData(
         string readerName,
         string wire)
@@ -238,6 +245,37 @@ public class StreamingWireFramingTests
                 Assert.NotEqual(JsonValueKind.Undefined, item.ValueKind);
             }
         });
+    }
+
+    /// <summary>
+    /// The limit is per record, not per stream: records that each fit are all read from a stream longer than the
+    /// limit - whichever line ending the server writes.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonLinesAsync", "1234567\n1234567\n1234567\n1234567\n")]
+    [InlineData("ReadJsonLinesAsync", "1234567\r\n1234567\r\n1234567\r\n1234567")]
+    [InlineData("ReadServerSentEventsAsync", "data: 1234567\n\ndata: 1234567\n\ndata: 1234567\n\ndata: 1234567\n\n")]
+    [InlineData("ReadServerSentEventsAsync", "data: 1234567\r\n\r\ndata: 1234567\r\n\r\ndata: 1234567\r\n\r\ndata: 1234567\r\n\r\n")]
+    [InlineData("ReadServerSentEventsAsync", "data: 1234567\r\rdata: 1234567\r\rdata: 1234567\r\rdata: 1234567\r\r")]
+    [InlineData("ReadServerSentEventsAsync", ": keep-alive\n\nid:1\ndata:1234567\n\n: keep-alive\n\ndata: 1234567\n\ndata: 1234567\n\ndata: 1234567\n\n")]
+    public async Task Reader_RecordsWithinTheMaximum_AreAllRead(
+        string readerName,
+        string wire)
+    {
+        var readerType = LoadGeneratedType("StreamReaders");
+        readerType.GetProperty("MaxRecordLength")!.SetValue(null, 16);
+        var read = readerType.GetMethods().Single(m => m.Name == readerName && m.GetParameters()[0].ParameterType == typeof(Stream)).MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var items = (IAsyncEnumerable<JsonElement>)read.Invoke(null, [stream, new JsonSerializerOptions(), CancellationToken.None])!;
+
+        var numbers = new List<int>();
+        await foreach (var item in items)
+        {
+            numbers.Add(item.GetInt32());
+        }
+
+        Assert.Equal([1234567, 1234567, 1234567, 1234567], numbers);
     }
 
     [Fact]

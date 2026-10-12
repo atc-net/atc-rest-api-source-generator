@@ -95,6 +95,7 @@ public static class StreamReadersExtractor
         }
 
         sb.AppendLine("using System.Threading;");
+        sb.AppendLine("using System.Threading.Tasks;");
         if (perOperation)
         {
             sb.AppendLine("using Atc.Rest.Client.Serialization;");
@@ -107,8 +108,9 @@ public static class StreamReadersExtractor
         sb.AppendLine("internal static class StreamReaders");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// The longest record (a JSON Text Sequence record, a multipart part) a reader buffers, in bytes or characters:");
-        sb.AppendLine("    /// a longer one is an InvalidDataException, not a buffer that grows until the process runs out of memory.");
+        sb.AppendLine("    /// The longest record (a JSON Text Sequence record, a multipart part, a Server-Sent Event) or line (JSON Lines,");
+        sb.AppendLine("    /// a multipart header) a reader takes, in bytes or characters: a longer one is an InvalidDataException, not a");
+        sb.AppendLine("    /// buffer that grows until the process runs out of memory.");
         sb.AppendLine("    /// Default: 16 MB.");
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public static int MaxRecordLength { get; set; } = 16 * 1024 * 1024;");
@@ -121,7 +123,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
             sb.AppendLine("    {");
             sb.AppendLine("        var parser = SseParser.Create(");
-            sb.AppendLine("            stream,");
+            sb.AppendLine("            new LineLimitedStream(stream, untilBlankLine: true),");
             sb.AppendLine("            (eventType, bytes) => ReadEvent(eventType, bytes, data => serializer.Deserialize<T>(data)));");
         }
         else
@@ -130,7 +132,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
             sb.AppendLine("    {");
             sb.AppendLine("        var parser = SseParser.Create(");
-            sb.AppendLine("            stream,");
+            sb.AppendLine("            new LineLimitedStream(stream, untilBlankLine: true),");
             sb.AppendLine("            (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize(data, options.TypeInfo<T>())));");
         }
 
@@ -180,7 +182,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("        IContractSerializer serializer,");
             sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
             sb.AppendLine("    {");
-            sb.AppendLine("        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
+            sb.AppendLine("        using var reader = new StreamReader(new LineLimitedStream(stream), Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
             sb.AppendLine("        string? line;");
             sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)");
             sb.AppendLine("        {");
@@ -202,7 +204,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("        Stream stream,");
             sb.AppendLine("        JsonSerializerOptions options,");
             sb.AppendLine("        CancellationToken cancellationToken)");
-            sb.AppendLine("        => JsonSerializer.DeserializeAsyncEnumerable(stream, options.TypeInfo<T>(), topLevelValues: true, cancellationToken);");
+            sb.AppendLine("        => JsonSerializer.DeserializeAsyncEnumerable(new LineLimitedStream(stream), options.TypeInfo<T>(), topLevelValues: true, cancellationToken);");
         }
 
         sb.AppendLine();
@@ -300,7 +302,7 @@ public static class StreamReadersExtractor
         sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
         sb.AppendLine("    {");
         sb.AppendLine("        var delimiter = \"--\" + boundary;");
-        sb.AppendLine("        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
+        sb.AppendLine("        using var reader = new StreamReader(new LineLimitedStream(stream), Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
         sb.AppendLine("        var inPart = false;");
         sb.AppendLine("        var inHeaders = false;");
         sb.AppendLine("        var body = new StringBuilder();");
@@ -383,6 +385,112 @@ public static class StreamReadersExtractor
         sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        return seen && depth == 0 && !inString;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // The line cap of the framings read line by line: counted where the bytes arrive, so no reader behind it
+        // (a StreamReader, the SSE parser, the JSON reader) has buffered a line that never ends
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// What a reader reads through when the framing is made of lines (JSON Lines, Server-Sent Events, multipart): a");
+        sb.AppendLine("    /// line longer than MaxRecordLength is an InvalidDataException before the reader behind it has buffered it. A line");
+        sb.AppendLine("    /// ends at LF, CR or CRLF. With untilBlankLine the count runs on to the blank line that ends a Server-Sent Event,");
+        sb.AppendLine("    /// so an event of many short lines is limited as well. The stream read from is not this one's to close.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    private sealed class LineLimitedStream : Stream");
+        sb.AppendLine("    {");
+        sb.AppendLine("        private readonly Stream inner;");
+        sb.AppendLine("        private readonly bool untilBlankLine;");
+        sb.AppendLine("        private long length;");
+        sb.AppendLine("        private bool lineIsEmpty = true;");
+        sb.AppendLine("        private bool afterCarriageReturn;");
+        sb.AppendLine();
+        sb.AppendLine("        public LineLimitedStream(Stream inner, bool untilBlankLine = false)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            this.inner = inner;");
+        sb.AppendLine("            this.untilBlankLine = untilBlankLine;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override bool CanRead => true;");
+        sb.AppendLine();
+        sb.AppendLine("        public override bool CanSeek => false;");
+        sb.AppendLine();
+        sb.AppendLine("        public override bool CanWrite => false;");
+        sb.AppendLine();
+        sb.AppendLine("        public override long Length => throw new NotSupportedException();");
+        sb.AppendLine();
+        sb.AppendLine("        public override long Position");
+        sb.AppendLine("        {");
+        sb.AppendLine("            get => throw new NotSupportedException();");
+        sb.AppendLine("            set => throw new NotSupportedException();");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override void Flush()");
+        sb.AppendLine("        {");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override int Read(byte[] buffer, int offset, int count)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var read = inner.Read(buffer, offset, count);");
+        sb.AppendLine("            Count(buffer.AsSpan(offset, read));");
+        sb.AppendLine("            return read;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var read = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine("            Count(buffer.Span.Slice(0, read));");
+        sb.AppendLine("            return read;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)");
+        sb.AppendLine("            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();");
+        sb.AppendLine();
+        sb.AppendLine("        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();");
+        sb.AppendLine();
+        sb.AppendLine("        public override void SetLength(long value) => throw new NotSupportedException();");
+        sb.AppendLine();
+        sb.AppendLine("        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();");
+        sb.AppendLine();
+        sb.AppendLine("        private void Count(ReadOnlySpan<byte> bytes)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            while (!bytes.IsEmpty)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                var end = bytes.IndexOfAny((byte)'\\n', (byte)'\\r');");
+        sb.AppendLine("                var taken = end < 0 ? bytes.Length : end;");
+        sb.AppendLine("                if (taken > 0)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    length += taken;");
+        sb.AppendLine("                    lineIsEmpty = false;");
+        sb.AppendLine("                    afterCarriageReturn = false;");
+        sb.AppendLine("                    if (length > MaxRecordLength)");
+        sb.AppendLine("                    {");
+        sb.AppendLine("                        throw new InvalidDataException(untilBlankLine");
+        sb.AppendLine("                            ? $\"An event of the stream is longer than {MaxRecordLength} bytes.\"");
+        sb.AppendLine("                            : $\"A line of the stream is longer than {MaxRecordLength} bytes.\");");
+        sb.AppendLine("                    }");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                if (end < 0)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    return;");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                // The LF of a CRLF ends no line of its own");
+        sb.AppendLine("                var isLineFeedOfPair = bytes[end] == (byte)'\\n' && afterCarriageReturn;");
+        sb.AppendLine("                afterCarriageReturn = bytes[end] == (byte)'\\r';");
+        sb.AppendLine("                if (!isLineFeedOfPair)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    if (!untilBlankLine || lineIsEmpty)");
+        sb.AppendLine("                    {");
+        sb.AppendLine("                        length = 0;");
+        sb.AppendLine("                    }");
+        sb.AppendLine();
+        sb.AppendLine("                    lineIsEmpty = true;");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                bytes = bytes.Slice(end + 1);");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
         sb.AppendLine("    }");
 
         sb.AppendLine("}");

@@ -3,7 +3,6 @@
 #pragma warning disable CS1591
 using System.Linq;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -13,6 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace AsyncEnumerableHooks.Generated.Streaming;
 
@@ -20,8 +20,9 @@ namespace AsyncEnumerableHooks.Generated.Streaming;
 internal static class StreamReaders
 {
     /// <summary>
-    /// The longest record (a JSON Text Sequence record, a multipart part) a reader buffers, in bytes or characters:
-    /// a longer one is an InvalidDataException, not a buffer that grows until the process runs out of memory.
+    /// The longest record (a JSON Text Sequence record, a multipart part, a Server-Sent Event) or line (JSON Lines,
+    /// a multipart header) a reader takes, in bytes or characters: a longer one is an InvalidDataException, not a
+    /// buffer that grows until the process runs out of memory.
     /// Default: 16 MB.
     /// </summary>
     public static int MaxRecordLength { get; set; } = 16 * 1024 * 1024;
@@ -32,7 +33,7 @@ internal static class StreamReaders
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var parser = SseParser.Create(
-            stream,
+            new LineLimitedStream(stream, untilBlankLine: true),
             (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize(data, options.TypeInfo<T>())));
 
         await foreach (var item in parser.EnumerateAsync(cancellationToken).ConfigureAwait(false))
@@ -68,7 +69,7 @@ internal static class StreamReaders
         Stream stream,
         JsonSerializerOptions options,
         CancellationToken cancellationToken)
-        => JsonSerializer.DeserializeAsyncEnumerable(stream, options.TypeInfo<T>(), topLevelValues: true, cancellationToken);
+        => JsonSerializer.DeserializeAsyncEnumerable(new LineLimitedStream(stream), options.TypeInfo<T>(), topLevelValues: true, cancellationToken);
 
     public static async IAsyncEnumerable<T?> ReadJsonSequenceAsync<T>(
         Stream stream,
@@ -121,7 +122,7 @@ internal static class StreamReaders
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var delimiter = "--" + boundary;
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+        using var reader = new StreamReader(new LineLimitedStream(stream), Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
         var inPart = false;
         var inHeaders = false;
         var body = new StringBuilder();
@@ -202,5 +203,108 @@ internal static class StreamReaders
         }
 
         return seen && depth == 0 && !inString;
+    }
+
+    /// <summary>
+    /// What a reader reads through when the framing is made of lines (JSON Lines, Server-Sent Events, multipart): a
+    /// line longer than MaxRecordLength is an InvalidDataException before the reader behind it has buffered it. A line
+    /// ends at LF, CR or CRLF. With untilBlankLine the count runs on to the blank line that ends a Server-Sent Event,
+    /// so an event of many short lines is limited as well. The stream read from is not this one's to close.
+    /// </summary>
+    private sealed class LineLimitedStream : Stream
+    {
+        private readonly Stream inner;
+        private readonly bool untilBlankLine;
+        private long length;
+        private bool lineIsEmpty = true;
+        private bool afterCarriageReturn;
+
+        public LineLimitedStream(Stream inner, bool untilBlankLine = false)
+        {
+            this.inner = inner;
+            this.untilBlankLine = untilBlankLine;
+        }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = inner.Read(buffer, offset, count);
+            Count(buffer.AsSpan(offset, read));
+            return read;
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            Count(buffer.Span.Slice(0, read));
+            return read;
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        private void Count(ReadOnlySpan<byte> bytes)
+        {
+            while (!bytes.IsEmpty)
+            {
+                var end = bytes.IndexOfAny((byte)'\n', (byte)'\r');
+                var taken = end < 0 ? bytes.Length : end;
+                if (taken > 0)
+                {
+                    length += taken;
+                    lineIsEmpty = false;
+                    afterCarriageReturn = false;
+                    if (length > MaxRecordLength)
+                    {
+                        throw new InvalidDataException(untilBlankLine
+                            ? $"An event of the stream is longer than {MaxRecordLength} bytes."
+                            : $"A line of the stream is longer than {MaxRecordLength} bytes.");
+                    }
+                }
+
+                if (end < 0)
+                {
+                    return;
+                }
+
+                // The LF of a CRLF ends no line of its own
+                var isLineFeedOfPair = bytes[end] == (byte)'\n' && afterCarriageReturn;
+                afterCarriageReturn = bytes[end] == (byte)'\r';
+                if (!isLineFeedOfPair)
+                {
+                    if (!untilBlankLine || lineIsEmpty)
+                    {
+                        length = 0;
+                    }
+
+                    lineIsEmpty = true;
+                }
+
+                bytes = bytes.Slice(end + 1);
+            }
+        }
     }
 }

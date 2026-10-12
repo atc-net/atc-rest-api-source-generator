@@ -55,6 +55,19 @@ async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, fi
   reader.releaseLock();
 }
 
+/**
+ * The longest record (an event, a JSON Lines line, a JSON Text Sequence record, a JSON array element, a multipart
+ * part) a stream reader takes, in characters: a longer one - or a server that never ends one - is a RangeError, not
+ * a buffer that grows until the tab or the process runs out of memory. Default: 16 MB. Settable.
+ */
+export const streamLimits = { maxRecordLength: 16 * 1024 * 1024 };
+
+function guardRecord(length: number): void {
+  if (length > streamLimits.maxRecordLength) {
+    throw new RangeError(`A streamed record is longer than ${streamLimits.maxRecordLength} characters.`);
+  }
+}
+
 async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
   let buffer = '';
   let finished = false;
@@ -65,6 +78,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
       buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
       let sep: number;
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        guardRecord(sep);
         const rawEvent = buffer.substring(0, sep);
         buffer = buffer.substring(sep + 2);
         const lines = rawEvent.split('\n');
@@ -86,6 +100,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
         }
         yield item;
       }
+      guardRecord(buffer.length);
     }
   } finally {
     await releaseReader(reader, finished);
@@ -137,11 +152,13 @@ async function* parseJsonArrayStream<T>(reader: ReadableStreamDefaultReader<Uint
         if (inArray && buffer.charAt(pos) === ']') { ended = true; break; }
         const end = scanJsonValue(buffer, pos, done);
         if (end === -1) break;
+        guardRecord(end - pos);
         yield JSON.parse(buffer.substring(pos, end)) as T;
         pos = end;
       }
       if (ended || done) break;
       if (pos > 0) { buffer = buffer.substring(pos); pos = 0; }
+      guardRecord(buffer.length);
     }
   } finally {
     await releaseReader(reader, finished);
@@ -159,10 +176,12 @@ async function* parseJsonLinesStream<T>(reader: ReadableStreamDefaultReader<Uint
       buffer += decoder.decode(value, { stream: true });
       let nl: number;
       while ((nl = buffer.indexOf('\n')) !== -1) {
+        guardRecord(nl);
         const line = buffer.substring(0, nl).trim();
         buffer = buffer.substring(nl + 1);
         if (line.length > 0) yield JSON.parse(line) as T;
       }
+      guardRecord(buffer.length);
     }
     const rest = buffer.trim();
     if (rest.length > 0) yield JSON.parse(rest) as T;
@@ -183,10 +202,12 @@ async function* parseJsonSeqStream<T>(reader: ReadableStreamDefaultReader<Uint8A
       buffer += decoder.decode(value, { stream: true });
       let rs: number;
       while ((rs = buffer.indexOf('\x1e', 1)) !== -1) {
+        guardRecord(rs);
         const item = parse(buffer.substring(0, rs));
         buffer = buffer.substring(rs);
         if (item !== undefined) yield item;
       }
+      guardRecord(buffer.length);
       if (buffer.endsWith('\n')) { const item = parse(buffer); buffer = ''; if (item !== undefined) yield item; }
     }
     const last = parse(buffer);
@@ -368,6 +389,7 @@ export class ApiClient {
             const partStart = delimiter.length;
             const next = buf.indexOf(delimiter, partStart);
             if (next === -1) {
+              guardRecord(buf.length - partStart);
               // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one
               const pending = buf.substring(partStart).replace(/^\r\n/, '');
               const pendingSep = pending.indexOf('\r\n\r\n');
@@ -375,6 +397,7 @@ export class ApiClient {
               if (pendingBody.length > 0 && pending.endsWith('\r\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }
               break;
             }
+            guardRecord(next - partStart);
             const part = buf.substring(partStart, next);
             buf = buf.substring(next);
             const trimmed = part.replace(/^\r\n/, '');

@@ -475,6 +475,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("            const partStart = delimiter.length;");
         sb.AppendLine("            const next = buf.indexOf(delimiter, partStart);");
         sb.AppendLine("            if (next === -1) {");
+        sb.AppendLine("              guardRecord(buf.length - partStart);");
         sb.AppendLine("              // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one");
         sb.AppendLine("              const pending = buf.substring(partStart).replace(/^\\r\\n/, '');");
         sb.AppendLine("              const pendingSep = pending.indexOf('\\r\\n\\r\\n');");
@@ -482,6 +483,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("              if (pendingBody.length > 0 && pending.endsWith('\\r\\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }");
         sb.AppendLine("              break;");
         sb.AppendLine("            }");
+        sb.AppendLine("            guardRecord(next - partStart);");
         sb.AppendLine("            const part = buf.substring(partStart, next);");
         sb.AppendLine("            buf = buf.substring(next);");
         sb.AppendLine("            const trimmed = part.replace(/^\\r\\n/, '');");
