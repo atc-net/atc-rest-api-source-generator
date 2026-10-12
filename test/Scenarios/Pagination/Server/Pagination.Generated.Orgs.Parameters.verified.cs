@@ -26,7 +26,7 @@ namespace Pagination.Generated.Orgs.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListOrgDevicesParameters(
-    [property: FromRoute(Name = "orgId"), Required] string OrgId,
+    [property: FromRoute(Name = "orgId"), Required, Display(Name = "orgId")] string OrgId,
 #nullable disable annotations
     string Continuation,
     string Tenant)

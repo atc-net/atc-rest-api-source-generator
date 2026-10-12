@@ -34,4 +34,4 @@ public sealed record ListPetsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ShowPetByIdParameters(
-    [property: FromRoute(Name = "petId"), Required] string PetId);
+    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] string PetId);

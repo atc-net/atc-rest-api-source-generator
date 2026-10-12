@@ -17,5 +17,5 @@ namespace RateLimit.Generated.Notifications.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Notification(
-    [property: Required, JsonRequired] string Recipient,
-    [property: Required, JsonRequired] string Message);
+    [property: Required, JsonRequired, Display(Name = "recipient")] string Recipient,
+    [property: Required, JsonRequired, Display(Name = "message")] string Message);

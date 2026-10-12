@@ -43,7 +43,7 @@ public sealed record CreateTaskParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetTaskByIdParameters(
-    [property: FromRoute(Name = "taskId"), Required] string TaskId);
+    [property: FromRoute(Name = "taskId"), Required, Display(Name = "taskId")] string TaskId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -52,7 +52,7 @@ public sealed record GetTaskByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteTaskByIdParameters(
-    [property: FromRoute(Name = "taskId"), Required] string TaskId);
+    [property: FromRoute(Name = "taskId"), Required, Display(Name = "taskId")] string TaskId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -61,5 +61,5 @@ public sealed record DeleteTaskByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateTaskByIdParameters(
-    [property: FromRoute(Name = "taskId"), Required] string TaskId,
+    [property: FromRoute(Name = "taskId"), Required, Display(Name = "taskId")] string TaskId,
     [property: FromBody, Required] Demo.Generated.Tasks.Models.Task Request);

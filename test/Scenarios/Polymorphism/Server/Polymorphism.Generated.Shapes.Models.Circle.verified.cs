@@ -17,4 +17,4 @@ namespace Polymorphism.Generated.Shapes.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Circle(
-    [property: Required, JsonRequired] double Radius);
+    [property: Required, JsonRequired, Display(Name = "radius")] double Radius);

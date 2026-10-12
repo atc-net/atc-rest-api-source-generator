@@ -18,5 +18,5 @@ namespace HostileNames.Generated.Pets.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record pet(
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     long? Id = null);

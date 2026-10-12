@@ -823,6 +823,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             recordsParameters = JsonRequiredHelper.AddJsonRequired(recordsParameters);
         }
 
+        // A validation message names a property as the caller sent it (its JSON name), as the message's key does
+        recordsParameters = WireDisplayNameHelper.ForModels(recordsParameters);
+
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
 
         // A model bound by Content-Type gets a partial with BindAsync, and an object in the query one with TryParse,
@@ -894,7 +897,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         ISet<string>? xmlModels,
         ISet<string>? xmlRequestModels)
     {
-        var source = xmlSources.FirstOrDefault(x => ReferenceEquals(x.Record, record));
+        // By name: the record may have been rebuilt since (required JSON properties, display names)
+        var source = xmlSources.FirstOrDefault(x => string.Equals(x.Record.Name, record.Name, StringComparison.Ordinal));
         if (source is null || xmlModels is null || xmlRequestModels?.Contains(source.SchemaKey) != true)
         {
             return record;
@@ -1468,6 +1472,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             return;
         }
+
+        // A validation message names a parameter as the specification does, as the message's key does
+        recordsParams = WireDisplayNameHelper.ForParameters(recordsParams);
 
         // Shaped so the Request Delegate Generator (a Native AOT build) can bind them
         var codeDocGenerator = new CodeDocumentationTagsGenerator();

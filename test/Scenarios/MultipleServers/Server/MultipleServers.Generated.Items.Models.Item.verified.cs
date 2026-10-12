@@ -17,6 +17,6 @@ namespace MultipleServers.Generated.Items.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Item(
-    [property: Required, JsonRequired] Guid Id,
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     string? Description = null);

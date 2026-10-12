@@ -34,7 +34,7 @@ public sealed record CreatePetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPetParameters(
-    [property: FromRoute(Name = "id"), Required] int Id);
+    [property: FromRoute(Name = "id"), Required, Display(Name = "id")] int Id);
 
 /// <summary>
 /// Parameters for operation request.
@@ -43,4 +43,4 @@ public sealed record GetPetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPhotoParameters(
-    [property: FromRoute(Name = "id"), Required] int Id);
+    [property: FromRoute(Name = "id"), Required, Display(Name = "id")] int Id);

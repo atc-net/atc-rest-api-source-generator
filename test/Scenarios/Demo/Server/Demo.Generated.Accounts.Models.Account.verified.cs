@@ -17,6 +17,6 @@ namespace Demo.Generated.Accounts.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Account(
-    [property: Required, JsonRequired] long Id,
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "id")] long Id,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     string? Tag = null);

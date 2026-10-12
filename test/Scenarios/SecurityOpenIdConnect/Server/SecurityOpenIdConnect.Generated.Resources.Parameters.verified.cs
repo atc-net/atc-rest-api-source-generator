@@ -34,7 +34,7 @@ public sealed record CreateResourceParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetResourceByIdParameters(
-    [property: FromRoute(Name = "resourceId"), Required] Guid ResourceId);
+    [property: FromRoute(Name = "resourceId"), Required, Display(Name = "resourceId")] Guid ResourceId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -43,4 +43,4 @@ public sealed record GetResourceByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteResourceParameters(
-    [property: FromRoute(Name = "resourceId"), Required] Guid ResourceId);
+    [property: FromRoute(Name = "resourceId"), Required, Display(Name = "resourceId")] Guid ResourceId);

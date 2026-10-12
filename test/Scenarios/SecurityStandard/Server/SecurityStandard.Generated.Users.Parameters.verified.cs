@@ -25,4 +25,4 @@ namespace SecurityStandard.Generated.Users.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetUserByIdParameters(
-    [property: FromRoute(Name = "userId"), Required] Guid UserId);
+    [property: FromRoute(Name = "userId"), Required, Display(Name = "userId")] Guid UserId);

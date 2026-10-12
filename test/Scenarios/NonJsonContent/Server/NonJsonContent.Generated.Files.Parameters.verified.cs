@@ -24,4 +24,4 @@ namespace NonJsonContent.Generated.Files.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DownloadFileParameters(
-    [property: FromRoute(Name = "fileId"), Required] string FileId);
+    [property: FromRoute(Name = "fileId"), Required, Display(Name = "fileId")] string FileId);

@@ -33,10 +33,10 @@ namespace ModelsAndProperties.Generated.Persons.Models;
 /// <param name="UpdatedAt">The updatedAt property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Person(
-    [property: Required, JsonRequired] Guid Id,
-    [property: Required, ApiMinLength(1), ApiMaxLength(50), JsonRequired] string FirstName,
-    [property: Required, ApiMinLength(1), ApiMaxLength(50), JsonRequired] string LastName,
-    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired] string Email,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
+    [property: Required, ApiMinLength(1), ApiMaxLength(50), JsonRequired, Display(Name = "firstName")] string FirstName,
+    [property: Required, ApiMinLength(1), ApiMaxLength(50), JsonRequired, Display(Name = "lastName")] string LastName,
+    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, Display(Name = "email")] string Email,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
     Uri? Website = null,
     DateOnly? DateOfBirth = null,

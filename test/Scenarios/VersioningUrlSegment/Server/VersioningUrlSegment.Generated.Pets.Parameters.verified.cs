@@ -43,7 +43,7 @@ public sealed record CreatePetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPetByIdParameters(
-    [property: FromRoute(Name = "petId"), Required] Guid PetId);
+    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] Guid PetId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -52,7 +52,7 @@ public sealed record GetPetByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetParameters(
-    [property: FromRoute(Name = "petId"), Required] Guid PetId,
+    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] Guid PetId,
     [property: FromBody, Required] UpdatePetRequest Request);
 
 /// <summary>
@@ -62,4 +62,4 @@ public sealed record UpdatePetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeletePetParameters(
-    [property: FromRoute(Name = "petId"), Required] Guid PetId);
+    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] Guid PetId);

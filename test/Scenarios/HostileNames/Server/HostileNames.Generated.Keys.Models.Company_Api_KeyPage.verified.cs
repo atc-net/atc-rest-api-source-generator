@@ -18,4 +18,4 @@ namespace HostileNames.Generated.Keys.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Company_Api_KeyPage(
-    [property: Required, JsonRequired] List<APIKey> Items);
+    [property: Required, JsonRequired, Display(Name = "items")] List<APIKey> Items);

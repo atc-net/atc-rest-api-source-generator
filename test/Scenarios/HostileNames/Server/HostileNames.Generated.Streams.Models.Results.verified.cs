@@ -21,4 +21,4 @@ namespace HostileNames.Generated.Streams.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Results(
-    [property: Required, JsonRequired] int Count);
+    [property: Required, JsonRequired, Display(Name = "count")] int Count);

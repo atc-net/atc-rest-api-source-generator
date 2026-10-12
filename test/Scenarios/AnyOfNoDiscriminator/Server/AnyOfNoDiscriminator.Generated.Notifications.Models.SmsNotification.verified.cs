@@ -17,5 +17,5 @@ namespace AnyOfNoDiscriminator.Generated.Notifications.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SmsNotification(
-    [property: Required, JsonRequired] string PhoneNumber,
-    [property: Required, JsonRequired] string Message);
+    [property: Required, JsonRequired, Display(Name = "phoneNumber")] string PhoneNumber,
+    [property: Required, JsonRequired, Display(Name = "message")] string Message);

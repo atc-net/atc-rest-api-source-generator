@@ -17,7 +17,7 @@ namespace SecurityAtcExt.Generated.Orders.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TrackingInfo(
-    [property: Required, JsonRequired] Guid OrderId,
-    [property: Required, JsonRequired] string Status,
+    [property: Required, JsonRequired, Display(Name = "orderId")] Guid OrderId,
+    [property: Required, JsonRequired, Display(Name = "status")] string Status,
     string? Location = null,
     DateTimeOffset? LastUpdated = null);

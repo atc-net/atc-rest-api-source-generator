@@ -34,4 +34,4 @@ public sealed record CreateOwnerParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOwnerByIdParameters(
-    [property: FromRoute(Name = "ownerId"), Required] Guid OwnerId);
+    [property: FromRoute(Name = "ownerId"), Required, Display(Name = "ownerId")] Guid OwnerId);

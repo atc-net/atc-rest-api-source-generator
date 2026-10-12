@@ -24,7 +24,7 @@ namespace Overlays.Generated.Models;
 /// <param name="Location">Where the device is installed.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Device(
-    [property: Required, JsonRequired] long Id,
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "id")] long Id,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     DateTimeOffset? LastSeen = null,
     DeviceLocation? Location = null);

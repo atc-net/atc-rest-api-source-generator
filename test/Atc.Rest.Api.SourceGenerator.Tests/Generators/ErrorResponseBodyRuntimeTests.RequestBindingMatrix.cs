@@ -860,6 +860,7 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             Assert.Equal(VerdictPass, RequestBindingWireVerdict(missingParameter, 400, "application/problem+json", named, plain).Verdict);
             Assert.Equal(VerdictFail, RequestBindingWireVerdict(missingParameter, 400, "application/problem+json", unnamed, plain).Verdict);
+            Assert.Equal(VerdictFail, RequestBindingWireVerdict(missingParameter, 400, "application/problem+json", """{"status":400,"errors":{"req":["The Req field is required."]}}""", plain).Verdict);
             Assert.Equal(VerdictPass, RequestBindingWireVerdict(missingProperty, 400, "application/problem+json", named, plain).Verdict);
             Assert.Equal(VerdictFail, RequestBindingWireVerdict(missingProperty, 200, "application/json", "{}", plain).Verdict);
         }
@@ -1346,6 +1347,20 @@ public partial class ErrorResponseBodyRuntimeTests
             return plainHost && wireCase.NamedByValidation && problem["errors"] is null
                 ? (VerdictLossy, $"rejected with the expected status as a problem, but '{key}' is not named: without Atc.Rest.MinimalApi's ValidationFilter the framework's JSON reader rejects the body")
                 : (VerdictFail, $"errors names [{keys}], expected '{key}'");
+        }
+
+        // The message is for the caller too: a "The X field is required." names the value as the caller sent it, not
+        // the C# member it is bound to
+        if (wireCase.ExpectedKey is { } named && problem["errors"]![named] is JsonArray messages)
+        {
+            foreach (var message in messages.Select(m => (string?)m ?? string.Empty))
+            {
+                var field = Regex.Match(message, @"^The (?<name>.+) field is required\.$", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+                if (field.Success && !string.Equals(field.Groups["name"].Value, named, StringComparison.Ordinal))
+                {
+                    return (VerdictFail, $"the message of '{named}' names '{field.Groups["name"].Value}': {message}");
+                }
+            }
         }
 
         return (VerdictPass, "the expected status as a problem" + (wireCase.ExpectedKey is null ? string.Empty : $", naming '{wireCase.ExpectedKey}'"));

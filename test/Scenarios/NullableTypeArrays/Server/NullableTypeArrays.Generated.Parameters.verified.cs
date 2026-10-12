@@ -34,4 +34,4 @@ public sealed record CreateProfileParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetProfileByIdParameters(
-    [property: FromRoute(Name = "id"), Required] string Id);
+    [property: FromRoute(Name = "id"), Required, Display(Name = "id")] string Id);

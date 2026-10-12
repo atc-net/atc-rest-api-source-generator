@@ -17,8 +17,8 @@ namespace CachingHybrid.Generated.Users.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    [property: Required, JsonRequired] Guid Id,
-    [property: Required, EmailAddress, JsonRequired] string Email,
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
+    [property: Required, EmailAddress, JsonRequired, Display(Name = "email")] string Email,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     string? Role = null,
     DateTimeOffset? CreatedAt = null);

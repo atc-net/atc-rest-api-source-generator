@@ -44,5 +44,5 @@ public sealed record ReposListParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReposGetParameters(
-    [property: FromRoute(Name = "package"), Required] string Package,
-    [property: FromRoute(Name = "function"), Required] string Function);
+    [property: FromRoute(Name = "package"), Required, Display(Name = "package")] string Package,
+    [property: FromRoute(Name = "function"), Required, Display(Name = "function")] string Function);

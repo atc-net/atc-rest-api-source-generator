@@ -25,4 +25,4 @@ namespace NonJsonContent.Generated.Items.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemSheetParameters(
-    [property: FromRoute(Name = "itemId"), Required] string ItemId);
+    [property: FromRoute(Name = "itemId"), Required, Display(Name = "itemId")] string ItemId);

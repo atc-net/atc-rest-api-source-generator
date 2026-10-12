@@ -17,8 +17,8 @@ namespace CachingHybrid.Generated.Sessions.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Session(
-    [property: Required, JsonRequired] Guid Id,
-    [property: Required, JsonRequired] Guid UserId,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, Display(Name = "userId")] Guid UserId,
     DateTimeOffset? CreatedAt = null,
     DateTimeOffset? ExpiresAt = null,
     string? IpAddress = null);

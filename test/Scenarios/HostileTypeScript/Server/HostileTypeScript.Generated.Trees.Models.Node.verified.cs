@@ -22,5 +22,5 @@ namespace HostileTypeScript.Generated.Trees.Models;
 /// <param name="Children">An array alias that closes a cycle with Node.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Node(
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     List<Node>? Children = null);

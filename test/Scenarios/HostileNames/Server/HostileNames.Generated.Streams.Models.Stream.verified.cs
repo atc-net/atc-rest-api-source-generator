@@ -21,4 +21,4 @@ namespace HostileNames.Generated.Streams.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Stream(
-    [property: Required, JsonRequired] string Name);
+    [property: Required, JsonRequired, Display(Name = "name")] string Name);

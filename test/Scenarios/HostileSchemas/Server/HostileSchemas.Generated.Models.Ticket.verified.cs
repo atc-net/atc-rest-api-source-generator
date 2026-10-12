@@ -36,8 +36,8 @@ namespace HostileSchemas.Generated.Models;
 /// <param name="Kind">The kind property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Ticket(
-    [property: Required, Range(long.MinValue, 4294967295), JsonRequired] long Id,
-    [property: Required, ApiMinLength(1), ApiMaxLength(80), RegularExpression(@"^[^\s].*$"), JsonRequired] string Title,
+    [property: Required, Range(long.MinValue, 4294967295), JsonRequired, Display(Name = "id")] long Id,
+    [property: Required, ApiMinLength(1), ApiMaxLength(80), RegularExpression(@"^[^\s].*$"), JsonRequired, Display(Name = "title")] string Title,
     Status? Status = null,
     double? Ratio = null,
     bool? Flag = null,

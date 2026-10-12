@@ -17,5 +17,5 @@ namespace OverlaysMultiPart.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(
-    [property: Required, JsonRequired] Guid Id,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
     double? Total = null);

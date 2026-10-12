@@ -18,4 +18,4 @@ namespace Demo.Generated.Files.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FilesAsFormDataRequest(
-    [property: Required, JsonRequired] List<IFormFile> Files);
+    [property: Required, JsonRequired, Display(Name = "files")] List<IFormFile> Files);

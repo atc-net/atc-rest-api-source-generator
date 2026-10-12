@@ -17,5 +17,5 @@ namespace MediaTypeParameters.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Pet(
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     long? Id = null);

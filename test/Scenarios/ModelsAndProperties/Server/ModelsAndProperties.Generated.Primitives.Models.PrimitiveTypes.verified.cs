@@ -29,10 +29,10 @@ namespace ModelsAndProperties.Generated.Primitives.Models;
 /// <param name="NumberDouble">Double number.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PrimitiveTypes(
-    [property: Required, JsonRequired] string StringValue,
-    [property: Required, JsonRequired] int IntegerValue,
-    [property: Required, JsonRequired] double NumberValue,
-    [property: Required, JsonRequired] bool BooleanValue,
+    [property: Required, JsonRequired, Display(Name = "stringValue")] string StringValue,
+    [property: Required, JsonRequired, Display(Name = "integerValue")] int IntegerValue,
+    [property: Required, JsonRequired, Display(Name = "numberValue")] double NumberValue,
+    [property: Required, JsonRequired, Display(Name = "booleanValue")] bool BooleanValue,
     int? IntegerInt32 = null,
     long? IntegerInt64 = null,
     float? NumberFloat = null,

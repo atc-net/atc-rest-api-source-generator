@@ -17,6 +17,6 @@ namespace Retry.Generated.Reports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReportJob(
-    [property: Required, JsonRequired] Guid JobId,
-    [property: Required, JsonRequired] string Status,
+    [property: Required, JsonRequired, Display(Name = "jobId")] Guid JobId,
+    [property: Required, JsonRequired, Display(Name = "status")] string Status,
     DateTimeOffset? EstimatedCompletionTime = null);

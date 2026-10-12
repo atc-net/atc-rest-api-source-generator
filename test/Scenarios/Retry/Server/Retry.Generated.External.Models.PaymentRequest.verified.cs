@@ -17,6 +17,6 @@ namespace Retry.Generated.External.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PaymentRequest(
-    [property: Required, JsonRequired] Guid OrderId,
-    [property: Required, JsonRequired] double Amount,
+    [property: Required, JsonRequired, Display(Name = "orderId")] Guid OrderId,
+    [property: Required, JsonRequired, Display(Name = "amount")] double Amount,
     string? Currency = null);

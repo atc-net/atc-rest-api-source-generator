@@ -25,4 +25,4 @@ namespace SecurityHybrid.Generated.Products.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetProductByIdParameters(
-    [property: FromRoute(Name = "productId"), Required] Guid ProductId);
+    [property: FromRoute(Name = "productId"), Required, Display(Name = "productId")] Guid ProductId);

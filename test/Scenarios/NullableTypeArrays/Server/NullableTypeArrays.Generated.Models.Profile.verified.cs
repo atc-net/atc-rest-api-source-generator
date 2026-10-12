@@ -29,8 +29,8 @@ namespace NullableTypeArrays.Generated.Models;
 /// <param name="ExternalId">An id in another system, or null.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Profile(
-    [property: Required, JsonRequired] string Id,
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "id")] string Id,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     string? Nickname = null,
     int? Age = null,
     Address? Address = null,

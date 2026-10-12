@@ -25,5 +25,5 @@ namespace ModelsAndProperties.Generated.Dogs.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Dog(
     string Name,
-    [property: Required, JsonRequired] string Breed,
+    [property: Required, JsonRequired, Display(Name = "breed")] string Breed,
     int? Age = null) : Animal(Name, Age);

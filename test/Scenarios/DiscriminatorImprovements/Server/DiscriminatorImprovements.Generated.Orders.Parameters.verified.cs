@@ -34,4 +34,4 @@ public sealed record CreateOrderParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOrderByIdParameters(
-    [property: FromRoute(Name = "orderId"), Required] Guid OrderId);
+    [property: FromRoute(Name = "orderId"), Required, Display(Name = "orderId")] Guid OrderId);

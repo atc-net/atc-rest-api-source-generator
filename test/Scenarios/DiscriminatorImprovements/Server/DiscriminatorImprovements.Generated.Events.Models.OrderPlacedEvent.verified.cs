@@ -22,5 +22,5 @@ namespace DiscriminatorImprovements.Generated.Events.Models;
 /// <param name="OrderId">Placed order identifier.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record OrderPlacedEvent(
-    [property: Required, JsonRequired] string EventType,
-    [property: Required, JsonRequired] Guid OrderId) : Event;
+    [property: Required, JsonRequired, Display(Name = "eventType")] string EventType,
+    [property: Required, JsonRequired, Display(Name = "orderId")] Guid OrderId) : Event;

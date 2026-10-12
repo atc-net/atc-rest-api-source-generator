@@ -77,16 +77,19 @@ public sealed class LengthLimitAotTests
     {
         var note = AssemblyNote(Load(generator));
 
+        // A server model names a validated property as the caller sent it: by its JSON name
+        var (title, labels) = string.Equals(generator, "server", StringComparison.Ordinal) ? ("title", "labels") : ("Title", "Labels");
+
         Assert.Equal(
             [
-                new MinLengthAttribute(2).FormatErrorMessage("Title"),
-                new MinLengthAttribute(1).FormatErrorMessage("Labels"),
+                new MinLengthAttribute(2).FormatErrorMessage(title),
+                new MinLengthAttribute(1).FormatErrorMessage(labels),
             ],
             Validate(note.Create("a", []), note.Type));
         Assert.Equal(
             [
-                new MaxLengthAttribute(5).FormatErrorMessage("Title"),
-                new MaxLengthAttribute(2).FormatErrorMessage("Labels"),
+                new MaxLengthAttribute(5).FormatErrorMessage(title),
+                new MaxLengthAttribute(2).FormatErrorMessage(labels),
             ],
             Validate(note.Create("abcdef", ["x", "y", "z"]), note.Type));
         Assert.Empty(Validate(note.Create("abc", ["x"]), note.Type));

@@ -26,9 +26,9 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// <param name="Sound">Sound file name.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PushNotification(
-    [property: Required, JsonRequired] string Kind,
-    [property: Required, JsonRequired] string DeviceToken,
-    [property: Required, ApiMaxLength(100), JsonRequired] string Title,
+    [property: Required, JsonRequired, Display(Name = "kind")] string Kind,
+    [property: Required, JsonRequired, Display(Name = "deviceToken")] string DeviceToken,
+    [property: Required, ApiMaxLength(100), JsonRequired, Display(Name = "title")] string Title,
     [property: ApiMaxLength(500)] string? Body = null,
     [property: Range(0, long.MaxValue)] int? Badge = null,
     string? Sound = null) : Notification;

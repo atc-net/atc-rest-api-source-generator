@@ -17,6 +17,6 @@ namespace SecurityAtcExt.Generated.Reports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Report(
-    [property: Required, JsonRequired] Guid Id,
-    [property: Required, JsonRequired] string Title,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, Display(Name = "title")] string Title,
     DateTimeOffset? GeneratedAt = null);

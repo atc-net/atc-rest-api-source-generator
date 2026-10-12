@@ -18,5 +18,5 @@ namespace OpenApi32Features.Generated.Documents.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Error(
-    [property: Required, JsonRequired] int Code,
-    [property: Required, JsonRequired] string Message);
+    [property: Required, JsonRequired, Display(Name = "code")] int Code,
+    [property: Required, JsonRequired, Display(Name = "message")] string Message);

@@ -25,7 +25,7 @@ namespace HostileNames.Generated.Movies.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetMovieParameters(
-    [property: FromRoute(Name = "id"), Required] int Id,
+    [property: FromRoute(Name = "id"), Required, Display(Name = "id")] int Id,
 #nullable disable annotations
     string IdQuery,
     string IdHeader)

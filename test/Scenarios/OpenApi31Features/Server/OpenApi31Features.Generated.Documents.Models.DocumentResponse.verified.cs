@@ -18,6 +18,6 @@ namespace OpenApi31Features.Generated.Documents.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DocumentResponse(
-    [property: Required, JsonRequired] Guid Id,
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     DateTimeOffset? CreatedAt = null);

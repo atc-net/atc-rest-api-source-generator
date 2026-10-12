@@ -24,7 +24,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Models;
 /// <param name="CreatedAt">Creation timestamp.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Resource(
-    [property: Required, JsonRequired] Guid Id,
-    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, Display(Name = "name")] string Name,
     Guid? OwnerId = null,
     DateTimeOffset? CreatedAt = null);

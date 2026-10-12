@@ -33,13 +33,13 @@ namespace ModelsAndProperties.Generated.StringFormats.Models;
 /// <param name="Ipv6Value">IPv6 address format.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record StringFormats(
-    [property: Required, JsonRequired] string PlainString,
-    [property: Required, JsonRequired] Guid UuidValue,
-    [property: Required, JsonRequired] DateTimeOffset DateTimeValue,
+    [property: Required, JsonRequired, Display(Name = "plainString")] string PlainString,
+    [property: Required, JsonRequired, Display(Name = "uuidValue")] Guid UuidValue,
+    [property: Required, JsonRequired, Display(Name = "dateTimeValue")] DateTimeOffset DateTimeValue,
     DateOnly? DateValue = null,
     string? TimeValue = null,
     Uri? UriValue = null,
-    [property: EmailAddress] string? EmailValue = null,
+    [property: EmailAddress, Display(Name = "emailValue")] string? EmailValue = null,
     byte[]? ByteValue = null,
     string? PasswordValue = null,
     string? HostnameValue = null,

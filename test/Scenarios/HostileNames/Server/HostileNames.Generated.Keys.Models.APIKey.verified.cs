@@ -18,5 +18,5 @@ namespace HostileNames.Generated.Keys.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record APIKey(
-    [property: Required, JsonRequired] string Key,
+    [property: Required, JsonRequired, Display(Name = "key")] string Key,
     string? Label = null);

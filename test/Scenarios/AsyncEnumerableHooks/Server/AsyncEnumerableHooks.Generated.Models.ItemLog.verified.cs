@@ -17,6 +17,6 @@ namespace AsyncEnumerableHooks.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ItemLog(
-    [property: Required, JsonRequired] DateTimeOffset Timestamp,
-    [property: Required, JsonRequired] string Message,
+    [property: Required, JsonRequired, Display(Name = "timestamp")] DateTimeOffset Timestamp,
+    [property: Required, JsonRequired, Display(Name = "message")] string Message,
     string? Level = null);
