@@ -1805,12 +1805,12 @@ public partial class ErrorResponseBodyRuntimeTests
             ["workingTreeStash"] = GitHash(stash.Output) ?? $"(no hash: exit {stash.ExitCode}, {Short(stash.Output)})",
             ["untrackedFiles"] = untrackedHashes,
 
-            // What the run was built against: the unreleased sibling repository (TEMP project reference) and the
+            // What the run was built against: the Atc.Rest.MinimalApi package the generated server ran on and the
             // Atc.Rest.Client package the generated clients ran on.
-            ["siblings"] = new JsonObject
+            ["packages"] = new JsonObject
             {
-                ["atc-rest-minimalapi"] = SiblingRevision(root, "atc-rest-minimalapi"),
-                ["Atc.Rest.Client"] = $"{typeof(Atc.Rest.Client.EndpointResponse).Assembly.GetName().Version?.ToString(3)} (NuGet package)",
+                ["Atc.Rest.MinimalApi"] = PackageVersion(System.Reflection.Assembly.Load("Atc.Rest.MinimalApi")),
+                ["Atc.Rest.Client"] = PackageVersion(typeof(Atc.Rest.Client.EndpointResponse).Assembly),
             },
             ["dotnet"] = Environment.Version.ToString(),
             ["node"] = RunTool("node", "--version", root).Output.Trim(),
@@ -1819,23 +1819,12 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// A sibling repository next to this one: its branch, commit and whether its working tree has changes.
+    /// The version of the NuGet package an assembly came from: its informational version without the commit.
     /// </summary>
-    private static string SiblingRevision(
-        string root,
-        string repository)
-    {
-        var directory = Path.Combine(Path.GetDirectoryName(root)!, repository);
-        if (!Directory.Exists(directory))
-        {
-            return "(not found)";
-        }
-
-        var branch = RunTool("git", "rev-parse --abbrev-ref HEAD", directory).Output.Trim().Split('\n')[^1].Trim();
-        var commit = GitHash(RunTool("git", "rev-parse HEAD", directory).Output)?[..8] ?? "(unknown)";
-        var dirty = GitStatusEntries(RunTool("git", "status --porcelain --untracked-files=no", directory).Output) > 0;
-        return $"{branch} @ {commit}{(dirty ? " + uncommitted changes" : string.Empty)}";
-    }
+    private static string PackageVersion(System.Reflection.Assembly assembly)
+        => System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(assembly)?.InformationalVersion.Split('+')[0]
+           ?? assembly.GetName().Version?.ToString(3)
+           ?? "(unknown)";
 
     // RunTool merges stderr (git's line-ending warnings) and ends each stream with a blank line: count the entries only.
     private static int GitStatusEntries(string output)

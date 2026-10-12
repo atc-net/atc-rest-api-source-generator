@@ -21,9 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- TEMP (3.0 development): direct reference to the unreleased atc-rest-minimalapi 3.0.
-         Replace with <PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.0" /> before release. -->
-    <ProjectReference Include="..\..\..\..\atc-rest-minimalapi\src\Atc.Rest.MinimalApi\Atc.Rest.MinimalApi.csproj" />
+    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
