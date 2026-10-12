@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Dogs.Models;
@@ -24,5 +25,5 @@ namespace ModelsAndProperties.Generated.Dogs.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Dog(
     string Name,
-    [property: Required] string Breed,
+    [property: Required, JsonRequired] string Breed,
     int? Age = null) : Animal(Name, Age);

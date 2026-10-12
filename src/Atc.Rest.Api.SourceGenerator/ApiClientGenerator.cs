@@ -732,7 +732,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // strictRequiredProperties: a response that leaves out a required property fails when it is read
         if (strictRequiredProperties)
         {
-            recordsParameters = AddJsonRequired(recordsParameters);
+            recordsParameters = JsonRequiredHelper.AddJsonRequired(recordsParameters);
         }
 
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
@@ -849,44 +849,6 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// <summary>
     /// Converts server-side types (IFormFile) to client-side types (IFileContent from Atc.Rest.Client) in the records parameters.
     /// </summary>
-    /// <summary>
-    /// Adds <c>[JsonRequired]</c> next to every <c>[Required]</c> of the client models (<c>strictRequiredProperties</c>),
-    /// so System.Text.Json rejects JSON that leaves a required property out. The server keeps DataAnnotations only:
-    /// its ValidationFilter answers a missing required property with a ValidationProblemDetails.
-    /// </summary>
-    private static RecordsParameters AddJsonRequired(
-        RecordsParameters recordsParameters)
-    {
-        var records = recordsParameters.Parameters
-            .Select(WithJsonRequired)
-            .ToList();
-
-        const string jsonSerializationUsing = "using System.Text.Json.Serialization;";
-        var header = recordsParameters.HeaderContent;
-        if (header is not null && !header.Contains(jsonSerializationUsing, StringComparison.Ordinal))
-        {
-            const string dataAnnotationsUsing = "using System.ComponentModel.DataAnnotations;";
-            header = header.Contains(dataAnnotationsUsing, StringComparison.Ordinal)
-                ? header.Replace(dataAnnotationsUsing, dataAnnotationsUsing + "\n" + jsonSerializationUsing)
-                : header + jsonSerializationUsing + "\n";
-        }
-
-        return recordsParameters with { HeaderContent = header, Parameters = records };
-    }
-
-    /// <summary>
-    /// The record with <c>[JsonRequired]</c> next to every <c>[Required]</c> (<c>strictRequiredProperties</c>).
-    /// </summary>
-    private static RecordParameters WithJsonRequired(RecordParameters record)
-        => record with
-        {
-            Parameters = record.Parameters?
-                .Select(param => param.Attributes?.Any(a => a.Name == "Required") == true
-                    ? param with { Attributes = [.. param.Attributes, new AttributeParameters("JsonRequired", null)] }
-                    : param)
-                .ToList(),
-        };
-
     private static RecordsParameters ConvertToClientTypes(
         RecordsParameters recordsParameters)
     {
@@ -1142,7 +1104,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             var inlineTypes = CodeGenerationService.GenerateInlineModels(
                 strictRequiredProperties
-                    ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
+                    ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
                     : inlineSchemas,
                 projectName,
                 granularity: string.IsNullOrEmpty(namespaceSegment) ? ClientGranularityType.Single : ClientGranularityType.PerArea);
@@ -1312,7 +1274,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             var inlineTypes = CodeGenerationService.GenerateInlineModels(
                 strictRequiredProperties
-                    ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
+                    ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
                     : inlineSchemas,
                 projectName);
             foreach (var inlineType in inlineTypes)

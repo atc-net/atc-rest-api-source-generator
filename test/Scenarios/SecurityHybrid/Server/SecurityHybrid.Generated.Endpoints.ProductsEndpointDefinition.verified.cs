@@ -57,7 +57,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetProductByIdParametersWire.Parameters)
+            .WithWireBinding(GetProductByIdParametersWire.Parameters, requireParameters: true)
             .RequireAuthorization(policy => policy.RequireRole("manager", "admin"));
     }
 

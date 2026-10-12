@@ -11,12 +11,13 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace AllOfMultiLevel.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record NamedEntity(
     Guid Id,
-    [property: Required] string Name,
+    [property: Required, JsonRequired] string Name,
     DateTimeOffset? CreatedAt = null,
     string? Description = null) : Entity(Id, CreatedAt);

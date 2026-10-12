@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using AllOfMultiLevel.Generated.Models;
 
 namespace AllOfMultiLevel.Generated.Employees.Models;
@@ -20,7 +21,7 @@ public sealed record Employee(
     Guid Id,
     string Name,
     string Email,
-    [property: Required] string Department,
+    [property: Required, JsonRequired] string Department,
     DateTimeOffset? CreatedAt = null,
     string? Description = null,
     int? Age = null,

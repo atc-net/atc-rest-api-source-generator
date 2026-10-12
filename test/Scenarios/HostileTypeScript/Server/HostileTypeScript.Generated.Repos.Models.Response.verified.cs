@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace HostileTypeScript.Generated.Repos.Models;
 
@@ -19,7 +20,7 @@ namespace HostileTypeScript.Generated.Repos.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Response(
-    [property: Required, RegularExpression(@"(?i)^[a-z0-9-]+$")] string Id,
+    [property: Required, RegularExpression(@"(?i)^[a-z0-9-]+$"), JsonRequired] string Id,
     [property: RegularExpression(@"\A[a-z]+\z")] string? Slug = null,
     Headers? Headers = null,
     Blob? Blob = null,

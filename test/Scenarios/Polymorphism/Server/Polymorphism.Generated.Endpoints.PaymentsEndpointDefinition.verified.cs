@@ -62,7 +62,7 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetPaymentByIdParametersWire.Parameters);
+            .WithWireBinding(GetPaymentByIdParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListPayments(

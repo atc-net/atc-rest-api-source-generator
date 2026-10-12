@@ -78,7 +78,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetOrderByIdParametersWire.Parameters)
+            .WithWireBinding(GetOrderByIdParametersWire.Parameters, requireParameters: true)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key", "oauth2")
                 .RequireAuthenticatedUser())
@@ -95,7 +95,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(DeleteOrderParametersWire.Parameters)
+            .WithWireBinding(DeleteOrderParametersWire.Parameters, requireParameters: true)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oauth2")
                 .RequireAuthenticatedUser())

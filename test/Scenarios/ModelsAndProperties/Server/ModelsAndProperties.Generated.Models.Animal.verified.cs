@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ModelsAndProperties.Generated.Models;
 
@@ -21,5 +22,5 @@ namespace ModelsAndProperties.Generated.Models;
 /// <param name="Age">Animal age in years.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record Animal(
-    [property: Required] string Name,
+    [property: Required, JsonRequired] string Name,
     int? Age = null);

@@ -430,7 +430,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 config.GeneratePartialModels,
                 xmlModels: xmlModels,
                 boundRequestModels: boundRequestModels,
-                xmlRequestModels: xmlRequestModels);
+                xmlRequestModels: xmlRequestModels,
+                requireJsonProperties: !useValidationFilter);
 
             GenerateEnumsForSchemas(
                 generatedContext,
@@ -503,7 +504,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                     includeSharedModelsUsing: sharedSchemas.Count > 0,
                     xmlModels: xmlModels,
                     boundRequestModels: boundRequestModels,
-                    xmlRequestModels: xmlRequestModels);
+                    xmlRequestModels: xmlRequestModels,
+                    requireJsonProperties: !useValidationFilter);
 
                 GenerateEnumsForSchemas(
                     generatedContext,
@@ -779,7 +781,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool includeSharedModelsUsing = false,
         ISet<string>? xmlModels = null,
         Dictionary<string, ServerBoundModel>? boundRequestModels = null,
-        ISet<string>? xmlRequestModels = null)
+        ISet<string>? xmlRequestModels = null,
+        bool requireJsonProperties = false)
     {
         // Use SchemaExtractor.ExtractForSchemasWithInlineEnums to extract schemas and inline enums
         var xmlSources = new List<XmlModelSource>();
@@ -811,6 +814,13 @@ public class ApiServerGenerator : IIncrementalGenerator
         if (recordsParameters is null || recordsParameters.Parameters.Count == 0)
         {
             return;
+        }
+
+        // Without a validation filter nothing checks a body's required properties: the JSON reader then requires them,
+        // so a body that leaves one out is rejected (a 400) instead of reaching the handler without it
+        if (requireJsonProperties)
+        {
+            recordsParameters = JsonRequiredHelper.AddJsonRequired(recordsParameters);
         }
 
         var codeDocGenerator = new CodeDocumentationTagsGenerator();

@@ -11,10 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Circle(
-    [property: Required] double Radius,
+    [property: Required, JsonRequired] double Radius,
     string? Color = null) : Shape;

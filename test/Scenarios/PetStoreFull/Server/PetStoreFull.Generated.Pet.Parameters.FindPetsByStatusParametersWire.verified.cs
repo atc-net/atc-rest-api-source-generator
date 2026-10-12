@@ -25,6 +25,6 @@ namespace PetStoreFull.Generated.Pet.Parameters;
 public static class FindPetsByStatusParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.EnumValue<FindPetsByStatusParametersStatus>("query", "status"),
+        WireParameter.EnumValue<FindPetsByStatusParametersStatus>("query", "status").Required(),
     ];
 }

@@ -39,6 +39,18 @@ public sealed record WireParameter(string In, string Name, Func<string, bool>? P
     public Func<string, JsonSerializerOptions, object?>? ReadJson { get; init; }
 
     /// <summary>
+    /// Whether the specification requires the parameter (a query, header or cookie parameter). An endpoint
+    /// without a validation filter has the step answer one that was not sent (see <c>WithWireBinding</c>).
+    /// </summary>
+    public bool IsRequired { get; init; }
+
+    /// <summary>
+    /// The parameter, as one the specification requires.
+    /// </summary>
+    public WireParameter Required()
+        => this with { IsRequired = true };
+
+    /// <summary>
     /// A value sent as JSON - an object, a map or a composition in a multipart form, an application/json part
     /// (a list of one a part per item) - read through the metadata the app's JSON options resolve.
     /// </summary>
@@ -132,9 +144,33 @@ public static class WireBindingExtensions
     /// </summary>
     public static TBuilder WithWireBinding<TBuilder>(this TBuilder builder, IReadOnlyList<WireParameter> wireParameters, params (string Name, char Delimiter)[] delimitedArrays)
         where TBuilder : IEndpointConventionBuilder
+        => builder.WithWireBinding(wireParameters, requireParameters: false, delimitedArrays);
+
+    /// <summary>
+    /// Adds the step, which with <paramref name="requireParameters"/> also answers a required query or header
+    /// parameter that was not sent with a problem naming it. An endpoint without a validation filter asks for
+    /// that: the framework's own answer to a missing parameter names none. A required cookie that was not
+    /// sent is answered by the step on every host, by the cookie's name.
+    /// </summary>
+    public static TBuilder WithWireBinding<TBuilder>(this TBuilder builder, IReadOnlyList<WireParameter> wireParameters, bool requireParameters, params (string Name, char Delimiter)[] delimitedArrays)
+        where TBuilder : IEndpointConventionBuilder
     {
         var parameters = new List<BoundParameter>();
         var cookies = new List<string>();
+
+        // A required cookie is answered here on every host: a validation filter sees only the header it is
+        // bound from, and would name that
+        HashSet<string>? required = null;
+        foreach (var wire in wireParameters)
+        {
+            var isCookie = wire.In == "header" && wire.Name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal);
+            if (wire.IsRequired && wire.In != "path" && (requireParameters || isCookie))
+            {
+                required ??= new HashSet<string>(StringComparer.Ordinal);
+                required.Add(wire.Name);
+            }
+        }
+
         foreach (var wire in wireParameters)
         {
             if (wire.In == "header" && wire.Name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal))
@@ -160,7 +196,7 @@ public static class WireBindingExtensions
 
             endpoint.RequestDelegate = context =>
             {
-                var errors = Rewrite(context.Request, parameters, cookies);
+                var errors = Rewrite(context.Request, parameters, cookies, required);
                 return errors is null
                     ? next(context)
                     : global::Microsoft.AspNetCore.Http.Results.ValidationProblem(errors).ExecuteAsync(context);
@@ -488,7 +524,8 @@ public static class WireBindingExtensions
     private static Dictionary<string, string[]>? Rewrite(
         HttpRequest request,
         List<BoundParameter> parameters,
-        List<string> cookies)
+        List<string> cookies,
+        HashSet<string>? required)
     {
         // A cookie parameter is bound from its header: the cookie decides, never a header a caller sent
         foreach (var cookie in cookies)
@@ -553,6 +590,17 @@ public static class WireBindingExtensions
             };
             if (values.Count == 0)
             {
+                // A required parameter that was not sent, named as the specification names it (a cookie
+                // by its own name, not by the header it is bound from)
+                if (required is not null && required.Contains(parameter.Name))
+                {
+                    var missing = parameter.In == "header" && parameter.Name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal)
+                        ? parameter.Name[CookieHeaderPrefix.Length..]
+                        : parameter.Name;
+                    errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                    errors[missing] = [$"The {missing} field is required."];
+                }
+
                 continue;
             }
 

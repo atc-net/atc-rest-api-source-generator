@@ -11,6 +11,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Nullables.Models;
@@ -37,7 +38,7 @@ namespace ModelsAndProperties.Generated.Nullables.Models;
 /// <param name="NullableAddress">Nullable address reference.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record NullableTypes(
-    [property: Required] string RequiredString,
+    [property: Required, JsonRequired] string RequiredString,
     string? NullableString = null,
     int? NullableInteger = null,
     long? NullableLong = null,

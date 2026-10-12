@@ -78,7 +78,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetResourceByIdParametersWire.Parameters)
+            .WithWireBinding(GetResourceByIdParametersWire.Parameters, requireParameters: true)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
                 .RequireAuthenticatedUser())
@@ -95,7 +95,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(DeleteResourceParametersWire.Parameters)
+            .WithWireBinding(DeleteResourceParametersWire.Parameters, requireParameters: true)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
                 .RequireAuthenticatedUser())

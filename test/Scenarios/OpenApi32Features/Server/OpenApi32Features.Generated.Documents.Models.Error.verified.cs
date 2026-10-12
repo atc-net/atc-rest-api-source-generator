@@ -11,11 +11,12 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using OpenApi32Features.Generated.Models;
 
 namespace OpenApi32Features.Generated.Documents.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Error(
-    [property: Required] int Code,
-    [property: Required] string Message);
+    [property: Required, JsonRequired] int Code,
+    [property: Required, JsonRequired] string Message);

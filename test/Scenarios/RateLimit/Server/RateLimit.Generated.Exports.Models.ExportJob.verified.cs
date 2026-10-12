@@ -11,11 +11,12 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace RateLimit.Generated.Exports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ExportJob(
-    [property: Required] Guid Id,
-    [property: Required] string Status,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, JsonRequired] string Status,
     DateTimeOffset? CreatedAt = null);

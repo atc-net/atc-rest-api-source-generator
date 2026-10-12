@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Primitives.Models;
@@ -28,10 +29,10 @@ namespace ModelsAndProperties.Generated.Primitives.Models;
 /// <param name="NumberDouble">Double number.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PrimitiveTypes(
-    [property: Required] string StringValue,
-    [property: Required] int IntegerValue,
-    [property: Required] double NumberValue,
-    [property: Required] bool BooleanValue,
+    [property: Required, JsonRequired] string StringValue,
+    [property: Required, JsonRequired] int IntegerValue,
+    [property: Required, JsonRequired] double NumberValue,
+    [property: Required, JsonRequired] bool BooleanValue,
     int? IntegerInt32 = null,
     long? IntegerInt64 = null,
     float? NumberFloat = null,

@@ -43,7 +43,7 @@ public sealed class ArchiveEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListArchivedAccountsParametersWire.Parameters);
+            .WithWireBinding(ListArchivedAccountsParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListArchivedAccounts(

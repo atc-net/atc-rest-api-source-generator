@@ -43,7 +43,7 @@ public sealed class TrackingEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(TrackEventParametersWire.Parameters);
+            .WithWireBinding(TrackEventParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> TrackEvent(

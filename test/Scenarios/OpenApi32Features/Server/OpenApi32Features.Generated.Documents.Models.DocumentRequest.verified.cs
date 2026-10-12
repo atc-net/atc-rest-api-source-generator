@@ -11,6 +11,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using OpenApi32Features.Generated.Models;
 
 namespace OpenApi32Features.Generated.Documents.Models;
@@ -23,6 +24,6 @@ namespace OpenApi32Features.Generated.Documents.Models;
 /// <param name="Metadata">The metadata property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DocumentRequest(
-    [property: Required] string Name,
-    [property: Required] string Content,
+    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired] string Content,
     Dictionary<string, string>? Metadata = null);

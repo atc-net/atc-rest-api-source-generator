@@ -43,7 +43,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListItemsParametersWire.Parameters, ("legacy", ' '));
+            .WithWireBinding(ListItemsParametersWire.Parameters, requireParameters: true, ("legacy", ' '));
 
         items
             .MapGet("search", ListItemsByQueryString)
@@ -53,7 +53,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListItemsByQueryStringParametersWire.Parameters);
+            .WithWireBinding(ListItemsByQueryStringParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListItems(

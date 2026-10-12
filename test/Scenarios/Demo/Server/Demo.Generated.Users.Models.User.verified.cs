@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Demo.Generated.Users.Models;
 
@@ -34,13 +35,13 @@ namespace Demo.Generated.Users.Models;
 /// <param name="UpdatedAt">When the user was last updated.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    [property: Required] Guid Id,
-    [property: Required, ApiMinLength(2), ApiMaxLength(50)] string FirstName,
-    [property: Required, ApiMinLength(2), ApiMaxLength(50)] string LastName,
-    [property: Required, ApiMaxLength(254), EmailAddress] string Email,
-    [property: Required] DateOnly DateOfBirth,
-    [property: Required] UserRole Role,
-    [property: Required] Address Address,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired] string FirstName,
+    [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired] string LastName,
+    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired] string Email,
+    [property: Required, JsonRequired] DateOnly DateOfBirth,
+    [property: Required, JsonRequired] UserRole Role,
+    [property: Required, JsonRequired] Address Address,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
     Uri? Website = null,
     [property: Range(0, 150)] int? Age = null,

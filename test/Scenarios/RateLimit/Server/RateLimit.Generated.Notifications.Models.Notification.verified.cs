@@ -11,10 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace RateLimit.Generated.Notifications.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Notification(
-    [property: Required] string Recipient,
-    [property: Required] string Message);
+    [property: Required, JsonRequired] string Recipient,
+    [property: Required, JsonRequired] string Message);

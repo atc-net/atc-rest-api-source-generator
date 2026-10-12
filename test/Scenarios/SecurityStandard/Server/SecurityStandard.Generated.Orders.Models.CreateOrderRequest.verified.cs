@@ -11,6 +11,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SecurityStandard.Generated.Orders.Models;
 
@@ -21,5 +22,5 @@ namespace SecurityStandard.Generated.Orders.Models;
 /// <param name="Items">List of item IDs.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderRequest(
-    [property: Required] string CustomerId,
+    [property: Required, JsonRequired] string CustomerId,
     List<string>? Items = null);

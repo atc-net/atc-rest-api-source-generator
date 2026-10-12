@@ -11,11 +11,12 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace VersioningUrlSegment.Generated.Owners.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOwnerRequest(
-    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name,
-    [property: Required, EmailAddress] string Email,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired] string Name,
+    [property: Required, EmailAddress, JsonRequired] string Email,
     string? Phone = null);

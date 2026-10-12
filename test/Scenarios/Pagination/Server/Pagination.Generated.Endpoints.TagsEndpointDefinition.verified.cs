@@ -43,7 +43,7 @@ public sealed class TagsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListTagsParametersWire.Parameters);
+            .WithWireBinding(ListTagsParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListTags(

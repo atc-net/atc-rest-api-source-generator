@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace DiscriminatorImprovements.Generated.Orders.Models;
 
@@ -21,5 +22,5 @@ namespace DiscriminatorImprovements.Generated.Orders.Models;
 /// <param name="StoreId">Physical store identifier.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record InStoreOrder(
-    [property: Required] string OrderType,
-    [property: Required] string StoreId) : Order;
+    [property: Required, JsonRequired] string OrderType,
+    [property: Required, JsonRequired] string StoreId) : Order;

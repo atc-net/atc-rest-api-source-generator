@@ -54,7 +54,7 @@ public sealed class DevicesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetDeviceParametersWire.Parameters);
+            .WithWireBinding(GetDeviceParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListDevices(

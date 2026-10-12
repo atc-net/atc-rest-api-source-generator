@@ -980,7 +980,7 @@ using Microsoft.AspNetCore.Builder;
 
         // The step before the framework binds the parameters: enum wire values, cookies, array items, a 400 that names
         // the parameter
-        GenerateWireBindingMetadata(builder, operation, pathItem, methodName);
+        GenerateWireBindingMetadata(builder, operation, pathItem, methodName, useValidationFilter);
 
         // Add security metadata if needed (only if different from group-level)
         if (pathItem is not null)
@@ -1226,7 +1226,8 @@ using Microsoft.AspNetCore.Builder;
         StringBuilder builder,
         OpenApiOperation operation,
         IOpenApiPathItem? pathItem,
-        string methodName)
+        string methodName,
+        bool useValidationFilter)
     {
         // A form bound field by field: the fields are checked by name (a required one is there, a value parses, an
         // enum by its wire value) - there is no [AsParameters] record to read the parameters from
@@ -1243,7 +1244,16 @@ using Microsoft.AspNetCore.Builder;
         }
 
         builder.AppendLine();
-        builder.Append($"    .WithWireBinding({string.Join(", ", new[] { $"{methodName}ParametersWire.Parameters" }.Concat(WireBindingHelper.DelimitedArrayArguments(operation, pathItem)))})");
+
+        // Without a validation filter the step also answers a required parameter that was not sent: the framework's
+        // own 400 names none
+        var wireArguments = new List<string> { $"{methodName}ParametersWire.Parameters" };
+        if (!useValidationFilter)
+        {
+            wireArguments.Add("requireParameters: true");
+        }
+
+        builder.Append($"    .WithWireBinding({string.Join(", ", wireArguments.Concat(WireBindingHelper.DelimitedArrayArguments(operation, pathItem)))})");
     }
 
     private static void GenerateValidationFilterMetadata(

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using HostileNames.Generated.Models;
 
 namespace HostileNames.Generated.Streams.Models;
@@ -20,4 +21,4 @@ namespace HostileNames.Generated.Streams.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Stream(
-    [property: Required] string Name);
+    [property: Required, JsonRequired] string Name);

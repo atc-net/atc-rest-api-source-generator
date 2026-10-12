@@ -43,7 +43,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListItemsParametersWire.Parameters);
+            .WithWireBinding(ListItemsParametersWire.Parameters, requireParameters: true);
 
         items
             .MapGet("pages", ListItemPages)
@@ -53,7 +53,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListItemPagesParametersWire.Parameters);
+            .WithWireBinding(ListItemPagesParametersWire.Parameters, requireParameters: true);
 
         items
             .MapGet("{itemId}/logs", GetItemLogs)
@@ -64,7 +64,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetItemLogsParametersWire.Parameters);
+            .WithWireBinding(GetItemLogsParametersWire.Parameters, requireParameters: true);
 
         items
             .MapGet("search", SearchItems)
@@ -74,7 +74,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(SearchItemsParametersWire.Parameters);
+            .WithWireBinding(SearchItemsParametersWire.Parameters, requireParameters: true);
 
         items
             .MapGet("events", StreamItemEvents)

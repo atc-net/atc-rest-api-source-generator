@@ -18,5 +18,5 @@ namespace HostileNames.Generated.Profiles.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record user_profile(
-    [property: JsonPropertyName("user_name"), Required] string UserName,
+    [property: JsonPropertyName("user_name"), Required, JsonRequired] string UserName,
     [property: JsonPropertyName("display_name")] string? DisplayName = null);

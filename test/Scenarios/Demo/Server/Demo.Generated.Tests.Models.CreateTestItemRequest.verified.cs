@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Demo.Generated.Tests.Models;
 
@@ -21,5 +22,5 @@ namespace Demo.Generated.Tests.Models;
 /// <param name="Description">Optional description.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateTestItemRequest(
-    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired] string Name,
     [property: ApiMaxLength(500)] string? Description = null);

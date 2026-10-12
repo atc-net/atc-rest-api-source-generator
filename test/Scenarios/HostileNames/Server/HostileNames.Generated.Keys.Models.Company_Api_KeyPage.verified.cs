@@ -11,10 +11,11 @@ using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using HostileNames.Generated.Models;
 
 namespace HostileNames.Generated.Keys.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Company_Api_KeyPage(
-    [property: Required] List<APIKey> Items);
+    [property: Required, JsonRequired] List<APIKey> Items);

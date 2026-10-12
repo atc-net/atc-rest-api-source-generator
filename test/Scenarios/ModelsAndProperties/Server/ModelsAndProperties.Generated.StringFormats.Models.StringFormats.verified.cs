@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.StringFormats.Models;
@@ -32,9 +33,9 @@ namespace ModelsAndProperties.Generated.StringFormats.Models;
 /// <param name="Ipv6Value">IPv6 address format.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record StringFormats(
-    [property: Required] string PlainString,
-    [property: Required] Guid UuidValue,
-    [property: Required] DateTimeOffset DateTimeValue,
+    [property: Required, JsonRequired] string PlainString,
+    [property: Required, JsonRequired] Guid UuidValue,
+    [property: Required, JsonRequired] DateTimeOffset DateTimeValue,
     DateOnly? DateValue = null,
     string? TimeValue = null,
     Uri? UriValue = null,

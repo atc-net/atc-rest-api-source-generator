@@ -26,6 +26,6 @@ public static class TrackEventParametersWire
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
         WireParameter.Text("path", "eventId"),
         WireParameter.Text("header", "x-cookie-userId"),
-        WireParameter.Boolean("header", "x-cookie-consent"),
+        WireParameter.Boolean("header", "x-cookie-consent").Required(),
     ];
 }

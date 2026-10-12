@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Polymorphism.Generated.Notifications.Models;
 
@@ -24,8 +25,8 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// <param name="IsHtml">Whether body is HTML formatted.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EmailNotification(
-    [property: Required] string Kind,
-    [property: Required, EmailAddress] string To,
-    [property: Required, ApiMaxLength(200)] string Subject,
-    [property: Required, ApiMaxLength(10000)] string Body,
+    [property: Required, JsonRequired] string Kind,
+    [property: Required, EmailAddress, JsonRequired] string To,
+    [property: Required, ApiMaxLength(200), JsonRequired] string Subject,
+    [property: Required, ApiMaxLength(10000), JsonRequired] string Body,
     bool IsHtml = false) : Notification;

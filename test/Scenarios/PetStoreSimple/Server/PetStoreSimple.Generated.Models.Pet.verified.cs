@@ -11,11 +11,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace PetStoreSimple.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Pet(
-    [property: Required] long Id,
-    [property: Required] string Name,
+    [property: Required, JsonRequired] long Id,
+    [property: Required, JsonRequired] string Name,
     string? Tag = null);

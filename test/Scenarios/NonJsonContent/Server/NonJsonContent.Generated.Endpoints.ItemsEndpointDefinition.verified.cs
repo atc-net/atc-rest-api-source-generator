@@ -52,7 +52,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetItemSheetParametersWire.Parameters);
+            .WithWireBinding(GetItemSheetParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListItems(

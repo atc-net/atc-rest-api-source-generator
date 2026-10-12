@@ -11,10 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ParameterSerialization.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed partial record Paging(
-    [property: Required] int Page,
+    [property: Required, JsonRequired] int Page,
     int? PerPage = null);

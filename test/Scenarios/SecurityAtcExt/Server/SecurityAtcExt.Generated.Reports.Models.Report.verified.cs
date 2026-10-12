@@ -11,11 +11,12 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SecurityAtcExt.Generated.Reports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Report(
-    [property: Required] Guid Id,
-    [property: Required] string Title,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, JsonRequired] string Title,
     DateTimeOffset? GeneratedAt = null);

@@ -26,6 +26,6 @@ namespace Pagination.Generated.Logs.Parameters;
 public static class ListLogsParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Text("query", "continuation"),
+        WireParameter.Text("query", "continuation").Required(),
     ];
 }

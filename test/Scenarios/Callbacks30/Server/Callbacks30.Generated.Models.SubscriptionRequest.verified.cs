@@ -11,10 +11,11 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Callbacks30.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SubscriptionRequest(
-    [property: Required] Uri CallbackUrl,
-    [property: Required] List<string> Events);
+    [property: Required, JsonRequired] Uri CallbackUrl,
+    [property: Required, JsonRequired] List<string> Events);

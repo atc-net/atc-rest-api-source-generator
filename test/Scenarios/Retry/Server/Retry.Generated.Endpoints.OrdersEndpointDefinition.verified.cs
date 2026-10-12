@@ -62,7 +62,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetOrderByIdParametersWire.Parameters);
+            .WithWireBinding(GetOrderByIdParametersWire.Parameters, requireParameters: true);
 
         orders
             .MapDelete("{orderId}", DeleteOrder)
@@ -73,7 +73,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(DeleteOrderParametersWire.Parameters);
+            .WithWireBinding(DeleteOrderParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListOrders(

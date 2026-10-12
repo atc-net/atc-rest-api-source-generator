@@ -11,10 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace MediaTypeParameters.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Pet(
-    [property: Required] string Name,
+    [property: Required, JsonRequired] string Name,
     long? Id = null);

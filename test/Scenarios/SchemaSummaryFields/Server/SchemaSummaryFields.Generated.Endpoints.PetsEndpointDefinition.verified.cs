@@ -63,7 +63,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetPetByIdParametersWire.Parameters);
+            .WithWireBinding(GetPetByIdParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListPets(

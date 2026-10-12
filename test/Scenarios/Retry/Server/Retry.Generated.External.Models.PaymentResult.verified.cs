@@ -11,11 +11,12 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Retry.Generated.External.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PaymentResult(
-    [property: Required] Guid TransactionId,
-    [property: Required] string Status,
+    [property: Required, JsonRequired] Guid TransactionId,
+    [property: Required, JsonRequired] string Status,
     DateTimeOffset? ProcessedAt = null);

@@ -43,7 +43,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListAccountsParametersWire.Parameters);
+            .WithWireBinding(ListAccountsParametersWire.Parameters, requireParameters: true);
 
         accounts
             .MapPost("/", CreateAccount)

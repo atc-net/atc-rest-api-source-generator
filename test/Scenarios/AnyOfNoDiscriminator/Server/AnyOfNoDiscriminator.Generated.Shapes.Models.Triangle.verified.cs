@@ -11,11 +11,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Triangle(
-    [property: Required] double Base,
-    [property: Required] double Height,
+    [property: Required, JsonRequired] double Base,
+    [property: Required, JsonRequired] double Height,
     string? Color = null) : Shape;

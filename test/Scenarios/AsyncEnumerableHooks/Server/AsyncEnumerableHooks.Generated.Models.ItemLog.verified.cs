@@ -11,11 +11,12 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace AsyncEnumerableHooks.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ItemLog(
-    [property: Required] DateTimeOffset Timestamp,
-    [property: Required] string Message,
+    [property: Required, JsonRequired] DateTimeOffset Timestamp,
+    [property: Required, JsonRequired] string Message,
     string? Level = null);

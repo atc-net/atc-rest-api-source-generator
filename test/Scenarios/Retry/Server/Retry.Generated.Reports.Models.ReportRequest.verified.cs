@@ -11,11 +11,12 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Retry.Generated.Reports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReportRequest(
-    [property: Required] string ReportType,
+    [property: Required, JsonRequired] string ReportType,
     DateOnly? DateFrom = null,
     DateOnly? DateTo = null);

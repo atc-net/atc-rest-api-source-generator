@@ -11,12 +11,13 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SecurityHybrid.Generated.Orders.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(
-    [property: Required] Guid Id,
-    [property: Required] string CustomerId,
-    [property: Required] OrderStatus Status,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, JsonRequired] string CustomerId,
+    [property: Required, JsonRequired] OrderStatus Status,
     double? TotalAmount = null);

@@ -54,7 +54,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetUserByIdParametersWire.Parameters);
+            .WithWireBinding(GetUserByIdParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> CreateUser(

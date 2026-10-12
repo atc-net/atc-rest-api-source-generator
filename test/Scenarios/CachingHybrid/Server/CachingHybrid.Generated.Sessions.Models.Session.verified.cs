@@ -11,13 +11,14 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CachingHybrid.Generated.Sessions.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Session(
-    [property: Required] Guid Id,
-    [property: Required] Guid UserId,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, JsonRequired] Guid UserId,
     DateTimeOffset? CreatedAt = null,
     DateTimeOffset? ExpiresAt = null,
     string? IpAddress = null);

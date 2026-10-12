@@ -11,6 +11,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Arrays.Models;

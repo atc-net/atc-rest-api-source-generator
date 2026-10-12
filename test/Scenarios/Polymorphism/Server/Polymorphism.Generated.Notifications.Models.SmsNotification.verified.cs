@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Polymorphism.Generated.Notifications.Models;
 
@@ -22,6 +23,6 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// <param name="Message">SMS message content.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SmsNotification(
-    [property: Required] string Kind,
-    [property: Required, RegularExpression(@"^\+?[1-9]\d{6,14}$")] string PhoneNumber,
-    [property: Required, ApiMaxLength(160)] string Message) : Notification;
+    [property: Required, JsonRequired] string Kind,
+    [property: Required, RegularExpression(@"^\+?[1-9]\d{6,14}$"), JsonRequired] string PhoneNumber,
+    [property: Required, ApiMaxLength(160), JsonRequired] string Message) : Notification;

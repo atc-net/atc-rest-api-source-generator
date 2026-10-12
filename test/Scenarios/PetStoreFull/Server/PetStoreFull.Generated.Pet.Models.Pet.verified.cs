@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace PetStoreFull.Generated.Pet.Models;
 
@@ -25,8 +26,8 @@ namespace PetStoreFull.Generated.Pet.Models;
 /// <param name="Status">pet status in the store.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed partial record Pet(
-    [property: Required] string Name,
-    [property: Required] List<string> PhotoUrls,
+    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired] List<string> PhotoUrls,
     long? Id = null,
     Category? Category = null,
     List<Tag>? Tags = null,

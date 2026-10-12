@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace DiscriminatorImprovements.Generated.Events.Models;
 
@@ -21,5 +22,5 @@ namespace DiscriminatorImprovements.Generated.Events.Models;
 /// <param name="OrderId">Placed order identifier.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record OrderPlacedEvent(
-    [property: Required] string EventType,
-    [property: Required] Guid OrderId) : Event;
+    [property: Required, JsonRequired] string EventType,
+    [property: Required, JsonRequired] Guid OrderId) : Event;

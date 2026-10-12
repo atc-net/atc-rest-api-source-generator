@@ -62,7 +62,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetPetParametersWire.Parameters);
+            .WithWireBinding(GetPetParametersWire.Parameters, requireParameters: true);
 
         pets
             .MapGet("{id}/photo", GetPhoto)
@@ -73,7 +73,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetPhotoParametersWire.Parameters);
+            .WithWireBinding(GetPhotoParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListPets(

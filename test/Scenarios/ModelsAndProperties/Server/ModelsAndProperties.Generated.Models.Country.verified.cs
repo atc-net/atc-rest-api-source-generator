@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ModelsAndProperties.Generated.Models;
 
@@ -24,8 +25,8 @@ namespace ModelsAndProperties.Generated.Models;
 /// <param name="PhonePrefix">International phone prefix (e.g., +1, +44).</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Country(
-    [property: Required, ApiMaxLength(100)] string Name,
-    [property: Required, ApiMinLength(2), ApiMaxLength(2), RegularExpression(@"^[A-Z]{2}$")] string Alpha2Code,
-    [property: Required, ApiMinLength(3), ApiMaxLength(3), RegularExpression(@"^[A-Z]{3}$")] string Alpha3Code,
+    [property: Required, ApiMaxLength(100), JsonRequired] string Name,
+    [property: Required, ApiMinLength(2), ApiMaxLength(2), RegularExpression(@"^[A-Z]{2}$"), JsonRequired] string Alpha2Code,
+    [property: Required, ApiMinLength(3), ApiMaxLength(3), RegularExpression(@"^[A-Z]{3}$"), JsonRequired] string Alpha3Code,
     [property: Range(0, 999)] int? NumericCode = null,
     [property: RegularExpression(@"^\+[1-9][0-9]{0,3}$")] string? PhonePrefix = null);

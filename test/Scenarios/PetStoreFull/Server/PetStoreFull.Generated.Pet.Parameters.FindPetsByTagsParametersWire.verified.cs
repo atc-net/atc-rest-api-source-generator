@@ -25,6 +25,6 @@ namespace PetStoreFull.Generated.Pet.Parameters;
 public static class FindPetsByTagsParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Text("query", "tags", isArray: true),
+        WireParameter.Text("query", "tags", isArray: true).Required(),
     ];
 }

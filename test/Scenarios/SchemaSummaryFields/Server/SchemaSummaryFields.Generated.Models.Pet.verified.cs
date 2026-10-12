@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SchemaSummaryFields.Generated.Models;
 
@@ -22,6 +23,6 @@ namespace SchemaSummaryFields.Generated.Models;
 /// <param name="Status">Current adoption status of the pet.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Pet(
-    [property: Required] int Id,
-    [property: Required] string Name,
+    [property: Required, JsonRequired] int Id,
+    [property: Required, JsonRequired] string Name,
     PetStatus? Status = null);

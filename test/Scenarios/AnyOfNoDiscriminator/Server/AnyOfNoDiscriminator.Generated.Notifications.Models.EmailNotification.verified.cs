@@ -11,11 +11,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace AnyOfNoDiscriminator.Generated.Notifications.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EmailNotification(
-    [property: Required, EmailAddress] string To,
-    [property: Required] string Subject,
+    [property: Required, EmailAddress, JsonRequired] string To,
+    [property: Required, JsonRequired] string Subject,
     string? Body = null);

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Polymorphism.Generated.Payments.Models;
 
@@ -24,8 +25,8 @@ namespace Polymorphism.Generated.Payments.Models;
 /// <param name="AccountHolderName">Name of the account holder.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record BankTransfer(
-    [property: Required] string Type,
-    [property: Required, ApiMinLength(5), ApiMaxLength(17)] string AccountNumber,
-    [property: Required, ApiMinLength(9), ApiMaxLength(9), RegularExpression(@"^\d{9}$")] string RoutingNumber,
+    [property: Required, JsonRequired] string Type,
+    [property: Required, ApiMinLength(5), ApiMaxLength(17), JsonRequired] string AccountNumber,
+    [property: Required, ApiMinLength(9), ApiMaxLength(9), RegularExpression(@"^\d{9}$"), JsonRequired] string RoutingNumber,
     [property: ApiMaxLength(100)] string? BankName = null,
     [property: ApiMaxLength(100)] string? AccountHolderName = null) : PaymentMethod;

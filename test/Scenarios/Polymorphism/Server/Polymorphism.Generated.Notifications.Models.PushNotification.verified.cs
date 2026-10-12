@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Polymorphism.Generated.Notifications.Models;
 
@@ -25,9 +26,9 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// <param name="Sound">Sound file name.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PushNotification(
-    [property: Required] string Kind,
-    [property: Required] string DeviceToken,
-    [property: Required, ApiMaxLength(100)] string Title,
+    [property: Required, JsonRequired] string Kind,
+    [property: Required, JsonRequired] string DeviceToken,
+    [property: Required, ApiMaxLength(100), JsonRequired] string Title,
     [property: ApiMaxLength(500)] string? Body = null,
     [property: Range(0, long.MaxValue)] int? Badge = null,
     string? Sound = null) : Notification;

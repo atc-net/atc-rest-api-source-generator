@@ -12,9 +12,10 @@ using Microsoft.AspNetCore.Http;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Demo.Generated.Files.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FilesAsFormDataRequest(
-    [property: Required] List<IFormFile> Files);
+    [property: Required, JsonRequired] List<IFormFile> Files);

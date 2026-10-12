@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SecurityOpenIdConnect.Generated.Me.Models;
 
@@ -24,8 +25,8 @@ namespace SecurityOpenIdConnect.Generated.Me.Models;
 /// <param name="EmailVerified">Whether email is verified.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UserProfile(
-    [property: Required] Guid Id,
-    [property: Required, EmailAddress] string Email,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, EmailAddress, JsonRequired] string Email,
     string? DisplayName = null,
     Uri? Picture = null,
     bool? EmailVerified = null);

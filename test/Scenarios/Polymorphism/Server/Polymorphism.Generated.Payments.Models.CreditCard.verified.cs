@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Polymorphism.Generated.Payments.Models;
 
@@ -24,8 +25,8 @@ namespace Polymorphism.Generated.Payments.Models;
 /// <param name="CardholderName">Name on the card.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreditCard(
-    [property: Required] string Type,
-    [property: Required, ApiMinLength(13), ApiMaxLength(19)] string CardNumber,
-    [property: Required, RegularExpression(@"^\d{2}/\d{2}$")] string ExpiryDate,
+    [property: Required, JsonRequired] string Type,
+    [property: Required, ApiMinLength(13), ApiMaxLength(19), JsonRequired] string CardNumber,
+    [property: Required, RegularExpression(@"^\d{2}/\d{2}$"), JsonRequired] string ExpiryDate,
     [property: ApiMinLength(3), ApiMaxLength(4)] string? Cvv = null,
     [property: ApiMaxLength(100)] string? CardholderName = null) : PaymentMethod;

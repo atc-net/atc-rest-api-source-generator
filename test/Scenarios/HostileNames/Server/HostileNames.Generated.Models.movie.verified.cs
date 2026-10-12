@@ -11,10 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace HostileNames.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record movie(
-    [property: Required] int Id,
-    [property: Required] string Title);
+    [property: Required, JsonRequired] int Id,
+    [property: Required, JsonRequired] string Title);

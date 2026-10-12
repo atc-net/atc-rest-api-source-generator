@@ -11,10 +11,11 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SecurityAtcExt.Generated.Orders.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderRequest(
-    [property: Required] string CustomerName,
+    [property: Required, JsonRequired] string CustomerName,
     List<string>? Items = null);

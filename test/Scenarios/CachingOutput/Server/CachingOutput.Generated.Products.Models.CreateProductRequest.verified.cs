@@ -11,12 +11,13 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CachingOutput.Generated.Products.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateProductRequest(
-    [property: Required] string Name,
-    [property: Required] double Price,
+    [property: Required, JsonRequired] string Name,
+    [property: Required, JsonRequired] double Price,
     string? Description = null,
     Guid? CategoryId = null);

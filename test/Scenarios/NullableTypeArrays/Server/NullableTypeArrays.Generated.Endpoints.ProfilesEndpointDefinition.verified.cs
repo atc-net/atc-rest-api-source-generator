@@ -62,7 +62,7 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetProfileByIdParametersWire.Parameters);
+            .WithWireBinding(GetProfileByIdParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListProfiles(

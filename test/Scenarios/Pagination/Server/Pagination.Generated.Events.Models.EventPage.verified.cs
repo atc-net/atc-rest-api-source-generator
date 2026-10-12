@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using Pagination.Generated.Models;
 
 namespace Pagination.Generated.Events.Models;

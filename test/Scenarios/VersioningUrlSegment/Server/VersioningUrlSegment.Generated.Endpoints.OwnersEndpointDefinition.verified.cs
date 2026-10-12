@@ -62,7 +62,7 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetOwnerByIdParametersWire.Parameters);
+            .WithWireBinding(GetOwnerByIdParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListOwners(

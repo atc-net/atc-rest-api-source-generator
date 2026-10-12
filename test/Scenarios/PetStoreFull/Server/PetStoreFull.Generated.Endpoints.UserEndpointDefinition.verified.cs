@@ -62,7 +62,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .Produces<string>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .WithWireBinding(LoginUserParametersWire.Parameters);
+            .WithWireBinding(LoginUserParametersWire.Parameters, requireParameters: true);
 
         user
             .MapGet("logout", LogoutUser)
@@ -79,7 +79,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .WithWireBinding(GetUserByNameParametersWire.Parameters);
+            .WithWireBinding(GetUserByNameParametersWire.Parameters, requireParameters: true);
 
         user
             .MapPut("{username}", UpdateUser)
@@ -90,7 +90,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .WithWireBinding(UpdateUserParametersWire.Parameters)
+            .WithWireBinding(UpdateUserParametersWire.Parameters, requireParameters: true)
             .Accepts<PetStoreFull.Generated.User.Models.User>("application/json", "application/xml");
 
         user
@@ -101,7 +101,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .WithWireBinding(DeleteUserParametersWire.Parameters);
+            .WithWireBinding(DeleteUserParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> CreateUser(

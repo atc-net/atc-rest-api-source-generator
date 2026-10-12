@@ -44,7 +44,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetFileByIdParametersWire.Parameters);
+            .WithWireBinding(GetFileByIdParametersWire.Parameters, requireParameters: true);
 
         files
             .MapPost("form-data/singleObject", UploadFormDataFile)

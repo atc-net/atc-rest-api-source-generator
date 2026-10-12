@@ -11,13 +11,14 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CachingHybrid.Generated.Users.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    [property: Required] Guid Id,
-    [property: Required, EmailAddress] string Email,
-    [property: Required] string Name,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, EmailAddress, JsonRequired] string Email,
+    [property: Required, JsonRequired] string Name,
     string? Role = null,
     DateTimeOffset? CreatedAt = null);

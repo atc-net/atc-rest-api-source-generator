@@ -54,7 +54,7 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(DeleteSubscriptionParametersWire.Parameters);
+            .WithWireBinding(DeleteSubscriptionParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> CreateSubscription(

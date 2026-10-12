@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Demo.Generated.Users.Models;
 
@@ -27,10 +28,10 @@ namespace Demo.Generated.Users.Models;
 /// <param name="Longitude">Geographic longitude.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
-    [property: Required, ApiMinLength(1), ApiMaxLength(200)] string Street,
-    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string City,
-    [property: Required, ApiMinLength(2), ApiMaxLength(20)] string PostalCode,
-    [property: Required, ApiMinLength(2), ApiMaxLength(100)] string Country,
+    [property: Required, ApiMinLength(1), ApiMaxLength(200), JsonRequired] string Street,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired] string City,
+    [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired] string PostalCode,
+    [property: Required, ApiMinLength(2), ApiMaxLength(100), JsonRequired] string Country,
     [property: ApiMaxLength(100)] string? State = null,
     [property: ApiMinLength(2), ApiMaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
     [property: Range(-90, 90)] double? Latitude = null,

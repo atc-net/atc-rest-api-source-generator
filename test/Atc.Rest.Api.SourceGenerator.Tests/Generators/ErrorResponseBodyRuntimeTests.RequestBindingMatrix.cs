@@ -94,6 +94,14 @@ public partial class ErrorResponseBodyRuntimeTests
                 - { name: count, in: cookie, schema: { type: integer, format: int32 } }
               responses:
                 '200': { description: What the server bound, content: { application/json: { schema: { $ref: '#/components/schemas/Echo' } } } }
+          /bind/required:
+            get:
+              operationId: bindRequired
+              parameters:
+                - { name: X-Tenant, in: header, required: true, schema: { type: string } }
+                - { name: sid, in: cookie, required: true, schema: { type: string } }
+              responses:
+                '200': { description: What the server bound, content: { application/json: { schema: { $ref: '#/components/schemas/Echo' } } } }
           /bind/body/json:
             post:
               operationId: bindJson
@@ -367,6 +375,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(BindCookiesResult.Ok(BindEcho.Of(parameters)));
         }
 
+        public sealed class BindRequiredHandlerImpl : IBindRequiredHandler
+        {
+            public System.Threading.Tasks.Task<BindRequiredResult> ExecuteAsync(BindRequiredParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(BindRequiredResult.Ok(BindEcho.Of(parameters)));
+        }
+
         public sealed class BindJsonHandlerImpl(IHttpContextAccessor accessor) : IBindJsonHandler
         {
             public System.Threading.Tasks.Task<BindJsonResult> ExecuteAsync(BindJsonParameters parameters, System.Threading.CancellationToken cancellationToken = default)
@@ -407,6 +421,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IBindQueryArraysHandler, BindQueryArraysHandlerImpl>();
                 services.AddScoped<IBindHeadersHandler, BindHeadersHandlerImpl>();
                 services.AddScoped<IBindCookiesHandler, BindCookiesHandlerImpl>();
+                services.AddScoped<IBindRequiredHandler, BindRequiredHandlerImpl>();
                 services.AddScoped<IBindJsonHandler, BindJsonHandlerImpl>();
                 services.AddScoped<IBindVendorJsonHandler, BindVendorJsonHandlerImpl>();
                 services.AddScoped<IBindMultipartHandler, BindMultipartHandlerImpl>();
@@ -835,6 +850,23 @@ public partial class ErrorResponseBodyRuntimeTests
     [Fact]
     public void RequestBindingVerdicts_FailAChangedMissingOrExtraValue()
     {
+        // A request the server cannot bind: the status as a problem naming the value. Only a body whose required
+        // property is missing, on the host without the ValidationFilter, may go unnamed - and that is lossy
+        var missingParameter = RequestBindingWireCases().Single(c => c.Name == "query: the required parameter is missing");
+        var missingProperty = RequestBindingWireCases().Single(c => c.Name == "body: the required property is missing");
+        const string named = """{"status":400,"errors":{"req":["The req field is required."],"name":["The name field is required."]}}""";
+        const string unnamed = """{"status":400,"title":"Bad Request"}""";
+        foreach (var plain in (bool[])[false, true])
+        {
+            Assert.Equal(VerdictPass, RequestBindingWireVerdict(missingParameter, 400, "application/problem+json", named, plain).Verdict);
+            Assert.Equal(VerdictFail, RequestBindingWireVerdict(missingParameter, 400, "application/problem+json", unnamed, plain).Verdict);
+            Assert.Equal(VerdictPass, RequestBindingWireVerdict(missingProperty, 400, "application/problem+json", named, plain).Verdict);
+            Assert.Equal(VerdictFail, RequestBindingWireVerdict(missingProperty, 200, "application/json", "{}", plain).Verdict);
+        }
+
+        Assert.Equal(VerdictFail, RequestBindingWireVerdict(missingProperty, 400, "application/problem+json", unnamed).Verdict);
+        Assert.Equal(VerdictLossy, RequestBindingWireVerdict(missingProperty, 400, "application/problem+json", unnamed, plainHost: true).Verdict);
+
         var expected = new Dictionary<string, string>(StringComparer.Ordinal) { ["S"] = "a b", ["I"] = "1" };
 
         Assert.Equal(VerdictPass, (string?)RequestBindingVerdict(expected, Echo(("S", "a b"), ("I", "1")))["verdict"]);
@@ -864,7 +896,8 @@ public partial class ErrorResponseBodyRuntimeTests
         string? ExpectedKey = null,
         (string Name, string Value)[]? Headers = null,
         string? ContentType = null,
-        string? Body = null);
+        string? Body = null,
+        bool NamedByValidation = false);
 
     /// <summary>
     /// The cases of the 3.1 body (<see cref="RequestBindingYaml31"/>): every member with a value - the tuple as a JSON
@@ -1085,8 +1118,10 @@ public partial class ErrorResponseBodyRuntimeTests
             new("query: a date that is none", "GET", "/bind/query?req=r&d=2026-13-45", 400, "d"),
             new("query: a uuid that is none", "GET", "/bind/query?req=r&u=not-a-guid", 400, "u"),
             new("header: an integer that is none", "GET", "/bind/headers", 400, "X-Count", Headers: [("X-Count", "abc")]),
+            new("header: the required header is missing", "GET", "/bind/required", 400, "X-Tenant", Headers: [("Cookie", "sid=abc")]),
+            new("cookie: the required cookie is missing", "GET", "/bind/required", 400, "sid", Headers: [("X-Tenant", "contoso")]),
             new("body: malformed JSON", "POST", "/bind/body/json", 400, ContentType: "application/json", Body: "{ \"name\": "),
-            new("body: the required property is missing", "POST", "/bind/body/json", 400, "name", ContentType: "application/json", Body: "{ \"count\": 1 }"),
+            new("body: the required property is missing", "POST", "/bind/body/json", 400, "name", ContentType: "application/json", Body: "{ \"count\": 1 }", NamedByValidation: true),
             new("body: a media type the operation does not take", "POST", "/bind/body/json", 415, ContentType: "text/plain", Body: "name=x"),
             new("body: larger than the server allows", "POST", "/bind/body/json", 413, Headers: [("X-Test-Body-Limit", "64")], ContentType: "application/json", Body: "{ \"name\": \"" + new string('x', 500) + "\" }"),
             new("form: the required field is missing", "POST", "/bind/body/form", 400, "name", ContentType: "application/x-www-form-urlencoded", Body: "count=1"),
@@ -1247,7 +1282,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
                 using var response = await http.SendAsync(request, TestContext.Current.CancellationToken);
                 var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-                var verdict = RequestBindingWireVerdict(wireCase, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType, body);
+                var verdict = RequestBindingWireVerdict(wireCase, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType, body, plainHost);
                 casesArray.Add(new JsonObject
                 {
                     ["id"] = "server: " + wireCase.Name,
@@ -1278,12 +1313,16 @@ public partial class ErrorResponseBodyRuntimeTests
 
     /// <summary>
     /// The server's answer to a request it cannot bind: the expected status as an RFC 9457 problem, naming the value.
+    /// On the host without Atc.Rest.MinimalApi nothing validates a body: one that leaves a required property out is
+    /// still rejected - the generated models require it of the JSON - but by the framework's reader, whose problem
+    /// names no property; that answer is lossy, never a pass.
     /// </summary>
     private static (string Verdict, string Why) RequestBindingWireVerdict(
         RequestBindingWireCase wireCase,
         int status,
         string? mediaType,
-        string body)
+        string body,
+        bool plainHost = false)
     {
         if (status != wireCase.Status)
         {
@@ -1304,7 +1343,9 @@ public partial class ErrorResponseBodyRuntimeTests
             (problem["errors"] is not JsonObject errors || !errors.Any(e => string.Equals(e.Key, key, StringComparison.OrdinalIgnoreCase))))
         {
             var keys = problem["errors"] is JsonObject found ? string.Join(", ", found.Select(e => e.Key)) : "(no errors)";
-            return (VerdictFail, $"errors names [{keys}], expected '{key}'");
+            return plainHost && wireCase.NamedByValidation && problem["errors"] is null
+                ? (VerdictLossy, $"rejected with the expected status as a problem, but '{key}' is not named: without Atc.Rest.MinimalApi's ValidationFilter the framework's JSON reader rejects the body")
+                : (VerdictFail, $"errors names [{keys}], expected '{key}'");
         }
 
         return (VerdictPass, "the expected status as a problem" + (wireCase.ExpectedKey is null ? string.Empty : $", naming '{wireCase.ExpectedKey}'"));
@@ -1496,13 +1537,5 @@ public partial class ErrorResponseBodyRuntimeTests
 
     private static readonly Dictionary<string, string> KnownPlainRequestBindingFailures = new(StringComparer.Ordinal)
     {
-        // Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the framework's own 400 for a
-        // missing required query parameter names no parameter (a ProblemDetails from the host wiring, no `errors`),
-        // and a body missing a required property reaches the handler as null. Documented under "Without
-        // Atc.Rest.MinimalApi" in Working with Error Responses; .NET 10's AddValidation() is the way to validate there.
-        ["server: query: the required parameter is missing [wire]"] =
-            "Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the framework's own 400 names no parameter (a ProblemDetails from the host wiring, no errors). AddValidation() is the way to validate on this host.",
-        ["server: body: the required property is missing [wire]"] =
-            "Nothing validates a request without Atc.Rest.MinimalApi's ValidationFilter: the body reaches the handler with the required property null. AddValidation() is the way to validate on this host.",
     };
 }

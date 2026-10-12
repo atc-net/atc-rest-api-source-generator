@@ -46,7 +46,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListProductsParametersWire.Parameters)
+            .WithWireBinding(ListProductsParametersWire.Parameters, requireParameters: true)
             .CacheOutput(OutputCachePolicies.Products);
 
         products
@@ -68,7 +68,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(GetProductByIdParametersWire.Parameters)
+            .WithWireBinding(GetProductByIdParametersWire.Parameters, requireParameters: true)
             .CacheOutput(OutputCachePolicies.ProductDetail);
 
         products
@@ -80,7 +80,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(DeleteProductParametersWire.Parameters);
+            .WithWireBinding(DeleteProductParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListProducts(

@@ -26,6 +26,6 @@ public static class SearchItemsParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
         WireParameter.Parsable<DateTimeOffset>("query", "createdAfter"),
-        WireParameter.Parsable<DateTimeOffset>("query", "createdBefore"),
+        WireParameter.Parsable<DateTimeOffset>("query", "createdBefore").Required(),
     ];
 }

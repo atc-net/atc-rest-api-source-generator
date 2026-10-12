@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ModelsAndProperties.Generated.Models;
 
@@ -25,9 +26,9 @@ namespace ModelsAndProperties.Generated.Models;
 /// <param name="State">State or region.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
-    [property: Required, ApiMaxLength(255)] string StreetName,
-    [property: Required, ApiMinLength(2), ApiMaxLength(20)] string PostalCode,
-    [property: Required, ApiMaxLength(100)] string CityName,
-    [property: Required] Country Country,
+    [property: Required, ApiMaxLength(255), JsonRequired] string StreetName,
+    [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired] string PostalCode,
+    [property: Required, ApiMaxLength(100), JsonRequired] string CityName,
+    [property: Required, JsonRequired] Country Country,
     [property: ApiMaxLength(20)] string? StreetNumber = null,
     [property: ApiMaxLength(100)] string? State = null);

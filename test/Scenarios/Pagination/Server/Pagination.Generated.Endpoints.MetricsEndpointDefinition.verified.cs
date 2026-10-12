@@ -44,7 +44,7 @@ public sealed class MetricsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListMetricsParametersWire.Parameters);
+            .WithWireBinding(ListMetricsParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListMetrics(

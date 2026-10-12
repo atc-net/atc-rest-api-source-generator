@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SecurityStandard.Generated.Users.Models;
 
@@ -23,7 +24,7 @@ namespace SecurityStandard.Generated.Users.Models;
 /// <param name="Role">User role.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    [property: Required] Guid Id,
-    [property: Required] string Username,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, JsonRequired] string Username,
     [property: EmailAddress] string? Email = null,
     UserRole? Role = null);

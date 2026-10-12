@@ -11,6 +11,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Models.Models;
@@ -42,10 +43,10 @@ namespace ModelsAndProperties.Generated.Models.Models;
 /// <param name="Metadata">Key-value metadata.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ComprehensiveModel(
-    [property: Required] Guid Id,
-    [property: Required, ApiMinLength(2), ApiMaxLength(100)] string Name,
-    [property: Required, ApiMaxLength(254), EmailAddress] string Email,
-    [property: Required] DateTimeOffset CreatedAt,
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, ApiMinLength(2), ApiMaxLength(100), JsonRequired] string Name,
+    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired] string Email,
+    [property: Required, JsonRequired] DateTimeOffset CreatedAt,
     [property: ApiMaxLength(500)] string? Description = null,
     Uri? Website = null,
     DateTimeOffset? UpdatedAt = null,

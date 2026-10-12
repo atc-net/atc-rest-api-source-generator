@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Validations.Models;
@@ -36,8 +37,8 @@ namespace ModelsAndProperties.Generated.Validations.Models;
 /// <param name="LargeLong">Large long integer with range.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ValidationConstraints(
-    [property: Required] string RequiredString,
-    [property: Required] int RequiredInteger,
+    [property: Required, JsonRequired] string RequiredString,
+    [property: Required, JsonRequired] int RequiredInteger,
     [property: ApiMinLength(5)] string? MinLengthString = null,
     [property: ApiMaxLength(100)] string? MaxLengthString = null,
     [property: ApiMinLength(2), ApiMaxLength(50)] string? LengthRangeString = null,

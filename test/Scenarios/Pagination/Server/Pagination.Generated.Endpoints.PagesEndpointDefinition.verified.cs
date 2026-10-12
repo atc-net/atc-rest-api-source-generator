@@ -44,7 +44,7 @@ public sealed class PagesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListAccountPagesParametersWire.Parameters);
+            .WithWireBinding(ListAccountPagesParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListAccountPages(

@@ -11,10 +11,11 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace HttpMethods.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Resource(
-    [property: Required] Guid Id,
-    [property: Required] string Name);
+    [property: Required, JsonRequired] Guid Id,
+    [property: Required, JsonRequired] string Name);

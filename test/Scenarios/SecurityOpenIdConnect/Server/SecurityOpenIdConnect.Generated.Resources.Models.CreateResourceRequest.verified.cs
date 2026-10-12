@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SecurityOpenIdConnect.Generated.Resources.Models;
 
@@ -20,4 +21,4 @@ namespace SecurityOpenIdConnect.Generated.Resources.Models;
 /// <param name="Name">Resource name.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateResourceRequest(
-    [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name);
+    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired] string Name);

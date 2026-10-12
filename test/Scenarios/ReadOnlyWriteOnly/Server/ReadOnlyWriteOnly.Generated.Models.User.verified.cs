@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ReadOnlyWriteOnly.Generated.Models;
 
@@ -25,7 +26,7 @@ namespace ReadOnlyWriteOnly.Generated.Models;
 /// <param name="DisplayName">Regular read-write property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    [property: Required, EmailAddress] string Email,
+    [property: Required, EmailAddress, JsonRequired] string Email,
     Guid? Id = null,
     string? Password = null,
     DateTimeOffset? CreatedAt = null,

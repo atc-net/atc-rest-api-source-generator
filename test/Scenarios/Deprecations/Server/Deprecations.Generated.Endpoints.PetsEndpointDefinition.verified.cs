@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListPetsParametersWire.Parameters);
+            .WithWireBinding(ListPetsParametersWire.Parameters, requireParameters: true);
 
         pets
             .MapPost("/", CreatePet)

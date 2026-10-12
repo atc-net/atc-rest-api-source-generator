@@ -25,7 +25,7 @@ namespace CookieParameters.Generated.Session.Parameters;
 public static class GetSessionParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Text("header", "x-cookie-sessionId"),
+        WireParameter.Text("header", "x-cookie-sessionId").Required(),
         WireParameter.Text("header", "x-cookie-preferences"),
     ];
 }
