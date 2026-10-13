@@ -6,6 +6,20 @@ namespace Showcase.BlazorApp.Services;
 public sealed partial class GatewayService
 {
     /// <summary>
+    /// Opens the price event stream: the result of the Server-Sent Events operation itself, whose
+    /// <c>LastEventId</c> follows the events as they are read. A caller whose stream dropped opens it again with that
+    /// id (it is sent as the Last-Event-ID header) and gets the prices after it.
+    /// </summary>
+    public Task<ListPriceEventsEndpointResult> OpenPriceEventsAsync(
+        int count,
+        int? dropAfter,
+        string? lastEventId,
+        CancellationToken cancellationToken = default)
+        => listPriceEventsEndpoint.ExecuteAsync(
+            new ListPriceEventsParameters(Count: count, Closed: false, DropAfter: dropAfter, LastEventId: lastEventId),
+            cancellationToken: cancellationToken);
+
+    /// <summary>
     /// Opens the price stream in one of the five formats. Each format is an operation with a result class of its
     /// own; all derive from <see cref="StreamingEndpointResponse{T}"/>, so the items are read the same way.
     /// </summary>
@@ -52,7 +66,7 @@ public sealed partial class GatewayService
             default:
             {
                 var result = await listPriceEventsEndpoint
-                    .ExecuteAsync(new ListPriceEventsParameters(count, closed), cancellationToken: cancellationToken)
+                    .ExecuteAsync(new ListPriceEventsParameters(Count: count, Closed: closed, DropAfter: null, LastEventId: null), cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
                 return new PriceStreamCall(result, result.XStreamFormatHeader, result.IsServiceUnavailable ? result.ServiceUnavailableContent : null, result.RetryAfterHeader);
             }

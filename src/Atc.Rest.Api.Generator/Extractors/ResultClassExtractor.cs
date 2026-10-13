@@ -1111,6 +1111,38 @@ public static class ResultClassExtractor
                 Content: content);
             methods.Add(okMethod);
 
+            // An event stream can also be given as the events themselves: a handler that sets an event's id (what a
+            // client sends back as Last-Event-ID to continue after it), its name or the retry time yields SseItem<T>
+            const string asyncEnumerableOf = "IAsyncEnumerable<";
+            if (isAsyncEnumerable &&
+                streamingFraming == StreamingFraming.ServerSentEvents &&
+                parameterType.StartsWith(asyncEnumerableOf, StringComparison.Ordinal))
+            {
+                var itemType = parameterType.Substring(asyncEnumerableOf.Length, parameterType.Length - asyncEnumerableOf.Length - 1);
+                methods.Add(new MethodParameters(
+                    DocumentationTags: new CodeDocumentationTags("200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets."),
+                    Attributes: null,
+                    DeclarationModifier: DeclarationModifiers.PublicStatic,
+                    ReturnGenericTypeName: null,
+                    ReturnTypeName: className,
+                    Name: "Ok",
+                    Parameters: new List<ParameterBaseParameters>
+                    {
+                        new(
+                            Attributes: null,
+                            GenericTypeName: null,
+                            IsGenericListType: false,
+                            TypeName: $"IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<{itemType}>>",
+                            IsNullableType: false,
+                            IsReferenceType: true,
+                            Name: "events",
+                            DefaultValue: null),
+                    },
+                    AlwaysBreakDownParameters: false,
+                    UseExpressionBody: true,
+                    Content: "new(TypedResults.ServerSentEvents(events))"));
+            }
+
             // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
             // Skip implicit operators for IAsyncEnumerable - they don't make sense for streaming
             if (contentType != "object" && !isAsyncEnumerable)

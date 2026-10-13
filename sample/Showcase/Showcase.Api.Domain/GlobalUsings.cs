@@ -4,6 +4,7 @@ global using System.Collections.Generic;
 global using System.Diagnostics;
 global using System.Globalization;
 global using System.IO;
+global using System.Net.ServerSentEvents;
 global using System.Runtime.CompilerServices;
 global using System.Security.Cryptography;
 global using System.Text;

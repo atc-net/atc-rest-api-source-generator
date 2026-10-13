@@ -10,7 +10,7 @@ export class EventsSseClient {
   }
 
   /** Stream events as server-sent events */
-  async *streamEventsSse(signal?: AbortSignal): AsyncGenerator<Event> {
-    yield* this.api.requestStream<Event>('GET', '/events-sse', { signal }, 'sse');
+  async *streamEventsSse(signal?: AbortSignal, onEvent?: (event: { lastEventId?: string; event?: string; retry?: number }) => void): AsyncGenerator<Event> {
+    yield* this.api.requestStream<Event>('GET', '/events-sse', { signal, onEvent }, 'sse');
   }
 }

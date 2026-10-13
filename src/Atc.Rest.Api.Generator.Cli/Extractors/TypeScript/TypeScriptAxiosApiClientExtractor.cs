@@ -149,6 +149,8 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  contentType?: string;");
         sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
         sb.AppendLine("  arms?: readonly string[];");
+        sb.AppendLine("  /** Called for every Server-Sent Event that is yielded as an item, before it is yielded: with the id to send as Last-Event-ID to continue the stream after it. */");
+        sb.AppendLine("  onEvent?: (event: ServerSentEventInfo) => void;");
         TypeScriptModelOrFileExtractor.AppendRequestOption(sb, hasModelOrFile);
         TypeScriptOperationHelper.AppendXmlRequestOption(sb, hasXml);
         if (hasRetry)
@@ -176,6 +178,17 @@ public static class TypeScriptAxiosApiClientExtractor
         // 'multipart' each have a dedicated parse branch (Server-Sent Events `data: <json>\n\n`,
         // and boundary-delimited multipart/mixed parts respectively).
         sb.AppendLine("export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';");
+        sb.AppendLine();
+        sb.AppendLine("/**");
+        sb.AppendLine(" * What a Server-Sent Event says besides its data: the id of the last event read (its own, or an earlier one's - an");
+        sb.AppendLine(" * id stays until another is sent; empty when the server has reset it), the event's name (undefined for the unnamed");
+        sb.AppendLine(" * event) and the time in milliseconds the server last asked a client to wait before it reconnects.");
+        sb.AppendLine(" */");
+        sb.AppendLine("export interface ServerSentEventInfo {");
+        sb.AppendLine("  lastEventId?: string;");
+        sb.AppendLine("  event?: string;");
+        sb.AppendLine("  retry?: number;");
+        sb.AppendLine("}");
         sb.AppendLine();
     }
 
@@ -566,7 +579,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    const decoder = new TextDecoder();");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'sse') {");
-        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents);");
+        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents, options?.onEvent);");
         sb.AppendLine("      return;");
         sb.AppendLine("    }");
         sb.AppendLine();

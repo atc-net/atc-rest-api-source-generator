@@ -22,6 +22,7 @@ import {
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import { ApiError } from '../api/errors';
+import { useApiService } from '../api/hooks/useApiService';
 import {
   useListPriceElementsStream,
   useListPriceEventsStream,
@@ -65,13 +66,16 @@ export default function LiveStreamsPage() {
   const [format, setFormat] = useState<Format>('sse');
   const [enabled, setEnabled] = useState(false);
   const [closed, setClosed] = useState(false);
+  const api = useApiService();
+  const [resumeStatus, setResumeStatus] = useState('Idle');
+  const [resuming, setResuming] = useState(false);
   const openedAt = useRef(0);
   const arrivedAt = useRef<number[]>([]);
 
   // One hook per operation; only the selected one is enabled
   const query = useMemo(() => ({ count, closed }), [closed]);
   const streams = {
-    sse: useListPriceEventsStream(query, { enabled: enabled && format === 'sse' }),
+    sse: useListPriceEventsStream(query, undefined, { enabled: enabled && format === 'sse' }),
     lines: useListPriceLinesStream(query, { enabled: enabled && format === 'lines' }),
     array: useListPriceElementsStream(query, { enabled: enabled && format === 'array' }),
     seq: useListPriceRecordsStream(query, { enabled: enabled && format === 'seq' }),
@@ -102,6 +106,55 @@ export default function LiveStreamsPage() {
   const stop = () => {
     setEnabled(false);
     cancel();
+  };
+
+  // The resume loop a caller writes: read until the stream ends; when it drops, open it again after the last event.
+  // The client tells the id of each event as it yields the item (onEvent); nothing reconnects by itself.
+  const streamWithADrop = async () => {
+    const total = 12;
+    setResuming(true);
+    setResumeStatus('Streaming…');
+    let received = 0;
+    let lastEventId: string | undefined;
+    let resumedAfter: string | undefined;
+    try {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        let seen = lastEventId;
+        try {
+          const prices = api.streams.listPriceEvents(
+            { count: total, dropAfter: 5 },
+            lastEventId === undefined ? undefined : { 'Last-Event-ID': lastEventId },
+            undefined,
+            (event) => {
+              seen = event.lastEventId;
+            },
+          );
+          for await (const tick of prices) {
+            if (tick) received++;
+          }
+
+          setResumeStatus(
+            resumedAfter === undefined
+              ? `Completed: ${received} prices`
+              : `Completed: ${received} prices, resumed after event ${resumedAfter}`,
+          );
+          return;
+        } catch (e) {
+          if (!seen || seen === lastEventId) throw e;
+
+          // The connection dropped: go on after the last event that was read
+          lastEventId = seen;
+          resumedAfter = seen;
+          setResumeStatus(`Dropped after event ${seen} - resuming…`);
+        }
+      }
+
+      setResumeStatus('Failed: the stream kept dropping');
+    } catch {
+      setResumeStatus('Failed');
+    } finally {
+      setResuming(false);
+    }
   };
 
   const quotes = useMemo(() => {
@@ -272,6 +325,24 @@ for await (const tick of api.streams.${selected.hook.replace(/^use/, '').replace
           </Paper>
         </Grid2>
       </Grid2>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6">When the connection drops</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Every price event has an id. The server drops this stream after five events; the page is told the id of the
+            last event by the client (<code>onEvent</code>), opens the stream again with it as{' '}
+            <code>Last-Event-ID</code>, and the prices go on after it. Nothing reconnects by itself: the loop is the
+            page's.
+          </Typography>
+          <Typography sx={{ mb: 2 }} data-testid="stream-resume-status">
+            {resumeStatus}
+          </Typography>
+          <Button variant="outlined" onClick={streamWithADrop} disabled={isStreaming || resuming} data-testid="stream-resume">
+            Stream with a drop
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent>

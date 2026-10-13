@@ -10,7 +10,7 @@ const streamsKeys = {
 export { streamsKeys };
 
 /** Live prices as Server-Sent Events */
-export function useListPriceEventsStream(query?: { count?: number /* default: 40 */; closed?: boolean /* default: false */ }, options?: { enabled?: boolean }) {
+export function useListPriceEventsStream(query?: { count?: number /* default: 40 */; closed?: boolean /* default: false */; dropAfter?: number }, headers?: { 'Last-Event-ID'?: string }, options?: { enabled?: boolean }) {
   const api = useApiService();
   const [items, setItems] = useState<readonly PriceTick[]>([]);
   const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');
@@ -30,7 +30,7 @@ export function useListPriceEventsStream(query?: { count?: number /* default: 40
   }, [cancel]);
 
   const enabled = options?.enabled !== false;
-  const keyDep = JSON.stringify({ query });
+  const keyDep = JSON.stringify({ query, headers });
 
   useEffect(() => {
     if (!enabled) return;
@@ -46,7 +46,7 @@ export function useListPriceEventsStream(query?: { count?: number /* default: 40
     const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };
     (async () => {
       try {
-        for await (const item of api.streams.listPriceEvents(query, controller.signal)) {
+        for await (const item of api.streams.listPriceEvents(query, headers, controller.signal)) {
           if (controller.signal.aborted) return;
           buffer.push(item);
           if (flushTimer === null) flushTimer = setTimeout(flush, 200);

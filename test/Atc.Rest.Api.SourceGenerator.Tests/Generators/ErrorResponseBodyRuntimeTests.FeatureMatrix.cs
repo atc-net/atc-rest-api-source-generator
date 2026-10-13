@@ -49,6 +49,15 @@ public partial class ErrorResponseBodyRuntimeTests
                 - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
               responses:
                 '200': { description: Things, content: { text/event-stream: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/stream/sse-resume:
+            get:
+              operationId: featureSseResume
+              x-return-async-enumerable: true
+              parameters:
+                - { name: count, in: query, required: true, schema: { type: integer, format: int32 } }
+                - { name: Last-Event-ID, in: header, schema: { type: string } }
+              responses:
+                '200': { description: Things, content: { text/event-stream: { schema: { $ref: '#/components/schemas/Thing' } } } }
           /feature/stream/lines:
             get:
               operationId: featureLines
@@ -321,6 +330,27 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(FeatureSseNamedResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
         }
 
+        public sealed class FeatureSseResumeHandlerImpl : IFeatureSseResumeHandler
+        {
+            public System.Threading.Tasks.Task<FeatureSseResumeResult> ExecuteAsync(FeatureSseResumeParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(FeatureSseResumeResult.Ok(Events(parameters.Count, parameters.LastEventId, cancellationToken)));
+
+            private static async IAsyncEnumerable<System.Net.ServerSentEvents.SseItem<Thing>> Events(int count, string? lastEventId, [EnumeratorCancellation] System.Threading.CancellationToken cancellationToken)
+            {
+                var first = int.TryParse(lastEventId, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var last) ? last + 1 : 1;
+                for (var i = first; i <= count; i++)
+                {
+                    if (lastEventId is null && i == 3)
+                    {
+                        throw new InvalidOperationException("the stream dropped after two events");
+                    }
+
+                    yield return new System.Net.ServerSentEvents.SseItem<Thing>(new Thing("t" + i)) { EventId = i.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                    await System.Threading.Tasks.Task.Delay(5, cancellationToken);
+                }
+            }
+        }
+
         public sealed class FeatureLinesHandlerImpl(IHttpContextAccessor accessor) : IFeatureLinesHandler
         {
             public System.Threading.Tasks.Task<FeatureLinesResult> ExecuteAsync(FeatureLinesParameters parameters, System.Threading.CancellationToken cancellationToken = default)
@@ -548,6 +578,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IFeatureSlowHandler, FeatureSlowHandlerImpl>();
                 services.AddHttpContextAccessor();
                 services.AddScoped<IFeatureSseHandler, FeatureSseHandlerImpl>();
+                services.AddScoped<IFeatureSseResumeHandler, FeatureSseResumeHandlerImpl>();
                 services.AddScoped<IFeatureSseNamedHandler, FeatureSseNamedHandlerImpl>();
                 services.AddScoped<IFeatureLinesHandler, FeatureLinesHandlerImpl>();
                 services.AddScoped<IFeatureArrayHandler, FeatureArrayHandlerImpl>();
@@ -866,6 +897,39 @@ public partial class ErrorResponseBodyRuntimeTests
                             c["cancelAfter"] is { } ca ? (int)ca : null);
                     }
 
+                    case "resume":
+                    {
+                        var names = new List<string>();
+                        var sent = new JsonArray();
+                        string? lastEventId = null;
+                        for (var attempt = 1; attempt <= 3; attempt++)
+                        {
+                            sent.Add(lastEventId);
+                            using var result = await provider.GetRequiredService<IFeatureSseResumeEndpoint>().ExecuteAsync(new FeatureSseResumeParameters((int)c["count"]!, lastEventId), httpClientName, System.Threading.CancellationToken.None);
+                            if (!result.IsSuccess)
+                            {
+                                return Error((int)result.StatusCode, result.ErrorContent);
+                            }
+
+                            try
+                            {
+                                await foreach (var thing in result.Content!)
+                                {
+                                    names.Add(thing!.Name);
+                                }
+
+                                break;
+                            }
+                            catch (Exception) when (result.LastEventId is { Length: > 0 } id && id != lastEventId)
+                            {
+                                // The stream dropped: go on after the last event read
+                                lastEventId = id;
+                            }
+                        }
+
+                        return new JsonObject { ["kind"] = "resumed", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["sent"] = sent };
+                    }
+
                     case "page":
                     {
                         var names = new List<string>();
@@ -1016,6 +1080,9 @@ public partial class ErrorResponseBodyRuntimeTests
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
                     }
+
+                    case "resume":
+                        return new JsonObject { ["kind"] = "na", ["why"] = "the Result style's StreamingEndpointResponse is built by the generated client, and Atc.Rest.Client gives it no last event id" };
 
                     case "page":
                     {
@@ -1170,6 +1237,9 @@ public partial class ErrorResponseBodyRuntimeTests
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
                     }
+
+                    case "resume":
+                        return new JsonObject { ["kind"] = "na", ["why"] = "the Throw style returns the items only: it has no place for an event's id" };
 
                     case "page":
                     {
@@ -1348,6 +1418,23 @@ public partial class ErrorResponseBodyRuntimeTests
               } catch (e: any) { if (!(c.cancelAfter && e?.name === 'AbortError')) error = `${e?.name ?? 'Error'}${e?.status ? ' ' + e.status : ''}: ${String(e?.message ?? e).slice(0, 300)}`; }
               return { kind: 'items', items: got, error };
             }
+            case 'resume': {
+              // The stream, and after a drop the stream again with the id of the last event read as Last-Event-ID
+              const got: string[] = []; const sent: (string | null)[] = [];
+              let lastEventId: string | undefined;
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                sent.push(lastEventId ?? null);
+                let seen = lastEventId;
+                try {
+                  for await (const t of f.featureSseResume({ count: c.count }, lastEventId === undefined ? undefined : { 'Last-Event-ID': lastEventId }, undefined, (e: any) => { seen = e.lastEventId; })) got.push(t.name);
+                  break;
+                } catch (e: any) {
+                  if (!seen || seen === lastEventId) return { kind: 'items', items: got, error: `${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}` };
+                  lastEventId = seen;
+                }
+              }
+              return { kind: 'resumed', items: got, sent };
+            }
             case 'page': {
               const got: string[] = []; let pages = 0; let continuation: string | undefined;
               do {
@@ -1414,6 +1501,7 @@ public partial class ErrorResponseBodyRuntimeTests
               await waitFor(() => { if (result.current.status !== 'success' && result.current.status !== 'error') throw new Error('waiting ' + result.current.status); }, WAIT);
               return { kind: 'items', items: names(result.current.items), error: result.current.error ? ((result.current.error as any).status ? 'ApiError ' + (result.current.error as any).status + ': ' : '') + String(result.current.error.message ?? result.current.error).slice(0, 300) : null };
             }
+            case 'resume': return { kind: 'na', why: 'a stream hook gives the items; it does not hand out an event\'s id' };
             case 'page': {
               const { result } = renderHook(() => H.useFeaturePageInfinite({ pageSize: c.pageSize }), { wrapper });
               if (hooks === 'reactquery') {
@@ -1579,6 +1667,10 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             cases.Add(new($"wire: {label}, 503 with a problem before the first item", "stream formats on the wire", operation, "stream", new JsonObject { ["count"] = 3, ["status"] = 503 }, [("X-Feature-Stub", "closed")]));
         }
+
+        // An event stream that drops and is resumed: the server gives every event an id, the first attempt ends after
+        // two events, and the client goes on after the last id it read
+        cases.Add(new("wire: Server-Sent Events that drop after two events and are resumed with Last-Event-ID", "stream formats on the wire", "FeatureSseResume", "resume", new JsonObject { ["count"] = 5 }));
 
         cases.Add(new("pagination: five things in pages of three, by continuation", "pagination", "FeaturePage", "page", new JsonObject { ["pageSize"] = 3 }));
         cases.Add(new("oneOf: a circle round-trips through the discriminator", "polymorphism", "FeatureShape", "shape", new JsonObject { ["body"] = new JsonObject { ["kind"] = "circle", ["radius"] = 2.5 } }));
@@ -2032,6 +2124,22 @@ public partial class ErrorResponseBodyRuntimeTests
                 }
 
                 return error is null ? Cell(VerdictPass, "every item, to the end", summary) : Cell(VerdictFail, "an error after a complete stream: " + error, summary);
+            }
+
+            case "resume":
+            {
+                if (kind != "resumed")
+                {
+                    return Cell(VerdictFail, $"{kind}: {(string?)observed["error"]}", "-");
+                }
+
+                var items = observed["items"]!.AsArray().Select(i => (string)i!).ToList();
+                var sent = observed["sent"]!.AsArray().Select(i => (string?)i ?? "none").ToList();
+                var summary = $"{items.Count} items; Last-Event-ID sent: {string.Join(", then ", sent)}";
+                var expected = Enumerable.Range(1, (int)arguments["count"]!).Select(i => "t" + i).ToList();
+                return items.SequenceEqual(expected, StringComparer.Ordinal) && sent.SequenceEqual(["none", "2"], StringComparer.Ordinal)
+                    ? Cell(VerdictPass, "every item once: the stream dropped after the second, and went on after its id", summary)
+                    : Cell(VerdictFail, $"items [{string.Join(",", items)}], expected [{string.Join(",", expected)}] with Last-Event-ID none, then 2", summary);
             }
 
             case "page":

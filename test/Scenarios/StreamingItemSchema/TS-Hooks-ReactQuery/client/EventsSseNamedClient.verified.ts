@@ -10,7 +10,7 @@ export class EventsSseNamedClient {
   }
 
   /** Stream events as named server-sent events, with typed errors and headers */
-  async *streamEventsSseNamed(signal?: AbortSignal): AsyncGenerator<Event> {
-    yield* this.api.requestStream<Event>('GET', '/events-sse-named', { signal }, 'sse', ['created', 'updated']);
+  async *streamEventsSseNamed(signal?: AbortSignal, onEvent?: (event: { lastEventId?: string; event?: string; retry?: number }) => void): AsyncGenerator<Event> {
+    yield* this.api.requestStream<Event>('GET', '/events-sse-named', { signal, onEvent }, 'sse', ['created', 'updated']);
   }
 }

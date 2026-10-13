@@ -73,7 +73,7 @@ export class ItemsClient {
   }
 
   /** Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2) */
-  async *streamItemEvents(signal?: AbortSignal): AsyncGenerator<Item> {
-    yield* this.api.requestStream<Item>('GET', '/items/events', { signal }, 'sse');
+  async *streamItemEvents(signal?: AbortSignal, onEvent?: (event: { lastEventId?: string; event?: string; retry?: number }) => void): AsyncGenerator<Item> {
+    yield* this.api.requestStream<Item>('GET', '/items/events', { signal, onEvent }, 'sse');
   }
 }

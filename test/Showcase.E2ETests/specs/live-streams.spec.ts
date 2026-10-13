@@ -53,6 +53,20 @@ test.describe('Live Streams', () => {
     await expect(streams.startButton).toBeEnabled();
   });
 
+  test('resumes a dropped event stream after the last event id', async ({ browserErrors }) => {
+    // The API drops the connection after five events - that is the test: the browser logs the broken response
+    // (as the failed request, and as the console error for it)
+    browserErrors.expect(
+      /\/streams\/prices\/events\?\S* net::ERR_INCOMPLETE_CHUNKED_ENCODING|net::ERR_INCOMPLETE_CHUNKED_ENCODING \(\S*\/streams\/prices\/events\?/,
+      'the API drops the stream on purpose',
+    );
+
+    await streams.resumeButton.click();
+
+    // All twelve prices, each once: five before the drop, and the seven after event 5
+    await expect(streams.resumeStatus).toHaveText('Completed: 12 prices, resumed after event 5', { timeout: 30_000 });
+  });
+
   for (const format of formats) {
     test(`shows the typed failure of a closed exchange (${format.name})`, async ({ browserErrors }) => {
       browserErrors.expectStatus(503, '/streams/prices/', 'the test asks for the closed exchange');

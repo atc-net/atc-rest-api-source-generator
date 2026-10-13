@@ -51,11 +51,24 @@ export interface RequestOptions {
   contentType?: string;
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
+  /** Called for every Server-Sent Event that is yielded as an item, before it is yielded: with the id to send as Last-Event-ID to continue the stream after it. */
+  onEvent?: (event: ServerSentEventInfo) => void;
   /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
   retry?: RequestRetry;
 }
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
+
+/**
+ * What a Server-Sent Event says besides its data: the id of the last event read (its own, or an earlier one's - an
+ * id stays until another is sent; empty when the server has reset it), the event's name (undefined for the unnamed
+ * event) and the time in milliseconds the server last asked a client to wait before it reconnects.
+ */
+export interface ServerSentEventInfo {
+  lastEventId?: string;
+  event?: string;
+  retry?: number;
+}
 
 /** Releases a body reader; a stream that was not read to its end is cancelled first, so the connection is closed. */
 async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {
@@ -92,9 +105,12 @@ function multipartBody(part: string): string | null {
   return sep === -1 ? null : head.substring(sep + 4).trim();
 }
 
-async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown, itemEvents?: readonly string[]): AsyncGenerator<T> {
+async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown, itemEvents?: readonly string[], onEvent?: (event: ServerSentEventInfo) => void): AsyncGenerator<T> {
   let buffer = '';
   let finished = false;
+  // The id and the retry time stay until the server sends another, as the standard says
+  let lastEventId: string | undefined;
+  let retry: number | undefined;
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -113,11 +129,23 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
           .filter((l) => l.startsWith('data:'))
           .map((l) => l.slice(5).trimStart())
           .join('\n');
+        // An id counts from the end of its event, of an event that is no item as well; one with a NUL and a
+        // retry that is not all digits are ignored
+        for (const l of lines) {
+          if (l.startsWith('id:')) {
+            const id = l.slice(3).replace(/^ /, '');
+            if (!id.includes('\0')) lastEventId = id;
+          } else if (l.startsWith('retry:') && /^\d+$/.test(l.slice(6).trim())) {
+            retry = Number(l.slice(6).trim());
+          }
+        }
         // The item event is the unnamed one (or 'message', the same by the standard), and the ones the operation
         // names (x-sse-item-events): each must be an item. An event without data and any other named event (a
         // heartbeat, a control frame) are read past.
         if ((eventType !== 'message' && !itemEvents?.includes(eventType)) || data.trim().length === 0) continue;
-        yield JSON.parse(data, reviver) as T;
+        const item = JSON.parse(data, reviver) as T;
+        onEvent?.({ lastEventId, event: eventType === 'message' ? undefined : eventType, retry });
+        yield item;
       }
       guardRecord(buffer.length);
     }
@@ -459,7 +487,7 @@ export class ApiClient {
     const decoder = new TextDecoder();
 
     if (framing === 'sse') {
-      yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents);
+      yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents, options?.onEvent);
       return;
     }
 

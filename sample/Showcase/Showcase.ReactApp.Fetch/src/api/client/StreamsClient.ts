@@ -10,13 +10,18 @@ export class StreamsClient {
   }
 
   /** Live prices as Server-Sent Events */
-  async *listPriceEvents(query?: { count?: number /* default: 40 */; closed?: boolean /* default: false */ }, signal?: AbortSignal): AsyncGenerator<PriceTick> {
+  async *listPriceEvents(query?: { count?: number /* default: 40 */; closed?: boolean /* default: false */; dropAfter?: number }, headers?: { 'Last-Event-ID'?: string }, signal?: AbortSignal, onEvent?: (event: { lastEventId?: string; event?: string; retry?: number }) => void): AsyncGenerator<PriceTick> {
     yield* this.api.requestStream<PriceTick>('GET', '/streams/prices/events', {
       query: {
         count: query?.count,
         closed: query?.closed,
+        dropAfter: query?.dropAfter,
+      },
+      headers: {
+        'Last-Event-ID': headers?.['Last-Event-ID'],
       },
       signal,
+      onEvent,
       security: [{ type: 'bearer' }],
     }, 'sse');
   }

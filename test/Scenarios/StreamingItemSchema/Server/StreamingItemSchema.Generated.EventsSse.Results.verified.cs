@@ -40,6 +40,12 @@ public sealed class StreamEventsSseResult : IResult
     public static StreamEventsSseResult Ok(IAsyncEnumerable<Event> response)
         => new(TypedResults.ServerSentEvents(response));
 
+    /// <summary>
+    /// 200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets.
+    /// </summary>
+    public static StreamEventsSseResult Ok(IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<Event>> events)
+        => new(TypedResults.ServerSentEvents(events));
+
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 

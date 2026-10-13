@@ -1080,10 +1080,26 @@ paths:
       description: |
         One price at a time, as the server has it - the response is Server-Sent Events (text/event-stream).
         Every format carries the same items; the generated clients read all five the same way.
+        Every event has an id (the price's sequence number): a client whose stream dropped sends the last id it
+        read as Last-Event-ID, and the stream goes on after it.
       x-return-async-enumerable: true
       parameters:
         - $ref: '#/components/parameters/priceCount'
         - $ref: '#/components/parameters/exchangeClosed'
+        - name: dropAfter
+          in: query
+          required: false
+          description: Drop the connection after this many events - to show a resume. Not applied to a resumed stream
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: The id of the last event read - the stream goes on after it
+          schema:
+            type: string
       responses:
         '200':
           description: The prices, one at a time

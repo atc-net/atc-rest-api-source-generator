@@ -1189,6 +1189,7 @@ renderCaseMatrix('guard', 'guard', REPORT?.guard, `
 const STREAM_FORMATS = [
   ['FeatureSse', 'Server-Sent Events', 'text/event-stream'],
   ['FeatureSseNamed', 'Server-Sent Events, items in named events', 'text/event-stream + x-sse-item-events'],
+  ['FeatureSseResume', 'Server-Sent Events, dropped and resumed', 'text/event-stream + Last-Event-ID'],
   ['FeatureLines', 'JSON Lines', 'application/jsonl'],
   ['FeatureArray', 'JSON array', 'application/json + x-return-async-enumerable'],
   ['FeatureSeq', 'JSON Text Sequence', 'application/json-seq'],

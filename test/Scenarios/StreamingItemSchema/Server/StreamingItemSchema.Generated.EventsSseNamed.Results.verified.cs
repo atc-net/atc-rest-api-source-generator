@@ -44,6 +44,14 @@ public sealed class StreamEventsSseNamedResult : IResult
         => new(ResponseHeaders.Of(TypedResults.ServerSentEvents(response), ("X-Stream-Id", ResponseHeaders.Text(xStreamId))));
 
     /// <summary>
+    /// 200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets.
+    /// </summary>
+    public static StreamEventsSseNamedResult Ok(
+        IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<Event>> events,
+        global::System.Guid? xStreamId = null)
+        => new(ResponseHeaders.Of(TypedResults.ServerSentEvents(events), ("X-Stream-Id", ResponseHeaders.Text(xStreamId))));
+
+    /// <summary>
     /// 404 Not Found - No such stream.
     /// </summary>
     public static StreamEventsSseNamedResult NotFound(StreamError error)

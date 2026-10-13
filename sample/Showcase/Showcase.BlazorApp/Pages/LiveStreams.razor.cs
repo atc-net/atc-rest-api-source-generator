@@ -26,6 +26,8 @@ public partial class LiveStreams : IDisposable
 
     private StreamFailure? failure;
 
+    private string resumeStatus = "Idle";
+
     private CancellationTokenSource? cts;
 
     [Inject]
@@ -166,6 +168,72 @@ public partial class LiveStreams : IDisposable
         if (arrivals.Count > MaxArrivals)
         {
             arrivals.RemoveAt(arrivals.Count - 1);
+        }
+    }
+
+    // The resume loop a caller writes: read until the stream ends; when it drops, open it again after the last event
+    private async Task StreamWithADropAsync()
+    {
+        const int total = 12;
+        const int dropAfter = 5;
+        quotes.Clear();
+        arrivals.Clear();
+        itemCount = 0;
+        isStreaming = true;
+        resumeStatus = "Streaming…";
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        string? lastEventId = null;
+        string? resumedAfter = null;
+
+        try
+        {
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                using var result = await Gateway.OpenPriceEventsAsync(total, dropAfter, lastEventId, CancellationToken.None);
+                if (!result.IsOk || result.Content is null)
+                {
+                    resumeStatus = $"Failed: {(int)result.StatusCode}";
+                    return;
+                }
+
+                try
+                {
+                    await foreach (var tick in result.Content)
+                    {
+                        if (tick is null)
+                        {
+                            continue;
+                        }
+
+                        Show(tick, stopwatch.ElapsedMilliseconds);
+                        StateHasChanged();
+                    }
+
+                    resumeStatus = resumedAfter is null
+                        ? $"Completed: {itemCount} prices"
+                        : $"Completed: {itemCount} prices, resumed after event {resumedAfter}";
+                    return;
+                }
+                catch (Exception) when (result.LastEventId is { Length: > 0 } id && id != lastEventId)
+                {
+                    // The connection dropped: go on after the last event that was read
+                    lastEventId = id;
+                    resumedAfter = id;
+                    resumeStatus = $"Dropped after event {id} - resuming…";
+                    StateHasChanged();
+                }
+            }
+
+            resumeStatus = "Failed: the stream kept dropping";
+        }
+        catch (Exception ex)
+        {
+            resumeStatus = "Failed";
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isStreaming = false;
         }
     }
 

@@ -920,6 +920,13 @@ public static class TypeScriptClientExtractor
         var signalOption = signalName == "signal" ? "signal" : "signal: " + signalName;
         paramParts.Add(signalName + "?: AbortSignal");
 
+        // An event stream: the caller can be told each item's event - its id is what a resume sends as Last-Event-ID
+        var isEventStream = streamFramingArg?.StartsWith("'sse'", StringComparison.Ordinal) == true;
+        if (isEventStream)
+        {
+            paramParts.Add("onEvent?: (event: { lastEventId?: string; event?: string; retry?: number }) => void");
+        }
+
         var paramList = TypeScriptOperationHelper.JoinParameters(paramParts);
 
         sb.Append("  async *").Append(methodName).Append('(').Append(paramList).Append("): AsyncGenerator<").Append(itemType).AppendLine("> {");
@@ -950,6 +957,11 @@ public static class TypeScriptClientExtractor
             }
 
             sb.Append("      ").Append(signalOption).AppendLine(",");
+            if (isEventStream)
+            {
+                sb.AppendLine("      onEvent,");
+            }
+
             if (wireOption is not null)
             {
                 sb.Append("      wire: ").Append(wireOption).AppendLine(",");
@@ -967,6 +979,7 @@ public static class TypeScriptClientExtractor
         else
         {
             var options = "{ " + signalOption +
+                          (isEventStream ? ", onEvent" : string.Empty) +
                           (wireOption is null ? string.Empty : ", wire: " + wireOption) +
                           (securityOption is null ? string.Empty : ", security: " + securityOption) +
                           " }";

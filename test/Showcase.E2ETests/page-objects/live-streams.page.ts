@@ -16,6 +16,8 @@ export class LiveStreamsPage {
   readonly failureStatus: Locator;
   readonly failureProblem: Locator;
   readonly failureRetry: Locator;
+  readonly resumeButton: Locator;
+  readonly resumeStatus: Locator;
 
   constructor(private readonly page: Page) {
     this.heading = page.getByRole('heading', { name: 'Live Streams' });
@@ -30,6 +32,8 @@ export class LiveStreamsPage {
     this.failureStatus = page.getByTestId('stream-failure-status');
     this.failureProblem = page.getByTestId('stream-failure-problem');
     this.failureRetry = page.getByTestId('stream-failure-retry');
+    this.resumeButton = page.getByTestId('stream-resume');
+    this.resumeStatus = page.getByTestId('stream-resume-status');
   }
 
   async goto() {

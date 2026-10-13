@@ -15,7 +15,8 @@ public static class PriceFeed
 
     public static async IAsyncEnumerable<PriceTick> TicksAsync(
         int count,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        long firstSequence = 1)
     {
         var prices = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var symbol in Symbols)
@@ -23,7 +24,7 @@ public static class PriceFeed
             prices[symbol] = 100;
         }
 
-        for (var sequence = 1L; sequence <= count; sequence++)
+        for (var sequence = firstSequence; sequence <= count; sequence++)
         {
             var symbol = Symbols[RandomNumberGenerator.GetInt32(Symbols.Length)];
             var change = (RandomNumberGenerator.GetInt32(201) - 100) / 100d;
