@@ -1633,7 +1633,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 (407, _) when thrown.Contains("fetch failed", StringComparison.Ordinal)
                     => Cell(VerdictPlatform, "Node's fetch rejects a 407 response before any client code runs", Short(thrown)),
                 (421, _) when thrown.Contains("UND_ERR_REQ_CONTENT_LENGTH_MISMATCH", StringComparison.Ordinal)
-                    => Cell(VerdictPlatform, "Node's fetch resends a 421's request on a new connection and now and then fails the body", Short(thrown)),
+                    => Cell(VerdictPlatform, "Node's fetch resends a 421's request on a new connection and failed the body three times in a row", Short(thrown)),
                 _ => Cell(VerdictFail, "the client method threw", Short(thrown)),
             };
         }
@@ -2071,9 +2071,16 @@ public partial class ErrorResponseBodyRuntimeTests
         const { ApiService } = await import(`./${which}/client/ApiService.ts`);
         const api: any = new ApiService(baseUrl);
 
+        // Node's fetch resends a request answered 421 on a new connection and now and then fails the resent body
+        // (about 2 in 100 against Kestrel): that is the platform's, not the client's, so such a call is made again -
+        // three times at most - and the record says how often. Nothing else is called twice.
+        const isResendFailure = (err: any) => err?.cause?.code === 'UND_ERR_REQ_CONTENT_LENGTH_MISMATCH';
+
         const results: Record<string, unknown>[] = [];
         for (const c of cases) {
-          const record: Record<string, unknown> = { name: c.name };
+          let record: Record<string, unknown> = { name: c.name };
+          for (let attempt = 1; attempt <= 3; attempt++) {
+          record = attempt === 1 ? { name: c.name } : { name: c.name, attempts: attempt };
           try {
             const client = api[c.property];
             // A 1xx is no final response: never wait for one longer than 8 s.
@@ -2102,6 +2109,9 @@ public partial class ErrorResponseBodyRuntimeTests
             // Node's fetch says only "fetch failed"; what failed is in the cause (a reset socket, a refused connection)
             const cause = err?.cause ? ` (cause: ${[err.cause.code, err.cause.message ?? String(err.cause)].filter(Boolean).join(' ')})` : '';
             record.threw = `${err?.name ?? 'Error'}: ${err?.message ?? err}${cause}\n${err?.stack ?? ''}`;
+            if (isResendFailure(err)) continue;
+          }
+          break;
           }
           results.push(record);
         }

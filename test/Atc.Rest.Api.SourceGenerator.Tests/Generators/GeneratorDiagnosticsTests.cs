@@ -71,6 +71,59 @@ public class GeneratorDiagnosticsTests
         Assert.DoesNotContain("ATC_API_DEP001", Run(new ApiServerGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server", "{}")], Full()));
     }
 
+    /// <summary>
+    /// A project that turns the Request Delegate Generator on (<c>PublishAot</c> does) is told what the build does
+    /// not say: that generator does not see the endpoints this one emits, so they are bound by reflection at run
+    /// time. Without the setting there is nothing to say.
+    /// </summary>
+    [Fact]
+    public void Server_WithTheRequestDelegateGeneratorOn_ReportsAOT001()
+    {
+        (string Path, string Content)[] texts = [Spec(Yaml), Marker(".atc-rest-api-server", "{}")];
+
+        var warning = Assert.Single(RunDiagnostics(new ApiServerGenerator(), texts, Full(), requestDelegateGenerator: true), d => d.Id == "ATC_API_AOT001");
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Contains("reflection", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+        Assert.DoesNotContain("ATC_API_AOT001", Run(new ApiServerGenerator(), texts, Full()));
+    }
+
+    /// <summary>
+    /// Inside <c>Microsoft.AspNetCore.Http.Generated</c> the Request Delegate Generator writes an
+    /// <c>[AsParameters]</c> type without <c>global::</c>: a root namespace whose first segment is a name found from
+    /// there - a type of <c>Microsoft.AspNetCore.Http</c>, a namespace of <c>Microsoft.AspNetCore</c> or
+    /// <c>Microsoft</c> - does not compile (CS0426). A warning names the segment, when that generator is on.
+    /// </summary>
+    [Theory]
+    [InlineData("HttpMethods", true)]
+    [InlineData("Results.Api", true)]
+    [InlineData("Routing.Demo", true)]
+    [InlineData("Extensions", true)]
+    [InlineData("Contoso.HttpMethods", false)]
+    [InlineData("Contoso.Api", false)]
+    public void Server_WithARootNamespaceTheRequestDelegateGeneratorBindsElsewhere_ReportsAOT002(
+        string rootNamespace,
+        bool collides)
+    {
+        (string Path, string Content)[] texts = [Spec(Yaml), Marker(".atc-rest-api-server", $$"""{ "namespace": "{{rootNamespace}}" }""")];
+
+        var warnings = RunDiagnostics(new ApiServerGenerator(), texts, Full(), requestDelegateGenerator: true).Where(d => d.Id == "ATC_API_AOT002").ToList();
+
+        if (collides)
+        {
+            var warning = Assert.Single(warnings);
+            Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+            Assert.Contains($"'{rootNamespace.Split('.')[0]}'", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Empty(warnings);
+        }
+
+        // Without that generator the name is as good as any
+        Assert.DoesNotContain("ATC_API_AOT002", Run(new ApiServerGenerator(), texts, Full()));
+    }
+
     [Fact]
     public void Domain_WithoutAspNetCore_ReportsDEP002()
     {
@@ -434,7 +487,8 @@ public class GeneratorDiagnosticsTests
         IIncrementalGenerator generator,
         (string Path, string Content)[] texts,
         IEnumerable<MetadataReference> references,
-        string? source = null)
+        string? source = null,
+        bool requestDelegateGenerator = false)
     {
         var compilation = CSharpCompilation.Create(
             ProjectName,
@@ -443,11 +497,39 @@ public class GeneratorDiagnosticsTests
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var driver = CSharpGeneratorDriver
-            .Create(generator)
+            .Create([generator.AsSourceGenerator()], optionsProvider: new BuildProperties(requestDelegateGenerator))
             .AddAdditionalTexts([.. texts.Select(t => (AdditionalText)new CompilationVerificationHarness.InMemoryAdditionalText(t.Path, t.Content))]);
 
         driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics, CancellationToken.None);
         return [.. diagnostics];
+    }
+
+    // The build properties a generator reads: EnableRequestDelegateGenerator, as the SDK sets it for PublishAot
+    private sealed class BuildProperties(bool requestDelegateGenerator) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptionsProvider
+    {
+        private readonly Properties options = new(requestDelegateGenerator);
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GlobalOptions
+            => options;
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(
+            SyntaxTree tree)
+            => options;
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(
+            AdditionalText textFile)
+            => options;
+
+        private sealed class Properties(bool requestDelegateGenerator) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions
+        {
+            public override bool TryGetValue(
+                string key,
+                [NotNullWhen(true)] out string? value)
+            {
+                value = requestDelegateGenerator && key == "build_property.EnableRequestDelegateGenerator" ? "true" : null;
+                return value is not null;
+            }
+        }
     }
 
     private static List<MetadataReference> Full(bool includeMinimalApi = false)

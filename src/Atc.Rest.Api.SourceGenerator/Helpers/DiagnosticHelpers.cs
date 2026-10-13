@@ -96,6 +96,28 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_AOT001: The Request Delegate Generator is on and does not see the generated endpoints.
+    /// </summary>
+    public static readonly DiagnosticDescriptor RequestDelegateGeneratorDoesNotSeeTheEndpoints = new(
+        RuleIdentifiers.RequestDelegateGeneratorDoesNotSeeTheEndpoints,
+        "The Request Delegate Generator does not see the generated endpoints",
+        "EnableRequestDelegateGenerator is on (PublishAot sets it), but the Request Delegate Generator does not see the endpoints this generator emits - one source generator's output is not another's input. They are bound by reflection at run time (RequestDelegateFactory), which trimming and Native AOT do not support, and the build's trim and AOT analysis does not report it. A Native AOT server is not supported yet.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATC_API_AOT002: The root namespace's first segment binds to an ASP.NET Core name inside RDG's generated file.
+    /// </summary>
+    public static readonly DiagnosticDescriptor RootNamespaceBindsToAnAspNetCoreName = new(
+        RuleIdentifiers.RootNamespaceBindsToAnAspNetCoreName,
+        "The root namespace names an ASP.NET Core type or namespace",
+        "The root namespace '{0}' starts with '{1}', which inside Microsoft.AspNetCore.Http.Generated is {2}. The Request Delegate Generator writes an [AsParameters] type without 'global::' there, so its generated code does not compile (CS0426) for an endpoint with parameters whose types are in this namespace. Give the project another root namespace (the marker's 'namespace', or the name of the specification file).",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI009: Domain generator requires ASP.NET Core references.
     /// </summary>
     public static readonly DiagnosticDescriptor DomainRequiresAspNetCore = new(
@@ -565,6 +587,23 @@ internal static class DiagnosticHelpers
             ServerRequiresAspNetCore,
             Location.None));
     }
+
+    /// <summary>
+    /// Reports that the Request Delegate Generator is on and does not see the generated endpoints.
+    /// </summary>
+    public static void ReportRequestDelegateGeneratorDoesNotSeeTheEndpoints(
+        SourceProductionContext context)
+        => context.ReportDiagnostic(Diagnostic.Create(RequestDelegateGeneratorDoesNotSeeTheEndpoints, Location.None));
+
+    /// <summary>
+    /// Reports that the root namespace's first segment binds to an ASP.NET Core name in RDG's generated file.
+    /// </summary>
+    public static void ReportRootNamespaceBindsToAnAspNetCoreName(
+        SourceProductionContext context,
+        string rootNamespace,
+        string segment,
+        string what)
+        => context.ReportDiagnostic(Diagnostic.Create(RootNamespaceBindsToAnAspNetCoreName, Location.None, rootNamespace, segment, what));
 
     /// <summary>
     /// Reports that the domain generator requires ASP.NET Core references.
@@ -1462,6 +1501,7 @@ internal static class DiagnosticHelpers
         {
             "GEN" => "Generation Error",
             "DEP" => "Dependency Error",
+            "AOT" => "Native AOT",
             "VAL" => "Validation Error",
             "NAM" => "Naming Convention",
             "SEC" => "Security",

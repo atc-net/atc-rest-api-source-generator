@@ -183,6 +183,21 @@ public static class RuleIdentifiers
     /// </summary>
     public const string AtcRestClientTooOld = "ATC_API_DEP011";
 
+    /// <summary>
+    /// ATC_API_AOT001: The project turns the Request Delegate Generator on (EnableRequestDelegateGenerator, which
+    /// PublishAot sets), but that generator does not see the endpoints this one emits: they are bound by reflection
+    /// at run time, which trimming and Native AOT do not support - and the build's trim analysis does not say so.
+    /// </summary>
+    public const string RequestDelegateGeneratorDoesNotSeeTheEndpoints = "ATC_API_AOT001";
+
+    /// <summary>
+    /// ATC_API_AOT002: With the Request Delegate Generator on, the root namespace's first segment is a name found
+    /// from inside Microsoft.AspNetCore.Http.Generated (a type of Microsoft.AspNetCore.Http, a namespace of
+    /// Microsoft.AspNetCore or Microsoft). That generator writes an [AsParameters] type without 'global::', so its
+    /// output does not compile under such a namespace (CS0426).
+    /// </summary>
+    public const string RootNamespaceBindsToAnAspNetCoreName = "ATC_API_AOT002";
+
     // ========== OpenAPI Validation Rules (VAL) ==========
 
     /// <summary>

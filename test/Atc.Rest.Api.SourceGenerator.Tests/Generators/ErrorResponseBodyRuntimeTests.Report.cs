@@ -26,7 +26,7 @@ public partial class ErrorResponseBodyRuntimeTests
         "The React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies: the error path is the same `ApiError`.",
         "A browser runtime: the TypeScript clients run on Node, so CORS and header exposure are not observed.",
         "Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407.",
-        "Node's fetch resends a request answered 421 on a reused connection on a new one (the Fetch standard), and now and then fails the resent body (UND_ERR_REQ_CONTENT_LENGTH_MISMATCH, about 2 in 100 against Kestrel): such a Fetch cell is platform.",
+        "Node's fetch resends a request answered 421 on a reused connection on a new one (the Fetch standard), and now and then fails the resent body (UND_ERR_REQ_CONTENT_LENGTH_MISMATCH, about 2 in 100 against Kestrel): the harness makes such a call again, three times at most, and a Fetch cell that fails all three is platform.",
     ];
 
     /// <summary>

@@ -36,16 +36,26 @@ public class ApiServerGenerator : IIncrementalGenerator
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
         // The packages the generated code needs or recommends, read from the project's references
+        // EnableRequestDelegateGenerator: what a Native AOT project turns on (PublishAot sets it)
+        var requestDelegateGenerator = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, _) =>
+                options.GlobalOptions.TryGetValue("build_property.EnableRequestDelegateGenerator", out var value) &&
+                string.Equals(value, "true", StringComparison.OrdinalIgnoreCase));
+
         var packagesProvider = context.CompilationProvider
-            .Select(static (compilation, _) => new ServerPackageReferences
+            .Combine(requestDelegateGenerator)
+            .Select(static (pair, _) => (Compilation: pair.Left, RequestDelegateGenerator: pair.Right))
+            .Select(static (project, _) => new ServerPackageReferences
             {
-                HasAspNetCore = compilation.ReferencedAssemblyNames
+                RequestDelegateGenerator = project.RequestDelegateGenerator,
+                NamesFoundFirst = project.RequestDelegateGenerator ? NamesBesideRequestDelegates(project.Compilation) : string.Empty,
+                HasAspNetCore = project.Compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase)),
-                HasMinimalApi = compilation.ReferencedAssemblyNames
+                HasMinimalApi = project.Compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase)),
-                HasHealthChecks = compilation.ReferencedAssemblyNames
+                HasHealthChecks = project.Compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.Equals("Atc.Rest.HealthChecks", StringComparison.OrdinalIgnoreCase)),
-                HasBearerHandler = compilation.ReferencedAssemblyNames
+                HasBearerHandler = project.Compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.Equals("Microsoft.AspNetCore.Authentication.JwtBearer", StringComparison.OrdinalIgnoreCase) ||
                               a.Name.Equals("Microsoft.Identity.Web", StringComparison.OrdinalIgnoreCase)),
             });
@@ -73,6 +83,48 @@ public class ApiServerGenerator : IIncrementalGenerator
         public bool HasHealthChecks { get; init; }
 
         public bool HasBearerHandler { get; init; }
+
+        /// <summary>
+        /// The project turns the Request Delegate Generator on (<c>EnableRequestDelegateGenerator</c>).
+        /// </summary>
+        public bool RequestDelegateGenerator { get; init; }
+
+        /// <summary>
+        /// With that generator on: the names its generated file (namespace
+        /// <c>Microsoft.AspNetCore.Http.Generated</c>) finds before the global namespace, each as
+        /// <c>name=what it is</c>, one per line. Text, so the record compares by value.
+        /// </summary>
+        public string NamesFoundFirst { get; init; } = string.Empty;
+    }
+
+    // The public types and the namespaces of Microsoft.AspNetCore.Http, Microsoft.AspNetCore and Microsoft: a name
+    // written without global:: inside Microsoft.AspNetCore.Http.Generated binds to the innermost of them
+    private static string NamesBesideRequestDelegates(Compilation compilation)
+    {
+        var names = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        INamespaceSymbol? current = compilation.GlobalNamespace;
+        foreach (var part in (string[])["Microsoft", "AspNetCore", "Http"])
+        {
+            current = current?.GetNamespaceMembers().FirstOrDefault(n => string.Equals(n.Name, part, StringComparison.Ordinal));
+            if (current is null)
+            {
+                break;
+            }
+
+            foreach (var member in current.GetMembers())
+            {
+                if (member is INamespaceSymbol)
+                {
+                    names[member.Name] = $"the namespace {member.ToDisplayString()}";
+                }
+                else if (member.DeclaredAccessibility == Accessibility.Public)
+                {
+                    names[member.Name] = $"the type {member.ToDisplayString()}";
+                }
+            }
+        }
+
+        return string.Join("\n", names.Select(n => n.Key + "=" + n.Value));
     }
 
     private static void RegisterSourceOutputAction(
@@ -334,6 +386,22 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useGlobalErrorHandler,
         ServerPackageReferences packages)
     {
+        // What a project aiming at Native AOT must know: its endpoints are not the Request Delegate Generator's, and
+        // a root namespace that generator's file binds elsewhere does not compile
+        if (packages.RequestDelegateGenerator)
+        {
+            DiagnosticHelpers.ReportRequestDelegateGeneratorDoesNotSeeTheEndpoints(context);
+
+            var segment = projectName.Split('.')[0];
+            var found = packages.NamesFoundFirst
+                .Split('\n')
+                .FirstOrDefault(n => n.StartsWith(segment + "=", StringComparison.Ordinal));
+            if (found is not null)
+            {
+                DiagnosticHelpers.ReportRootNamespaceBindsToAnAspNetCoreName(context, projectName, segment, found.Substring(segment.Length + 1));
+            }
+        }
+
         // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
         InlineAllOfFlattener.Flatten(openApiDoc);
 
