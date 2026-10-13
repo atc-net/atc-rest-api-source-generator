@@ -11,11 +11,10 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class StreamReadersExtractor
 {
     /// <summary>
-    /// Determines whether the document declares any streaming operation that references the
-    /// emitted <c>StreamReaders</c> helper. That is a Server-Sent Events (<c>text/event-stream</c>),
-    /// JSON Lines (<c>application/jsonl</c>), JSON Text Sequence (<c>application/json-seq</c>) or
-    /// multipart/mixed (<c>multipart/mixed</c>) operation; the legacy JSON-array framing reads via
-    /// the legacy path and does not use it.
+    /// Determines whether the document declares any streaming operation: each reads through the emitted
+    /// <c>StreamReaders</c> helper, whatever its framing - a JSON array, Server-Sent Events
+    /// (<c>text/event-stream</c>), JSON Lines (<c>application/jsonl</c>), JSON Text Sequence
+    /// (<c>application/json-seq</c>) or multipart/mixed.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns>True when at least one operation requires the StreamReaders helper.</returns>
@@ -35,20 +34,7 @@ public static class StreamReadersExtractor
 
             foreach (var operation in path.Value.Operations)
             {
-                // Emit the helper only when an operation actually references it: SSE, JSON Lines,
-                // JSON Text Sequence and multipart/mixed. The legacy JSON-array framing still reads
-                // via the DeserializeAsyncEnumerable path and never calls StreamReaders, so a
-                // JsonArray-only spec must not ship an orphan helper.
-                if (!operation.Value.IsStreamingResponse())
-                {
-                    continue;
-                }
-
-                var framing = operation.Value.GetStreamingFraming();
-                if (framing is StreamingFraming.ServerSentEvents
-                    or StreamingFraming.JsonLines
-                    or StreamingFraming.JsonSequence
-                    or StreamingFraming.MultipartMixed)
+                if (operation.Value.IsStreamingResponse())
                 {
                     return true;
                 }
@@ -73,7 +59,6 @@ public static class StreamReadersExtractor
         sb.AppendLine("using System.CodeDom.Compiler;");
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using System.IO;");
-        sb.AppendLine("using System.Net.ServerSentEvents;");
         sb.AppendLine("using System.Runtime.CompilerServices;");
 
         // Encoding.UTF8 / StreamReader / StringBuilder for the JSON Lines (per-op) and
@@ -98,45 +83,97 @@ public static class StreamReadersExtractor
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public static int MaxRecordLength { get; set; } = 16 * 1024 * 1024;");
         sb.AppendLine();
-        sb.AppendLine("    public static async IAsyncEnumerable<T?> ReadServerSentEventsAsync<T>(");
+
+        // A JSON array (application/json), one element at a time. A body of nothing but whitespace - a 204, a 200
+        // without content - is no items; the serializer alone would call that a broken array.
+        sb.AppendLine("    public static async IAsyncEnumerable<T?> ReadJsonArrayAsync<T>(");
         sb.AppendLine("        Stream stream,");
         sb.AppendLine("        JsonSerializerOptions options,");
         sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
         sb.AppendLine("    {");
-        sb.AppendLine("        var parser = SseParser.Create(");
-        sb.AppendLine("            new LineLimitedStream(stream, untilBlankLine: true),");
-        sb.AppendLine("            (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize(data, options.TypeInfo<T>())));");
-
-        sb.AppendLine();
-        sb.AppendLine("        await foreach (var item in parser.EnumerateAsync(cancellationToken).ConfigureAwait(false))");
+        sb.AppendLine("        var first = new byte[1];");
+        sb.AppendLine("        int read;");
+        sb.AppendLine("        do");
         sb.AppendLine("        {");
-        sb.AppendLine("            if (item.Data.IsItem)");
-        sb.AppendLine("            {");
-        sb.AppendLine("                yield return item.Data.Value;");
-        sb.AppendLine("            }");
+        sb.AppendLine("            read = await stream.ReadAsync(first, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine("        }");
+        sb.AppendLine("        while (read == 1 && JsonBalance.IsWhitespace((char)first[0]));");
+        sb.AppendLine();
+        sb.AppendLine("        if (read == 0)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            yield break;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(new PrefixedStream(first[0], stream), options.TypeInfo<T>(), cancellationToken).ConfigureAwait(false))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            yield return item;");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine();
 
-        // What an event stream carries besides the items: an event without data is no item; a named event whose data
-        // is no item (a heartbeat, a control frame) is skipped; an unnamed event - the item event - must be one
-        sb.AppendLine("    private static (bool IsItem, T? Value) ReadEvent<T>(");
-        sb.AppendLine("        string eventType,");
-        sb.AppendLine("        ReadOnlySpan<byte> data,");
-        sb.AppendLine("        Func<byte[], T?> deserialize)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        if (data.Trim(\" \\t\\r\\n\"u8).IsEmpty)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            return (false, default);");
-        sb.AppendLine("        }");
+        // Server-Sent Events (text/event-stream), parsed here rather than by System.Net.ServerSentEvents: its
+        // SseParser reports the event after an event without data under that event's name, and an item must not be
+        // taken for a heartbeat. The item event is the unnamed one (or "message", the same by the standard) and the
+        // ones the operation names with x-sse-item-events; any other named event - a heartbeat, a control frame - is
+        // read past, as is a comment and an event without data.
+        sb.AppendLine("    public static IAsyncEnumerable<T?> ReadServerSentEventsAsync<T>(");
+        sb.AppendLine("        Stream stream,");
+        sb.AppendLine("        JsonSerializerOptions options,");
+        sb.AppendLine("        CancellationToken cancellationToken)");
+        sb.AppendLine("        => ReadServerSentEventsOfAsync<T>(stream, options, Array.Empty<string>(), cancellationToken);");
         sb.AppendLine();
-        sb.AppendLine("        try");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// The items of an event stream whose items come in named events as well (x-sse-item-events): the unnamed");
+        sb.AppendLine("    /// event and the events named in itemEvents are items, every other named event is read past.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public static async IAsyncEnumerable<T?> ReadServerSentEventsOfAsync<T>(");
+        sb.AppendLine("        Stream stream,");
+        sb.AppendLine("        JsonSerializerOptions options,");
+        sb.AppendLine("        string[] itemEvents,");
+        sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        using var reader = new StreamReader(new LineLimitedStream(stream, untilBlankLine: true), Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
+        sb.AppendLine("        string? eventType = null;");
+        sb.AppendLine("        StringBuilder? data = null;");
+        sb.AppendLine("        string? line;");
+        sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)");
         sb.AppendLine("        {");
-        sb.AppendLine("            return (true, deserialize(data.ToArray()));");
-        sb.AppendLine("        }");
-        sb.AppendLine("        catch (global::System.Text.Json.JsonException) when (!string.Equals(eventType, SseParser.EventTypeDefault, StringComparison.Ordinal))");
-        sb.AppendLine("        {");
-        sb.AppendLine("            return (false, default);");
+        sb.AppendLine("            if (line.Length == 0)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                // The blank line that ends an event: the name is forgotten with it");
+        sb.AppendLine("                var isItem = data is not null && (eventType is null || string.Equals(eventType, \"message\", StringComparison.Ordinal) || Array.IndexOf(itemEvents, eventType) >= 0);");
+        sb.AppendLine("                var text = isItem ? data!.ToString() : string.Empty;");
+        sb.AppendLine("                eventType = null;");
+        sb.AppendLine("                data = null;");
+        sb.AppendLine("                if (!string.IsNullOrWhiteSpace(text))");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    yield return JsonSerializer.Deserialize(text, options.TypeInfo<T>());");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                continue;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            if (line[0] == ':')");
+        sb.AppendLine("            {");
+        sb.AppendLine("                continue;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            var colon = line.IndexOf(':');");
+        sb.AppendLine("            var field = colon < 0 ? line : line.Substring(0, colon);");
+        sb.AppendLine("            var value = colon < 0 ? string.Empty : line.Substring(colon + 1);");
+        sb.AppendLine("            if (value.Length > 0 && value[0] == ' ')");
+        sb.AppendLine("            {");
+        sb.AppendLine("                value = value.Substring(1);");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            if (string.Equals(field, \"data\", StringComparison.Ordinal))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                data = data is null ? new StringBuilder(value) : data.Append('\\n').Append(value);");
+        sb.AppendLine("            }");
+        sb.AppendLine("            else if (string.Equals(field, \"event\", StringComparison.Ordinal))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                eventType = value;");
+        sb.AppendLine("            }");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -305,6 +342,76 @@ public static class StreamReadersExtractor
         sb.AppendLine("        {");
         sb.AppendLine($"            yield return {deserializeBody};");
         sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// A byte already read from a stream, and then the stream: what ReadJsonArrayAsync hands the serializer after");
+        sb.AppendLine("    /// it has looked for the first byte of the array. The stream read from is not this one's to close.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    private sealed class PrefixedStream : Stream");
+        sb.AppendLine("    {");
+        sb.AppendLine("        private readonly byte first;");
+        sb.AppendLine("        private readonly Stream rest;");
+        sb.AppendLine("        private bool firstRead;");
+        sb.AppendLine();
+        sb.AppendLine("        public PrefixedStream(byte first, Stream rest)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            this.first = first;");
+        sb.AppendLine("            this.rest = rest;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override bool CanRead => true;");
+        sb.AppendLine();
+        sb.AppendLine("        public override bool CanSeek => false;");
+        sb.AppendLine();
+        sb.AppendLine("        public override bool CanWrite => false;");
+        sb.AppendLine();
+        sb.AppendLine("        public override long Length => throw new NotSupportedException();");
+        sb.AppendLine();
+        sb.AppendLine("        public override long Position");
+        sb.AppendLine("        {");
+        sb.AppendLine("            get => throw new NotSupportedException();");
+        sb.AppendLine("            set => throw new NotSupportedException();");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override void Flush()");
+        sb.AppendLine("        {");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override int Read(byte[] buffer, int offset, int count)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (firstRead || count == 0)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                return rest.Read(buffer, offset, count);");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            // With what follows it, so that the reader sees a byte order mark whole");
+        sb.AppendLine("            firstRead = true;");
+        sb.AppendLine("            buffer[offset] = first;");
+        sb.AppendLine("            return 1 + (count > 1 ? rest.Read(buffer, offset + 1, count - 1) : 0);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (firstRead || buffer.Length == 0)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                return await rest.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            firstRead = true;");
+        sb.AppendLine("            buffer.Span[0] = first;");
+        sb.AppendLine("            return 1 + (buffer.Length > 1 ? await rest.ReadAsync(buffer.Slice(1), cancellationToken).ConfigureAwait(false) : 0);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)");
+        sb.AppendLine("            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();");
+        sb.AppendLine();
+        sb.AppendLine("        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();");
+        sb.AppendLine();
+        sb.AppendLine("        public override void SetLength(long value) => throw new NotSupportedException();");
+        sb.AppendLine();
+        sb.AppendLine("        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();");
         sb.AppendLine("    }");
         sb.AppendLine();
 

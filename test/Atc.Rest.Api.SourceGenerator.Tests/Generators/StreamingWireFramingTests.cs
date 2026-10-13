@@ -28,8 +28,9 @@ public class StreamingWireFramingTests
 
     /// <summary>
     /// What a real event stream carries besides the items: a comment (keep-alive), an event without data, a heartbeat
-    /// whose data is no item (<c>event: ping</c>, <c>data: ping</c>), and items in named events as well as unnamed ones.
-    /// The items are read; the rest is skipped instead of failing the stream.
+    /// (<c>event: ping</c>, with data that is no item, with data that is JSON, without data) and other named events.
+    /// The item event is the unnamed one, as for a browser's <c>EventSource.onmessage</c> - also right after a named
+    /// event without data; the rest is read past instead of failing the stream or being taken for an item.
     /// </summary>
     [Fact]
     public async Task StreamReaders_ServerSentEvents_SkipsWhatIsNoItem()
@@ -38,19 +39,56 @@ public class StreamingWireFramingTests
         var read = streamReaders
             .GetMethod("ReadServerSentEventsAsync")
             .MakeGenericMethod(typeof(JsonElement));
-
-        const string sse =
-            ": keep-alive\n\n" +
-            "event: update\ndata: {\"id\":\"a\"}\n\n" +
-            "data:\n\n" +
-            "event: ping\ndata: ping\n\n" +
-            "event: ping\n\n" +
-            "data: {\"id\":\"b\"}\n\n";
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(sse));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(EventStreamWithNamedEvents));
 
         var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
 
-        Assert.Equal(["a", "b"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
+        Assert.Equal(["b", "c", "d"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// An API whose items come in named events says so with <c>x-sse-item-events</c>: those events are items too,
+    /// by their exact name, and every other named event is still read past.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_TheNamedEventsOfTheOperation_AreItems()
+    {
+        var streamReaders = LoadGeneratedType("StreamReaders");
+        var read = streamReaders
+            .GetMethod("ReadServerSentEventsOfAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(EventStreamWithNamedEvents));
+
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, [stream, new JsonSerializerOptions(), new[] { "update" }, CancellationToken.None]);
+
+        Assert.Equal(["a", "b", "c", "d"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A JSON array with no body - a 204, a 200 without content - is no items; an array after whitespace, and one
+    /// behind a byte order mark, is read as ever, and what is no array is still the serializer's to refuse.
+    /// </summary>
+    [Theory]
+    [InlineData("", "")]
+    [InlineData(" \r\n\t ", "")]
+    [InlineData("[]", "")]
+    [InlineData(" \n [ {\"id\":\"a\"} , {\"id\":\"b\"} ] ", "a,b")]
+    [InlineData("\uFEFF[{\"id\":\"a\"}]", "a")]
+    public async Task StreamReaders_JsonArray_ABodyOfNothing_IsNoItems(
+        string body,
+        string expected)
+    {
+        var read = LoadGeneratedType("StreamReaders")
+            .GetMethod("ReadJsonArrayAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(body));
+
+        var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
+
+        Assert.Equal(expected, string.Join(",", items.Select(i => i.GetProperty("id").GetString())));
+
+        using var noArray = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+        await Assert.ThrowsAnyAsync<JsonException>(() => EnumerateAsync<JsonElement>(read, noArray, new JsonSerializerOptions()));
     }
 
     /// <summary>
@@ -562,6 +600,18 @@ public class StreamingWireFramingTests
             yield return (T)item;
         }
     }
+
+    private const string EventStreamWithNamedEvents =
+        ": keep-alive\n\n" +
+        "event: update\ndata: {\"id\":\"a\"}\n\n" +
+        "data:\n\n" +
+        "event: ping\ndata: ping\n\n" +
+        "event: ping\ndata: {\"id\":\"no item\"}\n\n" +
+        "event: ping\n\n" +
+        "data: {\"id\":\"b\"}\n\n" +
+        "event: message\ndata: {\"id\":\"c\"}\n\n" +
+        "event: Update\ndata: {\"id\":\"no item\"}\n\n" +
+        "id: 4\nretry: 100\ndata: {\"id\":\r\ndata: \"d\"}\r\n\r\n";
 
     // A reader of the typed client, with the options it deserializes through. (The EndpointPerOperation client has no
     // readers of its own: Atc.Rest.Client reads its streamed responses.)

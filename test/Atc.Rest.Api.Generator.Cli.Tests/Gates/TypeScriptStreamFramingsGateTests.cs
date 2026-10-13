@@ -110,6 +110,7 @@ public sealed class TypeScriptStreamFramingsGateTests
             get:
               operationId: streamSse
               x-return-async-enumerable: true
+              x-sse-item-events: [update]
               responses:
                 '200':
                   description: OK
@@ -169,7 +170,7 @@ public sealed class TypeScriptStreamFramingsGateTests
           // is no item - all skipped
           '/feed/sse': {
             contentType: 'text/event-stream',
-            text: ': keep-alive\n\n' + json.map((j, i) => (i % 2 === 0 ? 'event: update\n' : '') + 'data: ' + j + '\n\n' + (i === 1 ? 'data:\n\nevent: ping\ndata: ping\n\nevent: ping\n\n' : '')).join(''),
+            text: ': keep-alive\n\n' + json.map((j, i) => (i % 2 === 0 ? 'event: update\n' : '') + 'data: ' + j + '\n\n' + (i === 1 ? 'data:\n\nevent: ping\ndata: ping\n\nevent: ping\ndata: {"n":99}\n\nevent: ping\n\n' : '')).join(''),
           },
           // No boundary named: the parts cannot be found - an error, not an empty stream
           '/feed/mixed-no-boundary': {

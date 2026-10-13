@@ -69,7 +69,20 @@ function guardRecord(length: number): void {
   }
 }
 
-async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
+/**
+ * The body of one part of a multipart response - what follows its boundary: past the boundary's padding, the
+ * part's headers (a part may have none) and the blank line after them. Null for the closing boundary and for a
+ * part whose headers have not ended yet.
+ */
+function multipartBody(part: string): string | null {
+  if (part.startsWith('--')) return null;
+  const head = part.replace(/^[ \t]*\r\n/, '');
+  if (head.startsWith('\r\n')) return head.substring(2).trim();
+  const sep = head.indexOf('\r\n\r\n');
+  return sep === -1 ? null : head.substring(sep + 4).trim();
+}
+
+async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown, itemEvents?: readonly string[]): AsyncGenerator<T> {
   let buffer = '';
   let finished = false;
   try {
@@ -89,17 +102,11 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
           .filter((l) => l.startsWith('data:'))
           .map((l) => l.slice(5).trimStart())
           .join('\n');
-        // An event without data is no item; a named event whose data is no JSON (a heartbeat, a control frame) is
-        // skipped; an unnamed event - the item event - must be one
-        if (data.trim().length === 0) continue;
-        let item: T;
-        try {
-          item = JSON.parse(data, reviver) as T;
-        } catch (e) {
-          if (eventType !== 'message') continue;
-          throw e;
-        }
-        yield item;
+        // The item event is the unnamed one (or 'message', the same by the standard), and the ones the operation
+        // names (x-sse-item-events): each must be an item. An event without data and any other named event (a
+        // heartbeat, a control frame) are read past.
+        if ((eventType !== 'message' && !itemEvents?.includes(eventType)) || data.trim().length === 0) continue;
+        yield JSON.parse(data, reviver) as T;
       }
       guardRecord(buffer.length);
     }
@@ -332,7 +339,7 @@ export class ApiClient {
     return fitToArms(withResponse(serverResponse, await this.handleResponse<T>(response, options?.responseType)), options?.arms);
   }
 
-  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
+  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {
     const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });
     const headers = await this.getHeaders(options?.headers, options?.security);
 
@@ -374,7 +381,7 @@ export class ApiClient {
     const decoder = new TextDecoder();
 
     if (framing === 'sse') {
-      yield* parseEventStream<T>(reader, decoder);
+      yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents);
       return;
     }
 
@@ -393,9 +400,7 @@ export class ApiClient {
             finished = true;
             // A last part the stream ended on without its closing boundary (the server failed mid-stream): what it sent is yielded
             if (buf.startsWith(delimiter)) {
-              const tail = buf.substring(delimiter.length).replace(/^\r\n/, '');
-              const sep = tail.indexOf('\r\n\r\n');
-              const bodyText = sep === -1 || tail.startsWith('--') ? '' : tail.substring(sep + 4).trim();
+              const bodyText = multipartBody(buf.substring(delimiter.length)) ?? '';
               if (bodyText.length > 0 && scanJsonValue(bodyText, 0, true) === bodyText.length) yield JSON.parse(bodyText) as T;
             }
             break;
@@ -412,20 +417,16 @@ export class ApiClient {
             if (next === -1) {
               guardRecord(buf.length - partStart);
               // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one
-              const pending = buf.substring(partStart).replace(/^\r\n/, '');
-              const pendingSep = pending.indexOf('\r\n\r\n');
-              const pendingBody = pendingSep === -1 || pending.startsWith('--') ? '' : pending.substring(pendingSep + 4).trim();
+              const pending = buf.substring(partStart);
+              const pendingBody = multipartBody(pending) ?? '';
               if (pendingBody.length > 0 && pending.endsWith('\r\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }
               break;
             }
             guardRecord(next - partStart);
             const part = buf.substring(partStart, next);
             buf = buf.substring(next);
-            const trimmed = part.replace(/^\r\n/, '');
-            if (trimmed.length === 0 || trimmed.startsWith('--')) continue;
-            const sep = trimmed.indexOf('\r\n\r\n');
-            if (sep === -1) continue;
-            const bodyText = trimmed.substring(sep + 4).trim();
+            const bodyText = multipartBody(part);
+            if (bodyText === null) continue;
             if (bodyText.length > 0) yield JSON.parse(bodyText) as T;
           }
         }

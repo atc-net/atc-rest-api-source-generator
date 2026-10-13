@@ -5,6 +5,7 @@ export * from './useApiService';
 export * from './useDocuments';
 export * from './useFiles';
 export * from './useNotifications';
+export * from './useStreams';
 export * from './useTasks';
 export * from './useTesting';
 export * from './useUsers';

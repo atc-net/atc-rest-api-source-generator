@@ -1,0 +1,140 @@
+@page "/streams/prices"
+
+<PageTitle>Live Streams</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Live Streams</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    The API streams the same prices in five formats: Server-Sent Events, JSON Lines, a JSON array, a JSON Text Sequence
+    and multipart/mixed. Each is an operation in the specification; the generated client reads all five the same way,
+    one item at a time as it arrives.
+</MudAlert>
+
+<MudCard Elevation="2" Class="mb-4">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="9">
+                <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+                    @foreach (var option in Formats)
+                    {
+                        var current = option;
+                        <MudButton Variant="@(format == current ? Variant.Filled : Variant.Outlined)"
+                                   OnClick="@(() => format = current)"
+                                   Disabled="isStreaming"
+                                   data-testid="@($"stream-format-{Key(current)}")">
+                            @Describe(current)
+                        </MudButton>
+                    }
+                </MudButtonGroup>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudNumericField T="int" @bind-Value="count" Label="Prices to stream" Min="1" Max="500" Disabled="isStreaming" />
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartAsync" Disabled="isStreaming" data-testid="stream-start">
+            Start
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="Stop" Disabled="!isStreaming" data-testid="stream-stop">
+            Stop
+        </MudButton>
+        <MudText Class="ml-4" data-testid="stream-status">@status</MudText>
+    </MudCardActions>
+</MudCard>
+
+<MudPaper Class="pa-4 mb-4" Elevation="0" Style="background-color: var(--mud-palette-background-gray);">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4" Wrap="Wrap.Wrap">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.subtitle1">Items</MudText>
+            <MudChip T="string" Color="@(isStreaming ? Color.Warning : Color.Success)" data-testid="stream-items">@itemCount</MudChip>
+        </MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.subtitle1">X-Stream-Format</MudText>
+            <MudChip T="string" data-testid="stream-header">@(streamFormatHeader ?? "–")</MudChip>
+        </MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.subtitle1">Open for</MudText>
+            <MudChip T="string">@elapsedSeconds.ToString("0.0", CultureInfo.InvariantCulture) s</MudChip>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+<MudGrid Class="mb-4">
+    @foreach (var quote in quotes.Values.OrderBy(x => x.Symbol, StringComparer.Ordinal))
+    {
+        <MudItem xs="6" md="3" @key="quote.Symbol">
+            <MudCard Elevation="1" data-testid="stream-quote">
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle2">@quote.Symbol</MudText>
+                    <MudText Typo="Typo.h5">@quote.Price.ToString("0.00", CultureInfo.InvariantCulture)</MudText>
+                    <MudText Color="@(quote.Change >= 0 ? Color.Success : Color.Error)">
+                        @(quote.Change >= 0 ? "▲" : "▼") @Math.Abs(quote.Change).ToString("0.00", CultureInfo.InvariantCulture)
+                    </MudText>
+                    <MudText Typo="Typo.caption">@quote.Ticks ticks</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" md="6">
+        <MudText Typo="Typo.h6">Arrivals</MudText>
+        <MudText Typo="Typo.body2" Class="mb-2">Time since the stream opened. The gaps are the server's pace: nothing is held back.</MudText>
+        <MudTable Items="arrivals" Dense="true" Hover="true" data-testid="stream-arrivals">
+            <HeaderContent>
+                <MudTh>Arrived</MudTh>
+                <MudTh>#</MudTh>
+                <MudTh>Symbol</MudTh>
+                <MudTh>Price</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Arrived">+@context.ElapsedMilliseconds ms</MudTd>
+                <MudTd DataLabel="#">@context.Tick.Sequence</MudTd>
+                <MudTd DataLabel="Symbol">@context.Tick.Symbol</MudTd>
+                <MudTd DataLabel="Price">@context.Tick.Price.ToString("0.00", CultureInfo.InvariantCulture)</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Press Start to open the stream.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudItem>
+    <MudItem xs="12" md="6">
+        <MudText Typo="Typo.h6">The call</MudText>
+        <MudText Typo="Typo.body2" Class="mb-2">What this page runs for the selected format - the endpoint and its result class are generated.</MudText>
+        <MudPaper Class="pa-3" Outlined="true">
+            <pre style="margin: 0; overflow-x: auto;"><code data-testid="stream-call">@CallSnippet(format)</code></pre>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudCard Elevation="2">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">When the exchange is closed</MudText>
+            <MudText Typo="Typo.body2">
+                A stream can fail before it starts. The API answers 503 with a problem body and a Retry-After header; the
+                result class of the streamed operation has both typed, like any other operation.
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (failure is not null)
+        {
+            <MudSimpleTable Dense="true" data-testid="stream-failure">
+                <tbody>
+                    <tr><td>StatusCode</td><td data-testid="stream-failure-status">@failure.StatusCode</td></tr>
+                    <tr><td>IsServiceUnavailable</td><td>true</td></tr>
+                    <tr><td>ServiceUnavailableContent</td><td data-testid="stream-failure-problem">@failure.Title – @failure.Detail</td></tr>
+                    <tr><td>RetryAfterHeader</td><td data-testid="stream-failure-retry">@failure.RetryAfterSeconds</td></tr>
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="CallClosedAsync" Disabled="isStreaming" data-testid="stream-closed">
+            Call a closed exchange
+        </MudButton>
+    </MudCardActions>
+</MudCard>

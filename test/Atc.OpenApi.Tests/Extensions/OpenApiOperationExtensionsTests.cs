@@ -840,6 +840,34 @@ public class OpenApiOperationExtensionsTests
     public void GetFileUploadContentType_NoBody_ReturnsNull()
         => Assert.Null(new OpenApiOperation().GetFileUploadContentType());
 
+    // ========== GetServerSentEventItemNames Tests ==========
+
+    /// <summary>
+    /// <c>x-sse-item-events</c> is one event name or a list of them; anything else in it (a number, an empty name, a
+    /// name given twice) is left out, and without the extension there are none.
+    /// </summary>
+    [Theory]
+    [InlineData("\"update\"", "update")]
+    [InlineData("[\"update\", \"delta\"]", "update,delta")]
+    [InlineData("[\"update\", 7, \"\", \"update\", \"Update\"]", "update,Update")]
+    [InlineData("true", "")]
+    [InlineData("[]", "")]
+    public void GetServerSentEventItemNames_ReadsANameOrAListOfNames(
+        string json,
+        string expected)
+    {
+        var op = new OpenApiOperation
+        {
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["x-sse-item-events"] = new JsonNodeExtension(JsonNode.Parse(json)!),
+            },
+        };
+
+        Assert.Equal(expected, string.Join(",", op.GetServerSentEventItemNames()));
+        Assert.Empty(new OpenApiOperation().GetServerSentEventItemNames());
+    }
+
     // ========== GetResponseCardinalityAnnotation Tests ==========
     [Theory]
     [InlineData("single", "single")]

@@ -69,7 +69,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
-        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<Item>(), cancellationToken).ConfigureAwait(false))
+        await foreach (var item in StreamReaders.ReadJsonArrayAsync<Item>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))
         {
             if (item is not null)
             {
@@ -100,7 +100,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
-        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<ListItemPagesResponse>(), cancellationToken).ConfigureAwait(false))
+        await foreach (var item in StreamReaders.ReadJsonArrayAsync<ListItemPagesResponse>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))
         {
             if (item is not null)
             {

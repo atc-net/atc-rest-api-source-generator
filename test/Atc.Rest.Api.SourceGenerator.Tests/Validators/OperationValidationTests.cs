@@ -480,6 +480,62 @@ public class OperationValidationTests
 
     // ========== OPR008: Pluralized operationId but response is single item ==========
 
+    /// <summary>
+    /// A streamed response is a sequence of its schema: <c>listPriceEvents</c> answering a stream of one
+    /// <c>PriceTick</c> at a time (Server-Sent Events, JSON Lines, an OpenAPI 3.2 <c>itemSchema</c>) is named
+    /// right, and <c>getPriceEvent</c> for the same stream is the singular name of a collection.
+    /// </summary>
+    [Theory]
+    [InlineData("text/event-stream")]
+    [InlineData("application/jsonl")]
+    [InlineData("application/json-seq")]
+    [InlineData("multipart/mixed")]
+    public void Validate_AStreamOfOneSchema_IsACollection(string mediaType)
+    {
+        string Yaml(string operationId)
+            => $$"""
+                openapi: 3.0.0
+                info:
+                  title: Test API
+                  version: 1.0.0
+                paths:
+                  /prices:
+                    get:
+                      operationId: {{operationId}}
+                      x-return-async-enumerable: true
+                      responses:
+                        '200':
+                          description: Prices
+                          content:
+                            {{mediaType}}:
+                              schema:
+                                $ref: '#/components/schemas/PriceTick'
+                components:
+                  schemas:
+                    PriceTick:
+                      type: object
+                      title: PriceTick
+                      properties:
+                        symbol: { type: string }
+                """;
+
+        List<string> Rules(string operationId)
+        {
+            var document = ParseYaml(Yaml(operationId));
+            Assert.NotNull(document);
+            return OpenApiDocumentValidator
+                .Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath)
+                .Select(d => d.RuleId)
+                .ToList();
+        }
+
+        var plural = Rules("listPriceEvents");
+        Assert.DoesNotContain(Generator.RuleIdentifiers.OperationIdPluralizationMismatch, plural, StringComparer.Ordinal);
+        Assert.DoesNotContain(Generator.RuleIdentifiers.OperationIdSingularMismatch, plural, StringComparer.Ordinal);
+
+        Assert.Contains(Generator.RuleIdentifiers.OperationIdSingularMismatch, Rules("getPriceEvent"), StringComparer.Ordinal);
+    }
+
     [Fact]
     public void Validate_PluralOperationIdReturnsSingleObject_ReportsOPR008()
     {

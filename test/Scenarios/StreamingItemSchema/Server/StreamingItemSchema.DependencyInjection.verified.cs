@@ -11,9 +11,11 @@ using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
 using StreamingItemSchema.Generated.Events.Handlers;
+using StreamingItemSchema.Generated.EventsArray.Handlers;
 using StreamingItemSchema.Generated.EventsMultipart.Handlers;
 using StreamingItemSchema.Generated.EventsSeq.Handlers;
 using StreamingItemSchema.Generated.EventsSse.Handlers;
+using StreamingItemSchema.Generated.EventsSseNamed.Handlers;
 namespace StreamingItemSchema.Generated.DependencyInjection;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
@@ -21,6 +23,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddStreamingItemSchemaHandlers(this IServiceCollection services)
     {
+        // Handler for IStreamEventsArrayHandler must be registered in the Domain project
+        // services.AddScoped<IStreamEventsArrayHandler, YourImplementation>();
         // Handler for IStreamEventsHandler must be registered in the Domain project
         // services.AddScoped<IStreamEventsHandler, YourImplementation>();
         // Handler for IStreamEventsMultipartHandler must be registered in the Domain project
@@ -29,6 +33,8 @@ public static class ServiceCollectionExtensions
         // services.AddScoped<IStreamEventsSeqHandler, YourImplementation>();
         // Handler for IStreamEventsSseHandler must be registered in the Domain project
         // services.AddScoped<IStreamEventsSseHandler, YourImplementation>();
+        // Handler for IStreamEventsSseNamedHandler must be registered in the Domain project
+        // services.AddScoped<IStreamEventsSseNamedHandler, YourImplementation>();
 
         return services;
     }

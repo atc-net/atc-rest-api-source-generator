@@ -400,8 +400,8 @@ public static class TypeScriptFetchApiClientExtractor
 
         // With renaming, requestStream (above) renames each item this reader yields.
         sb.AppendLine(hasWireNames
-            ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {"
-            : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
+            ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {"
+            : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {");
         sb.AppendLine("    const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });");
         sb.AppendLine("    const headers = await this.getHeaders(options?.headers, options?.security);");
         sb.AppendLine();
@@ -439,7 +439,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    const decoder = new TextDecoder();");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'sse') {");
-        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder);");
+        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents);");
         sb.AppendLine("      return;");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -458,9 +458,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("            finished = true;");
         sb.AppendLine("            // A last part the stream ended on without its closing boundary (the server failed mid-stream): what it sent is yielded");
         sb.AppendLine("            if (buf.startsWith(delimiter)) {");
-        sb.AppendLine("              const tail = buf.substring(delimiter.length).replace(/^\\r\\n/, '');");
-        sb.AppendLine("              const sep = tail.indexOf('\\r\\n\\r\\n');");
-        sb.AppendLine("              const bodyText = sep === -1 || tail.startsWith('--') ? '' : tail.substring(sep + 4).trim();");
+        sb.AppendLine("              const bodyText = multipartBody(buf.substring(delimiter.length)) ?? '';");
         sb.AppendLine("              if (bodyText.length > 0 && scanJsonValue(bodyText, 0, true) === bodyText.length) yield JSON.parse(bodyText) as T;");
         sb.AppendLine("            }");
         sb.AppendLine("            break;");
@@ -477,20 +475,16 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("            if (next === -1) {");
         sb.AppendLine("              guardRecord(buf.length - partStart);");
         sb.AppendLine("              // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one");
-        sb.AppendLine("              const pending = buf.substring(partStart).replace(/^\\r\\n/, '');");
-        sb.AppendLine("              const pendingSep = pending.indexOf('\\r\\n\\r\\n');");
-        sb.AppendLine("              const pendingBody = pendingSep === -1 || pending.startsWith('--') ? '' : pending.substring(pendingSep + 4).trim();");
+        sb.AppendLine("              const pending = buf.substring(partStart);");
+        sb.AppendLine("              const pendingBody = multipartBody(pending) ?? '';");
         sb.AppendLine("              if (pendingBody.length > 0 && pending.endsWith('\\r\\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }");
         sb.AppendLine("              break;");
         sb.AppendLine("            }");
         sb.AppendLine("            guardRecord(next - partStart);");
         sb.AppendLine("            const part = buf.substring(partStart, next);");
         sb.AppendLine("            buf = buf.substring(next);");
-        sb.AppendLine("            const trimmed = part.replace(/^\\r\\n/, '');");
-        sb.AppendLine("            if (trimmed.length === 0 || trimmed.startsWith('--')) continue;");
-        sb.AppendLine("            const sep = trimmed.indexOf('\\r\\n\\r\\n');");
-        sb.AppendLine("            if (sep === -1) continue;");
-        sb.AppendLine("            const bodyText = trimmed.substring(sep + 4).trim();");
+        sb.AppendLine("            const bodyText = multipartBody(part);");
+        sb.AppendLine("            if (bodyText === null) continue;");
         sb.Append("            if (bodyText.length > 0) yield ").Append(multipartParse).AppendLine(" as T;");
         sb.AppendLine("          }");
         sb.AppendLine("        }");

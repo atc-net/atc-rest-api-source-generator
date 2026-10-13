@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Demo.Generated.Accounts.Models;
+using Demo.Generated.Streaming;
 
 namespace Demo.Generated.Accounts.Client;
 

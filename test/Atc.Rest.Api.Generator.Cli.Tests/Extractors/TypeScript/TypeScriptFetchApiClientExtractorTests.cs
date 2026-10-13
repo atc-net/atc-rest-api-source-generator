@@ -250,7 +250,7 @@ public class TypeScriptFetchApiClientExtractorTests
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains("async function* parseEventStream<T>(", result, StringComparison.Ordinal);
-        Assert.Contains("yield* parseEventStream<T>(reader, decoder);", result, StringComparison.Ordinal);
+        Assert.Contains("yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents);", result, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Demo.Generated.Accounts.Models;
+using Demo.Generated.Streaming;
 
 namespace Demo.Generated.Accounts.Client;
 
@@ -157,7 +158,7 @@ public sealed class AccountsClient : IAccountsClient
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
-        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<Account>(), cancellationToken).ConfigureAwait(false))
+        await foreach (var item in StreamReaders.ReadJsonArrayAsync<Account>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))
         {
             if (item is not null)
             {

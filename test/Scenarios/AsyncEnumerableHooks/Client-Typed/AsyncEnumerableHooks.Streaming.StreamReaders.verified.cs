@@ -7,7 +7,6 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -27,41 +26,88 @@ internal static class StreamReaders
     /// </summary>
     public static int MaxRecordLength { get; set; } = 16 * 1024 * 1024;
 
-    public static async IAsyncEnumerable<T?> ReadServerSentEventsAsync<T>(
+    public static async IAsyncEnumerable<T?> ReadJsonArrayAsync<T>(
         Stream stream,
         JsonSerializerOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var parser = SseParser.Create(
-            new LineLimitedStream(stream, untilBlankLine: true),
-            (eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize(data, options.TypeInfo<T>())));
-
-        await foreach (var item in parser.EnumerateAsync(cancellationToken).ConfigureAwait(false))
+        var first = new byte[1];
+        int read;
+        do
         {
-            if (item.Data.IsItem)
-            {
-                yield return item.Data.Value;
-            }
+            read = await stream.ReadAsync(first, cancellationToken).ConfigureAwait(false);
+        }
+        while (read == 1 && JsonBalance.IsWhitespace((char)first[0]));
+
+        if (read == 0)
+        {
+            yield break;
+        }
+
+        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(new PrefixedStream(first[0], stream), options.TypeInfo<T>(), cancellationToken).ConfigureAwait(false))
+        {
+            yield return item;
         }
     }
 
-    private static (bool IsItem, T? Value) ReadEvent<T>(
-        string eventType,
-        ReadOnlySpan<byte> data,
-        Func<byte[], T?> deserialize)
-    {
-        if (data.Trim(" \t\r\n"u8).IsEmpty)
-        {
-            return (false, default);
-        }
+    public static IAsyncEnumerable<T?> ReadServerSentEventsAsync<T>(
+        Stream stream,
+        JsonSerializerOptions options,
+        CancellationToken cancellationToken)
+        => ReadServerSentEventsOfAsync<T>(stream, options, Array.Empty<string>(), cancellationToken);
 
-        try
+    /// <summary>
+    /// The items of an event stream whose items come in named events as well (x-sse-item-events): the unnamed
+    /// event and the events named in itemEvents are items, every other named event is read past.
+    /// </summary>
+    public static async IAsyncEnumerable<T?> ReadServerSentEventsOfAsync<T>(
+        Stream stream,
+        JsonSerializerOptions options,
+        string[] itemEvents,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(new LineLimitedStream(stream, untilBlankLine: true), Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+        string? eventType = null;
+        StringBuilder? data = null;
+        string? line;
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)
         {
-            return (true, deserialize(data.ToArray()));
-        }
-        catch (global::System.Text.Json.JsonException) when (!string.Equals(eventType, SseParser.EventTypeDefault, StringComparison.Ordinal))
-        {
-            return (false, default);
+            if (line.Length == 0)
+            {
+                // The blank line that ends an event: the name is forgotten with it
+                var isItem = data is not null && (eventType is null || string.Equals(eventType, "message", StringComparison.Ordinal) || Array.IndexOf(itemEvents, eventType) >= 0);
+                var text = isItem ? data!.ToString() : string.Empty;
+                eventType = null;
+                data = null;
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    yield return JsonSerializer.Deserialize(text, options.TypeInfo<T>());
+                }
+
+                continue;
+            }
+
+            if (line[0] == ':')
+            {
+                continue;
+            }
+
+            var colon = line.IndexOf(':');
+            var field = colon < 0 ? line : line.Substring(0, colon);
+            var value = colon < 0 ? string.Empty : line.Substring(colon + 1);
+            if (value.Length > 0 && value[0] == ' ')
+            {
+                value = value.Substring(1);
+            }
+
+            if (string.Equals(field, "data", StringComparison.Ordinal))
+            {
+                data = data is null ? new StringBuilder(value) : data.Append('\n').Append(value);
+            }
+            else if (string.Equals(field, "event", StringComparison.Ordinal))
+            {
+                eventType = value;
+            }
         }
     }
 
@@ -199,6 +245,75 @@ internal static class StreamReaders
         {
             yield return JsonSerializer.Deserialize(body.ToString(), options.TypeInfo<T>());
         }
+    }
+
+    /// <summary>
+    /// A byte already read from a stream, and then the stream: what ReadJsonArrayAsync hands the serializer after
+    /// it has looked for the first byte of the array. The stream read from is not this one's to close.
+    /// </summary>
+    private sealed class PrefixedStream : Stream
+    {
+        private readonly byte first;
+        private readonly Stream rest;
+        private bool firstRead;
+
+        public PrefixedStream(byte first, Stream rest)
+        {
+            this.first = first;
+            this.rest = rest;
+        }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (firstRead || count == 0)
+            {
+                return rest.Read(buffer, offset, count);
+            }
+
+            // With what follows it, so that the reader sees a byte order mark whole
+            firstRead = true;
+            buffer[offset] = first;
+            return 1 + (count > 1 ? rest.Read(buffer, offset + 1, count - 1) : 0);
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (firstRead || buffer.Length == 0)
+            {
+                return await rest.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            }
+
+            firstRead = true;
+            buffer.Span[0] = first;
+            return 1 + (buffer.Length > 1 ? await rest.ReadAsync(buffer.Slice(1), cancellationToken).ConfigureAwait(false) : 0);
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     // 0: no boundary line, 1: the boundary before a part, 2: the closing boundary

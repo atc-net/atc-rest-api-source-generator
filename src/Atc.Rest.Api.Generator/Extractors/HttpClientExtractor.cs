@@ -1100,7 +1100,7 @@ public static class HttpClientExtractor
         switch (httpMethod)
         {
             case "GET":
-                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, resultStyle, Stamp, xmlRead);
+                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), operation.GetServerSentEventItemNames(), hasReturnType, builder, resultStyle, Stamp, xmlRead);
                 break;
             case "POST":
                 GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
@@ -1129,6 +1129,7 @@ public static class HttpClientExtractor
         bool isAsyncEnumerable,
         string? streamingItemType,
         StreamingFraming streamingFraming,
+        IReadOnlyList<string> sseItemEvents,
         bool hasReturnType,
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
@@ -1140,7 +1141,7 @@ public static class HttpClientExtractor
         {
             if (resultStyle == TypedClientResultStyleType.Result)
             {
-                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming, resilienceStamp("requestMessage", true));
+                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming, sseItemEvents, resilienceStamp("requestMessage", true));
                 return;
             }
 
@@ -1163,7 +1164,7 @@ public static class HttpClientExtractor
             // (JsonArray, ...) keep the legacy DeserializeAsyncEnumerable brace-scan path byte-for-byte.
             if (streamingFraming == StreamingFraming.ServerSentEvents)
             {
-                builder.AppendLine($"await foreach (var item in StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
+                builder.AppendLine($"await foreach (var item in {ServerSentEventsReader(streamingItemType!, sseItemEvents)}.ConfigureAwait(false))");
             }
             else if (streamingFraming == StreamingFraming.JsonLines)
             {
@@ -1182,7 +1183,7 @@ public static class HttpClientExtractor
             }
             else if (streamingFraming == StreamingFraming.JsonArray)
             {
-                builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<{streamingItemType}>(), cancellationToken).ConfigureAwait(false))");
+                builder.AppendLine($"await foreach (var item in StreamReaders.ReadJsonArrayAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))");
             }
             else
             {
@@ -1244,6 +1245,7 @@ public static class HttpClientExtractor
         StringBuilder builder,
         string streamingItemType,
         StreamingFraming streamingFraming,
+        IReadOnlyList<string> sseItemEvents,
         string? resilienceStamp)
     {
         AppendSend(
@@ -1266,7 +1268,7 @@ public static class HttpClientExtractor
         reader.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
         reader.AppendLine();
         AppendMultipartBoundaryIfNeeded(reader, streamingFraming);
-        reader.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming)};");
+        reader.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming, sseItemEvents)};");
         reader.AppendLine();
         reader.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
 
@@ -1314,16 +1316,17 @@ public static class HttpClientExtractor
     /// </summary>
     private static string GetStreamReaderExpression(
         string streamingItemType,
-        StreamingFraming streamingFraming)
+        StreamingFraming streamingFraming,
+        IReadOnlyList<string> sseItemEvents)
         => streamingFraming switch
         {
-            StreamingFraming.ServerSentEvents => $"StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
+            StreamingFraming.ServerSentEvents => ServerSentEventsReader(streamingItemType, sseItemEvents),
             StreamingFraming.JsonLines => $"StreamReaders.ReadJsonLinesAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
             StreamingFraming.JsonSequence => $"StreamReaders.ReadJsonSequenceAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
             StreamingFraming.MultipartMixed => $"StreamReaders.ReadMultipartMixedAsync<{streamingItemType}>(stream, boundary, jsonSerializerOptions, cancellationToken)",
 
-            // JsonArray is the legitimate legacy path using the DeserializeAsyncEnumerable brace-scan.
-            StreamingFraming.JsonArray => $"JsonSerializer.DeserializeAsyncEnumerable(stream, jsonSerializerOptions.TypeInfo<{streamingItemType}>(), cancellationToken)",
+            // A JSON array: the serializer's own element-by-element read, behind a look for an empty body
+            StreamingFraming.JsonArray => $"StreamReaders.ReadJsonArrayAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
 
             // Any other framing is a StreamReaders-based wire framing that was added without an explicit
             // reader branch - fail loudly at generation time rather than silently emitting the
@@ -1331,6 +1334,14 @@ public static class HttpClientExtractor
             _ => throw new InvalidOperationException(
                 $"No typed-client stream reader is defined for framing '{streamingFraming}'."),
         };
+
+    // The reader of an event stream: with the names of x-sse-item-events when the operation gives any
+    private static string ServerSentEventsReader(
+        string streamingItemType,
+        IReadOnlyList<string> sseItemEvents)
+        => sseItemEvents.Count == 0
+            ? $"StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)"
+            : $"StreamReaders.ReadServerSentEventsOfAsync<{streamingItemType}>(stream, jsonSerializerOptions, new[] {{ {string.Join(", ", sseItemEvents.Select(CSharpLiteralHelper.ToStringLiteral))} }}, cancellationToken)";
 
     private static void GenerateGenericMethodBody(
         string httpMethod,

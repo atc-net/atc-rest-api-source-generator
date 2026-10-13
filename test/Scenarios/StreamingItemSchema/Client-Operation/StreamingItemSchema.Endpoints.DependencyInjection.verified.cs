@@ -13,9 +13,11 @@ using System.CodeDom.Compiler;
 using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
 using StreamingItemSchema.Generated.Events;
+using StreamingItemSchema.Generated.EventsArray;
 using StreamingItemSchema.Generated.EventsMultipart;
 using StreamingItemSchema.Generated.EventsSeq;
 using StreamingItemSchema.Generated.EventsSse;
+using StreamingItemSchema.Generated.EventsSseNamed;
 
 namespace StreamingItemSchema.Generated;
 
@@ -36,9 +38,11 @@ public static class StreamingItemSchemaEndpointsServiceCollectionExtensions
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         services.AddEventsEndpoints();
+        services.AddEventsArrayEndpoints();
         services.AddEventsMultipartEndpoints();
         services.AddEventsSeqEndpoints();
         services.AddEventsSseEndpoints();
+        services.AddEventsSseNamedEndpoints();
 
         if (configureJsonSerializerOptions is not null)
         {

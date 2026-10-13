@@ -21,7 +21,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(_ => true) // Allow any origin for SignalR
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .WithExposedHeaders("Retry-After", "Content-Disposition", "ETag") // The 429 back-off, a download's file name, a summary's version
+            .WithExposedHeaders("Retry-After", "Content-Disposition", "ETag", "X-Stream-Format") // The 429 back-off, a download's file name, a summary's version, a stream's format
             .AllowCredentials(); // Required for SignalR
     });
 });

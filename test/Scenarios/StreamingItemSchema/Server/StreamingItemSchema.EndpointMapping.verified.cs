@@ -27,10 +27,12 @@ public static class EndpointMappingExtensions
     /// <returns>The web application for method chaining.</returns>
     public static WebApplication MapEndpoints(this WebApplication app)
     {
+        app.MapEventsArrayEndpoints();
         app.MapEventsEndpoints();
         app.MapEventsMultipartEndpoints();
         app.MapEventsSeqEndpoints();
         app.MapEventsSseEndpoints();
+        app.MapEventsSseNamedEndpoints();
 
         return app;
     }

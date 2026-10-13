@@ -16,7 +16,7 @@ public class StreamReadersExtractorTests
     }
 
     [Fact]
-    public void DocumentRequiresStreamReaders_LegacyJsonArrayStreaming_ReturnsFalse()
+    public void DocumentRequiresStreamReaders_JsonArrayStreaming_ReturnsTrue()
     {
         var document = OpenApiDocumentHelper.ParseYaml(
             """
@@ -47,7 +47,8 @@ public class StreamReadersExtractorTests
                       type: string
             """);
 
-        Assert.False(StreamReadersExtractor.DocumentRequiresStreamReaders(document));
+        // A streamed JSON array reads through the helper too: its reader takes a body of nothing as no items
+        Assert.True(StreamReadersExtractor.DocumentRequiresStreamReaders(document));
     }
 
     [Fact]
@@ -88,7 +89,11 @@ public class StreamReadersExtractorTests
         Assert.DoesNotContain("using Atc.Rest.Client.Serialization;", content, StringComparison.Ordinal);
         Assert.DoesNotContain("IContractSerializer", content, StringComparison.Ordinal);
 
-        Assert.Contains("(eventType, bytes) => ReadEvent(eventType, bytes, data => JsonSerializer.Deserialize(data, options.TypeInfo<T>())));", content, StringComparison.Ordinal);
+        // The events are parsed here, not by System.Net.ServerSentEvents; a JSON array is read behind a look for an empty body
+        Assert.DoesNotContain("System.Net.ServerSentEvents", content, StringComparison.Ordinal);
+        Assert.Contains("yield return JsonSerializer.Deserialize(text, options.TypeInfo<T>());", content, StringComparison.Ordinal);
+        Assert.Contains("public static async IAsyncEnumerable<T?> ReadServerSentEventsOfAsync<T>(", content, StringComparison.Ordinal);
+        Assert.Contains("public static async IAsyncEnumerable<T?> ReadJsonArrayAsync<T>(", content, StringComparison.Ordinal);
         Assert.Contains("=> JsonSerializer.DeserializeAsyncEnumerable(new LineLimitedStream(stream), options.TypeInfo<T>(), topLevelValues: true, cancellationToken);", content, StringComparison.Ordinal);
         Assert.Contains("yield return JsonSerializer.Deserialize(record.ToArray(), options.TypeInfo<T>());", content, StringComparison.Ordinal);
         Assert.Contains("yield return JsonSerializer.Deserialize(body.ToString(), options.TypeInfo<T>());", content, StringComparison.Ordinal);

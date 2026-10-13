@@ -284,6 +284,37 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
+        /// Reads <c>x-sse-item-events</c>: the names of the Server-Sent Events that carry an item of a streamed
+        /// response, besides the unnamed event (and <c>message</c>, the same by the standard), which always does.
+        /// One name or a list of names; without the extension the list is empty, and every other named event - a
+        /// heartbeat, a control frame - is read past.
+        /// </summary>
+        /// <returns>The event names, in the order given, without duplicates.</returns>
+        public IReadOnlyList<string> GetServerSentEventItemNames()
+        {
+            if (operation.Extensions is null ||
+                !operation.Extensions.TryGetValue("x-sse-item-events", out var extension) ||
+                extension is not JsonNodeExtension { Node: { } node })
+            {
+                return [];
+            }
+
+            var names = new List<string>();
+            foreach (var candidate in node is JsonArray array ? array : [node.DeepClone()])
+            {
+                if (candidate is JsonValue value &&
+                    value.TryGetValue<string>(out var name) &&
+                    name.Length > 0 &&
+                    !names.Contains(name, StringComparer.Ordinal))
+                {
+                    names.Add(name);
+                }
+            }
+
+            return names;
+        }
+
+        /// <summary>
         /// Gets the explicit <c>x-operation-response-cardinality</c> annotation from the operation.
         /// Recognized values are <c>single</c> and <c>array</c> (case-insensitive); any other value
         /// (including missing) returns <c>null</c> so the caller falls back to heuristic inference.

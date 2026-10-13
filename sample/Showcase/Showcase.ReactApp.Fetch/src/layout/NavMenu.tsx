@@ -46,6 +46,11 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: 'Streams',
+    icon: <StreamIcon />,
+    items: [{ label: 'Live Streams', href: '/streams/prices', icon: <StreamIcon /> }],
+  },
+  {
     title: 'Tasks',
     icon: <TaskIcon />,
     items: [

@@ -4,6 +4,7 @@ import { AccountsClient } from './AccountsClient';
 import { DocumentsClient } from './DocumentsClient';
 import { FilesClient } from './FilesClient';
 import { NotificationsClient } from './NotificationsClient';
+import { StreamsClient } from './StreamsClient';
 import { TasksClient } from './TasksClient';
 import { TestingClient } from './TestingClient';
 import { UsersClient } from './UsersClient';
@@ -14,6 +15,7 @@ export class ApiService {
   readonly documents: DocumentsClient;
   readonly files: FilesClient;
   readonly notifications: NotificationsClient;
+  readonly streams: StreamsClient;
   readonly tasks: TasksClient;
   readonly testing: TestingClient;
   readonly users: UsersClient;
@@ -25,6 +27,7 @@ export class ApiService {
     this.documents = new DocumentsClient(api);
     this.files = new FilesClient(api);
     this.notifications = new NotificationsClient(api);
+    this.streams = new StreamsClient(api);
     this.tasks = new TasksClient(api);
     this.testing = new TestingClient(api);
     this.users = new UsersClient(api);

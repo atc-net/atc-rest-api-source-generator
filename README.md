@@ -31,7 +31,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |
 | **Data**   | 📁 **Files**                     | Upload and download any file type (PDF, Excel, images) with its media type and file name; a response can be a model **or** a file |
 |            | 🧾 **XML**                       | XML bodies mapped by the `xml` keyword, negotiated by `Accept`; `application/problem+xml` on request |
-|            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` support for efficient data streaming                       |
+|            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` in five formats: JSON array, JSON Lines, JSON Text Sequence, Server-Sent Events, multipart |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
 |            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios, interceptors, retry, MSW handlers    |
 |            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — `queryOptions` factories for loaders and prefetching, cancellation through `AbortSignal`, streaming hooks for `IAsyncEnumerable` |

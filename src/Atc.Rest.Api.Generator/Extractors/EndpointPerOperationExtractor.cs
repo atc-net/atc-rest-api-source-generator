@@ -1306,7 +1306,15 @@ public static class EndpointPerOperationExtractor
             // error body as the type registered for its status, and the headers. The result owns the response - the
             // builder disposes it when no result can be built (a multipart answer without a boundary).
             AppendResponseRegistrations(sb, responses.Where(r => !r.IsSuccess).ToList(), defaultResponse);
-            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}, {operationName}EndpointResult>(x => new {operationName}EndpointResult(x), StreamFraming.{operation.GetStreamingFraming()}, cancellationToken).ConfigureAwait(false);");
+
+            // x-sse-item-events: the named events of an event stream that are items too
+            var itemEvents = operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents
+                ? operation.GetServerSentEventItemNames()
+                : [];
+            var readOptions = itemEvents.Count == 0
+                ? string.Empty
+                : $"new StreamReadOptions {{ ItemEventNames = new[] {{ {string.Join(", ", itemEvents.Select(CSharpLiteralHelper.ToStringLiteral))} }} }}, ";
+            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}, {operationName}EndpointResult>(x => new {operationName}EndpointResult(x), StreamFraming.{operation.GetStreamingFraming()}, {readOptions}cancellationToken).ConfigureAwait(false);");
         }
         else
         {

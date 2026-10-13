@@ -2276,9 +2276,11 @@ public static class OpenApiDocumentValidator
             _ => IsOperationIdPluralized(operationId),
         };
 
-        // Direct array or paginated response (applies to both OPR008 and OPR009)
+        // Direct array or paginated response (applies to both OPR008 and OPR009). A streamed response is one too: a
+        // sequence of its schema, whatever the framing (Server-Sent Events, JSON Lines, an itemSchema)
         var isDirectArrayResponse = IsArraySchema(responseSchema, document) ||
-                                    IsPaginatedSchema(responseSchema, document);
+                                    IsPaginatedSchema(responseSchema, document) ||
+                                    operation.IsStreamingResponse();
 
         // Wrapper object containing an array (only applies to OPR008)
         var isWrapperWithArray = IsObjectContainingArray(responseSchema, document);

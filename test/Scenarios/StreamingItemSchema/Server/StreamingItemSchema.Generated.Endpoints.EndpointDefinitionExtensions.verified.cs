@@ -42,6 +42,20 @@ public static class EndpointDefinitionExtensions
     /// <returns>
     /// The web application for method chaining.
     /// </returns>
+    public static WebApplication MapEventsArrayEndpoints(this WebApplication app)
+    {
+        new EventsArrayEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
     public static WebApplication MapEventsMultipartEndpoints(this WebApplication app)
     {
         new EventsMultipartEndpointDefinition().DefineEndpoints(app);
@@ -73,6 +87,20 @@ public static class EndpointDefinitionExtensions
     public static WebApplication MapEventsSseEndpoints(this WebApplication app)
     {
         new EventsSseEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
+    public static WebApplication MapEventsSseNamedEndpoints(this WebApplication app)
+    {
+        new EventsSseNamedEndpointDefinition().DefineEndpoints(app);
 
         return app;
     }

@@ -5,6 +5,7 @@ export * from './ApiService';
 export * from './DocumentsClient';
 export * from './FilesClient';
 export * from './NotificationsClient';
+export * from './StreamsClient';
 export * from './TasksClient';
 export * from './TestingClient';
 export * from './UsersClient';

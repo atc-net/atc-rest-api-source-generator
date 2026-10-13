@@ -572,7 +572,10 @@ public static class TypeScriptClientExtractor
             // JsonArray omits the arg to keep its call site unchanged (the default is json-array).
             var streamFramingArg = operation.GetStreamingFraming() switch
             {
-                StreamingFraming.ServerSentEvents => "'sse'",
+                // x-sse-item-events: the named events that are items too, after the framing
+                StreamingFraming.ServerSentEvents => operation.GetServerSentEventItemNames() is { Count: > 0 } itemEvents
+                    ? $"'sse', [{string.Join(", ", itemEvents.Select(TypeScriptLiteralHelper.ToStringLiteral))}]"
+                    : "'sse'",
                 StreamingFraming.JsonLines => "'json-lines'",
                 StreamingFraming.JsonSequence => "'json-seq'",
                 StreamingFraming.MultipartMixed => "'multipart'",

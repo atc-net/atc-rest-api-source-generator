@@ -5,6 +5,7 @@ import AccountsPage from './pages/AccountsPage';
 import AccountsPaginatedPage from './pages/AccountsPaginatedPage';
 import AccountsStreamingPage from './pages/AccountsStreamingPage';
 import AccountsInfinitePage from './pages/AccountsInfinitePage';
+import LiveStreamsPage from './pages/LiveStreamsPage';
 import TasksPage from './pages/TasksPage';
 import SwrTasksPage from './pages/SwrTasksPage';
 import UsersPage from './pages/UsersPage';
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: '/accounts/paginated', element: <AccountsPaginatedPage /> },
       { path: '/accounts/async-enumerable', element: <AccountsStreamingPage /> },
       { path: '/accounts/infinite', element: <AccountsInfinitePage /> },
+      { path: '/streams/prices', element: <LiveStreamsPage /> },
       { path: '/tasks', element: <TasksPage /> },
       { path: '/tasks/swr', element: <SwrTasksPage /> },
       { path: '/users', element: <UsersPage /> },

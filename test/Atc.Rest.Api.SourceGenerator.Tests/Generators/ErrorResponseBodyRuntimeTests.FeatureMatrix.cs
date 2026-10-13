@@ -39,6 +39,16 @@ public partial class ErrorResponseBodyRuntimeTests
                 - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
               responses:
                 '200': { description: Things, content: { text/event-stream: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/stream/sse-named:
+            get:
+              operationId: featureSseNamed
+              x-return-async-enumerable: true
+              x-sse-item-events: [thing]
+              parameters:
+                - { name: count, in: query, required: true, schema: { type: integer, format: int32 } }
+                - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
+              responses:
+                '200': { description: Things, content: { text/event-stream: { schema: { $ref: '#/components/schemas/Thing' } } } }
           /feature/stream/lines:
             get:
               operationId: featureLines
@@ -305,6 +315,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(FeatureSseResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
         }
 
+        public sealed class FeatureSseNamedHandlerImpl(IHttpContextAccessor accessor) : IFeatureSseNamedHandler
+        {
+            public System.Threading.Tasks.Task<FeatureSseNamedResult> ExecuteAsync(FeatureSseNamedParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(FeatureSseNamedResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
+        }
+
         public sealed class FeatureLinesHandlerImpl(IHttpContextAccessor accessor) : IFeatureLinesHandler
         {
             public System.Threading.Tasks.Task<FeatureLinesResult> ExecuteAsync(FeatureLinesParameters parameters, System.Threading.CancellationToken cancellationToken = default)
@@ -532,6 +548,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IFeatureSlowHandler, FeatureSlowHandlerImpl>();
                 services.AddHttpContextAccessor();
                 services.AddScoped<IFeatureSseHandler, FeatureSseHandlerImpl>();
+                services.AddScoped<IFeatureSseNamedHandler, FeatureSseNamedHandlerImpl>();
                 services.AddScoped<IFeatureLinesHandler, FeatureLinesHandlerImpl>();
                 services.AddScoped<IFeatureArrayHandler, FeatureArrayHandlerImpl>();
                 services.AddScoped<IFeatureSeqHandler, FeatureSeqHandlerImpl>();
@@ -840,6 +857,7 @@ public partial class ErrorResponseBodyRuntimeTests
                             operation switch
                             {
                                 "FeatureSse" => async ct => await provider.GetRequiredService<IFeatureSseEndpoint>().ExecuteAsync(new FeatureSseParameters(count, failAfter), httpClientName, ct),
+                                "FeatureSseNamed" => async ct => await provider.GetRequiredService<IFeatureSseNamedEndpoint>().ExecuteAsync(new FeatureSseNamedParameters(count, failAfter), httpClientName, ct),
                                 "FeatureLines" => async ct => await provider.GetRequiredService<IFeatureLinesEndpoint>().ExecuteAsync(new FeatureLinesParameters(count, failAfter), httpClientName, ct),
                                 "FeatureSeq" => async ct => await provider.GetRequiredService<IFeatureSeqEndpoint>().ExecuteAsync(new FeatureSeqParameters(count, failAfter), httpClientName, ct),
                                 "FeatureMixed" => async ct => await provider.GetRequiredService<IFeatureMixedEndpoint>().ExecuteAsync(new FeatureMixedParameters(count, failAfter), httpClientName, ct),
@@ -990,6 +1008,7 @@ public partial class ErrorResponseBodyRuntimeTests
                             operation switch
                             {
                                 "FeatureSse" => ct => client.FeatureSseAsync(new FeatureSseParameters(count, failAfter), ct),
+                                "FeatureSseNamed" => ct => client.FeatureSseNamedAsync(new FeatureSseNamedParameters(count, failAfter), ct),
                                 "FeatureLines" => ct => client.FeatureLinesAsync(new FeatureLinesParameters(count, failAfter), ct),
                                 "FeatureSeq" => ct => client.FeatureSeqAsync(new FeatureSeqParameters(count, failAfter), ct),
                                 "FeatureMixed" => ct => client.FeatureMixedAsync(new FeatureMixedParameters(count, failAfter), ct),
@@ -1143,6 +1162,7 @@ public partial class ErrorResponseBodyRuntimeTests
                             operation switch
                             {
                                 "FeatureSse" => ct => client.FeatureSseAsync(new FeatureSseParameters(count, failAfter), ct),
+                                "FeatureSseNamed" => ct => client.FeatureSseNamedAsync(new FeatureSseNamedParameters(count, failAfter), ct),
                                 "FeatureLines" => ct => client.FeatureLinesAsync(new FeatureLinesParameters(count, failAfter), ct),
                                 "FeatureSeq" => ct => client.FeatureSeqAsync(new FeatureSeqParameters(count, failAfter), ct),
                                 "FeatureMixed" => ct => client.FeatureMixedAsync(new FeatureMixedParameters(count, failAfter), ct),
@@ -1325,7 +1345,7 @@ public partial class ErrorResponseBodyRuntimeTests
                   got.push(t.name);
                   if (c.cancelAfter && got.length >= c.cancelAfter) { controller.abort(); break; }
                 }
-              } catch (e: any) { if (!(c.cancelAfter && e?.name === 'AbortError')) error = `${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}`; }
+              } catch (e: any) { if (!(c.cancelAfter && e?.name === 'AbortError')) error = `${e?.name ?? 'Error'}${e?.status ? ' ' + e.status : ''}: ${String(e?.message ?? e).slice(0, 300)}`; }
               return { kind: 'items', items: got, error };
             }
             case 'page': {
@@ -1392,7 +1412,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 return { kind: 'items', items: names(result.current.items.slice(0, c.cancelAfter)), error: null };
               }
               await waitFor(() => { if (result.current.status !== 'success' && result.current.status !== 'error') throw new Error('waiting ' + result.current.status); }, WAIT);
-              return { kind: 'items', items: names(result.current.items), error: result.current.error ? String(result.current.error.message ?? result.current.error).slice(0, 300) : null };
+              return { kind: 'items', items: names(result.current.items), error: result.current.error ? ((result.current.error as any).status ? 'ApiError ' + (result.current.error as any).status + ': ' : '') + String(result.current.error.message ?? result.current.error).slice(0, 300) : null };
             }
             case 'page': {
               const { result } = renderHook(() => H.useFeaturePageInfinite({ pageSize: c.pageSize }), { wrapper });
@@ -1547,6 +1567,19 @@ public partial class ErrorResponseBodyRuntimeTests
             cases.Add(new($"stream: {label}, cancelled by the client after two items", "streaming", operation, "stream", new JsonObject { ["count"] = 0, ["cancelAfter"] = 2 }));
         }
 
+        // What a stream carries on the wire besides its items, written by a stub in front of the generated endpoint
+        // (the generated server writes none of it): every client reads the three items and nothing else
+        foreach (var (stub, operation, name) in FeatureWireStubs)
+        {
+            cases.Add(new($"wire: {name}", "stream formats on the wire", operation, "stream", new JsonObject { ["count"] = stub == "array-empty" ? 0 : 3 }, [("X-Feature-Stub", stub)]));
+        }
+
+        // A stream that fails before its first item: 503 with a problem, in each format
+        foreach (var (operation, label) in ((string, string)[])[("FeatureSse", "Server-Sent Events"), ("FeatureLines", "JSON Lines"), ("FeatureArray", "a JSON array"), ("FeatureSeq", "JSON Text Sequence"), ("FeatureMixed", "multipart/mixed")])
+        {
+            cases.Add(new($"wire: {label}, 503 with a problem before the first item", "stream formats on the wire", operation, "stream", new JsonObject { ["count"] = 3, ["status"] = 503 }, [("X-Feature-Stub", "closed")]));
+        }
+
         cases.Add(new("pagination: five things in pages of three, by continuation", "pagination", "FeaturePage", "page", new JsonObject { ["pageSize"] = 3 }));
         cases.Add(new("oneOf: a circle round-trips through the discriminator", "polymorphism", "FeatureShape", "shape", new JsonObject { ["body"] = new JsonObject { ["kind"] = "circle", ["radius"] = 2.5 } }));
         cases.Add(new("oneOf: a square round-trips through the discriminator", "polymorphism", "FeatureShape", "shape", new JsonObject { ["body"] = new JsonObject { ["kind"] = "square", ["side"] = 4 } }));
@@ -1566,6 +1599,60 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("network: the host name does not resolve", "network", "FeatureReset", "net", new JsonObject { ["scenario"] = "dns" }));
         cases.Add(new("validation: the handler throws FluentValidation's ValidationException", "validation", "FeatureInvalid", "invalid", new JsonObject()));
         return cases;
+    }
+
+    /// <summary>
+    /// The streams a stub writes: the stub's name (the <c>X-Feature-Stub</c> header), the operation it answers for,
+    /// and what the case is called. Each carries the items <c>t1</c>, <c>t2</c>, <c>t3</c> (the empty array: none).
+    /// </summary>
+    internal static readonly (string Stub, string Operation, string Name)[] FeatureWireStubs =
+    [
+        ("sse-noise", "FeatureSse", "Server-Sent Events with a comment, id and retry fields, a heartbeat without data and a named event between the items"),
+        ("sse-crlf", "FeatureSse", "Server-Sent Events with CRLF line ends and data over two lines"),
+        ("sse-named", "FeatureSseNamed", "Server-Sent Events whose items are named events (x-sse-item-events: [thing]), between a heartbeat and an event of another name"),
+        ("lines-blank", "FeatureLines", "JSON Lines with blank lines, CRLF and no line feed after the last item"),
+        ("seq-blank", "FeatureSeq", "JSON Text Sequence with a line feed between the records and a pretty-printed record"),
+        ("mixed-padded", "FeatureMixed", "multipart/mixed with a preamble, padded boundaries, part headers and a pretty-printed part"),
+        ("array-pretty", "FeatureArray", "a JSON array that is pretty-printed"),
+        ("array-empty", "FeatureArray", "a JSON array with no body at all (200, no content)"),
+    ];
+
+    /// <summary>
+    /// Writes the stream (or the failure) a stub stands for; <see langword="false"/> when the request names none.
+    /// </summary>
+    private static async Task<bool> WriteFeatureStubAsync(HttpContext context)
+    {
+        if (!context.Request.Headers.TryGetValue("X-Feature-Stub", out var stub))
+        {
+            return false;
+        }
+
+        const string rs = "\u001e";
+        var (status, contentType, body) = stub.ToString() switch
+        {
+            // A value the clients' enum does not have
+            "unknown-color" => (200, "application/json", """{"color":"purple"}"""),
+            "closed" => (503, "application/problem+json", """{"type":"about:blank","title":"Service Unavailable","status":503,"detail":"The exchange is closed."}"""),
+            "sse-noise" => (200, "text/event-stream", ": keep-alive\n\ndata: {\"name\":\"t1\"}\n\nevent: ping\n\nid: 2\nretry: 1000\ndata: {\"name\":\"t2\"}\n\nevent: ping\ndata: {\"name\":\"no item\"}\n\n: another comment\ndata:{\"name\":\"t3\"}\n\n"),
+            "sse-named" => (200, "text/event-stream", "event: thing\ndata: {\"name\":\"t1\"}\n\nevent: ping\ndata: {\"name\":\"no item\"}\n\nevent: ping\n\ndata: {\"name\":\"t2\"}\n\nevent: Thing\ndata: {\"name\":\"no item\"}\n\nevent: thing\ndata: {\"name\":\"t3\"}\n\n"),
+            "sse-crlf" => (200, "text/event-stream", "data: {\"name\":\r\ndata: \"t1\"}\r\n\r\ndata: {\"name\":\"t2\"}\r\n\r\ndata: {\"name\":\"t3\"}\r\n\r\n"),
+            "lines-blank" => (200, "application/jsonl", "{\"name\":\"t1\"}\n\n   \n{\"name\":\"t2\"}\r\n{\"name\":\"t3\"}"),
+            "seq-blank" => (200, "application/json-seq", rs + "{\"name\":\"t1\"}\n\n" + rs + "{\n  \"name\": \"t2\"\n}\n" + rs + "{\"name\":\"t3\"}\n"),
+            "mixed-padded" => (200, "multipart/mixed; boundary=\"b-1\"", "a preamble\r\n--b-1  \r\nContent-Type: application/json\r\nX-Part: 1\r\n\r\n{\"name\":\"t1\"}\r\n--b-1\r\n\r\n{\r\n  \"name\": \"t2\"\r\n}\r\n--b-1\r\nContent-Type: application/json\r\n\r\n{\"name\":\"t3\"}\r\n--b-1--\r\nan epilogue\r\n"),
+            "array-pretty" => (200, "application/json", "[\n  { \"name\": \"t1\" },\n  { \"name\": \"t2\" },\n  { \"name\": \"t3\" }\n]\n"),
+            "array-empty" => (200, "application/json", string.Empty),
+            _ => (0, string.Empty, string.Empty),
+        };
+
+        if (status == 0)
+        {
+            return false;
+        }
+
+        context.Response.StatusCode = status;
+        context.Response.ContentType = contentType;
+        await context.Response.WriteAsync(body, context.RequestAborted);
+        return true;
     }
 
     internal static readonly (string Id, string Group, string Label, string Marker, bool Typed, string? TsFlavour)[] FeatureClients =
@@ -1892,6 +1979,22 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             case "stream":
             {
+                if (arguments["status"] is { } failed)
+                {
+                    // No item, and the status and the problem's detail reach the caller: as the client's typed error
+                    // (EndpointPerOperation), or as the exception the enumeration throws
+                    var status = ((int)failed).ToString(CultureInfo.InvariantCulture);
+                    var text = (string?)observed["error"] ?? string.Empty;
+                    var noItems = observed["items"] is not JsonArray { Count: > 0 };
+                    var named = kind == "error"
+                        ? (int?)observed["status"] == (int)failed
+                        : text.Contains(status, StringComparison.Ordinal);
+                    var detailed = text.Contains("The exchange is closed.", StringComparison.Ordinal);
+                    return noItems && named && detailed
+                        ? Cell(VerdictPass, kind == "error" ? "no item; the status and the problem, typed" : "no item; the error names the status and the problem's detail", text)
+                        : Cell(VerdictFail, $"expected no item and an error with {status} and the problem's detail; {kind}: {text}", text);
+                }
+
                 if (kind != "items")
                 {
                     return Cell(VerdictFail, $"{kind}: {(string?)observed["error"]}", "-");
@@ -2263,16 +2366,12 @@ public partial class ErrorResponseBodyRuntimeTests
             "ErrorBodies.RuntimeTest.FeatureRegistration",
             app => app.Use(async (context, next) =>
             {
-                // A value the clients' enum does not have, written by a stub in front of the generated endpoint
-                if (context.Request.Headers.TryGetValue("X-Feature-Stub", out var stub) && stub == "unknown-color")
+                // What a stub in front of the generated endpoint answers: a value the clients' enum does not have, a
+                // stream as another server writes it
+                if (!await WriteFeatureStubAsync(context))
                 {
-                    context.Response.StatusCode = 200;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync("""{"color":"purple"}""", context.RequestAborted);
-                    return;
+                    await next(context);
                 }
-
-                await next(context);
             }));
 
         var casesJson = FeatureCasesJson(cases).ToJsonString();

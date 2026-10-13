@@ -1067,6 +1067,191 @@ paths:
                 $ref: '#/components/schemas/NotificationEvents'
 
   # ============================================
+  # STREAMS - the same prices in each of the five stream formats
+  # ============================================
+  /streams/prices/events:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as Server-Sent Events
+      operationId: listPriceEvents
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is Server-Sent Events (text/event-stream).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/lines:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as JSON Lines
+      operationId: listPriceLines
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is JSON Lines (application/jsonl).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            application/jsonl:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/array:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as a JSON array
+      operationId: listPriceElements
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is a JSON array (application/json).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/sequence:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as a JSON Text Sequence (RFC 7464)
+      operationId: listPriceRecords
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is a JSON Text Sequence (RFC 7464) (application/json-seq).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            application/json-seq:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/parts:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as multipart/mixed
+      operationId: listPriceParts
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is multipart/mixed (multipart/mixed).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            multipart/mixed:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  # ============================================
   # TESTING - Exception handling test endpoints
   # ============================================
   /testing/exception/{code}:
@@ -1188,6 +1373,27 @@ paths:
                 $ref: "#/components/schemas/TestingProblem"
 components:
   schemas:
+    PriceTick:
+      title: PriceTick
+      type: object
+      description: One price of one symbol
+      required:
+        - symbol
+        - price
+        - change
+        - sequence
+      properties:
+        symbol:
+          type: string
+        price:
+          type: number
+          format: double
+        change:
+          type: number
+          format: double
+        sequence:
+          type: integer
+          format: int64
     Document:
       title: Document
       type: object
@@ -1985,6 +2191,25 @@ components:
           type: array
           items: {}
   parameters:
+    priceCount:
+      name: count
+      in: query
+      required: false
+      description: How many prices to stream before the response ends
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 500
+        default: 40
+    exchangeClosed:
+      name: closed
+      in: query
+      required: false
+      description: Answer as a closed exchange does - 503 with a problem and a Retry-After header
+      schema:
+        type: boolean
+        default: false
     continuation:
       name: continuation
       in: query

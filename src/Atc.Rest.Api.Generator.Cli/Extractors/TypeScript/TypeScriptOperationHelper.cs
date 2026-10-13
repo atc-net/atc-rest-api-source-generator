@@ -1201,9 +1201,9 @@ public static class TypeScriptOperationHelper
     /// </summary>
     internal static void AppendRenamingRequestStream(StringBuilder sb)
     {
-        sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
+        sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {");
         sb.AppendLine("    const shape = options?.wire?.response;");
-        sb.AppendLine("    for await (const item of this.readStream<unknown>(method, path, options, framing)) {");
+        sb.AppendLine("    for await (const item of this.readStream<unknown>(method, path, options, framing, sseItemEvents)) {");
         sb.AppendLine("      yield fromWire<T>(item, shape);");
         sb.AppendLine("    }");
         sb.AppendLine("  }");
@@ -1239,7 +1239,20 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("  }");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {");
+        sb.AppendLine("/**");
+        sb.AppendLine(" * The body of one part of a multipart response - what follows its boundary: past the boundary's padding, the");
+        sb.AppendLine(" * part's headers (a part may have none) and the blank line after them. Null for the closing boundary and for a");
+        sb.AppendLine(" * part whose headers have not ended yet.");
+        sb.AppendLine(" */");
+        sb.AppendLine("function multipartBody(part: string): string | null {");
+        sb.AppendLine("  if (part.startsWith('--')) return null;");
+        sb.AppendLine("  const head = part.replace(/^[ \\t]*\\r\\n/, '');");
+        sb.AppendLine("  if (head.startsWith('\\r\\n')) return head.substring(2).trim();");
+        sb.AppendLine("  const sep = head.indexOf('\\r\\n\\r\\n');");
+        sb.AppendLine("  return sep === -1 ? null : head.substring(sep + 4).trim();");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown, itemEvents?: readonly string[]): AsyncGenerator<T> {");
         sb.AppendLine("  let buffer = '';");
         sb.AppendLine("  let finished = false;");
         sb.AppendLine("  try {");
@@ -1259,17 +1272,11 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("          .filter((l) => l.startsWith('data:'))");
         sb.AppendLine("          .map((l) => l.slice(5).trimStart())");
         sb.AppendLine("          .join('\\n');");
-        sb.AppendLine("        // An event without data is no item; a named event whose data is no JSON (a heartbeat, a control frame) is");
-        sb.AppendLine("        // skipped; an unnamed event - the item event - must be one");
-        sb.AppendLine("        if (data.trim().length === 0) continue;");
-        sb.AppendLine("        let item: T;");
-        sb.AppendLine("        try {");
-        sb.AppendLine("          item = JSON.parse(data, reviver) as T;");
-        sb.AppendLine("        } catch (e) {");
-        sb.AppendLine("          if (eventType !== 'message') continue;");
-        sb.AppendLine("          throw e;");
-        sb.AppendLine("        }");
-        sb.AppendLine("        yield item;");
+        sb.AppendLine("        // The item event is the unnamed one (or 'message', the same by the standard), and the ones the operation");
+        sb.AppendLine("        // names (x-sse-item-events): each must be an item. An event without data and any other named event (a");
+        sb.AppendLine("        // heartbeat, a control frame) are read past.");
+        sb.AppendLine("        if ((eventType !== 'message' && !itemEvents?.includes(eventType)) || data.trim().length === 0) continue;");
+        sb.AppendLine("        yield JSON.parse(data, reviver) as T;");
         sb.AppendLine("      }");
         sb.AppendLine("      guardRecord(buffer.length);");
         sb.AppendLine("    }");
