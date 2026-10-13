@@ -41,4 +41,6 @@ public interface ICreateTestItemWithLocationHeaderEndpointResult : IEndpointResp
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    string? LocationHeader { get; }
 }

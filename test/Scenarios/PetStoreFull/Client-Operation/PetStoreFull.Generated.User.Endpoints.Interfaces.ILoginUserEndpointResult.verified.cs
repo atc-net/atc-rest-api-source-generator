@@ -43,4 +43,8 @@ public interface ILoginUserEndpointResult : IEndpointResponse
     ProblemDetails GatewayTimeoutContent { get; }
 
     ProblemDetails DefaultErrorContent { get; }
+
+    int? XRateLimitHeader { get; }
+
+    global::System.DateTimeOffset? XExpiresAfterHeader { get; }
 }

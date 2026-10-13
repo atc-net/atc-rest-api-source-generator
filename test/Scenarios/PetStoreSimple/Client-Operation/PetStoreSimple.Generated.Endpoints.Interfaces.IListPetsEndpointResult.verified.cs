@@ -43,4 +43,6 @@ public interface IListPetsEndpointResult : IEndpointResponse
     ProblemDetails GatewayTimeoutContent { get; }
 
     Error DefaultErrorContent { get; }
+
+    string? XNextHeader { get; }
 }

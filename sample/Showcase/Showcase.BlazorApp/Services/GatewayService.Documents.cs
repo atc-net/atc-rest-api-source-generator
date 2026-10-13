@@ -89,7 +89,7 @@ public sealed partial class GatewayService
             .ExecuteAsync(new GetDocumentSummaryParameters(DocumentId: documentId, IfNoneMatch: ifNoneMatch, Printable: false), cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        var etag = result.Headers.TryGetValue("ETag", out var values) ? values.FirstOrDefault() : null;
+        var etag = result.ETagHeader;
         if (result.IsNotModified)
         {
             return (null, etag, true);

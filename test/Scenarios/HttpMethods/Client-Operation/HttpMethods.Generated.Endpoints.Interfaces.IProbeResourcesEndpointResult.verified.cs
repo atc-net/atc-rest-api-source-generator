@@ -33,4 +33,6 @@ public interface IProbeResourcesEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    string? ETagHeader { get; }
 }

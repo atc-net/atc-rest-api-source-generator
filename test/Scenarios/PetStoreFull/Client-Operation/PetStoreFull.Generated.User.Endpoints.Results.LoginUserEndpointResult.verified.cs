@@ -134,4 +134,30 @@ public partial class LoginUserEndpointResult : EndpointResponse, ILoginUserEndpo
                     : IsDefaultError
                         ? ProblemDetailsFactory.FromContent(StatusCode, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(StatusCode, "DefaultErrorContent");
+
+    /// <summary>
+    /// The <c>X-Rate-Limit</c> response header; null when it is absent or is not a value of this type.
+    /// </summary>
+    public int? XRateLimitHeader
+        => (int.TryParse(HeaderText("X-Rate-Limit"), global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : (int?)null);
+
+    /// <summary>
+    /// The <c>X-Expires-After</c> response header; null when it is absent or is not a value of this type.
+    /// </summary>
+    public global::System.DateTimeOffset? XExpiresAfterHeader
+        => (global::System.DateTimeOffset.TryParse(HeaderText("X-Expires-After"), global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.AssumeUniversal, out var value) ? value : (global::System.DateTimeOffset?)null);
+
+    // A header's values as one text (several are joined by commas), by name whatever its casing
+    private string? HeaderText(string name)
+    {
+        foreach (var header in Headers)
+        {
+            if (string.Equals(header.Key, name, global::System.StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Join(",", header.Value);
+            }
+        }
+
+        return null;
+    }
 }

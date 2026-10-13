@@ -43,4 +43,6 @@ public interface IListItemsEndpointResult : IEndpointResponse
     ProblemDetails GatewayTimeoutContent { get; }
 
     Error DefaultErrorContent { get; }
+
+    string? XContinuationHeader { get; }
 }

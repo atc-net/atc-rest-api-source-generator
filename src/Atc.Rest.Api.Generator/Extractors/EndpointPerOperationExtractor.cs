@@ -409,6 +409,9 @@ public static class EndpointPerOperationExtractor
         if (!isBinaryEndpoint && !isAsyncEnumerable)
         {
             // Generate result interface
+            // The headers the responses declare: typed properties of the result
+            var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation);
+
             resultInterfaceContent = GenerateResultInterface(
                 projectName,
                 pathSegment,
@@ -417,7 +420,8 @@ public static class EndpointPerOperationExtractor
                 responses,
                 defaultResponse,
                 hasSegmentModels,
-                hasSharedModels);
+                hasSharedModels,
+                declaredHeaders);
             resultInterfaceFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment),
                 $"I{operationName}EndpointResult");
@@ -432,7 +436,8 @@ public static class EndpointPerOperationExtractor
                 defaultResponse,
                 hasSegmentModels,
                 hasSharedModels,
-                customErrorTypeName);
+                customErrorTypeName,
+                declaredHeaders);
             resultClassFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointResults(projectName, pathSegment),
                 $"{operationName}EndpointResult");
@@ -1609,7 +1614,8 @@ public static class EndpointPerOperationExtractor
         List<ResponseInfo> responses,
         ResponseInfo? defaultResponse,
         bool hasSegmentModels,
-        bool hasSharedModels)
+        bool hasSharedModels,
+        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1682,6 +1688,13 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        // The headers the responses declare
+        foreach (var property in ResponseHeaderFactoryHelper.ClientInterfaceProperties(declaredHeaders))
+        {
+            sb.AppendLine(4, property);
+            sb.AppendLine();
+        }
+
         // Remove last empty line
         var content = sb.ToString();
         if (content.EndsWith("\r\n\r\n", StringComparison.Ordinal))
@@ -1705,7 +1718,8 @@ public static class EndpointPerOperationExtractor
         ResponseInfo? defaultResponse,
         bool hasSegmentModels,
         bool hasSharedModels,
-        string? customErrorTypeName)
+        string? customErrorTypeName,
+        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1983,6 +1997,24 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine(12, $": throw InvalidContentAccessException<{defaultType}>(StatusCode, \"{name}Content\");");
             }
 
+            sb.AppendLine();
+        }
+
+        // The headers the responses declare
+        foreach (var line in ResponseHeaderFactoryHelper.ClientProperties(declaredHeaders))
+        {
+            if (line.Length == 0)
+            {
+                sb.AppendLine();
+            }
+            else
+            {
+                sb.AppendLine(4, line);
+            }
+        }
+
+        if (declaredHeaders.Count > 0)
+        {
             sb.AppendLine();
         }
 

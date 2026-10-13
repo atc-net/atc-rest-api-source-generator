@@ -129,4 +129,24 @@ public partial class CreateTestItemWithLocationHeaderEndpointResult : EndpointRe
                     : IsGatewayTimeout
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    /// <summary>
+    /// The <c>Location</c> response header; null when it is absent or is not a value of this type.
+    /// </summary>
+    public string? LocationHeader
+        => HeaderText("Location");
+
+    // A header's values as one text (several are joined by commas), by name whatever its casing
+    private string? HeaderText(string name)
+    {
+        foreach (var header in Headers)
+        {
+            if (string.Equals(header.Key, name, global::System.StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Join(",", header.Value);
+            }
+        }
+
+        return null;
+    }
 }

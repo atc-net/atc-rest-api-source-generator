@@ -175,6 +175,183 @@ public static class ResponseHeaderFactoryHelper
             }
             """;
 
+    /// <summary>
+    /// The headers the responses of an operation declare, one per name: what a client's result reads back. The same
+    /// name declared with different types is text.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>Per header: its name, the property a result reads it through, the C# type of one value and whether it is an array.</returns>
+    public static List<(string Name, string PropertyName, string Scalar, bool IsArray)> DeclaredBy(
+        OpenApiOperation? operation)
+    {
+        var headers = new List<(string Name, string PropertyName, string Scalar, bool IsArray)>();
+        var taken = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var response in operation?.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>())
+        {
+            foreach (var header in response?.Headers ?? new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal))
+            {
+                if (header.Value is null ||
+                    string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(header.Key, "Content-Length", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var (scalar, isArray) = ValueOf(header.Value.Schema);
+                var index = headers.FindIndex(h => string.Equals(h.Name, header.Key, StringComparison.OrdinalIgnoreCase));
+                if (index >= 0)
+                {
+                    if (headers[index].Scalar != scalar || headers[index].IsArray != isArray)
+                    {
+                        headers[index] = (headers[index].Name, headers[index].PropertyName, "string", false);
+                    }
+
+                    continue;
+                }
+
+                var pascal = header.Key.ToPascalCaseForDotNet();
+                if (pascal.Length == 0 || !(char.IsLetter(pascal[0]) || pascal[0] == '_'))
+                {
+                    pascal = "Response" + pascal;
+                }
+
+                var propertyName = pascal + "Header";
+                var number = 1;
+                while (!taken.Add(propertyName))
+                {
+                    number++;
+                    propertyName = pascal + "Header" + number.ToString(CultureInfo.InvariantCulture);
+                }
+
+                headers.Add((header.Key, propertyName, scalar, isArray));
+            }
+        }
+
+        return headers;
+    }
+
+    /// <summary>
+    /// The declaration of a client result's header properties, for its interface.
+    /// </summary>
+    /// <param name="headers">The headers, from <see cref="DeclaredBy"/>.</param>
+    /// <returns>One line per property.</returns>
+    public static List<string> ClientInterfaceProperties(
+        List<(string Name, string PropertyName, string Scalar, bool IsArray)> headers)
+        => (headers ?? []).ConvertAll(h => $"{ClientType(h.Scalar, h.IsArray)} {h.PropertyName} {{ get; }}");
+
+    /// <summary>
+    /// The header properties of a client result class: each reads its header from the response's <c>Headers</c> by
+    /// name, whatever the casing, and is null when the header is absent or is not a value of its type.
+    /// </summary>
+    /// <param name="headers">The headers, from <see cref="DeclaredBy"/>.</param>
+    /// <returns>The members' source lines, without indentation; none without headers.</returns>
+    public static List<string> ClientProperties(
+        List<(string Name, string PropertyName, string Scalar, bool IsArray)> headers)
+    {
+        var lines = new List<string>();
+        if (headers is null || headers.Count == 0)
+        {
+            return lines;
+        }
+
+        foreach (var header in headers)
+        {
+            var name = header.Name.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            lines.Add("/// <summary>");
+            lines.Add($"/// The <c>{header.Name.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;")}</c> response header; null when it is absent or is not a value of this type.");
+            lines.Add("/// </summary>");
+            if (!header.IsArray)
+            {
+                lines.Add($"public {ClientType(header.Scalar, isArray: false)} {header.PropertyName}");
+                lines.Add($"    => {Parsed(header.Scalar, $"HeaderText(\"{name}\")", "value")};");
+                lines.Add(string.Empty);
+                continue;
+            }
+
+            lines.Add($"public {ClientType(header.Scalar, isArray: true)} {header.PropertyName}");
+            lines.Add("{");
+            lines.Add("    get");
+            lines.Add("    {");
+            lines.Add($"        if (HeaderText(\"{name}\") is not {{ }} text)");
+            lines.Add("        {");
+            lines.Add("            return null;");
+            lines.Add("        }");
+            lines.Add(string.Empty);
+            lines.Add($"        var values = new global::System.Collections.Generic.List<{header.Scalar}>();");
+            lines.Add("        foreach (var part in text.Split(','))");
+            lines.Add("        {");
+            lines.Add($"            if ({Parsed(header.Scalar, "part.Trim()", "item")} is not {{ }} parsed)");
+            lines.Add("            {");
+            lines.Add("                return null;");
+            lines.Add("            }");
+            lines.Add(string.Empty);
+            lines.Add("            values.Add(parsed);");
+            lines.Add("        }");
+            lines.Add(string.Empty);
+            lines.Add("        return values;");
+            lines.Add("    }");
+            lines.Add("}");
+            lines.Add(string.Empty);
+        }
+
+        lines.Add("// A header's values as one text (several are joined by commas), by name whatever its casing");
+        lines.Add("private string? HeaderText(string name)");
+        lines.Add("{");
+        lines.Add("    foreach (var header in Headers)");
+        lines.Add("    {");
+        lines.Add("        if (string.Equals(header.Key, name, global::System.StringComparison.OrdinalIgnoreCase))");
+        lines.Add("        {");
+        lines.Add("            return string.Join(\",\", header.Value);");
+        lines.Add("        }");
+        lines.Add("    }");
+        lines.Add(string.Empty);
+        lines.Add("    return null;");
+        lines.Add("}");
+        return lines;
+    }
+
+    private static string ClientType(
+        string scalar,
+        bool isArray)
+        => isArray
+            ? $"global::System.Collections.Generic.IReadOnlyList<{scalar}>?"
+            : scalar + "?";
+
+    // The expression that is the text as a value of the type, or null
+    private static string Parsed(
+        string scalar,
+        string text,
+        string variable)
+    {
+        const string invariant = "global::System.Globalization.CultureInfo.InvariantCulture";
+        return scalar switch
+        {
+            "string" => text,
+            "bool" => $"(bool.TryParse({text}, out var {variable}) ? {variable} : (bool?)null)",
+            "int" => $"(int.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) ? {variable} : (int?)null)",
+            "long" => $"(long.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) ? {variable} : (long?)null)",
+            "double" => $"(double.TryParse({text}, global::System.Globalization.NumberStyles.Float, {invariant}, out var {variable}) ? {variable} : (double?)null)",
+            "global::System.Guid" => $"(global::System.Guid.TryParse({text}, out var {variable}) ? {variable} : (global::System.Guid?)null)",
+            "global::System.DateOnly" => $"(global::System.DateOnly.TryParseExact({text}, \"yyyy-MM-dd\", {invariant}, global::System.Globalization.DateTimeStyles.None, out var {variable}) ? {variable} : (global::System.DateOnly?)null)",
+            _ => $"(global::System.DateTimeOffset.TryParse({text}, {invariant}, global::System.Globalization.DateTimeStyles.AssumeUniversal, out var {variable}) ? {variable} : (global::System.DateTimeOffset?)null)",
+        };
+    }
+
+    // The C# type of one value of a header and whether the header is an array of them; anything else is text
+    private static (string Scalar, bool IsArray) ValueOf(IOpenApiSchema? schema)
+    {
+        if (schema is OpenApiSchema { Items: OpenApiSchema items } array &&
+            array.IsOfType(JsonSchemaType.Array) &&
+            ScalarOf(items) is { } itemType)
+        {
+            return (itemType, true);
+        }
+
+        return schema is OpenApiSchema own && ScalarOf(own) is { } scalar
+            ? (scalar, false)
+            : ("string", false);
+    }
+
     private static MethodParameters WithHeaders(
         MethodParameters factory,
         List<KeyValuePair<string, IOpenApiHeader>> declared,

@@ -204,4 +204,108 @@ public sealed partial class ErrorResponseBodyRuntimeTests
             getThing.GetMethod("Ok")!.GetParameters().Where(p => p.Name != "response"),
             p => Assert.True(p.HasDefaultValue, p.Name));
     }
+
+    private const string ResponseHeadersClientProbe = """"
+        using Atc.Rest.Client;
+        using Microsoft.Extensions.DependencyInjection;
+        using ErrorBodies.Generated;
+        using ErrorBodies.Generated.Client;
+        using ErrorBodies.Generated.Endpoints.Interfaces;
+
+        namespace ErrorBodies.RuntimeTest;
+
+        public static class Probe
+        {
+            public static async Task<List<string>> RunAsync()
+            {
+                var services = new ServiceCollection();
+                services
+                    .AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = new Uri("http://stub/"))
+                    .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
+                services.AddErrorBodiesEndpoints();
+                using var provider = services.BuildServiceProvider();
+
+                var lines = new List<string>();
+                foreach (var id in new[] { "all", "none", "odd" })
+                {
+                    var result = await provider.GetRequiredService<IGetThingEndpoint>().ExecuteAsync(new GetThingParameters(id));
+                    lines.Add($"{id}: {(int)result.StatusCode} ETag={Show(result.ETagHeader)} X-Rate-Limit={Show(result.XRateLimitHeader)} X-Expires-After={Show(result.XExpiresAfterHeader?.ToString("O"))} Last-Modified={Show(result.LastModifiedHeader?.ToString("O"))} X-Tags={Show(result.XTagsHeader is null ? null : string.Join("|", result.XTagsHeader))} X-Flag={Show(result.XFlagHeader)} Message={Show(result.MessageHeader)} X-RateLimit-Remaining={Show(result.XRateLimitRemainingHeader)}");
+                }
+
+                var probe = await provider.GetRequiredService<IProbeThingEndpoint>().ExecuteAsync(new ProbeThingParameters("all"));
+                lines.Add($"head: {(int)probe.StatusCode} ETag={Show(probe.ETagHeader)}");
+                return lines;
+            }
+
+            private static string Show(object? value)
+                => value is null ? "(null)" : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!;
+
+            // "all": every declared header, as a server writes them. "none": no header. "odd": values that are not what
+            // the specification says (a rate limit that is no number, a date that is no date) and a missing thing.
+            private sealed class StubHandler : HttpMessageHandler
+            {
+                protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+                {
+                    var id = request.RequestUri!.AbsolutePath.Split('/')[^1];
+                    var response = new HttpResponseMessage(id == "odd" ? System.Net.HttpStatusCode.NotFound : System.Net.HttpStatusCode.OK)
+                    {
+                        RequestMessage = request,
+                        Content = request.Method == HttpMethod.Head || id == "odd"
+                            ? new ByteArrayContent([])
+                            : new StringContent("""{"id":"1"}""", System.Text.Encoding.UTF8, "application/json"),
+                    };
+                    if (id == "all")
+                    {
+                        response.Headers.TryAddWithoutValidation("etag", "\"v1\"");
+                        response.Headers.TryAddWithoutValidation("X-Rate-Limit", "5");
+                        response.Headers.TryAddWithoutValidation("X-Expires-After", "2026-10-13T08:30:00.0000000+02:00");
+                        response.Content.Headers.TryAddWithoutValidation("Last-Modified", "Tue, 13 Oct 2026 06:30:00 GMT");
+                        response.Headers.TryAddWithoutValidation("X-Tags", "a, b");
+                        response.Headers.TryAddWithoutValidation("X-Flag", "true");
+                    }
+                    else if (id == "odd")
+                    {
+                        response.Headers.TryAddWithoutValidation("X-Rate-Limit", "soon");
+                        response.Headers.TryAddWithoutValidation("X-Expires-After", "later");
+                        response.Headers.TryAddWithoutValidation("X-Flag", "maybe");
+                        response.Headers.TryAddWithoutValidation("Message", "why");
+                        response.Headers.TryAddWithoutValidation("X-RateLimit-Remaining", "9000000000");
+                    }
+
+                    return Task.FromResult(response);
+                }
+            }
+        }
+        """";
+
+    /// <summary>
+    /// The EndpointPerOperation client reads them back: the result has a typed property per header the operation's
+    /// responses declare (<c>ETagHeader</c>, <c>XRateLimitHeader</c>) - whatever the casing the server sent the name
+    /// in, a content header (<c>Last-Modified</c>) included. A header that is absent, or is not what the specification
+    /// says, is null: reading a header never throws.
+    /// </summary>
+    [Fact]
+    public async Task OperationClient_Result_ReadsTheHeadersTheResponsesDeclare()
+    {
+        var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientOperationMarker("ProblemDetails"), includeMinimalApi: false, ResponseHeadersYaml);
+        sources.Add(("Probe.cs", ResponseHeadersClientProbe));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+        var run = assembly.GetType("ErrorBodies.RuntimeTest.Probe", throwOnError: true)!.GetMethod("RunAsync")!;
+
+        var lines = await (Task<List<string>>)run.Invoke(null, [])!;
+
+        Assert.Equal(
+            [
+                "all: 200 ETag=\"v1\" X-Rate-Limit=5 X-Expires-After=2026-10-13T08:30:00.0000000+02:00 Last-Modified=2026-10-13T06:30:00.0000000+00:00 X-Tags=a|b X-Flag=True Message=(null) X-RateLimit-Remaining=(null)",
+                "none: 200 ETag=(null) X-Rate-Limit=(null) X-Expires-After=(null) Last-Modified=(null) X-Tags=(null) X-Flag=(null) Message=(null) X-RateLimit-Remaining=(null)",
+                "odd: 404 ETag=(null) X-Rate-Limit=(null) X-Expires-After=(null) Last-Modified=(null) X-Tags=(null) X-Flag=(null) Message=why X-RateLimit-Remaining=9000000000",
+                "head: 200 ETag=\"v1\"",
+            ],
+            lines);
+
+        // The interface a consumer mocks has them too; the body's own header is no property
+        var contract = assembly.GetTypes().Single(t => t.Name == "IGetThingEndpointResult");
+        Assert.NotNull(contract.GetProperty("ETagHeader"));
+        Assert.Null(contract.GetProperty("ContentTypeHeader"));
+    }
 }
