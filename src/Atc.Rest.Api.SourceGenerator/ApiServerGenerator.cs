@@ -324,8 +324,8 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        // Extract project name from base file path (or use config namespace)
-        var projectName = NamespaceResolver.ToValidNamespace(config.Namespace ?? Path.GetFileNameWithoutExtension(baseFile.Path));
+        // The root namespace: marker namespace, qualifying info.title, then base file name - as for a client
+        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, baseFile.Path);
 
         GenerateApiServerFromDocument(
             context,
@@ -356,8 +356,8 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        // Extract project name from YAML file path (or use config namespace)
-        var projectName = NamespaceResolver.ToValidNamespace(config.Namespace ?? GetProjectNameFromPath(yamlPath));
+        // The root namespace: marker namespace, qualifying info.title, then file name - as for a client
+        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, yamlPath);
 
         GenerateApiServerFromDocument(
             context,
@@ -823,13 +823,6 @@ public class ApiServerGenerator : IIncrementalGenerator
             modelCount: schemaCount,
             handlerCount: operationCount,
             endpointCount: pathSegments.Count);
-    }
-
-    private static string GetProjectNameFromPath(string yamlPath)
-    {
-        // Extract the file name without extension (e.g., "PetStoreSimple" from "PetStoreSimple.yaml")
-        var fileName = Path.GetFileNameWithoutExtension(yamlPath);
-        return fileName;
     }
 
     /// <summary>

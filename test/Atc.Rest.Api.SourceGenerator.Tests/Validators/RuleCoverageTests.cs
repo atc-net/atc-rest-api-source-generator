@@ -20,6 +20,7 @@ public class RuleCoverageTests
         ["ATC_API_GEN003"] = "ClientGenerationError - the catch around client generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
         ["ATC_API_GEN005"] = "HandlerScaffoldGenerationError - the catch around scaffold generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
         ["ATC_API_GEN008"] = "EndpointInjectionGenerationError - the catch around endpoint injection; no known input makes the generator throw",
+        ["ATC_API_GEN022"] = "MarkerNamespaceRewritten - Tested in Atc.Rest.Api.SourceGenerator.Tests.Generators.RootNamespaceResolutionTests",
 
         // ========== OpenAPI Validation Rules (VAL) ==========
         ["ATC_API_VAL002"] = "OpenApi20NotSupported - Tested in Atc.Rest.Api.SourceGenerator.Tests.Validators.OpenApiVersionValidationTests",

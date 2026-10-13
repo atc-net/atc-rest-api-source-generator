@@ -131,6 +131,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MultipleSpecifications = "ATC_API_GEN021";
 
+    /// <summary>
+    /// ATC_API_GEN022: The marker's 'namespace' is no C# namespace ('Contoso Api', 'contoso-billing.v2') and was
+    /// written as one ('ContosoApi', 'ContosoBilling.V2'). Information: the generated code is in the namespace the
+    /// message names, not in the one the marker spells.
+    /// </summary>
+    public const string MarkerNamespaceRewritten = "ATC_API_GEN022";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>

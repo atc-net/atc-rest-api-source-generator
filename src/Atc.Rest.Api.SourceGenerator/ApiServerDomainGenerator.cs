@@ -437,11 +437,15 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // Determine the root namespace for GlobalUsings (contracts namespace)
+        // Without one: the handlers' own namespace without its Domain suffix, else what the server resolves from the
+        // same specification (a qualifying info.title, then the file name)
         var rootNamespace = contractsNamespace is not null
             ? contractsNamespace
-            : NamespaceResolver.ToValidNamespace(config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath))
-                .Replace(".Api.Domain", string.Empty)
-                .Replace(".Domain", string.Empty);
+            : string.IsNullOrWhiteSpace(config.Namespace)
+                ? NamespaceResolver.Resolve(configNamespace: null, openApiDoc.Info?.Title, yamlPath)
+                : NamespaceResolver.ToValidNamespace(config.Namespace)
+                    .Replace(".Api.Domain", string.Empty)
+                    .Replace(".Domain", string.Empty);
 
         var assemblyName = summary.AssemblyName ?? "Generated";
 

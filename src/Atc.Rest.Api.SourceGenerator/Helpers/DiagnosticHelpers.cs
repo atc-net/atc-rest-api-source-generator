@@ -96,6 +96,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN022: The marker's namespace is no C# namespace and was written as one.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MarkerNamespaceRewritten = new(
+        RuleIdentifiers.MarkerNamespaceRewritten,
+        "The marker's namespace was rewritten",
+        "The marker's namespace '{0}' is no C# namespace: the generated code is in '{1}'. Write that in the marker to say what is generated.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATC_API_AOT001: The Request Delegate Generator is on and does not see the generated endpoints.
     /// </summary>
     public static readonly DiagnosticDescriptor RequestDelegateGeneratorDoesNotSeeTheEndpoints = new(
@@ -586,6 +597,32 @@ internal static class DiagnosticHelpers
         context.ReportDiagnostic(Diagnostic.Create(
             ServerRequiresAspNetCore,
             Location.None));
+    }
+
+    /// <summary>
+    /// The root namespace of the generated code - the marker's <c>namespace</c>, else an <c>info.title</c> that
+    /// already is a namespace, else the specification file's name (<see cref="NamespaceResolver.Resolve"/>): the one
+    /// rule of every generator. A marker namespace that had to be rewritten is reported (ATC_API_GEN022).
+    /// </summary>
+    /// <param name="context">The source-production context the diagnostic is reported to.</param>
+    /// <param name="markerNamespace">The marker's <c>namespace</c>, if any.</param>
+    /// <param name="document">The specification.</param>
+    /// <param name="specificationPath">The path of the specification file (the base file of a multi-part one).</param>
+    /// <returns>The root namespace.</returns>
+    public static string ResolveRootNamespace(
+        SourceProductionContext context,
+        string? markerNamespace,
+        OpenApiDocument? document,
+        string specificationPath)
+    {
+        var resolved = NamespaceResolver.Resolve(markerNamespace, document?.Info?.Title, specificationPath);
+        if (!string.IsNullOrWhiteSpace(markerNamespace) &&
+            !string.Equals(markerNamespace!.Trim(), resolved, StringComparison.Ordinal))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(MarkerNamespaceRewritten, Location.None, markerNamespace.Trim(), resolved));
+        }
+
+        return resolved;
     }
 
     /// <summary>

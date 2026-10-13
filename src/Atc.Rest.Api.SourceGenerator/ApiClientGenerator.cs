@@ -194,10 +194,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
 
         // Resolve the root namespace: marker namespace, qualifying info.title, then base file name.
-        var projectName = NamespaceResolver.Resolve(
-            config.Namespace,
-            openApiDoc.Info?.Title,
-            baseFile.Path);
+        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, baseFile.Path);
 
         GenerateApiClientFromDocument(context, baseFile.Path, openApiDoc, config, packages, projectName);
     }
@@ -237,10 +234,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
 
         // Resolve the root namespace: marker namespace, qualifying info.title, then file name.
-        var projectName = NamespaceResolver.Resolve(
-            config.Namespace,
-            openApiDoc.Info?.Title,
-            yamlPath);
+        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, yamlPath);
 
         GenerateApiClientFromDocument(context, yamlPath, openApiDoc, config, packages, projectName);
     }
