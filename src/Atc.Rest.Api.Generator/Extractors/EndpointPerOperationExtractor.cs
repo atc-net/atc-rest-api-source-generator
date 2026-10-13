@@ -427,7 +427,8 @@ public static class EndpointPerOperationExtractor
                 hasSegmentModels,
                 hasSharedModels,
                 declaredHeaders,
-                streamedItemType);
+                streamedItemType,
+                isEventStream: streamedItemType is not null && operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents);
             resultInterfaceFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment),
                 $"I{operationName}EndpointResult");
@@ -1385,13 +1386,6 @@ public static class EndpointPerOperationExtractor
         var sharedWithDefault = SharedWithDefault(responses, defaultResponse);
         var splitByMediaType = SplitsByMediaType(responses, defaultResponse);
 
-        // Only a declared XML default is still registered by looking at the response (the library has no default
-        // without a type): its condition asks whether the answer is a problem
-        if (splitByMediaType && defaultResponse is { Xml: not null })
-        {
-            sb.AppendLine("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";");
-        }
-
         foreach (var responseInfo in responses)
         {
             if (sharedWithDefault.Contains(responseInfo))
@@ -1449,7 +1443,7 @@ public static class EndpointPerOperationExtractor
             {
                 // A 3xx without a body (304, a redirect that was not followed): nothing to read. Registered as that
                 // where the operation has a default, which would otherwise take the status for one of its own.
-                if (defaultResponse is { Xml: null })
+                if (defaultResponse is not null)
                 {
                     sb.AppendLine($"responseBuilder.AddErrorResponse({responseInfo.StatusCodeExpression});");
                 }
@@ -1487,23 +1481,15 @@ public static class EndpointPerOperationExtractor
 
         // `default`: any other error status is read as the default body, through the configured serializer -
         // Atc.Rest.Client's default registration, which applies to every error status without one of its own.
-        if (defaultResponse is { Xml: null })
+        // A declared XML model has no type the serializer reads: the default without a type keeps the text, and the
+        // result reads the model from it.
+        if (defaultResponse is not null)
         {
             sb.AppendLine(defaultResponse.TextMediaType is not null
                 ? "responseBuilder.AddDefaultErrorTextResponse();"
-                : $"responseBuilder.AddDefaultErrorResponse<{defaultResponse.ContentType}>();");
-        }
-        else if (defaultResponse is not null)
-        {
-            sb.AppendLine($"if ({DefaultErrorCondition(responses, defaultResponse, "response.IsSuccessStatusCode", "response.StatusCode", splitByMediaType ? "!isProblemJson" : null)})");
-            sb.AppendLine("{");
-            sb.AppendLine(4, defaultResponse.TextMediaType is not null
-                ? "responseBuilder.AddErrorTextResponse(response.StatusCode);"
                 : defaultResponse.Xml is not null
-                    ? "responseBuilder.AddErrorResponse(response.StatusCode);"
-                    : $"responseBuilder.AddErrorResponse<{defaultResponse.ContentType}>(response.StatusCode);");
-            sb.AppendLine("}");
-            sb.AppendLine();
+                    ? "responseBuilder.AddDefaultErrorResponse();"
+                    : $"responseBuilder.AddDefaultErrorResponse<{defaultResponse.ContentType}>();");
         }
     }
 
@@ -1517,7 +1503,8 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels,
         List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders,
-        string? streamedItemType)
+        string? streamedItemType,
+        bool isEventStream)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1596,6 +1583,18 @@ public static class EndpointPerOperationExtractor
         foreach (var property in ResponseHeaderFactoryHelper.ClientInterfaceProperties(declaredHeaders))
         {
             sb.AppendLine(4, property);
+            sb.AppendLine();
+        }
+
+        // An event stream: the id of the last event read so far (StreamingEndpointResponse<T> has it), what a caller
+        // sends as Last-Event-ID to continue the stream after it
+        if (isEventStream)
+        {
+            sb.AppendLine(4, "/// <summary>");
+            sb.AppendLine(4, "/// The id of the last server-sent event read so far - what to send as Last-Event-ID to continue the stream");
+            sb.AppendLine(4, "/// after it. Null when no event has had an id; empty when the server has reset it.");
+            sb.AppendLine(4, "/// </summary>");
+            sb.AppendLine(4, "string? LastEventId { get; }");
             sb.AppendLine();
         }
 

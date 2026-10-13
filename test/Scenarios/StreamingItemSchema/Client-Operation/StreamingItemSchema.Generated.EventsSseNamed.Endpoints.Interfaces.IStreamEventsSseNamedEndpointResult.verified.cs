@@ -50,4 +50,10 @@ public interface IStreamEventsSseNamedEndpointResult : IStreamingEndpointRespons
     global::System.Guid? XStreamIdHeader { get; }
 
     int? RetryAfterHeader { get; }
+
+    /// <summary>
+    /// The id of the last server-sent event read so far - what to send as Last-Event-ID to continue the stream
+    /// after it. Null when no event has had an id; empty when the server has reset it.
+    /// </summary>
+    string? LastEventId { get; }
 }

@@ -316,7 +316,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATC_API_DEP011: Client EndpointPerOperation mode requires Atc.Rest.Client 2.4.0 or later.
+    /// ATC_API_DEP011: Client EndpointPerOperation mode requires Atc.Rest.Client 2.5.0 or later.
     /// </summary>
     public static readonly DiagnosticDescriptor AtcRestClientTooOld = new(
         RuleIdentifiers.AtcRestClientTooOld,

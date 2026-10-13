@@ -47,9 +47,9 @@
     <PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.0" />
     <!-- Referenced so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES), enabling real C#
          compilation and runs of generated client output (CompilationVerificationTests, the error-body matrix).
-         2.4.0: streamed responses read by the library (StreamFraming), on the trim- and Native AOT-ready (URL-encoded form fields, a body with its own media type, repeated
+         2.5.0: streamed responses read by the library (StreamFraming) and its default registrations, on the trim- and Native AOT-ready (URL-encoded form fields, a body with its own media type, repeated
          multipart fields, a multipart field sent as a JSON part), and query parameter keys are URI-escaped. -->
-    <PackageReference Include="Atc.Rest.Client" Version="2.4.0" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.5.0" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses

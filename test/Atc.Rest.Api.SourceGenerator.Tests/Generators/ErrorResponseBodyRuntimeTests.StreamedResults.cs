@@ -165,6 +165,28 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 return seen;
             }
 
+            // The id of the last event read, through the contract: before the stream is read, at each item, at its end
+            public static async Task<List<string>> LastEventIdsAsync()
+            {
+                var services = new ServiceCollection();
+                services
+                    .AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = new Uri("http://stub/"))
+                    .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
+                services.AddErrorBodiesEndpoints();
+                using var provider = services.BuildServiceProvider();
+
+                using var result = await provider.GetRequiredService<IListSseEndpoint>().ExecuteAsync(new ListSseParameters(200));
+                IListSseEndpointResult contract = result;
+                var seen = new List<string> { "start=" + (contract.LastEventId ?? "(null)") };
+                await foreach (var item in contract.Content!)
+                {
+                    seen.Add(item!.Name + "=" + (contract.LastEventId ?? "(null)"));
+                }
+
+                seen.Add("end=" + (contract.LastEventId ?? "(null)"));
+                return seen;
+            }
+
             // What a test builds without a server: the factories of a streamed result
             public static async Task<List<string>> FactoriesAsync()
             {
@@ -234,7 +256,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     {
                         200 => kind switch
                         {
-                            "sse" => (": hello\n\ndata: {\"name\":\"t1\"}\n\nevent: ping\ndata: {\"name\":\"no item\"}\n\ndata: {\"name\":\"t2\"}\n\n", "text/event-stream"),
+                            "sse" => (": hello\n\ndata: {\"name\":\"t1\"}\n\nevent: ping\ndata: {\"name\":\"no item\"}\n\nid: 41\ndata: {\"name\":\"t2\"}\n\nevent: ping\nid: 42\n\n", "text/event-stream"),
                             "lines" => ("{\"name\":\"t1\"}\n\n{\"name\":\"t2\"}\n", "application/jsonl"),
                             "seq" => ("\u001e{\"name\":\"t1\"}\n\u001e{\"name\":\"t2\"}\n", "application/json-seq"),
                             "mixed" => ("--b\r\nContent-Type: application/json\r\n\r\n{\"name\":\"t1\"}\r\n--b\r\n\r\n{\"name\":\"t2\"}\r\n--b--\r\n", "multipart/mixed; boundary=b"),
@@ -299,6 +321,13 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         Assert.Contains(assembly.GetTypes().Single(t => t.Name == "IListSseEndpointResult").GetInterfaces(), i => i.Name == "IStreamingEndpointResponse`1");
         Assert.Null(result.GetProperty("OkContent"));
         Assert.DoesNotContain(assembly.GetTypes(), t => t.Name == "StreamReaders");
+
+        // An event stream's result hands out the id of the last event read - a heartbeat's too - for a resume the
+        // caller writes; the result of another framing has no such member
+        var ids = await (Task<List<string>>)probe.GetMethod("LastEventIdsAsync")!.Invoke(null, [])!;
+        Assert.Equal(["start=(null)", "t1=(null)", "t2=41", "end=42"], ids);
+        Assert.NotNull(assembly.GetTypes().Single(t => t.Name == "IListSseEndpointResult").GetProperty("LastEventId"));
+        Assert.Null(assembly.GetTypes().Single(t => t.Name == "IListLinesEndpointResult").GetProperty("LastEventId"));
 
         var built = await (Task<List<string>>)probe.GetMethod("FactoriesAsync")!.Invoke(null, [])!;
         Assert.Equal(
