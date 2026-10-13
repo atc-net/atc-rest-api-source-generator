@@ -467,7 +467,7 @@ public static class ResultClassExtractor
                 }
 
                 var factoryMethods = GenerateFactoryMethods(openApiDoc, projectName, className, response.Key, openApiResponse, isAsyncEnumerable, operationValue.GetStreamingFraming(), registry, operationId, pathSegment, inlineSchemas);
-                methods.AddRange(factoryMethods);
+                methods.AddRange(ResponseHeaderFactoryHelper.WithDeclaredHeaders(factoryMethods, openApiResponse));
             }
         }
 

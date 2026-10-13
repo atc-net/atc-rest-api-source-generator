@@ -23,6 +23,10 @@ public sealed class LoginUserHandler : ILoginUserHandler
             return Task.FromResult(LoginUserResult.BadRequest());
         }
 
-        return Task.FromResult(LoginUserResult.Ok($"logged in user session:{Guid.NewGuid():N}"));
+        // X-Rate-Limit and X-Expires-After are headers the 200 declares: the factory writes them
+        return Task.FromResult(LoginUserResult.Ok(
+            $"logged in user session:{Guid.NewGuid():N}",
+            xRateLimit: 5000,
+            xExpiresAfter: DateTimeOffset.UtcNow.AddHours(1)));
     }
 }

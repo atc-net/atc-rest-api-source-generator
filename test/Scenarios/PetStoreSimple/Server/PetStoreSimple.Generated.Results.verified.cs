@@ -37,8 +37,10 @@ public sealed class ListPetsResult : IResult
     /// <summary>
     /// 200 OK - A paged array of pets.
     /// </summary>
-    public static ListPetsResult Ok(List<Pet> response)
-        => new(TypedResults.Ok(response));
+    public static ListPetsResult Ok(
+        List<Pet> response,
+        string? xNext = null)
+        => new(ResponseHeaders.Of(TypedResults.Ok(response), ("x-next", xNext)));
 
     public static implicit operator ListPetsResult(List<Pet> response)
         => Ok(response);
@@ -147,6 +149,111 @@ public sealed class ShowPetByIdResult : IResult
     /// </summary>
     public static IResult ToIResult(ShowPetByIdResult result)
         => result.Result;
+}
+
+/// <summary>
+/// Writes the headers a response declares with the result of its factory.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ResponseHeaders
+{
+    /// <summary>
+    /// The result with the headers that have a value; the result itself when none has.
+    /// </summary>
+    public static IResult Of(
+        IResult inner,
+        params (string Name, string? Value)[] headers)
+    {
+        foreach (var header in headers)
+        {
+            if (header.Value is not null)
+            {
+                return new ResponseHeadersHttpResult(inner, headers);
+            }
+        }
+
+        return inner;
+    }
+
+    public static string? Text(bool? value)
+        => value is null ? null : value.Value ? "true" : "false";
+
+    public static string? Text(int? value)
+        => value?.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+
+    public static string? Text(long? value)
+        => value?.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+
+    public static string? Text(double? value)
+        => value?.ToString("R", global::System.Globalization.CultureInfo.InvariantCulture);
+
+    public static string? Text(global::System.Guid? value)
+        => value?.ToString("D");
+
+    public static string? Text(global::System.DateOnly? value)
+        => value?.ToString("yyyy-MM-dd", global::System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// A date-time as RFC 3339.
+    /// </summary>
+    public static string? Text(global::System.DateTimeOffset? value)
+        => value?.ToString("O", global::System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// A date-time as the HTTP date (RFC 9110) of the headers HTTP defines as one (<c>Last-Modified</c>).
+    /// </summary>
+    public static string? HttpDate(global::System.DateTimeOffset? value)
+        => value?.ToUniversalTime().ToString("R", global::System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// An array as its values joined by commas (OpenAPI's <c>simple</c> style).
+    /// </summary>
+    public static string? Text<T>(global::System.Collections.Generic.IEnumerable<T>? values)
+    {
+        if (values is null)
+        {
+            return null;
+        }
+
+        var texts = new global::System.Collections.Generic.List<string>();
+        foreach (var value in values)
+        {
+            texts.Add(global::System.Convert.ToString(value, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);
+        }
+
+        return string.Join(",", texts);
+    }
+}
+
+/// <summary>
+/// Writes the wrapped result with the headers that have a value.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class ResponseHeadersHttpResult : IResult
+{
+    private readonly IResult inner;
+    private readonly (string Name, string? Value)[] headers;
+
+    public ResponseHeadersHttpResult(
+        IResult inner,
+        (string Name, string? Value)[] headers)
+    {
+        this.inner = inner;
+        this.headers = headers;
+    }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        foreach (var header in headers)
+        {
+            if (header.Value is not null)
+            {
+                httpContext.Response.Headers[header.Name] = header.Value;
+            }
+        }
+
+        return inner.ExecuteAsync(httpContext);
+    }
 }
 
 /// <summary>

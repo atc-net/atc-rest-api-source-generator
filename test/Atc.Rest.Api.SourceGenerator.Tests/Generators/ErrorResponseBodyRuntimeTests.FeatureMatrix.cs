@@ -138,7 +138,7 @@ public partial class ErrorResponseBodyRuntimeTests
               parameters:
                 - { name: If-None-Match, in: header, schema: { type: string } }
               responses:
-                '200': { description: The current version, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+                '200': { description: The current version, headers: { ETag: { schema: { type: string } } }, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
                 '304': { description: Not Modified }
           /feature/slow:
             get:
@@ -366,7 +366,8 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(FeatureDatesResult.Ok(parameters.Request));
         }
 
-        public sealed class FeatureEtagHandlerImpl(IHttpContextAccessor accessor) : IFeatureEtagHandler
+        // The ETag is a header the 200 declares: the result's factory takes it and writes it
+        public sealed class FeatureEtagHandlerImpl : IFeatureEtagHandler
         {
             public System.Threading.Tasks.Task<FeatureEtagResult> ExecuteAsync(FeatureEtagParameters parameters, System.Threading.CancellationToken cancellationToken = default)
             {
@@ -375,8 +376,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     return System.Threading.Tasks.Task.FromResult(FeatureEtagResult.NotModified());
                 }
 
-                accessor.HttpContext!.Response.Headers.ETag = "\"v1\"";
-                return System.Threading.Tasks.Task.FromResult(FeatureEtagResult.Ok(new Thing("v1")));
+                return System.Threading.Tasks.Task.FromResult(FeatureEtagResult.Ok(new Thing("v1"), eTag: "\"v1\""));
             }
         }
 

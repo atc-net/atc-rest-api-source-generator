@@ -924,6 +924,11 @@ paths:
                 format: binary
         '304':
           description: The summary has not changed since the ETag sent as If-None-Match
+          headers:
+            ETag:
+              description: The summary's version, unchanged
+              schema:
+                type: string
         '404':
           description: Document not found
 
