@@ -78,29 +78,38 @@ internal static class StreamReaders
     {
         var buffer = new byte[4096];
         using var record = new MemoryStream();
+        var balance = new JsonBalance();
         int read;
         while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
         {
             for (var i = 0; i < read; i++)
             {
-                if (buffer[i] == 0x1E)
+                var value = buffer[i];
+                if (value == 0x1E)
                 {
                     if (record.Length > 0)
                     {
                         yield return JsonSerializer.Deserialize(record.ToArray(), options.TypeInfo<T>());
                         record.SetLength(0);
+                        balance.Reset();
                     }
                 }
-                else if (buffer[i] == (byte)'\n' && record.Length > 0 && IsCompleteJson(Encoding.UTF8.GetString(record.GetBuffer(), 0, (int)record.Length)))
+                else if (value == (byte)'\n' && balance.IsComplete)
                 {
                     // The LF that ends a record: yielded now, not at the next record's separator - a server that fails
                     // after this record never sends one (a pretty-printed record is complete only once it is balanced)
                     yield return JsonSerializer.Deserialize(record.ToArray(), options.TypeInfo<T>());
                     record.SetLength(0);
+                    balance.Reset();
+                }
+                else if (record.Length == 0 && JsonBalance.IsWhitespace((char)value))
+                {
+                    // Whitespace between two records (a second line feed, an empty record) is no record
                 }
                 else
                 {
-                    record.WriteByte(buffer[i]);
+                    record.WriteByte(value);
+                    balance.Add((char)value);
                     if (record.Length > MaxRecordLength)
                     {
                         throw new InvalidDataException($"A JSON Text Sequence record is longer than {MaxRecordLength} bytes.");
@@ -126,10 +135,13 @@ internal static class StreamReaders
         var inPart = false;
         var inHeaders = false;
         var body = new StringBuilder();
+        var bodyBytes = 0L;
+        var balance = new JsonBalance();
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)
         {
-            if (line.StartsWith(delimiter, StringComparison.Ordinal))
+            var boundaryLine = BoundaryLine(line, delimiter);
+            if (boundaryLine != 0)
             {
                 if (inPart && body.Length > 0)
                 {
@@ -137,7 +149,9 @@ internal static class StreamReaders
                     body.Clear();
                 }
 
-                if (line.StartsWith(delimiter + "--", StringComparison.Ordinal))
+                bodyBytes = 0;
+                balance.Reset();
+                if (boundaryLine == 2)
                 {
                     yield break;
                 }
@@ -163,17 +177,21 @@ internal static class StreamReaders
             }
 
             body.Append(line);
-            if (body.Length > MaxRecordLength)
+            balance.Add(line);
+            bodyBytes += Encoding.UTF8.GetByteCount(line);
+            if (bodyBytes > MaxRecordLength)
             {
-                throw new InvalidDataException($"A multipart part is longer than {MaxRecordLength} characters.");
+                throw new InvalidDataException($"A multipart part is longer than {MaxRecordLength} bytes.");
             }
 
             // A body that is complete JSON is yielded now, not at the next boundary - a server that fails after
             // this part never sends one
-            if (IsCompleteJson(body.ToString()))
+            if (balance.IsComplete)
             {
                 yield return JsonSerializer.Deserialize(body.ToString(), options.TypeInfo<T>());
                 body.Clear();
+                bodyBytes = 0;
+                balance.Reset();
             }
         }
 
@@ -183,26 +201,78 @@ internal static class StreamReaders
         }
     }
 
-    private static bool IsCompleteJson(string text)
+    // 0: no boundary line, 1: the boundary before a part, 2: the closing boundary
+    private static int BoundaryLine(
+        string line,
+        string delimiter)
     {
-        var depth = 0;
-        var inString = false;
-        var escaped = false;
-        var seen = false;
-        foreach (var ch in text)
+        if (!line.StartsWith(delimiter, StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        var index = delimiter.Length;
+        var closing = string.CompareOrdinal(line, index, "--", 0, 2) == 0;
+        if (closing)
+        {
+            index += 2;
+        }
+
+        for (; index < line.Length; index++)
+        {
+            if (line[index] != ' ' && line[index] != '\t')
+            {
+                return 0;
+            }
+        }
+
+        return closing ? 2 : 1;
+    }
+
+    /// <summary>
+    /// Whether the characters given so far are one balanced JSON text: objects and arrays closed, no open string,
+    /// something besides whitespace.
+    /// </summary>
+    private sealed class JsonBalance
+    {
+        private int depth;
+        private bool inString;
+        private bool escaped;
+        private bool seen;
+
+        public bool IsComplete => seen && depth == 0 && !inString;
+
+        public static bool IsWhitespace(char ch)
+            => ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
+
+        public void Reset()
+        {
+            depth = 0;
+            inString = false;
+            escaped = false;
+            seen = false;
+        }
+
+        public void Add(string text)
+        {
+            foreach (var ch in text)
+            {
+                Add(ch);
+            }
+        }
+
+        public void Add(char ch)
         {
             if (inString)
             {
                 if (escaped) { escaped = false; } else if (ch == '\\') { escaped = true; } else if (ch == '"') { inString = false; }
-                continue;
+                return;
             }
 
-            if (char.IsWhiteSpace(ch)) { continue; }
+            if (IsWhitespace(ch)) { return; }
             seen = true;
             if (ch == '"') { inString = true; } else if (ch == '{' || ch == '[') { depth++; } else if (ch == '}' || ch == ']') { depth--; }
         }
-
-        return seen && depth == 0 && !inString;
     }
 
     /// <summary>

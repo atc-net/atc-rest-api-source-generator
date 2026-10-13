@@ -445,6 +445,100 @@ public class StreamingWireFramingTests
     }
 
     /// <summary>
+    /// A boundary line is the boundary and nothing else: with the boundary <c>b</c> the preamble line
+    /// <c>--b--x</c> is not the closing boundary (the parts after it are read), and <c>--b</c> followed by spaces
+    /// or tabs is the boundary.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MultipartMixed_Reader_ALineThatOnlyStartsLikeTheBoundary_IsNoBoundary(
+        bool perOperation)
+    {
+        var (read, serializer) = Reader("ReadMultipartMixedAsync", perOperation);
+        const string padded = "--b \t\r\nContent-Type: application/json\r\n\r\n[1,\r\n2]\r\n--b-- \r\n";
+        const string lookalike = "--b--x\r\n--bx\r\n--b\r\n\r\n[1,\r\n2,3]\r\n--b--\r\n";
+
+        using var paddedStream = new MemoryStream(Encoding.UTF8.GetBytes(padded));
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, [paddedStream, "b", serializer, CancellationToken.None]);
+        Assert.Equal(2, Assert.Single(items).GetArrayLength());
+
+        using var lookalikeStream = new MemoryStream(Encoding.UTF8.GetBytes(lookalike));
+        items = await EnumerateWithArgsAsync<JsonElement>(read, [lookalikeStream, "b", serializer, CancellationToken.None]);
+        Assert.Equal(3, Assert.Single(items).GetArrayLength());
+    }
+
+    /// <summary>
+    /// The limit of a multipart part is in bytes, as for every other framing: a part of 15 characters that is 23
+    /// bytes on the wire is past a limit of 16.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MultipartMixed_Reader_ThePartLimit_IsInBytes(
+        bool perOperation)
+    {
+        var (read, serializer) = Reader("ReadMultipartMixedAsync", perOperation, maxRecordLength: 16);
+        const string wire = "--b\r\n\r\n[\r\n\"\u00e6\u00e6\u00e6\u00e6\",\r\n\"\u00e6\u00e6\u00e6\u00e6\"\r\n]\r\n--b--\r\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var exception = await Assert.ThrowsAnyAsync<Exception>(()
+            => EnumerateWithArgsAsync<JsonElement>(read, [stream, "b", serializer, CancellationToken.None]));
+        Assert.IsType<InvalidDataException>(exception.InnerException ?? exception);
+    }
+
+    /// <summary>
+    /// What stands between two records and is only whitespace is no record: an empty line or a line of spaces in
+    /// JSON Lines, a stray line feed between two records of a JSON Text Sequence.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonLinesAsync", "1\n\n \t\r\n2\n   \n", false)]
+    [InlineData("ReadJsonLinesAsync", "1\n\n \t\r\n2\n   \n", true)]
+    [InlineData("ReadJsonSequenceAsync", "\u001e1\n\n\u001e2\n\r\n \n", false)]
+    [InlineData("ReadJsonSequenceAsync", "\u001e1\n\n\u001e2\n\r\n \n", true)]
+    [InlineData("ReadJsonSequenceAsync", "\u001e\n\u001e1\n\u001e \u001e2", true)]
+    public async Task Reader_WhitespaceBetweenRecords_IsNoRecord(
+        string readerName,
+        string wire,
+        bool perOperation)
+    {
+        var (read, serializer) = Reader(readerName, perOperation);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, [stream, serializer, CancellationToken.None]);
+
+        Assert.Equal([1, 2], items.Select(x => x.GetInt32()));
+    }
+
+    /// <summary>
+    /// A pretty-printed record or part of many lines is one item: whether it is complete is kept up as it arrives
+    /// (not found by reading all of it again at every line), through strings that hold quotes, brackets and braces.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonSequenceAsync", false)]
+    [InlineData("ReadJsonSequenceAsync", true)]
+    [InlineData("ReadMultipartMixedAsync", false)]
+    [InlineData("ReadMultipartMixedAsync", true)]
+    public async Task Reader_ARecordOfManyLines_IsOneItem(
+        string readerName,
+        bool perOperation)
+    {
+        const int count = 20_000;
+        var (read, serializer) = Reader(readerName, perOperation);
+        var json = "[\n" + string.Join(",\n", Enumerable.Range(0, count).Select(i => "\"a \\\" [ { " + i.ToString(CultureInfo.InvariantCulture) + "\"")) + "\n]\n";
+        var isMultipart = readerName == "ReadMultipartMixedAsync";
+        var wire = isMultipart ? "--b\r\n\r\n" + json + "--b--\r\n" : "\u001e" + json;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        object?[] arguments = isMultipart
+            ? [stream, "b", serializer, CancellationToken.None]
+            : [stream, serializer, CancellationToken.None];
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, arguments);
+
+        Assert.Equal(count, Assert.Single(items).GetArrayLength());
+    }
+
+    /// <summary>
     /// Creates an instance of the generated <c>Event</c> record (Id: Guid, Type: string) via
     /// reflection, coercing each argument to the constructor's declared parameter type.
     /// </summary>
@@ -480,6 +574,30 @@ public class StreamingWireFramingTests
             await Task.Yield();
             yield return (T)item;
         }
+    }
+
+    // A reader of the typed client (it takes the JsonSerializerOptions) or of the EndpointPerOperation client (it
+    // takes the IContractSerializer), with what it deserializes through
+    private static (MethodInfo Read, object Serializer) Reader(
+        string name,
+        bool perOperation,
+        int maxRecordLength = 16 * 1024 * 1024)
+    {
+        var readerType = perOperation
+            ? CompilationVerificationHarness
+                .EmitAndLoad([("StreamReaders.g.cs", StreamReadersExtractor.GenerateContent("PerOperationReaders", perOperation: true))])
+                .GetTypes()
+                .Single(t => t.Name == "StreamReaders")
+            : LoadGeneratedType("StreamReaders");
+        readerType.GetProperty("MaxRecordLength")!.SetValue(null, maxRecordLength);
+        var read = readerType
+            .GetMethods()
+            .Single(m => m.Name == name && m.GetParameters()[0].ParameterType == typeof(Stream))
+            .MakeGenericMethod(typeof(JsonElement));
+        object serializer = perOperation
+            ? new Atc.Rest.Client.Serialization.DefaultJsonContractSerializer(new JsonSerializerOptions())
+            : new JsonSerializerOptions();
+        return (read, serializer);
     }
 
     /// <summary>

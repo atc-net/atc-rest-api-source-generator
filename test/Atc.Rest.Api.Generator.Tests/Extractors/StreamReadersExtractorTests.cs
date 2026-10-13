@@ -123,8 +123,8 @@ public class StreamReadersExtractorTests
             Assert.Contains("ReadMultipartMixedAsync<T>(", content, StringComparison.Ordinal);
 
             // JSON Text Sequence splits on the RS byte, never on LF; multipart stops at the closing delimiter
-            Assert.Contains("if (buffer[i] == 0x1E)", content, StringComparison.Ordinal);
-            Assert.Contains("if (line.StartsWith(delimiter + \"--\", StringComparison.Ordinal))", content, StringComparison.Ordinal);
+            Assert.Contains("if (value == 0x1E)", content, StringComparison.Ordinal);
+            Assert.Contains("if (boundaryLine == 2)", content, StringComparison.Ordinal);
         }
     }
 
