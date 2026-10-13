@@ -47,6 +47,23 @@ public class StreamingWireFramingTests
     }
 
     /// <summary>
+    /// A byte order mark in front of the first field is no part of its name, and an <c>event:</c> field without a
+    /// value names no event: both events are the item event.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_AByteOrderMarkAndAnEmptyEventName_AreNoName()
+    {
+        var read = LoadGeneratedType("StreamReaders")
+            .GetMethod("ReadServerSentEventsAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("\uFEFFdata: {\"id\":\"a\"}\n\nevent:\ndata: {\"id\":\"b\"}\n\nevent: \ndata: {\"id\":\"c\"}\n\n"));
+
+        var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
+
+        Assert.Equal(["a", "b", "c"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// An API whose items come in named events says so with <c>x-sse-item-events</c>: those events are items too,
     /// by their exact name, and every other named event is still read past.
     /// </summary>

@@ -54,11 +54,7 @@ public sealed class LogoutUserEndpoint : ILogoutUserEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout))
-        {
-            responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
-        }
-
+        responseBuilder.AddDefaultErrorResponse<ProblemDetails>();
         return await responseBuilder.BuildResponseAsync(x => new LogoutUserEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

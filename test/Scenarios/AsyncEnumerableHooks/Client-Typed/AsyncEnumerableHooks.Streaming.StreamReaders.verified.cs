@@ -106,7 +106,8 @@ internal static class StreamReaders
             }
             else if (string.Equals(field, "event", StringComparison.Ordinal))
             {
-                eventType = value;
+                // An event field without a value names no event
+                eventType = value.Length == 0 ? null : value;
             }
         }
     }

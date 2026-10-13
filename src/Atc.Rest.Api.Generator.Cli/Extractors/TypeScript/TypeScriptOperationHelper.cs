@@ -1267,7 +1267,8 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("        buffer = buffer.substring(sep + 2);");
         sb.AppendLine("        const lines = rawEvent.split('\\n');");
         sb.AppendLine("        const eventLine = lines.find((l) => l.startsWith('event:'));");
-        sb.AppendLine("        const eventType = eventLine ? eventLine.slice(6).trim() : 'message';");
+        sb.AppendLine("        // An event field without a value names no event");
+        sb.AppendLine("        const eventType = eventLine?.slice(6).trim() || 'message';");
         sb.AppendLine("        const data = lines");
         sb.AppendLine("          .filter((l) => l.startsWith('data:'))");
         sb.AppendLine("          .map((l) => l.slice(5).trimStart())");

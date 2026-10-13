@@ -120,7 +120,8 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
         buffer = buffer.substring(sep + 2);
         const lines = rawEvent.split('\n');
         const eventLine = lines.find((l) => l.startsWith('event:'));
-        const eventType = eventLine ? eventLine.slice(6).trim() : 'message';
+        // An event field without a value names no event
+        const eventType = eventLine?.slice(6).trim() || 'message';
         const data = lines
           .filter((l) => l.startsWith('data:'))
           .map((l) => l.slice(5).trimStart())

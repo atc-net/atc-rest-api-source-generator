@@ -63,21 +63,12 @@ public sealed class ListOrgDevicesEndpoint : IListOrgDevicesEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
         responseBuilder.AddSuccessResponse<DevicePage>(HttpStatusCode.OK);
-        if (isProblemJson)
-        {
-            responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        }
-
-        if (!response.IsSuccessStatusCode && (response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout) || !isProblemJson))
-        {
-            responseBuilder.AddErrorResponse<Problem>(response.StatusCode);
-        }
-
+        responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest, "application/problem+json");
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound, "application/problem+json");
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError, "application/problem+json");
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout, "application/problem+json");
+        responseBuilder.AddDefaultErrorResponse<Problem>();
         return await responseBuilder.BuildResponseAsync(x => new ListOrgDevicesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

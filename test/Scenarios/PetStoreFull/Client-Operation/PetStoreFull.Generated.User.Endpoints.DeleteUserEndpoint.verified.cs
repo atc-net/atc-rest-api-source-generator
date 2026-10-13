@@ -59,11 +59,7 @@ public sealed class DeleteUserEndpoint : IDeleteUserEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout))
-        {
-            responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
-        }
-
+        responseBuilder.AddDefaultErrorResponse<ProblemDetails>();
         return await responseBuilder.BuildResponseAsync(x => new DeleteUserEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

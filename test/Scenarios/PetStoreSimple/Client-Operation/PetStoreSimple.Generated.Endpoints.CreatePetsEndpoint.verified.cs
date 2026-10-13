@@ -51,20 +51,11 @@ public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
         responseBuilder.AddSuccessResponse(HttpStatusCode.Created);
-        if (isProblemJson)
-        {
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        }
-
-        if (!response.IsSuccessStatusCode && (response.StatusCode is not (HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout) || !isProblemJson))
-        {
-            responseBuilder.AddErrorResponse<Error>(response.StatusCode);
-        }
-
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict, "application/problem+json");
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError, "application/problem+json");
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout, "application/problem+json");
+        responseBuilder.AddDefaultErrorResponse<Error>();
         return await responseBuilder.BuildResponseAsync(x => new CreatePetsEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

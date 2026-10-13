@@ -1385,10 +1385,9 @@ public static class EndpointPerOperationExtractor
         var sharedWithDefault = SharedWithDefault(responses, defaultResponse);
         var splitByMediaType = SplitsByMediaType(responses, defaultResponse);
 
-        // A string error status whose handler sent no body gets the host wiring's ProblemDetails
-        // (application/problem+json): read it as one, so the string accessor gives its message, not its JSON text.
-        var hasStringErrors = responses.Any(r => !r.IsSuccess && !sharedWithDefault.Contains(r) && r.ContentType == "string");
-        if (splitByMediaType || hasStringErrors)
+        // Only a declared XML default is still registered by looking at the response (the library has no default
+        // without a type): its condition asks whether the answer is a problem
+        if (splitByMediaType && defaultResponse is { Xml: not null })
         {
             sb.AppendLine("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";");
         }
@@ -1402,17 +1401,13 @@ public static class EndpointPerOperationExtractor
 
             if (!responseInfo.IsSuccess && responseInfo.ContentType == "string")
             {
-                sb.AppendLine("if (isProblemJson)");
-                sb.AppendLine("{");
-                sb.AppendLine(4, $"responseBuilder.AddErrorResponse<ProblemDetails>({responseInfo.StatusCodeExpression});");
-                sb.AppendLine("}");
-                sb.AppendLine("else");
-                sb.AppendLine("{");
-                sb.AppendLine(4, responseInfo.TextMediaType is not null
+                // A string error status whose handler sent no body gets the host wiring's ProblemDetails
+                // (application/problem+json): read it as one, so the string accessor gives its message, not its JSON
+                // text. Any other body is the text.
+                sb.AppendLine(responseInfo.TextMediaType is not null
                     ? $"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});"
                     : $"responseBuilder.AddErrorResponse<string>({responseInfo.StatusCodeExpression});");
-                sb.AppendLine("}");
-                sb.AppendLine();
+                sb.AppendLine($"responseBuilder.AddErrorResponse<ProblemDetails>({responseInfo.StatusCodeExpression}, \"application/problem+json\");");
                 continue;
             }
 
@@ -1452,8 +1447,12 @@ public static class EndpointPerOperationExtractor
             }
             else if (responseInfo.ContentType is null)
             {
-                // A 3xx without a body (304, a redirect that was not followed): nothing to read.
-                continue;
+                // A 3xx without a body (304, a redirect that was not followed): nothing to read. Registered as that
+                // where the operation has a default, which would otherwise take the status for one of its own.
+                if (defaultResponse is { Xml: null })
+                {
+                    sb.AppendLine($"responseBuilder.AddErrorResponse({responseInfo.StatusCodeExpression});");
+                }
             }
             else if (responseInfo.TextMediaType is not null)
             {
@@ -1478,19 +1477,23 @@ public static class EndpointPerOperationExtractor
 
         if (splitByMediaType)
         {
-            sb.AppendLine("if (isProblemJson)");
-            sb.AppendLine("{");
+            // A status the default shares: its own type only for the framework's problem; any other body of it is the
+            // default's
             foreach (var responseInfo in sharedWithDefault)
             {
-                sb.AppendLine(4, $"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+                sb.AppendLine($"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression}, \"application/problem+json\");");
             }
-
-            sb.AppendLine("}");
-            sb.AppendLine();
         }
 
-        // `default`: any other error status is read as the default body, through the configured serializer.
-        if (defaultResponse is not null)
+        // `default`: any other error status is read as the default body, through the configured serializer -
+        // Atc.Rest.Client's default registration, which applies to every error status without one of its own.
+        if (defaultResponse is { Xml: null })
+        {
+            sb.AppendLine(defaultResponse.TextMediaType is not null
+                ? "responseBuilder.AddDefaultErrorTextResponse();"
+                : $"responseBuilder.AddDefaultErrorResponse<{defaultResponse.ContentType}>();");
+        }
+        else if (defaultResponse is not null)
         {
             sb.AppendLine($"if ({DefaultErrorCondition(responses, defaultResponse, "response.IsSuccessStatusCode", "response.StatusCode", splitByMediaType ? "!isProblemJson" : null)})");
             sb.AppendLine("{");

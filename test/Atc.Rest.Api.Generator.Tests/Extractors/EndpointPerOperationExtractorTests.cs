@@ -856,13 +856,13 @@ public class EndpointPerOperationExtractorTests
             includeDeprecated: false,
             errorResponseFormat: ErrorResponseFormatType.PlainText);
 
-        // Assert - the host wiring's ProblemDetails (a handler that sent no body) is split off by media type ...
+        // Assert - the host wiring's ProblemDetails (a handler that sent no body) is registered for its media type (Atc.Rest.Client looks a response up by status and media type first) ...
         var operationFile = Assert.Single(files);
         var endpoint = operationFile.EndpointClassContent!;
-        Assert.Contains("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";", endpoint, StringComparison.Ordinal);
-        Assert.Contains("responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);", endpoint, StringComparison.Ordinal);
+        Assert.DoesNotContain("isProblemJson", endpoint, StringComparison.Ordinal);
+        Assert.Contains("responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound, \"application/problem+json\");", endpoint, StringComparison.Ordinal);
         Assert.Contains("responseBuilder.AddErrorTextResponse(HttpStatusCode.NotFound);", endpoint, StringComparison.Ordinal);
-        Assert.Contains("responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);", endpoint, StringComparison.Ordinal);
+        Assert.Contains("responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict, \"application/problem+json\");", endpoint, StringComparison.Ordinal);
         Assert.Contains("responseBuilder.AddErrorResponse<string>(HttpStatusCode.Conflict);", endpoint, StringComparison.Ordinal);
 
         // ... and the string accessor gives its message (detail, else title), or the raw body - it never throws.

@@ -172,7 +172,8 @@ public static class StreamReadersExtractor
         sb.AppendLine("            }");
         sb.AppendLine("            else if (string.Equals(field, \"event\", StringComparison.Ordinal))");
         sb.AppendLine("            {");
-        sb.AppendLine("                eventType = value;");
+        sb.AppendLine("                // An event field without a value names no event");
+        sb.AppendLine("                eventType = value.Length == 0 ? null : value;");
         sb.AppendLine("            }");
         sb.AppendLine("        }");
         sb.AppendLine("    }");

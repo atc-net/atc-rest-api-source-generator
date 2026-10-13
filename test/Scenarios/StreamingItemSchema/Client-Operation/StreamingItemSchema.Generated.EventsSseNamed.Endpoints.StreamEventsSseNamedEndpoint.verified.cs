@@ -53,20 +53,11 @@ public sealed class StreamEventsSseNamedEndpoint : IStreamEventsSseNamedEndpoint
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
         responseBuilder.AddErrorResponse<StreamError>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.ServiceUnavailable);
-        if (isProblemJson)
-        {
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
-            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        }
-
-        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.ServiceUnavailable) && (response.StatusCode is not (HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout) || !isProblemJson))
-        {
-            responseBuilder.AddErrorResponse<StreamError>(response.StatusCode);
-        }
-
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError, "application/problem+json");
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout, "application/problem+json");
+        responseBuilder.AddDefaultErrorResponse<StreamError>();
         return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseNamedEndpointResult>(x => new StreamEventsSseNamedEndpointResult(x), StreamFraming.ServerSentEvents, new StreamReadOptions { ItemEventNames = new[] { "created", "updated" } }, cancellationToken).ConfigureAwait(false);
     }
 }

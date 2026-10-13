@@ -71,11 +71,7 @@ public sealed class AddPetEndpoint : IAddPetEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout))
-        {
-            responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
-        }
-
+        responseBuilder.AddDefaultErrorResponse<ProblemDetails>();
         return await responseBuilder.BuildResponseAsync(x => new AddPetEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

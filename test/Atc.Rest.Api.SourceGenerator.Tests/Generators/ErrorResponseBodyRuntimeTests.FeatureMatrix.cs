@@ -1609,6 +1609,7 @@ public partial class ErrorResponseBodyRuntimeTests
     [
         ("sse-noise", "FeatureSse", "Server-Sent Events with a comment, id and retry fields, a heartbeat without data and a named event between the items"),
         ("sse-crlf", "FeatureSse", "Server-Sent Events with CRLF line ends and data over two lines"),
+        ("sse-bom", "FeatureSse", "Server-Sent Events behind a byte order mark, with an event field without a value and an event named message"),
         ("sse-named", "FeatureSseNamed", "Server-Sent Events whose items are named events (x-sse-item-events: [thing]), between a heartbeat and an event of another name"),
         ("lines-blank", "FeatureLines", "JSON Lines with blank lines, CRLF and no line feed after the last item"),
         ("seq-blank", "FeatureSeq", "JSON Text Sequence with a line feed between the records and a pretty-printed record"),
@@ -1634,6 +1635,7 @@ public partial class ErrorResponseBodyRuntimeTests
             "unknown-color" => (200, "application/json", """{"color":"purple"}"""),
             "closed" => (503, "application/problem+json", """{"type":"about:blank","title":"Service Unavailable","status":503,"detail":"The exchange is closed."}"""),
             "sse-noise" => (200, "text/event-stream", ": keep-alive\n\ndata: {\"name\":\"t1\"}\n\nevent: ping\n\nid: 2\nretry: 1000\ndata: {\"name\":\"t2\"}\n\nevent: ping\ndata: {\"name\":\"no item\"}\n\n: another comment\ndata:{\"name\":\"t3\"}\n\n"),
+            "sse-bom" => (200, "text/event-stream", "\uFEFFdata: {\"name\":\"t1\"}\n\nevent:\ndata: {\"name\":\"t2\"}\n\nevent: message\ndata: {\"name\":\"t3\"}\n\n"),
             "sse-named" => (200, "text/event-stream", "event: thing\ndata: {\"name\":\"t1\"}\n\nevent: ping\ndata: {\"name\":\"no item\"}\n\nevent: ping\n\ndata: {\"name\":\"t2\"}\n\nevent: Thing\ndata: {\"name\":\"no item\"}\n\nevent: thing\ndata: {\"name\":\"t3\"}\n\n"),
             "sse-crlf" => (200, "text/event-stream", "data: {\"name\":\r\ndata: \"t1\"}\r\n\r\ndata: {\"name\":\"t2\"}\r\n\r\ndata: {\"name\":\"t3\"}\r\n\r\n"),
             "lines-blank" => (200, "application/jsonl", "{\"name\":\"t1\"}\n\n   \n{\"name\":\"t2\"}\r\n{\"name\":\"t3\"}"),
