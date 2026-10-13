@@ -27,5 +27,9 @@ public interface IHttpMethodsClient
 
     Task ProbeResourcesAsync(CancellationToken cancellationToken = default);
 
+    Task DescribeResourcesAsync(CancellationToken cancellationToken = default);
+
+    Task<DownloadedFile> TraceResourcesAsync(CancellationToken cancellationToken = default);
+
     Task LinkResourceAsync(CancellationToken cancellationToken = default);
 }

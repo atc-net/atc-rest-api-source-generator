@@ -78,6 +78,28 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task DescribeResourcesAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "resources";
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Options, url);
+
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<DownloadedFile> TraceResourcesAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "resources";
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Trace, url);
+
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<DownloadedFile>())!;
+    }
+
     public async Task LinkResourceAsync(CancellationToken cancellationToken = default)
     {
         var url = "resources";

@@ -47,6 +47,24 @@ public interface IProbeResourcesHandler
 }
 
 /// <summary>
+/// What the collection allows.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IDescribeResourcesHandler
+{
+    Task<DescribeResourcesResult> ExecuteAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// The request as the server received it.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface ITraceResourcesHandler
+{
+    Task<TraceResourcesResult> ExecuteAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Link a resource (custom verb).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

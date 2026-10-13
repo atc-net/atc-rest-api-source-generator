@@ -50,6 +50,8 @@ public static class EndpointsServiceCollectionExtensions
         services.AddTransient<IListResourcesEndpoint, ListResourcesEndpoint>();
         services.AddTransient<IQueryResourcesEndpoint, QueryResourcesEndpoint>();
         services.AddTransient<IProbeResourcesEndpoint, ProbeResourcesEndpoint>();
+        services.AddTransient<IDescribeResourcesEndpoint, DescribeResourcesEndpoint>();
+        services.AddTransient<ITraceResourcesEndpoint, TraceResourcesEndpoint>();
         services.AddTransient<ILinkResourceEndpoint, LinkResourceEndpoint>();
 
         return services;

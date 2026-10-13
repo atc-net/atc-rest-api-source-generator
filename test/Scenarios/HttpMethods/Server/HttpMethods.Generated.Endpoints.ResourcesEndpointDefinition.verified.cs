@@ -61,6 +61,22 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         resources
+            .MapMethods("/", new[] { "OPTIONS" }, DescribeResources)
+            .WithName("DescribeResources")
+            .WithSummary("What the collection allows")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+
+        resources
+            .MapMethods("/", new[] { "TRACE" }, TraceResources)
+            .WithName("TraceResources")
+            .WithSummary("The request as the server received it")
+            .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "message/http")
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+
+        resources
             .MapMethods("/", new[] { "LINK" }, LinkResource)
             .WithName("LinkResource")
             .WithSummary("Link a resource (custom verb)")
@@ -89,6 +105,20 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
         [FromServices] IProbeResourcesHandler handler,
         CancellationToken cancellationToken)
         => ProbeResourcesResult.ToIResult(
+                    await handler.ExecuteAsync(
+                        cancellationToken));
+
+    internal async Task<IResult> DescribeResources(
+        [FromServices] IDescribeResourcesHandler handler,
+        CancellationToken cancellationToken)
+        => DescribeResourcesResult.ToIResult(
+                    await handler.ExecuteAsync(
+                        cancellationToken));
+
+    internal async Task<IResult> TraceResources(
+        [FromServices] ITraceResourcesHandler handler,
+        CancellationToken cancellationToken)
+        => TraceResourcesResult.ToIResult(
                     await handler.ExecuteAsync(
                         cancellationToken));
 

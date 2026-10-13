@@ -18,6 +18,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddHttpMethodsHandlers(this IServiceCollection services)
     {
+        // Handler for IDescribeResourcesHandler must be registered in the Domain project
+        // services.AddScoped<IDescribeResourcesHandler, YourImplementation>();
         // Handler for ILinkResourceHandler must be registered in the Domain project
         // services.AddScoped<ILinkResourceHandler, YourImplementation>();
         // Handler for IListResourcesHandler must be registered in the Domain project
@@ -26,6 +28,8 @@ public static class ServiceCollectionExtensions
         // services.AddScoped<IProbeResourcesHandler, YourImplementation>();
         // Handler for IQueryResourcesHandler must be registered in the Domain project
         // services.AddScoped<IQueryResourcesHandler, YourImplementation>();
+        // Handler for ITraceResourcesHandler must be registered in the Domain project
+        // services.AddScoped<ITraceResourcesHandler, YourImplementation>();
 
         return services;
     }

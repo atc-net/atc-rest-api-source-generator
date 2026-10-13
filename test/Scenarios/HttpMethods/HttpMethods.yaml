@@ -2,7 +2,7 @@ openapi: "3.2.0"
 info:
   version: 1.0.0
   title: HTTP Methods Test
-  description: OpenAPI 3.2 query method, additionalOperations (custom verbs) and a HEAD end-to-end
+  description: OpenAPI 3.2 query method, additionalOperations (custom verbs), HEAD, OPTIONS and TRACE end-to-end
 
 paths:
   /resources:
@@ -58,6 +58,30 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Resource"
+    options:
+      operationId: describeResources
+      summary: What the collection allows
+      tags:
+        - resources
+      responses:
+        "204":
+          description: The methods the collection allows
+          headers:
+            Allow:
+              schema:
+                type: string
+    trace:
+      operationId: traceResources
+      summary: The request as the server received it
+      tags:
+        - resources
+      responses:
+        "200":
+          description: The request, echoed
+          content:
+            message/http:
+              schema:
+                type: string
     additionalOperations:
       LINK:
         operationId: linkResource

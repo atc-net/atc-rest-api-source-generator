@@ -12,6 +12,13 @@ export const resourcesHandlers = [
   http.head('*/resources', () => {
     return new HttpResponse(null, { status: 200 });
   }),
+  http.options('*/resources', () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.all('*/resources', ({ request }) => {
+    if (request.method !== 'TRACE') return;
+    return new HttpResponse(null, { status: 200 });
+  }),
   http.all('*/resources', ({ request }) => {
     if (request.method !== 'LINK') return;
     return new HttpResponse(null, { status: 204 });

@@ -129,6 +129,84 @@ public sealed class ProbeResourcesResult : IResult
 }
 
 /// <summary>
+/// What the collection allows.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class DescribeResourcesResult : IResult
+{
+    private readonly IResult innerResult;
+
+    private DescribeResourcesResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 204 No Content - The methods the collection allows.
+    /// </summary>
+    public static DescribeResourcesResult NoContent(string? allow = null)
+        => new(ResponseHeaders.Of(TypedResults.NoContent(), ("Allow", allow)));
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts DescribeResourcesResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(DescribeResourcesResult result)
+        => result.Result;
+}
+
+/// <summary>
+/// The request as the server received it.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class TraceResourcesResult : IResult
+{
+    private readonly IResult innerResult;
+
+    private TraceResourcesResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The request, echoed.
+    /// </summary>
+    public static TraceResourcesResult Ok(
+        byte[] bytes,
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.File(bytes, contentType ?? "message/http", fileName));
+
+    /// <summary>
+    /// 200 OK - The request, echoed.
+    /// </summary>
+    public static TraceResourcesResult Ok(
+        Stream stream,
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.Stream(stream, contentType ?? "message/http", fileName));
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts TraceResourcesResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(TraceResourcesResult result)
+        => result.Result;
+}
+
+/// <summary>
 /// Link a resource (custom verb).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

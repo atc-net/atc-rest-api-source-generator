@@ -23,6 +23,18 @@ export type ProbeResourcesResult =
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+export type DescribeResourcesResult =
+  | { status: 'noContent'; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
+  | { status: 'parseError'; error: Error; response: AxiosResponse };
+
+export type TraceResourcesResult =
+  | { status: 'ok'; data: Blob; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
+  | { status: 'parseError'; error: Error; response: AxiosResponse };
+
 export type LinkResourceResult =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
@@ -61,6 +73,23 @@ export class ResourcesClient {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ProbeResourcesResult>;
+  }
+
+  /** What the collection allows */
+  async describeResources(signal?: AbortSignal): Promise<DescribeResourcesResult> {
+    return this.api.request<void>('OPTIONS', '/resources', {
+      arms: ['noContent', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<DescribeResourcesResult>;
+  }
+
+  /** The request as the server received it */
+  async traceResources(signal?: AbortSignal): Promise<TraceResourcesResult> {
+    return this.api.request<Blob>('TRACE', '/resources', {
+      responseType: 'blob',
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<TraceResourcesResult>;
   }
 
   /** Link a resource (custom verb) */
