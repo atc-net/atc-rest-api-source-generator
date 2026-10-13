@@ -34,9 +34,10 @@ internal static class PackageVersionDefaults
     /// WithBody with a media type, ConfigureAtcRestClientJsonOptions, URI-escaped query parameter keys,
     /// WithFormJsonField for an object field of a multipart form), its readers of streamed responses (2.4.0:
     /// StreamFraming, typed errors and headers on StreamingEndpointResponse&lt;T&gt;) and the default error response
-    /// without a type (2.5.0).
+    /// without a type (2.5.0); the typed client's Result style reads an event stream with its ServerSentEventReader
+    /// (2.6.0).
     /// </remarks>
-    public static readonly Version RestClientMinFallback = new(2, 5, 0);
+    public static readonly Version RestClientMinFallback = new(2, 6, 0);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.

@@ -186,7 +186,7 @@ public static class RuleIdentifiers
     public const string HealthChecksPackageRecommended = "ATC_API_DEP010";
 
     /// <summary>
-    /// ATC_API_DEP011: Client EndpointPerOperation mode requires Atc.Rest.Client 2.5.0 or later.
+    /// ATC_API_DEP011: Client EndpointPerOperation mode (and the typed client's Result style) requires Atc.Rest.Client 2.6.0 or later.
     /// </summary>
     public const string AtcRestClientTooOld = "ATC_API_DEP011";
 

@@ -1268,9 +1268,26 @@ public static class HttpClientExtractor
         reader.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
         reader.AppendLine();
         AppendMultipartBoundaryIfNeeded(reader, streamingFraming);
-        reader.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming, sseItemEvents)};");
-        reader.AppendLine();
-        reader.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
+        if (streamingFraming == StreamingFraming.ServerSentEvents)
+        {
+            // An event stream: Atc.Rest.Client's reader, so the envelope's LastEventId follows the events as they are
+            // read - what a caller sends as Last-Event-ID to continue a stream that dropped
+            var itemEvents = sseItemEvents.Count == 0
+                ? string.Empty
+                : $", ItemEventNames = new[] {{ {string.Join(", ", sseItemEvents.Select(CSharpLiteralHelper.ToStringLiteral))} }}";
+            reader.AppendLine($"return global::Atc.Rest.Client.ServerSentEventReader.Read<{streamingItemType}>(");
+            reader.AppendLine("    response,");
+            reader.AppendLine("    stream,");
+            reader.AppendLine($"    json => JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<{streamingItemType}>()),");
+            reader.AppendLine($"    new global::Atc.Rest.Client.StreamReadOptions {{ MaxRecordLength = StreamReaders.MaxRecordLength{itemEvents} }},");
+            reader.Append("    cancellationToken);");
+        }
+        else
+        {
+            reader.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming, sseItemEvents)};");
+            reader.AppendLine();
+            reader.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
+        }
 
         builder.AppendLine("try");
         builder.AppendLine("{");

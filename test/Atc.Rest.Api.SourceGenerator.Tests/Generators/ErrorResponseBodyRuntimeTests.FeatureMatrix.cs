@@ -1082,7 +1082,37 @@ public partial class ErrorResponseBodyRuntimeTests
                     }
 
                     case "resume":
-                        return new JsonObject { ["kind"] = "na", ["why"] = "the Result style's StreamingEndpointResponse is built by the generated client, and Atc.Rest.Client gives it no last event id" };
+                    {
+                        var names = new List<string>();
+                        var sent = new JsonArray();
+                        string? lastEventId = null;
+                        for (var attempt = 1; attempt <= 3; attempt++)
+                        {
+                            sent.Add(lastEventId);
+                            using var result = await client.FeatureSseResumeAsync(new FeatureSseResumeParameters((int)c["count"]!, lastEventId), System.Threading.CancellationToken.None);
+                            if (!result.IsSuccess)
+                            {
+                                return Error((int)result.StatusCode, result.ErrorContent);
+                            }
+
+                            try
+                            {
+                                await foreach (var thing in result.Content!)
+                                {
+                                    names.Add(thing!.Name);
+                                }
+
+                                break;
+                            }
+                            catch (Exception) when (result.LastEventId is { Length: > 0 } id && id != lastEventId)
+                            {
+                                // The stream dropped: go on after the last event read
+                                lastEventId = id;
+                            }
+                        }
+
+                        return new JsonObject { ["kind"] = "resumed", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["sent"] = sent };
+                    }
 
                     case "page":
                     {

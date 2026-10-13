@@ -14,8 +14,8 @@ public class ApiClientGenerator : IIncrementalGenerator
     // The Atc.Rest.Client an EndpointPerOperation client needs: 2.4.0 reads the streamed responses (StreamFraming,
     // typed errors and headers on StreamingEndpointResponse<T>) and looks response headers up whatever their casing;
     // 2.5.0 has the default error response without a type (a declared XML default) and the last event id of an
-    // event stream
-    private static readonly Version MinimumAtcRestClientVersion = new(2, 5, 0);
+    // event stream; 2.6.0 has ServerSentEventReader, which the typed client's Result style reads an event stream with
+    private static readonly Version MinimumAtcRestClientVersion = new(2, 6, 0);
 
     /// <summary>
     /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the client code as the output.
@@ -119,8 +119,11 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
-        // ... in a version that has every member the generated client calls
-        if (config.GenerationMode == GenerationModeType.EndpointPerOperation && packages.AtcRestClientVersion < MinimumAtcRestClientVersion)
+        // ... in a version that has every member the generated client calls. The typed client's Result style
+        // builds on the package too (its envelopes, its event-stream reader)
+        var usesAtcRestClient = config.GenerationMode == GenerationModeType.EndpointPerOperation ||
+                                config.TypedClientResultStyle == TypedClientResultStyleType.Result;
+        if (usesAtcRestClient && packages.AtcRestClientVersion is not null && packages.AtcRestClientVersion < MinimumAtcRestClientVersion)
         {
             DiagnosticHelpers.ReportAtcRestClientTooOld(productionContext, MinimumAtcRestClientVersion, packages.AtcRestClientVersion!);
             return;
