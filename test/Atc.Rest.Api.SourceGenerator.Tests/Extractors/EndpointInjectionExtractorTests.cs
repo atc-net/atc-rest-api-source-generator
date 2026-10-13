@@ -151,8 +151,10 @@ public class EndpointInjectionExtractorTests
 
         var endpoint = Assert.Single(EndpointInjectionExtractor.DiscoverEndpointsFromOpenApi(document, "Contoso"));
 
+        // The one segment of a specification is no part of the namespace: the client declares its interfaces in
+        // Contoso.Generated.Endpoints.Interfaces (RootNamespaceResolutionTests compares with the client's output)
         Assert.Equal(expectedSegment, endpoint.PathSegment);
-        Assert.Equal($"Contoso.Generated.{expectedSegment}.Endpoints.Interfaces", endpoint.FullNamespace);
+        Assert.Equal("Contoso.Generated.Endpoints.Interfaces", endpoint.FullNamespace);
     }
 
     [Fact]

@@ -697,8 +697,8 @@ public class TypeScriptZodExtractorTests
 
     /// <summary>
     /// OpenAPI 3.1: a default next to a <c>$ref</c> is the referencing property's own. The schema of the property
-    /// has it; a property that references the same component without one does not, and the component's own default
-    /// is not handed to every property that references it.
+    /// has it - also where the component declares a default of its own - and a property that references the same
+    /// component without one does not get the component's.
     /// </summary>
     [Fact]
     public void ZodModel_ADefaultNextToAReference_IsThePropertysDefault()
@@ -719,6 +719,7 @@ public class TypeScriptZodExtractorTests
                                       $ref: '#/components/schemas/Priority'
                                     count:
                                       $ref: '#/components/schemas/Count'
+                                      default: 3
                                 Priority:
                                   type: string
                                   enum: [low, high]
@@ -733,7 +734,47 @@ public class TypeScriptZodExtractorTests
 
         Assert.Contains("priority: PrioritySchema.nullish().default('high'),", content, StringComparison.Ordinal);
         Assert.Contains("fallback: PrioritySchema.nullish(),", content, StringComparison.Ordinal);
-        Assert.Contains("count: CountSchema.nullish(),", content, StringComparison.Ordinal);
+        Assert.Contains("count: CountSchema.nullish().default(3),", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A default is written as the TypeScript literal of its value: a text with an apostrophe or a backslash is a
+    /// string that still compiles, a number is the number however the reader holds it, a boolean a boolean.
+    /// </summary>
+    [Fact]
+    public void ZodModel_Defaults_AreLiteralsThatCompile()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Settings:
+                                  type: object
+                                  properties:
+                                    greeting:
+                                      type: string
+                                      default: "it's a C:\\temp"
+                                    retries:
+                                      type: integer
+                                      default: 3
+                                    ratio:
+                                      type: number
+                                      default: 0.5
+                                    enabled:
+                                      type: boolean
+                                      default: true
+                            """;
+        var doc = OpenApiDocumentHelper.TryParseYaml(yaml, $"zod-defaults-{Guid.NewGuid():N}.yaml", out var document) ? document : null;
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()), r => r.Name == "Settings");
+
+        Assert.Contains(@".default('it\'s a C:\\temp')", content, StringComparison.Ordinal);
+        Assert.Contains("retries: z.number().int().nullish().default(3),", content, StringComparison.Ordinal);
+        Assert.Contains(".default(0.5)", content, StringComparison.Ordinal);
+        Assert.Contains(".default(true)", content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

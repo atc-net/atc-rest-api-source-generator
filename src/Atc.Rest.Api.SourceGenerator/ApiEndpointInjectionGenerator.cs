@@ -183,10 +183,11 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 return;
             }
 
-            // Discover endpoints from OpenAPI spec
+            // Discover endpoints from OpenAPI spec, in the namespaces the client generator declares them in: the
+            // attribute names the specification file, the root namespace follows the client's rule
             var endpoints = EndpointInjectionExtractor.DiscoverEndpointsFromOpenApi(
                 openApiDoc,
-                classInfo.ProjectName);
+                NamespaceResolver.Resolve(ClientNamespaceOf(markers), openApiDoc.Info?.Title, matchingYaml.Path));
 
             // Report warning if no endpoints found
             if (endpoints.Count == 0)
@@ -209,6 +210,29 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportEndpointInjectionGenerationError(context, classInfo.ClassName, ex);
+        }
+    }
+
+    /// <summary>
+    /// The <c>namespace</c> of the project's client marker, or <see langword="null"/> when there is no marker, it
+    /// sets none or it cannot be read (the client generator reports that).
+    /// </summary>
+    private static string? ClientNamespaceOf(
+        EquatableArray<MarkerFileInfo> markers)
+    {
+        var clientMarker = markers.Values.FirstOrDefault(m => Path.GetFileName(m.Path).StartsWith(".atc-rest-api-client", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrEmpty(clientMarker.Content))
+        {
+            return null;
+        }
+
+        try
+        {
+            return MarkerConfigInspector.Read<ClientConfig>(clientMarker.Content, out _).Namespace;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
         }
     }
 

@@ -71,7 +71,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     /// <summary>
     /// Renames the old generated projects (Api.Generated to Api.Contracts, ApiClient.Generated to the client name).
     /// </summary>
-    /// <returns>What stood in the way of a rename, per project; empty when every project was renamed (or already is).</returns>
+    /// <returns>What stood in the way of a rename that left no project under the new name, per project; empty when every project is there under its new name.</returns>
     internal static List<string> RenameProjects(
         MigrationValidationReport report,
         string projectName,
@@ -98,7 +98,16 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
             else if (!string.IsNullOrEmpty(result.Error))
             {
-                errors.Add(result.Error);
+                // Without the new folder nothing the next steps write would exist: stop. With it (the old folder is
+                // left beside it, holding files) the new names are real: say so and go on.
+                if (string.IsNullOrEmpty(result.NewPath) || !Directory.Exists(result.NewPath))
+                {
+                    errors.Add(result.Error);
+                }
+                else
+                {
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
+                }
             }
         }
 
@@ -119,7 +128,16 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
             else if (!string.IsNullOrEmpty(result.Error))
             {
-                errors.Add(result.Error);
+                // Without the new folder nothing the next steps write would exist: stop. With it (the old folder is
+                // left beside it, holding files) the new names are real: say so and go on.
+                if (string.IsNullOrEmpty(result.NewPath) || !Directory.Exists(result.NewPath))
+                {
+                    errors.Add(result.Error);
+                }
+                else
+                {
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
+                }
             }
         }
 
@@ -417,7 +435,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                         AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {renameError}");
                     }
 
-                    AnsiConsole.MarkupLine("[red]The migration stopped before the solution and the references were updated.[/] Fix what is in the way and run the command again: the steps already done are not repeated.");
+                    AnsiConsole.MarkupLine("[red]The migration stopped before the solution and the references were updated.[/] Fix what is in the way and run the command again to complete it.");
                     return 1;
                 }
 

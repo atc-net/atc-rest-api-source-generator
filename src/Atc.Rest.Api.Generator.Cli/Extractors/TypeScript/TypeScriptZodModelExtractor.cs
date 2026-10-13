@@ -1361,33 +1361,19 @@ public static class TypeScriptZodModelExtractor
         }
     }
 
+    // The TypeScript literal of a default: by the kind of the JSON value, whatever .NET type the reader keeps it in
+    // (a number is not always a long), and a string escaped so that it stays one
     private static string? FormatDefaultValue(JsonNode defaultValue)
-    {
-        if (defaultValue is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<bool>(out var boolVal))
+        => defaultValue is not JsonValue jsonValue
+            ? null
+            : jsonValue.GetValueKind() switch
             {
-                return boolVal ? "true" : "false";
-            }
-
-            if (jsonValue.TryGetValue<long>(out var longVal))
-            {
-                return longVal.ToString(CultureInfo.InvariantCulture);
-            }
-
-            if (jsonValue.TryGetValue<double>(out var doubleVal))
-            {
-                return doubleVal.ToString(CultureInfo.InvariantCulture);
-            }
-
-            if (jsonValue.TryGetValue<string>(out var strVal))
-            {
-                return $"'{strVal}'";
-            }
-        }
-
-        return null;
-    }
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                JsonValueKind.Number => jsonValue.ToJsonString(),
+                JsonValueKind.String => TypeScriptLiteralHelper.ToStringLiteral(jsonValue.GetValue<string>()),
+                _ => null,
+            };
 
     /// <summary>
     /// Collects referenced type names from a schema for generating Zod import statements.

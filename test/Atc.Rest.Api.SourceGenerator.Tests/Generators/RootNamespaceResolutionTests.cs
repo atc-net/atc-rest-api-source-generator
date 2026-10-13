@@ -97,6 +97,70 @@ public class RootNamespaceResolutionTests
             d => d.Id == "ATC_API_GEN022");
     }
 
+    /// <summary>
+    /// The endpoint injection ([EndpointRegistration("name")]) names the endpoint interfaces of the client generated
+    /// from the same specification: every namespace it imports is one the client declares - whatever names the root
+    /// namespace (the specification file, its title, the client marker).
+    /// </summary>
+    [Theory]
+    [InlineData("{ \"generationMode\": \"EndpointPerOperation\" }", "The Billing API", "Billing.yaml", false)]
+    [InlineData("{ \"generationMode\": \"EndpointPerOperation\" }", "The Billing API", "Billing.yaml", true)]
+    [InlineData("{ \"generationMode\": \"EndpointPerOperation\" }", "Contoso.Billing", "api-1.yaml", false)]
+    [InlineData("{ \"generationMode\": \"EndpointPerOperation\" }", "Contoso.Billing", "api-1.yaml", true)]
+    [InlineData("{ \"generationMode\": \"EndpointPerOperation\", \"namespace\": \"Fabrikam.Pay\" }", "The Billing API", "Billing.yaml", false)]
+    [InlineData("{ \"generationMode\": \"EndpointPerOperation\", \"namespace\": \"Fabrikam.Pay\" }", "The Billing API", "Billing.yaml", true)]
+    public void EndpointInjection_ImportsTheNamespacesTheClientDeclares(
+        string marker,
+        string title,
+        string specificationFile,
+        bool twoPathSegments)
+    {
+        var yaml = Yaml.Replace("{{title}}", title, StringComparison.Ordinal);
+        if (twoPathSegments)
+        {
+            // A second path segment: each segment's interfaces get a namespace of their own
+            yaml = yaml.Replace(
+                "components:",
+                "  /owners:\n    get:\n      operationId: listOwners\n      responses:\n        '200':\n          description: OK\ncomponents:",
+                StringComparison.Ordinal);
+        }
+
+        var source = $$"""
+            namespace Contoso.Host;
+
+            [Atc.Rest.Api.SourceGenerator.EndpointRegistration("{{Path.GetFileNameWithoutExtension(specificationFile)}}")]
+            public partial class Gateway
+            {
+            }
+            """;
+        var compilation = CSharpCompilation.Create(
+            "Contoso.Host",
+            [CSharpSyntaxTree.ParseText(source, cancellationToken: TestContext.Current.CancellationToken)],
+            CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi: true),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var driver = CSharpGeneratorDriver
+            .Create(new ApiClientGenerator(), new ApiEndpointInjectionGenerator())
+            .AddAdditionalTexts(
+            [
+                new CompilationVerificationHarness.InMemoryAdditionalText(specificationFile, yaml),
+                new CompilationVerificationHarness.InMemoryAdditionalText(".atc-rest-api-client", marker),
+            ])
+            .RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
+
+        var trees = driver.GetRunResult().GeneratedTrees.Select(t => t.ToString()).ToList();
+        var injected = Assert.Single(trees, s => s.Contains("partial class Gateway", StringComparison.Ordinal));
+        var declared = trees
+            .SelectMany(s => Regex.Matches(s, @"^namespace (?<name>[\w.]+)", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Select(m => m.Groups["name"].Value))
+            .ToHashSet(StringComparer.Ordinal);
+        var imported = Regex.Matches(injected, @"^using (?<name>[\w.]+\.Generated[\w.]*);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1))
+            .Select(m => m.Groups["name"].Value)
+            .ToList();
+
+        Assert.Equal(twoPathSegments ? 2 : 1, imported.Count);
+        Assert.All(imported, name => Assert.Contains(name, declared));
+    }
+
     private static (string Sources, List<Diagnostic> Diagnostics) Run(
         IIncrementalGenerator generator,
         string markerFile,

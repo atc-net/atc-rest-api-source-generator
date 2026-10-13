@@ -127,27 +127,54 @@ public sealed class MigrateExecuteNamespaceTests : IDisposable
     }
 
     /// <summary>
-    /// A project that could not be renamed stops the migration there: the steps after it write the new project
-    /// names into the solution and into every reference, which would then point at folders that are not there. The
-    /// rename says what is in the way; a rename that works reports nothing.
+    /// A project that could not be renamed and is not there under its new name stops the migration: the steps after
+    /// it write the new project names into the solution and into every reference, which would then point at a folder
+    /// that does not exist. (Windows refuses to move a folder while a file in it is open.)
     /// </summary>
     [Fact]
-    public void RenameProjects_AProjectThatCannotBeRenamed_IsAnErrorTheMigrationStopsOn()
+    public void RenameProjects_AProjectThatCannotBeMoved_IsAnErrorTheMigrationStopsOn()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         var oldProject = Write("Contoso.Api.Generated/Contoso.Api.Generated.csproj", "<Project />");
-        Write("Contoso.Api.Generated/Extensions/Mine.cs", "// hand-written");
-        Write("Contoso.Api.Contracts/Contoso.Api.Contracts.csproj", "<Project />");
+        var held = Write("Contoso.Api.Generated/Extensions/Mine.cs", "// hand-written");
         var report = Report();
         report.ProjectStructure.ApiGeneratedProject = oldProject;
         var summary = new MigrationSummary();
 
-        var errors = MigrateExecuteCommand.RenameProjects(report, "Contoso", clientSuffix: null, dryRun: false, summary);
+        List<string> errors;
+        using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            errors = MigrateExecuteCommand.RenameProjects(report, "Contoso", clientSuffix: null, dryRun: false, summary);
+        }
 
         var error = Assert.Single(errors);
         Assert.Contains("Contoso.Api.Generated", error, StringComparison.Ordinal);
-        Assert.Contains("Contoso.Api.Contracts", error, StringComparison.Ordinal);
         Assert.Empty(summary.RenamedProjects);
         Assert.True(File.Exists(oldProject));
+        Assert.False(Directory.Exists(Path.Combine(root, "Contoso.Api.Contracts")));
+    }
+
+    /// <summary>
+    /// The new project is there already and the old folder still holds files of its own: the new names the next steps
+    /// write are real, so the migration goes on - the old folder is left, and said to be.
+    /// </summary>
+    [Fact]
+    public void RenameProjects_TheNewProjectExistsBesideAnOldFolderWithFiles_IsNoReasonToStop()
+    {
+        var oldProject = Write("Contoso.Api.Generated/Contoso.Api.Generated.csproj", "<Project />");
+        var mine = Write("Contoso.Api.Generated/Extensions/Mine.cs", "// hand-written");
+        Write("Contoso.Api.Contracts/Contoso.Api.Contracts.csproj", "<Project />");
+        var report = Report();
+        report.ProjectStructure.ApiGeneratedProject = oldProject;
+
+        var errors = MigrateExecuteCommand.RenameProjects(report, "Contoso", clientSuffix: null, dryRun: false, new MigrationSummary());
+
+        Assert.Empty(errors);
+        Assert.True(File.Exists(mine));
     }
 
     [Fact]

@@ -12,7 +12,7 @@ internal static class EndpointInjectionExtractor
     /// (source generators can't see each other's output).
     /// </summary>
     /// <param name="openApiDoc">The parsed OpenAPI document.</param>
-    /// <param name="projectName">The project name (e.g., "Showcase").</param>
+    /// <param name="projectName">The root namespace of the client generated from the same specification (e.g., "Showcase").</param>
     /// <returns>A list of EndpointInfo records for discovered endpoints, grouped by path segment.</returns>
     public static List<EndpointInfo> DiscoverEndpointsFromOpenApi(
         OpenApiDocument openApiDoc,
@@ -69,8 +69,10 @@ internal static class EndpointInjectionExtractor
                 // Generate field name: {operationName}Endpoint in camelCase
                 var fieldName = ToCamelCase($"{operationName}Endpoint");
 
-                // Generate namespace: {projectName}.Generated.{PathSegment}.Endpoints.Interfaces
-                var fullNamespace = $"{projectName}.Generated.{pathSegment}.Endpoints.Interfaces";
+                // The namespace the client generator declares the interface in: a path segment that resolves away
+                // (a specification with one segment, one named like the project) is no part of it
+                var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment);
+                var fullNamespace = NamespaceBuilder.ForEndpointInterfaces(projectName, string.IsNullOrEmpty(effectiveSegment) ? null : effectiveSegment);
 
                 endpoints.Add(new EndpointInfo(
                     InterfaceName: interfaceName,

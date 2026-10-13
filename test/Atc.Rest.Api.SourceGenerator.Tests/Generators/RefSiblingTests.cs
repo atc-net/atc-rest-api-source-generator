@@ -80,9 +80,22 @@ public class RefSiblingTests
         }
     }
 
+    /// <summary>
+    /// OpenAPI 3.0 says the opposite: whatever stands next to a <c>$ref</c> is ignored. The same specification as a
+    /// 3.0 document gives the property no default.
+    /// </summary>
+    [Fact]
+    public void Server_InAnOpenApi30Document_IgnoresADefaultNextToAReference()
+    {
+        var order = OrderModel(new ApiServerGenerator(), ".atc-rest-api-server", Yaml.Replace("openapi: 3.1.0", "openapi: 3.0.3", StringComparison.Ordinal));
+
+        Assert.Matches(new Regex(@"Priority\? Priority = null", RegexOptions.None, TimeSpan.FromSeconds(1)), order);
+    }
+
     private static string OrderModel(
         IIncrementalGenerator generator,
-        string markerFile)
+        string markerFile,
+        string? yaml = null)
     {
         var compilation = CSharpCompilation.Create(
             "Orders.Host",
@@ -94,7 +107,7 @@ public class RefSiblingTests
             .Create(generator)
             .AddAdditionalTexts(
             [
-                new CompilationVerificationHarness.InMemoryAdditionalText("Orders.yaml", Yaml),
+                new CompilationVerificationHarness.InMemoryAdditionalText(yaml is null ? "Orders.yaml" : "Orders30.yaml", yaml ?? Yaml),
                 new CompilationVerificationHarness.InMemoryAdditionalText(markerFile, "{}"),
             ])
             .RunGeneratorsAndUpdateCompilation(compilation, out _, out _, CancellationToken.None);
