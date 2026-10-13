@@ -695,6 +695,47 @@ public class TypeScriptZodExtractorTests
         Assert.DoesNotContain("z.ZodType<", orderContent, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// OpenAPI 3.1: a default next to a <c>$ref</c> is the referencing property's own. The schema of the property
+    /// has it; a property that references the same component without one does not, and the component's own default
+    /// is not handed to every property that references it.
+    /// </summary>
+    [Fact]
+    public void ZodModel_ADefaultNextToAReference_IsThePropertysDefault()
+    {
+        const string yaml = """
+                            openapi: 3.1.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Order:
+                                  type: object
+                                  properties:
+                                    priority:
+                                      $ref: '#/components/schemas/Priority'
+                                      default: high
+                                    fallback:
+                                      $ref: '#/components/schemas/Priority'
+                                    count:
+                                      $ref: '#/components/schemas/Count'
+                                Priority:
+                                  type: string
+                                  enum: [low, high]
+                                Count:
+                                  type: integer
+                                  default: 1
+                            """;
+        var doc = OpenApiDocumentHelper.TryParseYaml(yaml, $"zod-sibling-{Guid.NewGuid():N}.yaml", out var document) ? document : null;
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()), r => r.Name == "Order");
+
+        Assert.Contains("priority: PrioritySchema.nullish().default('high'),", content, StringComparison.Ordinal);
+        Assert.Contains("fallback: PrioritySchema.nullish(),", content, StringComparison.Ordinal);
+        Assert.Contains("count: CountSchema.nullish(),", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

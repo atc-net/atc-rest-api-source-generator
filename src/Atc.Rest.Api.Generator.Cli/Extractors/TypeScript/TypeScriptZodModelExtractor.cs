@@ -1075,7 +1075,12 @@ public static class TypeScriptZodModelExtractor
         {
             var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "unknown";
             sb.Append(refName).Append("Schema");
-            AppendModifiers(sb, schemaRef.Target?.IsNullable() == true, isRequired, defaultValue: null);
+
+            // OpenAPI 3.1: a default next to the $ref is this property's own (the component's is the component's)
+            var siblingDefault = schemaRef.Default is { } own && !ReferenceEquals(own, (schemaRef.Target as OpenApiSchema)?.Default)
+                ? own
+                : null;
+            AppendModifiers(sb, schemaRef.Target?.IsNullable() == true, isRequired, siblingDefault);
             return sb.ToString();
         }
 
