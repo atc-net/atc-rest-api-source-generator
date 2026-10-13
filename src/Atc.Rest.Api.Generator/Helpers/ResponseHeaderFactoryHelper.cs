@@ -294,19 +294,10 @@ public static class ResponseHeaderFactoryHelper
             lines.Add(string.Empty);
         }
 
-        lines.Add("// A header's values as one text (several are joined by commas), by name whatever its casing");
+        lines.Add("// A header's values as one text (several are joined by commas). Atc.Rest.Client looks a name up whatever its");
+        lines.Add("// casing.");
         lines.Add("private string? HeaderText(string name)");
-        lines.Add("{");
-        lines.Add("    foreach (var header in Headers)");
-        lines.Add("    {");
-        lines.Add("        if (string.Equals(header.Key, name, global::System.StringComparison.OrdinalIgnoreCase))");
-        lines.Add("        {");
-        lines.Add("            return string.Join(\",\", header.Value);");
-        lines.Add("        }");
-        lines.Add("    }");
-        lines.Add(string.Empty);
-        lines.Add("    return null;");
-        lines.Add("}");
+        lines.Add("    => Headers.TryGetValue(name, out var values) ? string.Join(\",\", values) : null;");
         return lines;
     }
 

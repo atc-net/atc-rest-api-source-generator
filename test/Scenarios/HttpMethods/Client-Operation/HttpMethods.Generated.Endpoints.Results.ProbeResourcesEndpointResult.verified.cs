@@ -96,17 +96,8 @@ public partial class ProbeResourcesEndpointResult : EndpointResponse, IProbeReso
     public string? ETagHeader
         => HeaderText("ETag");
 
-    // A header's values as one text (several are joined by commas), by name whatever its casing
+    // A header's values as one text (several are joined by commas). Atc.Rest.Client looks a name up whatever its
+    // casing.
     private string? HeaderText(string name)
-    {
-        foreach (var header in Headers)
-        {
-            if (string.Equals(header.Key, name, global::System.StringComparison.OrdinalIgnoreCase))
-            {
-                return string.Join(",", header.Value);
-            }
-        }
-
-        return null;
-    }
+        => Headers.TryGetValue(name, out var values) ? string.Join(",", values) : null;
 }
