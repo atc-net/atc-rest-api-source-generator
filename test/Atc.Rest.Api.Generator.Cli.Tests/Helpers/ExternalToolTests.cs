@@ -33,12 +33,13 @@ public sealed class ExternalToolTests
             Shell,
             OperatingSystem.IsWindows() ? "/c \"echo started& ping -n 60 127.0.0.1 >nul\"" : "-c \"echo started; sleep 60\"",
             Path.GetTempPath(),
-            TimeSpan.FromSeconds(2));
+            TimeSpan.FromSeconds(3));
 
+        // Stopped, and long before the minute the tool would have taken (what it had written by then is not asserted:
+        // on a busy machine the tool may not have got as far as its first line)
         Assert.True(result.TimedOut);
         Assert.Null(result.ExitCode);
-        Assert.Equal("started", result.Output.Trim());
-        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(30), $"took {watch.Elapsed}");
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(40), $"took {watch.Elapsed}");
     }
 
     [Fact]

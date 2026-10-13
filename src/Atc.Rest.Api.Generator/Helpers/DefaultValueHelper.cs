@@ -32,6 +32,12 @@ public static class DefaultValueHelper
         string csharpTypeName,
         TypeConflictRegistry? registry = null)
     {
+        // OpenAPI 3.1: a default next to a $ref is the referencing property's own
+        if (schemaInterface is OpenApiSchemaReference { Target: OpenApiSchema target } reference)
+        {
+            return ExtractSiblingDefault(reference, target, csharpTypeName, registry);
+        }
+
         if (schemaInterface is not OpenApiSchema schema)
         {
             return null;
@@ -140,6 +146,39 @@ public static class DefaultValueHelper
     /// <summary>
     /// Strips surrounding quotes from a string value if present.
     /// </summary>
+    // The default a $ref carries as a sibling (not the component's own, which the reference also gives): a member of
+    // the referenced enum, or the literal of a referenced primitive
+    private static string? ExtractSiblingDefault(
+        OpenApiSchemaReference reference,
+        OpenApiSchema target,
+        string csharpTypeName,
+        TypeConflictRegistry? registry)
+    {
+        if (reference.Default is not System.Text.Json.Nodes.JsonValue value ||
+            ReferenceEquals(value, target.Default) ||
+            value.GetValueKind() is not (System.Text.Json.JsonValueKind.String or System.Text.Json.JsonValueKind.Number or System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False))
+        {
+            return null;
+        }
+
+        var rawValue = value.ToString();
+        if (string.IsNullOrEmpty(rawValue))
+        {
+            return null;
+        }
+
+        var enumSchema = target.Enum is { Count: > 0 } ? target : target.WrappedEnum();
+        if (enumSchema is null)
+        {
+            return FormatDefaultValue(rawValue, csharpTypeName.TrimEnd('?'));
+        }
+
+        // A client's extensible enum is a struct: its members are no compile-time constants
+        return registry?.ExtensibleEnums == true && enumSchema.IsOfType(JsonSchemaType.String)
+            ? null
+            : EnumMemberFor(enumSchema, rawValue, csharpTypeName);
+    }
+
     private static string? EnumMemberFor(
         OpenApiSchema enumSchema,
         string rawValue,
