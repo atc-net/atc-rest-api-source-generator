@@ -47,7 +47,14 @@ test.describe('Exception Testing Page', () => {
   // /testing is x-retry-enabled: false in the spec, so its 5xx and 429 answers are not retried
   // (with retries, "Run All" waited for the back-off of every 500/501/504 - about a minute).
   // Counted, not timed: a retried call is a second request for the same URL.
-  test('runs all exception tests without retrying them', async ({ page }) => {
+  test('runs all exception tests without retrying them', async ({ page, appType, browserErrors }) => {
+    if (appType === 'blazor') {
+      // The WebAssembly HttpClient releases a response by aborting its fetch, and now and then Chromium has not
+      // marked the request finished by then: it reports net::ERR_ABORTED for a call whose answer the app has read to
+      // its end (about 1 run in 10 here, where twelve error responses follow each other). That every body was read is
+      // asserted below - a row whose body was lost shows the fallback "Error: <status>" - so the report is expected.
+      browserErrors.expectAborted('/api/v1/testing/exception/', 'a response the WebAssembly HttpClient released after reading its body (asserted)');
+    }
     const calls: string[] = [];
     page.on('request', (request) => {
       if (request.method() !== 'OPTIONS' && request.url().includes('/api/v1/testing/')) calls.push(request.url());
@@ -56,6 +63,14 @@ test.describe('Exception Testing Page', () => {
     await expect(exceptionPage.page.getByText('12/12 passed')).toBeVisible({ timeout: 60_000 });
     expect(calls.length).toBeGreaterThan(0);
     expect(new Set(calls).size).toBe(calls.length);
+
+    if (appType === 'blazor') {
+      // Every answer's body reached the app: each row shows what the body said, none the fallback for a body that
+      // could not be read
+      const messages = (await exceptionPage.resultsTable.locator('td[data-label="Message"]').allTextContents()).map((m) => m.trim());
+      expect(messages).toHaveLength(12);
+      expect(messages.filter((m) => m.length === 0 || m.startsWith('Error: '))).toEqual([]);
+    }
   });
 
   // A 400 that declares its own model (TestingProblem, no errors): the C# EndpointPerOperation client keeps the
