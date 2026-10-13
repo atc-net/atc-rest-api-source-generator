@@ -27,33 +27,19 @@ internal static class GitStatusChecker
             result.IsGitRepository = true;
 
             // Run git status --porcelain
-            var processStartInfo = new ProcessStartInfo
-            {
-                FileName = ExecutableResolver.Resolve("git"),
-                Arguments = "status --porcelain",
-                WorkingDirectory = rootDirectory,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            using var process = Process.Start(processStartInfo);
-            if (process is null)
+            var run = ExternalTool.Run(ExecutableResolver.Resolve("git"), "status --porcelain", rootDirectory, TimeSpan.FromSeconds(60));
+            if (run.TimedOut)
             {
                 result.GitCommandFailed = true;
-                result.ErrorMessage = "Failed to start git process.";
+                result.ErrorMessage = "git status did not end within 60 seconds and was stopped.";
                 return result;
             }
 
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
-
-            if (process.ExitCode != 0)
+            var output = run.Output;
+            if (run.ExitCode != 0)
             {
                 result.GitCommandFailed = true;
-                result.ErrorMessage = error;
+                result.ErrorMessage = run.Error;
                 return result;
             }
 

@@ -276,6 +276,9 @@ public sealed class ProjectScaffoldingService
         }
     }
 
+    // How long the coding-rules updater may take before it is stopped
+    private static readonly TimeSpan CodingRulesUpdaterTimeout = TimeSpan.FromMinutes(3);
+
     /// <summary>
     /// Runs the atc-coding-rules-updater tool to download coding rules and Directory.Build.props.
     /// </summary>
@@ -305,34 +308,24 @@ public sealed class ProjectScaffoldingService
                                !string.IsNullOrWhiteSpace(organizationName) &&
                                !string.IsNullOrWhiteSpace(repositoryName);
 
-            var startInfo = new ProcessStartInfo
+            // The updater downloads the rules: it gets its time, and then the command goes on without it
+            var run = ExternalTool.Run(
+                ExecutableResolver.Resolve("atc-coding-rules-updater"),
+                BuildCodingRulesUpdaterArguments(repoPath, optionsPath, includeNames, organizationName, repositoryName),
+                repoPath,
+                CodingRulesUpdaterTimeout);
+            var error = run.Error;
+
+            if (run.TimedOut)
             {
-                FileName = ExecutableResolver.Resolve("atc-coding-rules-updater"),
-                Arguments = BuildCodingRulesUpdaterArguments(repoPath, optionsPath, includeNames, organizationName, repositoryName),
-                WorkingDirectory = repoPath,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] atc-coding-rules-updater did not end within {CodingRulesUpdaterTimeout.TotalMinutes:0} minutes and was stopped");
+                AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
+                return true; // Don't fail the whole process, just warn
+            }
 
-            using var process = new Process();
-            process.StartInfo = startInfo;
-
-            // Both streams are drained as they come: a tool that fills the stderr pipe before stdout ends would
-            // otherwise block on a full pipe while this side blocks on stdout
-            var errorLines = new StringBuilder();
-            process.OutputDataReceived += (_, _) => { };
-            process.ErrorDataReceived += (_, e) => errorLines.AppendLine(e.Data);
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            process.WaitForExit();
-            var error = errorLines.ToString();
-
-            if (process.ExitCode != 0)
+            if (run.ExitCode != 0)
             {
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] atc-coding-rules-updater exited with code {process.ExitCode}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] atc-coding-rules-updater exited with code {run.ExitCode}");
                 if (!string.IsNullOrWhiteSpace(error))
                 {
                     AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]{error.Trim()}[/]");

@@ -68,6 +68,73 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             })
             .ToList();
 
+    /// <summary>
+    /// Renames the old generated projects (Api.Generated to Api.Contracts, ApiClient.Generated to the client name).
+    /// </summary>
+    /// <returns>What stood in the way of a rename, per project; empty when every project was renamed (or already is).</returns>
+    internal static List<string> RenameProjects(
+        MigrationValidationReport report,
+        string projectName,
+        string? clientSuffix,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        var errors = new List<string>();
+
+        // Rename Api.Generated → Api.Contracts
+        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiGeneratedProject))
+        {
+            var serverDir = Path.GetDirectoryName(report.ProjectStructure.ApiGeneratedProject)!;
+            var result = ProjectRenamer.RenameServerProject(serverDir, projectName, dryRun);
+            if (result.Success)
+            {
+                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
+
+                // Report old directory deletion when target already existed
+                if (result.OldDirectoryDeleted)
+                {
+                    summary.DeletedFolders.Add(result.OldPath);
+                }
+            }
+            else if (!string.IsNullOrEmpty(result.Error))
+            {
+                errors.Add(result.Error);
+            }
+        }
+
+        // Rename ApiClient.Generated → client suffix (default: ApiClient)
+        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiClientGeneratedProject))
+        {
+            var clientDir = Path.GetDirectoryName(report.ProjectStructure.ApiClientGeneratedProject)!;
+            var result = ProjectRenamer.RenameClientProject(clientDir, projectName, clientSuffix, dryRun);
+            if (result.Success)
+            {
+                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
+
+                // Report old directory deletion when target already existed
+                if (result.OldDirectoryDeleted)
+                {
+                    summary.DeletedFolders.Add(result.OldPath);
+                }
+            }
+            else if (!string.IsNullOrEmpty(result.Error))
+            {
+                errors.Add(result.Error);
+            }
+        }
+
+        // A dry run only says what it would do
+        if (dryRun)
+        {
+            foreach (var error in errors)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {error}");
+            }
+        }
+
+        return errors;
+    }
+
     internal static void UpdateContractsReferences(
         MigrationValidationReport report,
         string projectName,
@@ -340,7 +407,19 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 10: Rename projects
                 ctx.Status(dryRun ? "Analyzing project renames..." : "Renaming projects...");
-                RenameProjects(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
+                var renameErrors = RenameProjects(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
+                if (renameErrors.Count > 0 && !dryRun)
+                {
+                    // The steps after this write the new project names into the solution and every reference: with a
+                    // project still under its old name they would point at folders that are not there
+                    foreach (var renameError in renameErrors)
+                    {
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {renameError}");
+                    }
+
+                    AnsiConsole.MarkupLine("[red]The migration stopped before the solution and the references were updated.[/] Fix what is in the way and run the command again: the steps already done are not repeated.");
+                    return 1;
+                }
 
                 // Step 11: Update solution and references
                 ctx.Status(dryRun ? "Analyzing solution updates..." : "Updating solution and references...");
@@ -567,56 +646,6 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
             summary.DeletedFiles.AddRange(result.DeletedFiles);
             summary.PreservedFiles.AddRange(result.PreservedFiles);
-        }
-    }
-
-    private static void RenameProjects(
-        MigrationValidationReport report,
-        string projectName,
-        string? clientSuffix,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        // Rename Api.Generated → Api.Contracts
-        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiGeneratedProject))
-        {
-            var serverDir = Path.GetDirectoryName(report.ProjectStructure.ApiGeneratedProject)!;
-            var result = ProjectRenamer.RenameServerProject(serverDir, projectName, dryRun);
-            if (result.Success)
-            {
-                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
-
-                // Report old directory deletion when target already existed
-                if (result.OldDirectoryDeleted)
-                {
-                    summary.DeletedFolders.Add(result.OldPath);
-                }
-            }
-            else if (!string.IsNullOrEmpty(result.Error))
-            {
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
-            }
-        }
-
-        // Rename ApiClient.Generated → client suffix (default: ApiClient)
-        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiClientGeneratedProject))
-        {
-            var clientDir = Path.GetDirectoryName(report.ProjectStructure.ApiClientGeneratedProject)!;
-            var result = ProjectRenamer.RenameClientProject(clientDir, projectName, clientSuffix, dryRun);
-            if (result.Success)
-            {
-                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
-
-                // Report old directory deletion when target already existed
-                if (result.OldDirectoryDeleted)
-                {
-                    summary.DeletedFolders.Add(result.OldPath);
-                }
-            }
-            else if (!string.IsNullOrEmpty(result.Error))
-            {
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
-            }
         }
     }
 

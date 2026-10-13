@@ -126,6 +126,45 @@ public sealed class MigrateExecuteNamespaceTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// A project that could not be renamed stops the migration there: the steps after it write the new project
+    /// names into the solution and into every reference, which would then point at folders that are not there. The
+    /// rename says what is in the way; a rename that works reports nothing.
+    /// </summary>
+    [Fact]
+    public void RenameProjects_AProjectThatCannotBeRenamed_IsAnErrorTheMigrationStopsOn()
+    {
+        var oldProject = Write("Contoso.Api.Generated/Contoso.Api.Generated.csproj", "<Project />");
+        Write("Contoso.Api.Generated/Extensions/Mine.cs", "// hand-written");
+        Write("Contoso.Api.Contracts/Contoso.Api.Contracts.csproj", "<Project />");
+        var report = Report();
+        report.ProjectStructure.ApiGeneratedProject = oldProject;
+        var summary = new MigrationSummary();
+
+        var errors = MigrateExecuteCommand.RenameProjects(report, "Contoso", clientSuffix: null, dryRun: false, summary);
+
+        var error = Assert.Single(errors);
+        Assert.Contains("Contoso.Api.Generated", error, StringComparison.Ordinal);
+        Assert.Contains("Contoso.Api.Contracts", error, StringComparison.Ordinal);
+        Assert.Empty(summary.RenamedProjects);
+        Assert.True(File.Exists(oldProject));
+    }
+
+    [Fact]
+    public void RenameProjects_AProjectThatIsRenamed_ReportsNoError()
+    {
+        var oldProject = Write("Contoso.Api.Generated/Contoso.Api.Generated.csproj", "<Project />");
+        var report = Report();
+        report.ProjectStructure.ApiGeneratedProject = oldProject;
+        var summary = new MigrationSummary();
+
+        var errors = MigrateExecuteCommand.RenameProjects(report, "Contoso", clientSuffix: null, dryRun: false, summary);
+
+        Assert.Empty(errors);
+        Assert.Single(summary.RenamedProjects);
+        Assert.True(File.Exists(Path.Combine(root, "Contoso.Api.Contracts", "Contoso.Api.Contracts.csproj")));
+    }
+
     private MigrationValidationReport Report()
     {
         var specPath = Path.Combine(root, "Contoso.yaml");
