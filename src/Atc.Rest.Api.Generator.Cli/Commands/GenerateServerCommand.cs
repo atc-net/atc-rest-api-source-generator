@@ -159,7 +159,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy, settings.Overlays);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy, OverlayCliHelper.All(options.General.Overlays, settings.Overlays));
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -463,7 +463,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var config = options.ToServerConfig();
 
         // The --overlay files (placed next to the specification and listed relative to the marker later)
-        config.Overlays = settings.Overlays.Length > 0 ? [.. settings.Overlays.Select(OverlayCliHelper.FullPath)] : null;
+        config.Overlays = OverlayCliHelper.All(options.General.Overlays, settings.Overlays) is { Length: > 0 } overlays ? [.. overlays] : null;
 
         // Override validation strategy if --no-strict is specified
         if (settings.DisableStrictMode)
@@ -523,7 +523,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var config = options.ToServerDomainConfig();
 
         // The --overlay files (placed next to the specification and listed relative to the marker later)
-        config.Overlays = settings.Overlays.Length > 0 ? [.. settings.Overlays.Select(OverlayCliHelper.FullPath)] : null;
+        config.Overlays = OverlayCliHelper.All(options.General.Overlays, settings.Overlays) is { Length: > 0 } overlays ? [.. overlays] : null;
 
         // Override validation strategy if --no-strict is specified
         if (settings.DisableStrictMode)

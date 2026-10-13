@@ -190,6 +190,47 @@ public sealed class OverlayCommandTests : IDisposable
         Assert.True(File.Exists(Path.GetFullPath(Path.Combine(markerDirectory, listed))), $"{listed} is not next to the marker in {markerDirectory}");
     }
 
+    /// <summary>
+    /// The same from the options file: its <c>general.overlays</c> are applied - before the <c>--overlay</c> ones - so
+    /// a team writes its fixes down once instead of on every command line.
+    /// </summary>
+    [Theory]
+    [InlineData("client", ".atc-rest-api-client")]
+    [InlineData("server", ".atc-rest-api-server")]
+    public async Task Generate_AppliesTheOverlaysOfTheOptionsFile_BeforeTheCommandLines(
+        string command,
+        string markerFileName)
+    {
+        var output = Path.Combine(tempDir, command + "-options");
+        var second = Path.Combine(tempDir, "Second.overlay.yaml");
+        await File.WriteAllTextAsync(
+            second,
+            """
+            overlay: 1.2.0
+            info:
+              title: A summary
+              version: 1.0.0
+            actions:
+              - target: "$.paths['/api/meteringpoints/{id}'].get"
+                update:
+                  summary: Reads a metering point
+            """,
+            TestContext.Current.CancellationToken);
+        var optionsPath = Path.Combine(tempDir, "ApiGeneratorOptions.json");
+        await File.WriteAllTextAsync(optionsPath, """{ "general": { "overlays": [ "Metering.overlay.yaml" ] } }""", TestContext.Current.CancellationToken);
+
+        // The specification has no operationId without the options file's overlay: Strict validation would stop the command
+        var (isSuccessful, log) = await Run($"generate {command} -s \"{specPath}\" -o \"{output}\" -n Metering --options \"{optionsPath}\" --overlay \"{second}\"");
+
+        Assert.True(isSuccessful, log);
+        var marker = Directory.GetFiles(output, markerFileName, SearchOption.AllDirectories)[0];
+        var overlays = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(marker, TestContext.Current.CancellationToken))!["overlays"]!
+            .AsArray()
+            .Select(o => Path.GetFileName((string)o!))
+            .ToList();
+        Assert.Equal(["Metering.overlay.yaml", "Second.overlay.yaml"], overlays);
+    }
+
     private static async Task<(bool IsSuccessful, string Output)> Run(
         string arguments)
     {

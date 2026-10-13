@@ -35,7 +35,9 @@ public static class ApiOptionsHelper
         try
         {
             var json = File.ReadAllText(resolvedPath);
-            return JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions) ?? new ApiGeneratorOptions();
+            var options = JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions) ?? new ApiGeneratorOptions();
+            options.General.Overlays = OverlaysOf(options, resolvedPath);
+            return options;
         }
         catch (JsonException ex)
         {
@@ -289,5 +291,32 @@ public static class ApiOptionsHelper
         {
             result.Warnings.Add("client.clientSuffix should not be empty.");
         }
+    }
+
+    // The overlays the options file lists, as full paths: they are written relative to the file, not to where the
+    // command happens to run
+    private static List<string> OverlaysOf(
+        ApiGeneratorOptions options,
+        string optionsFilePath)
+    {
+        var directory = Path.GetDirectoryName(optionsFilePath) ?? string.Empty;
+        var overlays = new List<string>();
+        foreach (var overlay in options.General.Overlays ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(overlay))
+            {
+                continue;
+            }
+
+            var fullPath = Path.GetFullPath(Path.Combine(directory, overlay));
+            if (!File.Exists(fullPath))
+            {
+                throw new InvalidDataException($"Options file {optionsFilePath} is not valid: the overlay '{overlay}' (general.overlays) was not found at {fullPath}.");
+            }
+
+            overlays.Add(fullPath);
+        }
+
+        return overlays;
     }
 }

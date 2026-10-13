@@ -30,6 +30,13 @@
           "type": "boolean",
           "description": "Remove blank lines between namespace groups in GlobalUsings.cs. Default: false (blank lines are preserved between groups).",
           "default": false
+        },
+        "overlays": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "OpenAPI Overlay files (1.0 to 1.2) applied to the specification first, in the order listed and before the --overlay files of the command line. Paths are relative to the options file. Default: none."
         }
       },
       "additionalProperties": false,

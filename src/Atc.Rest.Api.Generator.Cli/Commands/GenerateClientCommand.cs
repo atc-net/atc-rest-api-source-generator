@@ -96,7 +96,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, clientConfig.ValidateSpecificationStrategy, settings.Overlays);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, clientConfig.ValidateSpecificationStrategy, OverlayCliHelper.All(options.General.Overlays, settings.Overlays));
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -178,7 +178,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 }
 
                 // The overlays go along, listed in the marker: the build applies them to the specification
-                if (!CopyOverlays(settings.Overlays, outputPath, partFileNames, out var overlayFileNames))
+                if (!CopyOverlays(OverlayCliHelper.All(options.General.Overlays, settings.Overlays), outputPath, partFileNames, out var overlayFileNames))
                 {
                     return 1;
                 }

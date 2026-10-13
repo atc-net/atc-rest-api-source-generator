@@ -15,6 +15,19 @@ public static class OverlayCliHelper
         => Path.GetFullPath(PathHelper.ResolveRelativePath(path));
 
     /// <summary>
+    /// The overlays of a generate command, in the order they are applied: the options file's
+    /// (<c>general.overlays</c>), then the <c>--overlay</c> ones. An overlay named by both is applied once, where the
+    /// options file has it.
+    /// </summary>
+    /// <param name="fromOptions">The options file's overlays, as full paths.</param>
+    /// <param name="fromCommandLine">The <c>--overlay</c> paths.</param>
+    /// <returns>The full paths.</returns>
+    public static string[] All(
+        IEnumerable<string>? fromOptions,
+        IEnumerable<string>? fromCommandLine)
+        => [.. (fromOptions ?? []).Concat((fromCommandLine ?? []).Select(FullPath)).Distinct(StringComparer.OrdinalIgnoreCase)];
+
+    /// <summary>
     /// Checks that every overlay file exists.
     /// </summary>
     /// <param name="overlays">The <c>--overlay</c> paths.</param>

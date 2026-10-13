@@ -95,6 +95,7 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
         // General settings
         table.AddRow("general", "validateSpecificationStrategy", options.General.ValidateSpecificationStrategy.ToString());
         table.AddRow("general", "includeDeprecated", options.General.IncludeDeprecated.ToString());
+        table.AddRow("general", "overlays", options.General.Overlays.Count == 0 ? "(none)" : Markup.Escape(string.Join(", ", options.General.Overlays.Select(Path.GetFileName))));
 
         // Server settings
         table.AddRow("server", "namespace", Markup.Escape(options.Server.Namespace ?? "(auto-detect)"));

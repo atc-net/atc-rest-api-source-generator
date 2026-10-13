@@ -83,6 +83,45 @@ public sealed class ApiOptionsHelperTests : IDisposable
         Assert.True(options.General.IncludeDeprecated);
     }
 
+    /// <summary>
+    /// The overlays of the options file are paths relative to it - wherever the command is run from - and are loaded
+    /// as full paths; one that is not there stops the command, naming the options file and the overlay.
+    /// </summary>
+    [Fact]
+    public void LoadOptions_Overlays_AreFullPathsRelativeToTheOptionsFile()
+    {
+        Directory.CreateDirectory(Path.Combine(tempPath, "fixes"));
+        File.WriteAllText(Path.Combine(tempPath, "fixes", "names.overlay.yaml"), "overlay: 1.0.0");
+        File.WriteAllText(
+            Path.Combine(tempPath, ApiGeneratorOptions.FileName),
+            """{ "general": { "overlays": [ "fixes/names.overlay.yaml" ] } }""");
+
+        var options = ApiOptionsHelper.LoadOptions(optionsPath: null, Path.Combine(tempPath, "api.yaml"));
+
+        Assert.Equal([Path.Combine(tempPath, "fixes", "names.overlay.yaml")], options.General.Overlays);
+    }
+
+    [Fact]
+    public void LoadOptions_AnOverlayThatIsNotThere_ThrowsNamingTheOptionsFileAndTheOverlay()
+    {
+        var filePath = Path.Combine(tempPath, ApiGeneratorOptions.FileName);
+        File.WriteAllText(filePath, """{ "general": { "overlays": [ "missing.overlay.yaml" ] } }""");
+
+        var exception = Assert.Throws<InvalidDataException>(() => ApiOptionsHelper.LoadOptions(tempPath, specificationPath: null));
+
+        Assert.Contains(filePath, exception.Message, StringComparison.Ordinal);
+        Assert.Contains("missing.overlay.yaml", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadOptions_WithoutOverlays_HasNone()
+    {
+        File.WriteAllText(Path.Combine(tempPath, ApiGeneratorOptions.FileName), "{}");
+
+        Assert.Empty(ApiOptionsHelper.LoadOptions(tempPath, specificationPath: null).General.Overlays);
+        Assert.Empty(new ApiGeneratorOptions().General.Overlays);
+    }
+
     [Fact]
     public void LoadOptions_InvalidJson_ThrowsNamingTheFile()
     {
