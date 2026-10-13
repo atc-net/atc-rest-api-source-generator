@@ -73,6 +73,6 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetOrderByIdEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new GetOrderByIdEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

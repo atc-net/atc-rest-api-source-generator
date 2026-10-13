@@ -839,11 +839,11 @@ public partial class ErrorResponseBodyRuntimeTests
                         return await StreamAsync(
                             operation switch
                             {
-                                "FeatureSse" => ct => provider.GetRequiredService<IFeatureSseEndpoint>().ExecuteAsync(new FeatureSseParameters(count, failAfter), httpClientName, ct),
-                                "FeatureLines" => ct => provider.GetRequiredService<IFeatureLinesEndpoint>().ExecuteAsync(new FeatureLinesParameters(count, failAfter), httpClientName, ct),
-                                "FeatureSeq" => ct => provider.GetRequiredService<IFeatureSeqEndpoint>().ExecuteAsync(new FeatureSeqParameters(count, failAfter), httpClientName, ct),
-                                "FeatureMixed" => ct => provider.GetRequiredService<IFeatureMixedEndpoint>().ExecuteAsync(new FeatureMixedParameters(count, failAfter), httpClientName, ct),
-                                _ => ct => provider.GetRequiredService<IFeatureArrayEndpoint>().ExecuteAsync(new FeatureArrayParameters(count, failAfter), httpClientName, ct),
+                                "FeatureSse" => async ct => await provider.GetRequiredService<IFeatureSseEndpoint>().ExecuteAsync(new FeatureSseParameters(count, failAfter), httpClientName, ct),
+                                "FeatureLines" => async ct => await provider.GetRequiredService<IFeatureLinesEndpoint>().ExecuteAsync(new FeatureLinesParameters(count, failAfter), httpClientName, ct),
+                                "FeatureSeq" => async ct => await provider.GetRequiredService<IFeatureSeqEndpoint>().ExecuteAsync(new FeatureSeqParameters(count, failAfter), httpClientName, ct),
+                                "FeatureMixed" => async ct => await provider.GetRequiredService<IFeatureMixedEndpoint>().ExecuteAsync(new FeatureMixedParameters(count, failAfter), httpClientName, ct),
+                                _ => async ct => await provider.GetRequiredService<IFeatureArrayEndpoint>().ExecuteAsync(new FeatureArrayParameters(count, failAfter), httpClientName, ct),
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
                     }

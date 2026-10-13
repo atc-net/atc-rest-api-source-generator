@@ -78,6 +78,6 @@ public sealed class ListOrgDevicesEndpoint : IListOrgDevicesEndpoint
             responseBuilder.AddErrorResponse<Problem>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new ListOrgDevicesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListOrgDevicesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

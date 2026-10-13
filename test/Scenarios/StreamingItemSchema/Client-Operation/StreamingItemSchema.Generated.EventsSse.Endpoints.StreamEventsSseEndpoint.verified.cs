@@ -13,11 +13,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
 using Atc.Rest.Client.Builder;
-using Atc.Rest.Client.Serialization;
 using Microsoft.Extensions.Http;
 using StreamingItemSchema.Generated;
-using StreamingItemSchema.Generated.Streaming;
 using StreamingItemSchema.Generated.EventsSse.Endpoints.Interfaces;
+using StreamingItemSchema.Generated.EventsSse.Endpoints.Results;
 using StreamingItemSchema.Generated.Models;
 
 namespace StreamingItemSchema.Generated.EventsSse.Endpoints;
@@ -32,19 +31,16 @@ public sealed class StreamEventsSseEndpoint : IStreamEventsSseEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
-    private readonly IContractSerializer contractSerializer;
 
     public StreamEventsSseEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory,
-        IContractSerializer contractSerializer)
+        IHttpMessageFactory httpMessageFactory)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
-        this.contractSerializer = contractSerializer;
     }
 
-    public async Task<StreamingEndpointResponse<Event>> ExecuteAsync(
+    public async Task<StreamEventsSseEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
@@ -55,22 +51,9 @@ public sealed class StreamEventsSseEndpoint : IStreamEventsSseEndpoint
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return new StreamingEndpointResponse<Event>(false, response.StatusCode, content: null, errorContent, response);
-        }
-
-        try
-        {
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            var content = StreamReaders.ReadServerSentEventsAsync<Event>(stream, contractSerializer, cancellationToken);
-            return new StreamingEndpointResponse<Event>(true, response.StatusCode, content, errorContent: null, response);
-        }
-        catch
-        {
-            response.Dispose();
-            throw;
-        }
+        var responseBuilder = httpMessageFactory.FromResponse(response);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseEndpointResult>(x => new StreamEventsSseEndpointResult(x), StreamFraming.ServerSentEvents, cancellationToken).ConfigureAwait(false);
     }
 }

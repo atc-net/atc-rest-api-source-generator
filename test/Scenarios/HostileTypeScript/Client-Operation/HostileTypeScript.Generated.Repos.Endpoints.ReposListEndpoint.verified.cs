@@ -65,6 +65,6 @@ public sealed class ReposListEndpoint : IReposListEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ReposListEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ReposListEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

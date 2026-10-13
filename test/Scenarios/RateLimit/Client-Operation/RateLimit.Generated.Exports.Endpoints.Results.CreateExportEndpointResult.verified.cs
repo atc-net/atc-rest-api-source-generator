@@ -75,7 +75,7 @@ public partial class CreateExportEndpointResult : EndpointResponse, ICreateExpor
             statusCode: statusCode,
             content: string.Empty,
             contentObject: contentObject,
-            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));
+            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)));
 
     public bool IsAccepted
         => StatusCode == HttpStatusCode.Accepted;

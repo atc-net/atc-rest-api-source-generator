@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
 using AsyncEnumerableHooks.Generated.Client;
+using AsyncEnumerableHooks.Generated.Endpoints.Results;
 using AsyncEnumerableHooks.Generated.Models;
 
 namespace AsyncEnumerableHooks.Generated.Endpoints.Interfaces;
@@ -27,7 +28,7 @@ public interface IListItemsEndpoint
     /// <summary>
     /// Execute method.
     /// </summary>
-    Task<StreamingEndpointResponse<Item>> ExecuteAsync(
+    Task<ListItemsEndpointResult> ExecuteAsync(
         ListItemsParameters parameters,
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);

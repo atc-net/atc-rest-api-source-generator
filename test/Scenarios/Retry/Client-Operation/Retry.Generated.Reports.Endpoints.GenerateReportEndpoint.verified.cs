@@ -62,6 +62,6 @@ public sealed class GenerateReportEndpoint : IGenerateReportEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GenerateReportEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new GenerateReportEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

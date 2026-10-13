@@ -53,6 +53,6 @@ public sealed class ExportCsvEndpoint : IExportCsvEndpoint
         responseBuilder.AddSuccessTextResponse(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ExportCsvEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ExportCsvEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

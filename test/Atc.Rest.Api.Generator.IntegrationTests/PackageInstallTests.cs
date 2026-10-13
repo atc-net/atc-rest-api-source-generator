@@ -50,7 +50,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
     /// <summary>
     /// The trim- and Native AOT-ready Atc.Rest.Client the generated per-operation client needs.
     /// </summary>
-    private const string AtcRestClientReference = """<PackageReference Include="Atc.Rest.Client" Version="2.3.0" />""";
+    private const string AtcRestClientReference = """<PackageReference Include="Atc.Rest.Client" Version="2.4.0" />""";
 
     [Fact]
     public async Task APackedGenerator_GeneratesAClientThatCompiles_InAStrictConsumer()

@@ -76,6 +76,6 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
             responseBuilder.AddErrorResponse<Error>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new ListItemsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListItemsEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

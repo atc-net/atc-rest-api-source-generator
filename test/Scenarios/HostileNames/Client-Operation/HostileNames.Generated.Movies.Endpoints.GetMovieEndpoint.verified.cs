@@ -67,6 +67,6 @@ public sealed class GetMovieEndpoint : IGetMovieEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetMovieEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new GetMovieEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

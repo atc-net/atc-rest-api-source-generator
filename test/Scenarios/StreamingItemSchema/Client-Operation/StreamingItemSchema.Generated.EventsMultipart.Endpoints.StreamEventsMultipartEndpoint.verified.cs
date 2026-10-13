@@ -2,22 +2,21 @@
 #nullable enable
 #pragma warning disable CS1591
 
-using System.IO;
 using System;
+using System.IO;
+using System.Linq;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
 using Atc.Rest.Client.Builder;
-using Atc.Rest.Client.Serialization;
 using Microsoft.Extensions.Http;
 using StreamingItemSchema.Generated;
-using StreamingItemSchema.Generated.Streaming;
 using StreamingItemSchema.Generated.EventsMultipart.Endpoints.Interfaces;
+using StreamingItemSchema.Generated.EventsMultipart.Endpoints.Results;
 using StreamingItemSchema.Generated.Models;
 
 namespace StreamingItemSchema.Generated.EventsMultipart.Endpoints;
@@ -32,19 +31,16 @@ public sealed class StreamEventsMultipartEndpoint : IStreamEventsMultipartEndpoi
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
-    private readonly IContractSerializer contractSerializer;
 
     public StreamEventsMultipartEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory,
-        IContractSerializer contractSerializer)
+        IHttpMessageFactory httpMessageFactory)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
-        this.contractSerializer = contractSerializer;
     }
 
-    public async Task<StreamingEndpointResponse<Event>> ExecuteAsync(
+    public async Task<StreamEventsMultipartEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
@@ -55,25 +51,9 @@ public sealed class StreamEventsMultipartEndpoint : IStreamEventsMultipartEndpoi
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return new StreamingEndpointResponse<Event>(false, response.StatusCode, content: null, errorContent, response);
-        }
-
-        try
-        {
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            var boundary = response.Content.Headers.ContentType?.Parameters
-                .FirstOrDefault(p => string.Equals(p.Name, "boundary", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('"')
-                ?? throw new global::System.IO.InvalidDataException("A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.");
-            var content = StreamReaders.ReadMultipartMixedAsync<Event>(stream, boundary, contractSerializer, cancellationToken);
-            return new StreamingEndpointResponse<Event>(true, response.StatusCode, content, errorContent: null, response);
-        }
-        catch
-        {
-            response.Dispose();
-            throw;
-        }
+        var responseBuilder = httpMessageFactory.FromResponse(response);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsMultipartEndpointResult>(x => new StreamEventsMultipartEndpointResult(x), StreamFraming.MultipartMixed, cancellationToken).ConfigureAwait(false);
     }
 }

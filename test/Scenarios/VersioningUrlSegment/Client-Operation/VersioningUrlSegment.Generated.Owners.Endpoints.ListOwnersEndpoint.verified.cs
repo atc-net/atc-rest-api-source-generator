@@ -54,6 +54,6 @@ public sealed class ListOwnersEndpoint : IListOwnersEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Owner>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListOwnersEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListOwnersEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

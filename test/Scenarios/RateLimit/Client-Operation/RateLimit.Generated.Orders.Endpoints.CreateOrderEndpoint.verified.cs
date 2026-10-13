@@ -60,6 +60,6 @@ public sealed class CreateOrderEndpoint : ICreateOrderEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.TooManyRequests);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new CreateOrderEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new CreateOrderEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

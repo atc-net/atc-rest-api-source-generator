@@ -449,13 +449,10 @@ public class StreamingWireFramingTests
     /// <c>--b--x</c> is not the closing boundary (the parts after it are read), and <c>--b</c> followed by spaces
     /// or tabs is the boundary.
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task MultipartMixed_Reader_ALineThatOnlyStartsLikeTheBoundary_IsNoBoundary(
-        bool perOperation)
+    [Fact]
+    public async Task MultipartMixed_Reader_ALineThatOnlyStartsLikeTheBoundary_IsNoBoundary()
     {
-        var (read, serializer) = Reader("ReadMultipartMixedAsync", perOperation);
+        var (read, serializer) = Reader("ReadMultipartMixedAsync");
         const string padded = "--b \t\r\nContent-Type: application/json\r\n\r\n[1,\r\n2]\r\n--b-- \r\n";
         const string lookalike = "--b--x\r\n--bx\r\n--b\r\n\r\n[1,\r\n2,3]\r\n--b--\r\n";
 
@@ -472,13 +469,10 @@ public class StreamingWireFramingTests
     /// The limit of a multipart part is in bytes, as for every other framing: a part of 15 characters that is 23
     /// bytes on the wire is past a limit of 16.
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task MultipartMixed_Reader_ThePartLimit_IsInBytes(
-        bool perOperation)
+    [Fact]
+    public async Task MultipartMixed_Reader_ThePartLimit_IsInBytes()
     {
-        var (read, serializer) = Reader("ReadMultipartMixedAsync", perOperation, maxRecordLength: 16);
+        var (read, serializer) = Reader("ReadMultipartMixedAsync", maxRecordLength: 16);
         const string wire = "--b\r\n\r\n[\r\n\"\u00e6\u00e6\u00e6\u00e6\",\r\n\"\u00e6\u00e6\u00e6\u00e6\"\r\n]\r\n--b--\r\n";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
 
@@ -492,17 +486,14 @@ public class StreamingWireFramingTests
     /// JSON Lines, a stray line feed between two records of a JSON Text Sequence.
     /// </summary>
     [Theory]
-    [InlineData("ReadJsonLinesAsync", "1\n\n \t\r\n2\n   \n", false)]
-    [InlineData("ReadJsonLinesAsync", "1\n\n \t\r\n2\n   \n", true)]
-    [InlineData("ReadJsonSequenceAsync", "\u001e1\n\n\u001e2\n\r\n \n", false)]
-    [InlineData("ReadJsonSequenceAsync", "\u001e1\n\n\u001e2\n\r\n \n", true)]
-    [InlineData("ReadJsonSequenceAsync", "\u001e\n\u001e1\n\u001e \u001e2", true)]
+    [InlineData("ReadJsonLinesAsync", "1\n\n \t\r\n2\n   \n")]
+    [InlineData("ReadJsonSequenceAsync", "\u001e1\n\n\u001e2\n\r\n \n")]
+    [InlineData("ReadJsonSequenceAsync", "\u001e\n\u001e1\n\u001e \u001e2")]
     public async Task Reader_WhitespaceBetweenRecords_IsNoRecord(
         string readerName,
-        string wire,
-        bool perOperation)
+        string wire)
     {
-        var (read, serializer) = Reader(readerName, perOperation);
+        var (read, serializer) = Reader(readerName);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
 
         var items = await EnumerateWithArgsAsync<JsonElement>(read, [stream, serializer, CancellationToken.None]);
@@ -515,16 +506,12 @@ public class StreamingWireFramingTests
     /// (not found by reading all of it again at every line), through strings that hold quotes, brackets and braces.
     /// </summary>
     [Theory]
-    [InlineData("ReadJsonSequenceAsync", false)]
-    [InlineData("ReadJsonSequenceAsync", true)]
-    [InlineData("ReadMultipartMixedAsync", false)]
-    [InlineData("ReadMultipartMixedAsync", true)]
-    public async Task Reader_ARecordOfManyLines_IsOneItem(
-        string readerName,
-        bool perOperation)
+    [InlineData("ReadJsonSequenceAsync")]
+    [InlineData("ReadMultipartMixedAsync")]
+    public async Task Reader_ARecordOfManyLines_IsOneItem(string readerName)
     {
         const int count = 20_000;
-        var (read, serializer) = Reader(readerName, perOperation);
+        var (read, serializer) = Reader(readerName);
         var json = "[\n" + string.Join(",\n", Enumerable.Range(0, count).Select(i => "\"a \\\" [ { " + i.ToString(CultureInfo.InvariantCulture) + "\"")) + "\n]\n";
         var isMultipart = readerName == "ReadMultipartMixedAsync";
         var wire = isMultipart ? "--b\r\n\r\n" + json + "--b--\r\n" : "\u001e" + json;
@@ -576,28 +563,19 @@ public class StreamingWireFramingTests
         }
     }
 
-    // A reader of the typed client (it takes the JsonSerializerOptions) or of the EndpointPerOperation client (it
-    // takes the IContractSerializer), with what it deserializes through
-    private static (MethodInfo Read, object Serializer) Reader(
+    // A reader of the typed client, with the options it deserializes through. (The EndpointPerOperation client has no
+    // readers of its own: Atc.Rest.Client reads its streamed responses.)
+    private static (MethodInfo Read, JsonSerializerOptions Serializer) Reader(
         string name,
-        bool perOperation,
         int maxRecordLength = 16 * 1024 * 1024)
     {
-        var readerType = perOperation
-            ? CompilationVerificationHarness
-                .EmitAndLoad([("StreamReaders.g.cs", StreamReadersExtractor.GenerateContent("PerOperationReaders", perOperation: true))])
-                .GetTypes()
-                .Single(t => t.Name == "StreamReaders")
-            : LoadGeneratedType("StreamReaders");
+        var readerType = LoadGeneratedType("StreamReaders");
         readerType.GetProperty("MaxRecordLength")!.SetValue(null, maxRecordLength);
         var read = readerType
             .GetMethods()
             .Single(m => m.Name == name && m.GetParameters()[0].ParameterType == typeof(Stream))
             .MakeGenericMethod(typeof(JsonElement));
-        object serializer = perOperation
-            ? new Atc.Rest.Client.Serialization.DefaultJsonContractSerializer(new JsonSerializerOptions())
-            : new JsonSerializerOptions();
-        return (read, serializer);
+        return (read, new JsonSerializerOptions());
     }
 
     /// <summary>

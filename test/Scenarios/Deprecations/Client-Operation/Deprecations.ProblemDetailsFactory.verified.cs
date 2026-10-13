@@ -117,40 +117,6 @@ public static class ProblemDetailsFactory
         => System.Text.Json.JsonSerializer.Deserialize<T>(content, LenientOptions);
 
     /// <summary>
-    /// An error response whose body was kept as bytes - a media type that is neither JSON nor text, such as
-    /// <c>application/xml</c> or <c>application/octet-stream</c> - with the body as text (by the Content-Type charset,
-    /// else UTF-8), so <c>Content</c> and the typed accessors read it like any other error body.
-    /// </summary>
-    public static global::Atc.Rest.Client.EndpointResponse WithTextErrorBody(global::Atc.Rest.Client.EndpointResponse response)
-    {
-        if (response.IsSuccess || response.ContentObject is not byte[] bytes || response.Content.Length > 0)
-        {
-            return response;
-        }
-
-        var encoding = System.Text.Encoding.UTF8;
-        foreach (var header in response.Headers)
-        {
-            if (string.Equals(header.Key, "Content-Type", System.StringComparison.OrdinalIgnoreCase) &&
-                System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(string.Join(",", header.Value), out var mediaType) &&
-                mediaType.CharSet is { Length: > 0 } charSet)
-            {
-                try
-                {
-                    encoding = System.Text.Encoding.GetEncoding(charSet.Trim('"'));
-                }
-                catch (System.ArgumentException)
-                {
-                    // An unknown charset: keep UTF-8.
-                }
-            }
-        }
-
-        var text = encoding.GetString(bytes);
-        return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, text, text, response.Headers);
-    }
-
-    /// <summary>
     /// An <c>application/problem+xml</c> error body (RFC 9457 Appendix B) read into the typed ProblemDetails - a
     /// ValidationProblemDetails when it has <c>errors</c> - so the typed accessors read it like a problem+json body.
     /// </summary>

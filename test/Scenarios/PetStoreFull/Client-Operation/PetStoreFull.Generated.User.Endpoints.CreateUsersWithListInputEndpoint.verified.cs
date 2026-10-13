@@ -73,6 +73,6 @@ public sealed class CreateUsersWithListInputEndpoint : ICreateUsersWithListInput
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new CreateUsersWithListInputEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new CreateUsersWithListInputEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

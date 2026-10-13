@@ -16,6 +16,7 @@ using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using AsyncEnumerableHooks.Generated;
 using AsyncEnumerableHooks.Generated.Endpoints.Interfaces;
+using AsyncEnumerableHooks.Generated.Endpoints.Results;
 using AsyncEnumerableHooks.Generated.Models;
 using AsyncEnumerableHooks.Generated.Client;
 
@@ -40,7 +41,7 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         this.httpMessageFactory = httpMessageFactory;
     }
 
-    public async Task<StreamingEndpointResponse<Item>> ExecuteAsync(
+    public async Task<ListItemsEndpointResult> ExecuteAsync(
         ListItemsParameters parameters,
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
@@ -57,6 +58,9 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Item>(cancellationToken).ConfigureAwait(false);
+        responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Item, ListItemsEndpointResult>(x => new ListItemsEndpointResult(x), StreamFraming.JsonArray, cancellationToken).ConfigureAwait(false);
     }
 }

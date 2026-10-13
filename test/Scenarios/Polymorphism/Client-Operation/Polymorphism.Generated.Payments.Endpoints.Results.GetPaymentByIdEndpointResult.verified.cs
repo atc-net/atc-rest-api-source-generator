@@ -69,7 +69,7 @@ public partial class GetPaymentByIdEndpointResult : EndpointResponse, IGetPaymen
             statusCode: statusCode,
             content: string.Empty,
             contentObject: contentObject,
-            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));
+            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)));
 
     public bool IsOk
         => StatusCode == HttpStatusCode.OK;

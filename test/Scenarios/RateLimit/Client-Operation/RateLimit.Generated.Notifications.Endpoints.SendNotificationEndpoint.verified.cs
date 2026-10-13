@@ -60,6 +60,6 @@ public sealed class SendNotificationEndpoint : ISendNotificationEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.TooManyRequests);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new SendNotificationEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new SendNotificationEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

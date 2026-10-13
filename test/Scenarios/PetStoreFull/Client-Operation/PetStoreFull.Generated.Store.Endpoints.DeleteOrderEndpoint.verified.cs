@@ -64,6 +64,6 @@ public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new DeleteOrderEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteOrderEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

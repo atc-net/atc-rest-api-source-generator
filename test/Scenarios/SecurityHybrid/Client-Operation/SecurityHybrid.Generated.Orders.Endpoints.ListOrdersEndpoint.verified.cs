@@ -56,6 +56,6 @@ public sealed class ListOrdersEndpoint : IListOrdersEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListOrdersEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListOrdersEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

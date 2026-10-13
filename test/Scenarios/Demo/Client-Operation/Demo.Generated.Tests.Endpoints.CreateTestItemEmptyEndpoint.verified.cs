@@ -59,6 +59,6 @@ public sealed class CreateTestItemEmptyEndpoint : ICreateTestItemEmptyEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new CreateTestItemEmptyEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new CreateTestItemEmptyEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

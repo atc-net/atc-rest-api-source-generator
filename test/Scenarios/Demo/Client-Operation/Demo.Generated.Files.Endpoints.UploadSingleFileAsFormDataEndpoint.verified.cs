@@ -59,6 +59,6 @@ public sealed class UploadSingleFileAsFormDataEndpoint : IUploadSingleFileAsForm
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new UploadSingleFileAsFormDataEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new UploadSingleFileAsFormDataEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

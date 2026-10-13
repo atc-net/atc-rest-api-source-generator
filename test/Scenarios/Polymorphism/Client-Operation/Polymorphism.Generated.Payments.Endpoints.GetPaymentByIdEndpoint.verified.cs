@@ -59,6 +59,6 @@ public sealed class GetPaymentByIdEndpoint : IGetPaymentByIdEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetPaymentByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new GetPaymentByIdEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

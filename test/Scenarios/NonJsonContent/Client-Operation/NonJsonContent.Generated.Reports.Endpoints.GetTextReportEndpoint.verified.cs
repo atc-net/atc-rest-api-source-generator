@@ -53,6 +53,6 @@ public sealed class GetTextReportEndpoint : IGetTextReportEndpoint
         responseBuilder.AddSuccessTextResponse(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetTextReportEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new GetTextReportEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

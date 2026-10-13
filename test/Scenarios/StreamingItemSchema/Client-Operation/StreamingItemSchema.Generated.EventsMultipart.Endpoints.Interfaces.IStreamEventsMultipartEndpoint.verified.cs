@@ -11,6 +11,7 @@ using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
+using StreamingItemSchema.Generated.EventsMultipart.Endpoints.Results;
 using StreamingItemSchema.Generated.Models;
 
 namespace StreamingItemSchema.Generated.EventsMultipart.Endpoints.Interfaces;
@@ -26,7 +27,7 @@ public interface IStreamEventsMultipartEndpoint
     /// <summary>
     /// Execute method.
     /// </summary>
-    Task<StreamingEndpointResponse<Event>> ExecuteAsync(
+    Task<StreamEventsMultipartEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

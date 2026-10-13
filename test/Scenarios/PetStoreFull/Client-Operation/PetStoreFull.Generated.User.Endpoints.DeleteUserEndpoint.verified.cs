@@ -64,6 +64,6 @@ public sealed class DeleteUserEndpoint : IDeleteUserEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new DeleteUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteUserEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

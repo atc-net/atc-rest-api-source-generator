@@ -61,6 +61,6 @@ public sealed class GetResourceByIdEndpoint : IGetResourceByIdEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetResourceByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new GetResourceByIdEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

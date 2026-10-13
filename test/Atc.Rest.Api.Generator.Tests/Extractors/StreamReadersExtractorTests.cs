@@ -95,37 +95,18 @@ public class StreamReadersExtractorTests
     }
 
     [Fact]
-    public void GenerateContent_PerOperationClient_ReadsWithContractSerializer()
+    public void GenerateContent_ShipsAllFourReaders()
     {
-        var content = StreamReadersExtractor.GenerateContent("MyApi", perOperation: true);
+        var content = StreamReadersExtractor.GenerateContent("MyApi");
 
-        Assert.Contains("using Atc.Rest.Client.Serialization;", content, StringComparison.Ordinal);
-        Assert.DoesNotContain("using System.Text.Json;", content, StringComparison.Ordinal);
-        Assert.DoesNotContain("JsonSerializerOptions", content, StringComparison.Ordinal);
+        Assert.Contains("ReadServerSentEventsAsync<T>(", content, StringComparison.Ordinal);
+        Assert.Contains("ReadJsonLinesAsync<T>(", content, StringComparison.Ordinal);
+        Assert.Contains("ReadJsonSequenceAsync<T>(", content, StringComparison.Ordinal);
+        Assert.Contains("ReadMultipartMixedAsync<T>(", content, StringComparison.Ordinal);
 
-        Assert.Contains("(eventType, bytes) => ReadEvent(eventType, bytes, data => serializer.Deserialize<T>(data)));", content, StringComparison.Ordinal);
-        Assert.Contains("public static async IAsyncEnumerable<T?> ReadJsonLinesAsync<T>(", content, StringComparison.Ordinal);
-        Assert.Contains("yield return serializer.Deserialize<T>(line);", content, StringComparison.Ordinal);
-        Assert.Contains("yield return serializer.Deserialize<T>(record.ToArray());", content, StringComparison.Ordinal);
-        Assert.Contains("yield return serializer.Deserialize<T>(body.ToString());", content, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GenerateContent_BothVariants_ShipAllFourReaders()
-    {
-        foreach (var perOperation in new[] { false, true })
-        {
-            var content = StreamReadersExtractor.GenerateContent("MyApi", perOperation);
-
-            Assert.Contains("ReadServerSentEventsAsync<T>(", content, StringComparison.Ordinal);
-            Assert.Contains("ReadJsonLinesAsync<T>(", content, StringComparison.Ordinal);
-            Assert.Contains("ReadJsonSequenceAsync<T>(", content, StringComparison.Ordinal);
-            Assert.Contains("ReadMultipartMixedAsync<T>(", content, StringComparison.Ordinal);
-
-            // JSON Text Sequence splits on the RS byte, never on LF; multipart stops at the closing delimiter
-            Assert.Contains("if (value == 0x1E)", content, StringComparison.Ordinal);
-            Assert.Contains("if (boundaryLine == 2)", content, StringComparison.Ordinal);
-        }
+        // JSON Text Sequence splits on the RS byte, never on LF; multipart stops at the closing delimiter
+        Assert.Contains("if (value == 0x1E)", content, StringComparison.Ordinal);
+        Assert.Contains("if (boundaryLine == 2)", content, StringComparison.Ordinal);
     }
 
     private static string BuildStreamingDocument(string mediaType)

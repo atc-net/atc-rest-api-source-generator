@@ -56,6 +56,6 @@ public sealed class ListLegacyPetsEndpoint : IListLegacyPetsEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<LegacyPet>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListLegacyPetsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListLegacyPetsEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

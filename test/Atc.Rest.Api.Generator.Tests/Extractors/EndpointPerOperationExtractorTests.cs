@@ -106,17 +106,18 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
-        Assert.Null(operationFile.ResultClassContent);
-        Assert.Null(operationFile.ResultInterfaceContent);
+        // A streamed operation has a result class too: it derives from the library's streaming response
+        Assert.Contains(": StreamingEndpointResponse<", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains(": IStreamingEndpointResponse<", operationFile.ResultInterfaceContent, StringComparison.Ordinal);
 
-        // Endpoint interface should return StreamingEndpointResponse<Device>
+        // The endpoint returns the result class, which is a StreamingEndpointResponse<Device>
         Assert.NotNull(operationFile.EndpointInterfaceContent);
-        Assert.Contains("StreamingEndpointResponse<Device>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains("EndpointResult> ExecuteAsync(", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains(": StreamingEndpointResponse<Device>,", operationFile.ResultClassContent, StringComparison.Ordinal);
 
         // Endpoint class should call BuildStreamingEndpointResponseAsync<Device>
         Assert.NotNull(operationFile.EndpointClassContent);
-        Assert.Contains("BuildStreamingEndpointResponseAsync<Device>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Device, ", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -246,17 +247,18 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
-        Assert.Null(operationFile.ResultClassContent);
-        Assert.Null(operationFile.ResultInterfaceContent);
+        // A streamed operation has a result class too: it derives from the library's streaming response
+        Assert.Contains(": StreamingEndpointResponse<", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains(": IStreamingEndpointResponse<", operationFile.ResultInterfaceContent, StringComparison.Ordinal);
 
-        // Endpoint interface should return StreamingEndpointResponse<PaginationResult<Device>>
+        // The endpoint returns the result class, which is a StreamingEndpointResponse<PaginationResult<Device>>
         Assert.NotNull(operationFile.EndpointInterfaceContent);
-        Assert.Contains("StreamingEndpointResponse<PaginationResult<Device>>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains("EndpointResult> ExecuteAsync(", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains(": StreamingEndpointResponse<PaginationResult<Device>>,", operationFile.ResultClassContent, StringComparison.Ordinal);
 
         // Endpoint class should call BuildStreamingEndpointResponseAsync
         Assert.NotNull(operationFile.EndpointClassContent);
-        Assert.Contains("BuildStreamingEndpointResponseAsync<PaginationResult<Device>>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<PaginationResult<Device>, ", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -320,17 +322,18 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
-        Assert.Null(operationFile.ResultClassContent);
-        Assert.Null(operationFile.ResultInterfaceContent);
+        // A streamed operation has a result class too: it derives from the library's streaming response
+        Assert.Contains(": StreamingEndpointResponse<", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains(": IStreamingEndpointResponse<", operationFile.ResultInterfaceContent, StringComparison.Ordinal);
 
-        // Endpoint interface should return StreamingEndpointResponse<PaginatedResult<User>>
+        // The endpoint returns the result class, which is a StreamingEndpointResponse<PaginatedResult<User>>
         Assert.NotNull(operationFile.EndpointInterfaceContent);
-        Assert.Contains("StreamingEndpointResponse<PaginatedResult<User>>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains("EndpointResult> ExecuteAsync(", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains(": StreamingEndpointResponse<PaginatedResult<User>>,", operationFile.ResultClassContent, StringComparison.Ordinal);
 
         // Endpoint class should call BuildStreamingEndpointResponseAsync
         Assert.NotNull(operationFile.EndpointClassContent);
-        Assert.Contains("BuildStreamingEndpointResponseAsync<PaginatedResult<User>>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<PaginatedResult<User>, ", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -380,17 +383,18 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // For streaming endpoints, result interfaces/classes are not generated
-        Assert.Null(operationFile.ResultInterfaceContent);
-        Assert.Null(operationFile.ResultClassContent);
+        // A streamed operation has a result interface too: the items are the response's Content, so it has no OkContent
+        Assert.Contains(": IStreamingEndpointResponse<Item>", operationFile.ResultInterfaceContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("OkContent", operationFile.ResultInterfaceContent, StringComparison.Ordinal);
 
-        // Endpoint interface should return StreamingEndpointResponse<Item>
+        // The endpoint returns the result class, which is a StreamingEndpointResponse<Item>
         Assert.NotNull(operationFile.EndpointInterfaceContent);
-        Assert.Contains("StreamingEndpointResponse<Item>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains("EndpointResult> ExecuteAsync(", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains(": StreamingEndpointResponse<Item>,", operationFile.ResultClassContent, StringComparison.Ordinal);
 
         // Endpoint class should call BuildStreamingEndpointResponseAsync<Item>
         Assert.NotNull(operationFile.EndpointClassContent);
-        Assert.Contains("BuildStreamingEndpointResponseAsync<Item>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Item, ", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -442,18 +446,18 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
-        // StreamingEndpointResponse<T> handles error responses internally via ErrorContent property
-        Assert.Null(operationFile.ResultClassContent);
-        Assert.Null(operationFile.ResultInterfaceContent);
+        // A streamed operation has a result class too: it derives from the library's streaming response
+        Assert.Contains(": StreamingEndpointResponse<", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains(": IStreamingEndpointResponse<", operationFile.ResultInterfaceContent, StringComparison.Ordinal);
 
-        // Endpoint interface should return StreamingEndpointResponse<Device>
+        // The endpoint returns the result class, which is a StreamingEndpointResponse<Device>
         Assert.NotNull(operationFile.EndpointInterfaceContent);
-        Assert.Contains("StreamingEndpointResponse<Device>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains("EndpointResult> ExecuteAsync(", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains(": StreamingEndpointResponse<Device>,", operationFile.ResultClassContent, StringComparison.Ordinal);
 
         // Endpoint class should call BuildStreamingEndpointResponseAsync<Device>
         Assert.NotNull(operationFile.EndpointClassContent);
-        Assert.Contains("BuildStreamingEndpointResponseAsync<Device>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Device, ", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -1399,15 +1403,15 @@ public class EndpointPerOperationExtractorTests
         // Assert
         var operationFile = Assert.Single(files);
         Assert.NotNull(operationFile.EndpointInterfaceContent);
-        Assert.Contains("StreamingEndpointResponse<Event>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains("EndpointResult> ExecuteAsync(", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.Contains(": StreamingEndpointResponse<Event>,", operationFile.ResultClassContent, StringComparison.Ordinal);
         Assert.NotNull(operationFile.EndpointClassContent);
 
-        // application/jsonl is real JSON Lines wire-framing, so the per-op endpoint reads it via the
-        // emitted StreamReaders.ReadJsonLinesAsync (using the DI-configured IContractSerializer) and
-        // builds the StreamingEndpointResponse<T> inline — it does NOT use the JSON-array-based
-        // BuildStreamingEndpointResponseAsync reader.
-        Assert.Contains("ReadJsonLinesAsync<Event>", operationFile.EndpointClassContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("BuildStreamingEndpointResponseAsync<Event>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        // application/jsonl is JSON Lines on the wire: the endpoint names the framing, and Atc.Rest.Client reads it
+        // (the generated client has no readers of its own)
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Event, ", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.Contains("StreamFraming.JsonLines", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("StreamReaders", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]

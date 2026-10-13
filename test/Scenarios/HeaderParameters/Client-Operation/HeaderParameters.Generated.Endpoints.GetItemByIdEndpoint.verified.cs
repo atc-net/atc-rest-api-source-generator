@@ -73,6 +73,6 @@ public sealed class GetItemByIdEndpoint : IGetItemByIdEndpoint
             responseBuilder.AddErrorResponse<Error>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetItemByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new GetItemByIdEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

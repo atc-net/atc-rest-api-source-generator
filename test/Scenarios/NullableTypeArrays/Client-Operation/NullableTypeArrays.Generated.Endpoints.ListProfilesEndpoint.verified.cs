@@ -54,6 +54,6 @@ public sealed class ListProfilesEndpoint : IListProfilesEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Profile>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListProfilesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListProfilesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

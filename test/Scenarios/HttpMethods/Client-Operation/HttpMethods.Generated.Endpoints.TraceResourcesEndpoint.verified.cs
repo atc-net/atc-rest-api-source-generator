@@ -54,6 +54,6 @@ public sealed class TraceResourcesEndpoint : ITraceResourcesEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new TraceResourcesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new TraceResourcesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

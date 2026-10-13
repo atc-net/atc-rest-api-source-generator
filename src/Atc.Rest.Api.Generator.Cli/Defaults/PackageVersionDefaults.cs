@@ -30,11 +30,12 @@ internal static class PackageVersionDefaults
     /// Fallback minimum version for Atc.Rest.Client.
     /// </summary>
     /// <remarks>
-    /// The generated EndpointPerOperation client needs the trim- and Native AOT-ready 2.3.0 (WithUrlEncodedForm,
+    /// The generated EndpointPerOperation client needs the trim- and Native AOT-ready library (WithUrlEncodedForm,
     /// WithBody with a media type, ConfigureAtcRestClientJsonOptions, URI-escaped query parameter keys,
-    /// WithFormJsonField for an object field of a multipart form).
+    /// WithFormJsonField for an object field of a multipart form) and, since 2.4.0, its readers of streamed responses
+    /// (StreamFraming, typed errors and headers on StreamingEndpointResponse&lt;T&gt;).
     /// </remarks>
-    public static readonly Version RestClientMinFallback = new(2, 3, 0);
+    public static readonly Version RestClientMinFallback = new(2, 4, 0);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.

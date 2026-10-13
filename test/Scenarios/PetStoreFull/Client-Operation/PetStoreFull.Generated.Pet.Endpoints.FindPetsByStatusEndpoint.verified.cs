@@ -74,6 +74,6 @@ public sealed class FindPetsByStatusEndpoint : IFindPetsByStatusEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new FindPetsByStatusEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new FindPetsByStatusEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

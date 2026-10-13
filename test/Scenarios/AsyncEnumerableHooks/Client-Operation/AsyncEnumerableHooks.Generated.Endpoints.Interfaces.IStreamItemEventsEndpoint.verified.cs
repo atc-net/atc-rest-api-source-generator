@@ -11,6 +11,7 @@ using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
+using AsyncEnumerableHooks.Generated.Endpoints.Results;
 using AsyncEnumerableHooks.Generated.Models;
 
 namespace AsyncEnumerableHooks.Generated.Endpoints.Interfaces;
@@ -26,7 +27,7 @@ public interface IStreamItemEventsEndpoint
     /// <summary>
     /// Execute method.
     /// </summary>
-    Task<StreamingEndpointResponse<Item>> ExecuteAsync(
+    Task<StreamItemEventsEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

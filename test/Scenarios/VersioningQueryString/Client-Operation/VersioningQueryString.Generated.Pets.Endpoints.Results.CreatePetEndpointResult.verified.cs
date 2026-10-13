@@ -69,7 +69,7 @@ public partial class CreatePetEndpointResult : EndpointResponse, ICreatePetEndpo
             statusCode: statusCode,
             content: string.Empty,
             contentObject: contentObject,
-            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));
+            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)));
 
     public bool IsCreated
         => StatusCode == HttpStatusCode.Created;

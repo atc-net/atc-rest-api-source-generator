@@ -65,6 +65,6 @@ public sealed class PlaceOrderEndpoint : IPlaceOrderEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new PlaceOrderEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new PlaceOrderEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

@@ -11,9 +11,9 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiClientGenerator : IIncrementalGenerator
 {
-    // The Atc.Rest.Client an EndpointPerOperation client needs: 2.3.0 added WithFormJsonField (an object field of a
-    // multipart form as an application/json part)
-    private static readonly Version MinimumAtcRestClientVersion = new(2, 3, 0);
+    // The Atc.Rest.Client an EndpointPerOperation client needs: 2.4.0 reads the streamed responses (StreamFraming,
+    // typed errors and headers on StreamingEndpointResponse<T>) and looks response headers up whatever their casing
+    private static readonly Version MinimumAtcRestClientVersion = new(2, 4, 0);
 
     /// <summary>
     /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the client code as the output.
@@ -481,14 +481,12 @@ public class ApiClientGenerator : IIncrementalGenerator
             }
         }
 
-        // Emit the shared StreamReaders helper once when an operation references it (Server-Sent
-        // Events today). The per-operation variant deserializes each event via the DI-configured
-        // contract serializer, whereas the typed variant uses the client serializer options. A
-        // generated client is entirely one mode or the other, so only one variant is ever emitted.
-        if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
+        // Emit the shared StreamReaders helper once when an operation of the typed client references it. The
+        // EndpointPerOperation client has none: Atc.Rest.Client reads its streamed responses.
+        if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
+            StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
-            var perOperation = config.GenerationMode == GenerationModeType.EndpointPerOperation;
-            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName, perOperation);
+            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName);
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.StreamReaders.g.cs",
                 SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -988,7 +986,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
-            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName, perOperation: false);
+            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName);
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.StreamReaders.g.cs",
                 SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -2060,40 +2058,6 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "[System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"AOT\", \"IL3050:RequiresDynamicCode\", Justification = \"Only where reflection-based serialization is enabled; trimmed away by its feature switch.\")]");
         sb.AppendLine(4, "private static T? DeserializeLeniently<T>(string content)");
         sb.AppendLine(8, "=> System.Text.Json.JsonSerializer.Deserialize<T>(content, LenientOptions);");
-        sb.AppendLine();
-        sb.AppendLine(4, "/// <summary>");
-        sb.AppendLine(4, "/// An error response whose body was kept as bytes - a media type that is neither JSON nor text, such as");
-        sb.AppendLine(4, "/// <c>application/xml</c> or <c>application/octet-stream</c> - with the body as text (by the Content-Type charset,");
-        sb.AppendLine(4, "/// else UTF-8), so <c>Content</c> and the typed accessors read it like any other error body.");
-        sb.AppendLine(4, "/// </summary>");
-        sb.AppendLine(4, "public static global::Atc.Rest.Client.EndpointResponse WithTextErrorBody(global::Atc.Rest.Client.EndpointResponse response)");
-        sb.AppendLine(4, "{");
-        sb.AppendLine(8, "if (response.IsSuccess || response.ContentObject is not byte[] bytes || response.Content.Length > 0)");
-        sb.AppendLine(8, "{");
-        sb.AppendLine(12, "return response;");
-        sb.AppendLine(8, "}");
-        sb.AppendLine();
-        sb.AppendLine(8, "var encoding = System.Text.Encoding.UTF8;");
-        sb.AppendLine(8, "foreach (var header in response.Headers)");
-        sb.AppendLine(8, "{");
-        sb.AppendLine(12, "if (string.Equals(header.Key, \"Content-Type\", System.StringComparison.OrdinalIgnoreCase) &&");
-        sb.AppendLine(12, "    System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(string.Join(\",\", header.Value), out var mediaType) &&");
-        sb.AppendLine(12, "    mediaType.CharSet is { Length: > 0 } charSet)");
-        sb.AppendLine(12, "{");
-        sb.AppendLine(16, "try");
-        sb.AppendLine(16, "{");
-        sb.AppendLine(20, "encoding = System.Text.Encoding.GetEncoding(charSet.Trim('\"'));");
-        sb.AppendLine(16, "}");
-        sb.AppendLine(16, "catch (System.ArgumentException)");
-        sb.AppendLine(16, "{");
-        sb.AppendLine(20, "// An unknown charset: keep UTF-8.");
-        sb.AppendLine(16, "}");
-        sb.AppendLine(12, "}");
-        sb.AppendLine(8, "}");
-        sb.AppendLine();
-        sb.AppendLine(8, "var text = encoding.GetString(bytes);");
-        sb.AppendLine(8, "return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, text, text, response.Headers);");
-        sb.AppendLine(4, "}");
         sb.AppendLine();
         if (hasXml)
         {

@@ -16,6 +16,7 @@ using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using Demo.Generated;
 using Demo.Generated.Accounts.Endpoints.Interfaces;
+using Demo.Generated.Accounts.Endpoints.Results;
 using Demo.Generated.Accounts.Models;
 
 namespace Demo.Generated.Accounts.Endpoints;
@@ -39,7 +40,7 @@ public sealed class ListAsyncEnumerableAccountsEndpoint : IListAsyncEnumerableAc
         this.httpMessageFactory = httpMessageFactory;
     }
 
-    public async Task<StreamingEndpointResponse<Account>> ExecuteAsync(
+    public async Task<ListAsyncEnumerableAccountsEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
@@ -51,6 +52,8 @@ public sealed class ListAsyncEnumerableAccountsEndpoint : IListAsyncEnumerableAc
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Account>(cancellationToken).ConfigureAwait(false);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Account, ListAsyncEnumerableAccountsEndpointResult>(x => new ListAsyncEnumerableAccountsEndpointResult(x), StreamFraming.JsonArray, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -13,11 +13,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
 using Atc.Rest.Client.Builder;
-using Atc.Rest.Client.Serialization;
 using Microsoft.Extensions.Http;
 using AsyncEnumerableHooks.Generated;
-using AsyncEnumerableHooks.Generated.Streaming;
 using AsyncEnumerableHooks.Generated.Endpoints.Interfaces;
+using AsyncEnumerableHooks.Generated.Endpoints.Results;
 using AsyncEnumerableHooks.Generated.Models;
 
 namespace AsyncEnumerableHooks.Generated.Endpoints;
@@ -32,19 +31,16 @@ public sealed class StreamItemEventsEndpoint : IStreamItemEventsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
-    private readonly IContractSerializer contractSerializer;
 
     public StreamItemEventsEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory,
-        IContractSerializer contractSerializer)
+        IHttpMessageFactory httpMessageFactory)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
-        this.contractSerializer = contractSerializer;
     }
 
-    public async Task<StreamingEndpointResponse<Item>> ExecuteAsync(
+    public async Task<StreamItemEventsEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
@@ -55,22 +51,9 @@ public sealed class StreamItemEventsEndpoint : IStreamItemEventsEndpoint
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return new StreamingEndpointResponse<Item>(false, response.StatusCode, content: null, errorContent, response);
-        }
-
-        try
-        {
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            var content = StreamReaders.ReadServerSentEventsAsync<Item>(stream, contractSerializer, cancellationToken);
-            return new StreamingEndpointResponse<Item>(true, response.StatusCode, content, errorContent: null, response);
-        }
-        catch
-        {
-            response.Dispose();
-            throw;
-        }
+        var responseBuilder = httpMessageFactory.FromResponse(response);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Item, StreamItemEventsEndpointResult>(x => new StreamItemEventsEndpointResult(x), StreamFraming.ServerSentEvents, cancellationToken).ConfigureAwait(false);
     }
 }

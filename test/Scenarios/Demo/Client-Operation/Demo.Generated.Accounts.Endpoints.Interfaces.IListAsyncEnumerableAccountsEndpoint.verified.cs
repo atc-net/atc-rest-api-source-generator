@@ -11,6 +11,7 @@ using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
+using Demo.Generated.Accounts.Endpoints.Results;
 using Demo.Generated.Accounts.Models;
 
 namespace Demo.Generated.Accounts.Endpoints.Interfaces;
@@ -26,7 +27,7 @@ public interface IListAsyncEnumerableAccountsEndpoint
     /// <summary>
     /// Execute method.
     /// </summary>
-    Task<StreamingEndpointResponse<Account>> ExecuteAsync(
+    Task<ListAsyncEnumerableAccountsEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

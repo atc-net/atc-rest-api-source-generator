@@ -141,18 +141,18 @@ public class GeneratorDiagnosticsTests
     }
 
     /// <summary>
-    /// The generated EndpointPerOperation client calls members Atc.Rest.Client added in 2.3.0 (WithFormJsonField); an
+    /// The generated EndpointPerOperation client calls members Atc.Rest.Client added in 2.4.0 (StreamFraming); an
     /// older package is an error naming the version, not a compile error in generated code.
     /// </summary>
     [Fact]
     public void Client_WithAnAtcRestClientOlderThanTheMinimum_ReportsDEP011()
     {
         var marker = Marker(".atc-rest-api-client", """{ "generationMode": "EndpointPerOperation" }""");
-        var diagnostics = RunDiagnostics(new ApiClientGenerator(), [Spec(Yaml), marker], Plus(Without("Atc.Rest.Client"), "Atc.Rest.Client", "2.2.0.0"));
+        var diagnostics = RunDiagnostics(new ApiClientGenerator(), [Spec(Yaml), marker], Plus(Without("Atc.Rest.Client"), "Atc.Rest.Client", "2.3.0.0"));
         var error = Assert.Single(diagnostics, d => d.Id == "ATC_API_DEP011");
         Assert.Equal(DiagnosticSeverity.Error, error.Severity);
-        Assert.Contains("2.2.0", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
         Assert.Contains("2.3.0", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        Assert.Contains("2.4.0", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
         Assert.DoesNotContain("ATC_API_DEP011", Run(new ApiClientGenerator(), [Spec(Yaml), marker], Full()));
         Assert.DoesNotContain("ATC_API_DEP011", Run(new ApiClientGenerator(), [Spec(Yaml), Marker(".atc-rest-api-client", """{ "generationMode": "TypedClient" }""")], Plus(Without("Atc.Rest.Client"), "Atc.Rest.Client", "2.2.0.0")));

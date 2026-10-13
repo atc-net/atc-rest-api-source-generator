@@ -54,6 +54,6 @@ public sealed class ListTreesEndpoint : IListTreesEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Node>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListTreesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListTreesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

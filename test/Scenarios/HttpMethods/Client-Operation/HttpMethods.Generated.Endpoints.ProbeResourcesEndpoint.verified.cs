@@ -54,6 +54,6 @@ public sealed class ProbeResourcesEndpoint : IProbeResourcesEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ProbeResourcesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ProbeResourcesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

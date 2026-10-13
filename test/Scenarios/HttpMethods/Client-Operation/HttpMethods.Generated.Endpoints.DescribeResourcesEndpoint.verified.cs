@@ -54,6 +54,6 @@ public sealed class DescribeResourcesEndpoint : IDescribeResourcesEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.NoContent);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DescribeResourcesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new DescribeResourcesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

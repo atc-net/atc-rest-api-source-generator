@@ -76,6 +76,6 @@ public sealed class AddPetEndpoint : IAddPetEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new AddPetEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new AddPetEndpointResult(ProblemDetailsFactory.WithXmlProblemBody(x)), cancellationToken).ConfigureAwait(false);
     }
 }

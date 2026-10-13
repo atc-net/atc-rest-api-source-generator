@@ -55,6 +55,6 @@ public sealed class ListDevicesEndpoint : IListDevicesEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.ServiceUnavailable);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListDevicesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new ListDevicesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

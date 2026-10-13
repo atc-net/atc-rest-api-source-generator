@@ -1374,8 +1374,8 @@ public partial class ErrorResponseBodyRuntimeTests
 
     /// <summary>
     /// The Atc.Rest.Client the generated EndpointPerOperation client runs on reads an error body of any media type as
-    /// text (<c>Content</c>), without the generated <c>WithTextErrorBody</c> fallback. 2.0.36 left <c>Content</c> empty for
-    /// <c>application/xml</c> / <c>application/octet-stream</c>; this guards the fix released in 2.1.0.
+    /// text (<c>Content</c>) - the generated client has no fallback of its own for it. 2.0.36 left <c>Content</c> empty
+    /// for <c>application/xml</c> / <c>application/octet-stream</c>; this guards the fix released in 2.1.0.
     /// </summary>
     [Fact]
     public async Task AtcRestClient_ReadsAnErrorBodyOfAnyMediaTypeAsText()
@@ -1423,40 +1423,6 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Contains("public static GetStatus303Result SeeOther(System.Uri location)", server, StringComparison.Ordinal);
         Assert.Contains("public static GetStatus206Result PartialContent(Item response)", server, StringComparison.Ordinal);
         Assert.Contains("public bool IsNotModified", client, StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// An error body Atc.Rest.Client kept as bytes (a media type that is neither JSON nor text) is decoded by the
-    /// Content-Type charset - UTF-8 without one - and a success response is left alone.
-    /// </summary>
-    [Fact]
-    public void ClientWithTextErrorBody_DecodesByTheContentTypeCharset()
-    {
-        var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientOperationMarker("ProblemDetails"));
-        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
-        var withText = assembly.GetType("ErrorBodies.Generated.ProblemDetailsFactory", throwOnError: true)!.GetMethod("WithTextErrorBody")!;
-
-        Atc.Rest.Client.EndpointResponse Decode(
-            bool isSuccess,
-            byte[] bytes,
-            string contentType)
-            => (Atc.Rest.Client.EndpointResponse)withText.Invoke(null, [
-                new Atc.Rest.Client.EndpointResponse(
-                    isSuccess,
-                    isSuccess ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable,
-                    string.Empty,
-                    bytes,
-                    new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal) { ["Content-Type"] = [contentType] }),
-            ])!;
-
-        const string text = "<fejl>æøå</fejl>";
-        Assert.Equal(text, Decode(isSuccess: false, Encoding.Latin1.GetBytes(text), "application/xml; charset=iso-8859-1").Content);
-        Assert.Equal(text, Decode(isSuccess: false, Encoding.UTF8.GetBytes(text), "application/xml").Content);
-        Assert.Equal(text, Decode(isSuccess: false, Encoding.UTF8.GetBytes(text), "application/xml; charset=unknown-charset").Content);
-
-        var success = Decode(isSuccess: true, Encoding.UTF8.GetBytes(text), "application/octet-stream");
-        Assert.Equal(string.Empty, success.Content);
-        Assert.IsType<byte[]>(success.ContentObject);
     }
 
     /// <summary>

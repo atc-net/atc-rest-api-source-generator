@@ -56,6 +56,6 @@ public sealed class DeleteNotesEndpoint : IDeleteNotesEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DeleteNotesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteNotesEndpointResult(x), cancellationToken).ConfigureAwait(false);
     }
 }

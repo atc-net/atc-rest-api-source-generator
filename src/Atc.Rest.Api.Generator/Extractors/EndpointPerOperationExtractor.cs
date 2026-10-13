@@ -399,15 +399,20 @@ public static class EndpointPerOperationExtractor
             useServersBasePath,
             preferXml);
 
-        // For binary and streaming endpoints, skip generating result interface/class
-        // (use BinaryEndpointResponse or StreamingEndpointResponse directly)
+        // A binary endpoint has no result interface/class (it returns StreamBinaryEndpointResponse). A streamed one
+        // has: the items are the response's Content, so its success responses carry no content of their own.
         string? resultInterfaceFileName = null;
         string? resultInterfaceContent = null;
         string? resultClassFileName = null;
         string? resultClassContent = null;
+        var streamedItemType = isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType) ? streamingItemType : null;
 
-        if (!isBinaryEndpoint && !isAsyncEnumerable)
+        if (!isBinaryEndpoint && (!isAsyncEnumerable || streamedItemType is not null))
         {
+            var resultResponses = streamedItemType is null
+                ? responses
+                : responses.ConvertAll(r => r.IsSuccess ? r with { ContentType = null, Xml = null, IsFile = false, FileMediaTypes = null, TextMediaType = null } : r);
+
             // Generate result interface
             // The headers the responses declare: typed properties of the result
             var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation);
@@ -417,11 +422,12 @@ public static class EndpointPerOperationExtractor
                 pathSegment,
                 operationName,
                 description,
-                responses,
+                resultResponses,
                 defaultResponse,
                 hasSegmentModels,
                 hasSharedModels,
-                declaredHeaders);
+                declaredHeaders,
+                streamedItemType);
             resultInterfaceFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment),
                 $"I{operationName}EndpointResult");
@@ -432,12 +438,13 @@ public static class EndpointPerOperationExtractor
                 pathSegment,
                 operationName,
                 description,
-                responses,
+                resultResponses,
                 defaultResponse,
                 hasSegmentModels,
                 hasSharedModels,
                 customErrorTypeName,
-                declaredHeaders);
+                declaredHeaders,
+                streamedItemType);
             resultClassFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointResults(projectName, pathSegment),
                 $"{operationName}EndpointResult");
@@ -661,8 +668,8 @@ public static class EndpointPerOperationExtractor
             headerBuilder.AppendLine($"using {NamespaceBuilder.ForClient(projectName, pathSegment)};");
         }
 
-        // Add using for result type (in Endpoints.Results namespace) - only for non-binary and non-streaming endpoints
-        if (!isBinaryEndpoint && !isAsyncEnumerable)
+        // Add using for result type (in Endpoints.Results namespace) - a binary endpoint has none
+        if (!isBinaryEndpoint)
         {
             headerBuilder.AppendLine($"using {NamespaceBuilder.ForEndpointResults(projectName, pathSegment)};");
         }
@@ -690,20 +697,11 @@ public static class EndpointPerOperationExtractor
         // Build method parameters
         var methodParameters = ExecuteAsyncParameters(operationName, hasParameters);
 
-        // Determine return type: BinaryEndpointResponse for binary, StreamingEndpointResponse for streaming, custom result class otherwise
-        string returnTypeName;
-        if (isBinaryEndpoint)
-        {
-            returnTypeName = "Task<StreamBinaryEndpointResponse>";
-        }
-        else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
-        {
-            returnTypeName = $"Task<StreamingEndpointResponse<{streamingItemType}>>";
-        }
-        else
-        {
-            returnTypeName = $"Task<{operationName}EndpointResult>";
-        }
+        // Determine return type: StreamBinaryEndpointResponse for binary, the result class otherwise (for a streamed
+        // operation it derives from StreamingEndpointResponse<T>)
+        var returnTypeName = isBinaryEndpoint
+            ? "Task<StreamBinaryEndpointResponse>"
+            : $"Task<{operationName}EndpointResult>";
 
         // Build ExecuteAsync method
         var executeMethod = new MethodParameters(
@@ -767,18 +765,6 @@ public static class EndpointPerOperationExtractor
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
 
-        // SSE/JSON-Lines/JSON-seq/multipart build the StreamingEndpointResponse<T> inline using the
-        // emitted StreamReaders helper, which deserializes each element via the DI-configured
-        // IContractSerializer (Atc.Rest.Client.Serialization) and lives in the Streaming namespace.
-        var endpointFraming = operation.GetStreamingFraming();
-        var usesStreamReaders = isAsyncEnumerable &&
-                                !string.IsNullOrEmpty(streamingItemType) &&
-                                UsesStreamReaders(endpointFraming);
-
-        // multipart/mixed extracts the response Content-Type boundary via LINQ — needs System
-        // (StringComparison) and System.Linq (FirstOrDefault), which are not otherwise imported.
-        var isMultipartStreaming = usesStreamReaders && endpointFraming == StreamingFraming.MultipartMixed;
-
         // Per-operation retry (x-retry-*): tells the API resilience handler how to run this request
         // when it differs from the handler default (its policy for safe methods, no retry for POST/PATCH).
         // A response that is not streamed is also read inside the handler's attempt, so its timeout and retry cover the body.
@@ -799,18 +785,8 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine("// <auto-generated />");
         headerBuilder.AppendLine("#nullable enable");
         headerBuilder.AppendLine();
-        if (isMultipartStreaming)
-        {
-            headerBuilder.AppendLine("using System;");
-        }
-
         headerBuilder.AppendLine("using System.CodeDom.Compiler;");
         headerBuilder.AppendLine("using System.Collections.Generic;");
-        if (isMultipartStreaming)
-        {
-            headerBuilder.AppendLine("using System.Linq;");
-        }
-
         headerBuilder.AppendLine("using System.Net;");
         headerBuilder.AppendLine("using System.Net.Http;");
         headerBuilder.AppendLine("using System.Threading;");
@@ -823,11 +799,6 @@ public static class EndpointPerOperationExtractor
         }
 
         headerBuilder.AppendLine("using Atc.Rest.Client.Builder;");
-        if (usesStreamReaders)
-        {
-            headerBuilder.AppendLine("using Atc.Rest.Client.Serialization;");
-        }
-
         headerBuilder.AppendLine("using Microsoft.Extensions.Http;");
         headerBuilder.AppendLine($"using {projectName}.Generated;");
         if (resilienceStamp is not null)
@@ -835,15 +806,10 @@ public static class EndpointPerOperationExtractor
             headerBuilder.AppendLine($"using {projectName}.Generated.Resilience;");
         }
 
-        if (usesStreamReaders)
-        {
-            headerBuilder.AppendLine($"using {projectName}.Generated.Streaming;");
-        }
-
         headerBuilder.AppendLine($"using {NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment)};");
 
-        // Add using for result types (in Results namespace) - only for non-binary and non-streaming endpoints
-        if (!isBinaryEndpoint && !isAsyncEnumerable)
+        // Add using for result types (in Results namespace) - a binary endpoint has none
+        if (!isBinaryEndpoint)
         {
             headerBuilder.AppendLine($"using {NamespaceBuilder.ForEndpointResults(projectName, pathSegment)};");
         }
@@ -897,22 +863,6 @@ public static class EndpointPerOperationExtractor
                 CreateAaOneLiner: false),
         };
 
-        // SSE and JSON Lines deserialize each element via the DI-configured IContractSerializer
-        // (so the per-op client honors the same serialization as the legacy streaming path).
-        // Only these StreamReaders-based endpoints need it; others keep the 2-arg constructor.
-        if (usesStreamReaders)
-        {
-            constructorParams.Add(new(
-                GenericTypeName: null,
-                TypeName: "IContractSerializer",
-                IsNullableType: false,
-                Name: "contractSerializer",
-                DefaultValue: null,
-                PassToInheritedClass: false,
-                CreateAsPrivateReadonlyMember: true,
-                CreateAaOneLiner: false));
-        }
-
         var constructor = new ConstructorParameters(
             DocumentationTags: null,
             DeclarationModifier: DeclarationModifiers.Public,
@@ -941,20 +891,11 @@ public static class EndpointPerOperationExtractor
             useServersBasePath,
             preferXml);
 
-        // Determine return type: BinaryEndpointResponse for binary, StreamingEndpointResponse for streaming, custom result class otherwise
-        string returnTypeName;
-        if (isBinaryEndpoint)
-        {
-            returnTypeName = "Task<StreamBinaryEndpointResponse>";
-        }
-        else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
-        {
-            returnTypeName = $"Task<StreamingEndpointResponse<{streamingItemType}>>";
-        }
-        else
-        {
-            returnTypeName = $"Task<{operationName}EndpointResult>";
-        }
+        // Determine return type: StreamBinaryEndpointResponse for binary, the result class otherwise (for a streamed
+        // operation it derives from StreamingEndpointResponse<T>)
+        var returnTypeName = isBinaryEndpoint
+            ? "Task<StreamBinaryEndpointResponse>"
+            : $"Task<{operationName}EndpointResult>";
 
         var executeMethod = new MethodParameters(
             DocumentationTags: null,
@@ -1334,19 +1275,8 @@ public static class EndpointPerOperationExtractor
 
         sb.AppendLine();
 
-        // SSE and JSON Lines build the StreamingEndpointResponse<T> inline (their wire framing is
-        // not a JSON array, so the JSON-based responseBuilder can't parse it), so only emit the
-        // responseBuilder for the other paths.
-        var streamFraming = operation.GetStreamingFraming();
-        var usesStreamReaders = isAsyncEnumerable &&
-                                !string.IsNullOrEmpty(streamingItemType) &&
-                                UsesStreamReaders(streamFraming);
-
-        if (!usesStreamReaders)
-        {
-            // Build response
-            sb.AppendLine("var responseBuilder = httpMessageFactory.FromResponse(response);");
-        }
+        // Build response
+        sb.AppendLine("var responseBuilder = httpMessageFactory.FromResponse(response);");
 
         if (isBinaryEndpoint)
         {
@@ -1370,53 +1300,13 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(4, "throw;");
             sb.Append('}');
         }
-        else if (usesStreamReaders)
-        {
-            // SSE/JSON-Lines/JSON-seq/multipart framing is not a JSON array, so the Atc.Rest.Client
-            // BuildStreamingEndpointResponseAsync<T> reader cannot parse it. Build the
-            // StreamingEndpointResponse<T> inline using the emitted StreamReaders helper, which
-            // deserializes each element via the DI-configured IContractSerializer. multipart/mixed
-            // additionally extracts the boundary from the response Content-Type (the reader's extra arg).
-            var readerMethod = ReaderMethodName(streamFraming);
-            var isMultipart = streamFraming == StreamingFraming.MultipartMixed;
-            sb.AppendLine("if (!response.IsSuccessStatusCode)");
-            sb.AppendLine("{");
-            sb.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
-            sb.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(false, response.StatusCode, content: null, errorContent, response);");
-            sb.AppendLine("}");
-            sb.AppendLine();
-
-            // Until the envelope owns the response, a failure (the body cannot be opened, no multipart boundary)
-            // disposes it
-            sb.AppendLine("try");
-            sb.AppendLine("{");
-            sb.AppendLine(4, "var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
-            if (isMultipart)
-            {
-                sb.AppendLine(4, "var boundary = response.Content.Headers.ContentType?.Parameters");
-                sb.AppendLine(8, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
-                sb.AppendLine(8, "?? throw new global::System.IO.InvalidDataException(\"A multipart/mixed response without a boundary in its Content-Type cannot be split into its parts.\");");
-                sb.AppendLine(4, $"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, boundary, contractSerializer, cancellationToken);");
-            }
-            else
-            {
-                sb.AppendLine(4, $"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, contractSerializer, cancellationToken);");
-            }
-
-            sb.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
-            sb.AppendLine("}");
-            sb.AppendLine("catch");
-            sb.AppendLine("{");
-            sb.AppendLine(4, "response.Dispose();");
-            sb.AppendLine(4, "throw;");
-            sb.Append('}');
-        }
         else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
-            // For streaming endpoints, use BuildStreamingEndpointResponseAsync directly.
-            // This returns a StreamingEndpointResponse<T> that manages the response lifecycle
-            // and allows proper streaming enumeration.
-            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}>(cancellationToken).ConfigureAwait(false);");
+            // A streamed response: Atc.Rest.Client reads the items in the operation's framing as they arrive, an
+            // error body as the type registered for its status, and the headers. The result owns the response - the
+            // builder disposes it when no result can be built (a multipart answer without a boundary).
+            AppendResponseRegistrations(sb, responses.Where(r => !r.IsSuccess).ToList(), defaultResponse);
+            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}, {operationName}EndpointResult>(x => new {operationName}EndpointResult(x), StreamFraming.{operation.GetStreamingFraming()}, cancellationToken).ConfigureAwait(false);");
         }
         else
         {
@@ -1424,8 +1314,8 @@ public static class EndpointPerOperationExtractor
 
             // An operation with an XML answer may get its errors as application/problem+xml: read into the typed problem
             sb.Append(responses.Any(r => r.Xml is not null)
-                ? $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken).ConfigureAwait(false);"
-                : $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken).ConfigureAwait(false);");
+                ? $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithXmlProblemBody(x)), cancellationToken).ConfigureAwait(false);"
+                : $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(x), cancellationToken).ConfigureAwait(false);");
         }
 
         return sb.ToString();
@@ -1615,7 +1505,8 @@ public static class EndpointPerOperationExtractor
         ResponseInfo? defaultResponse,
         bool hasSegmentModels,
         bool hasSharedModels,
-        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders)
+        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders,
+        string? streamedItemType)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1651,7 +1542,9 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine($"/// Operation: {operationName}.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        sb.AppendLine($"public interface I{operationName}EndpointResult : IEndpointResponse");
+        sb.AppendLine(streamedItemType is null
+            ? $"public interface I{operationName}EndpointResult : IEndpointResponse"
+            : $"public interface I{operationName}EndpointResult : IStreamingEndpointResponse<{streamedItemType}>");
         sb.AppendLine("{");
 
         foreach (var response in responses)
@@ -1719,7 +1612,8 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels,
         string? customErrorTypeName,
-        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders)
+        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders,
+        string? streamedItemType)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1759,9 +1653,10 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine($"/// Operation: {operationName}.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        sb.AppendLine($"public partial class {operationName}EndpointResult : EndpointResponse, I{operationName}EndpointResult");
+        var baseType = streamedItemType is null ? "EndpointResponse" : $"StreamingEndpointResponse<{streamedItemType}>";
+        sb.AppendLine($"public partial class {operationName}EndpointResult : {baseType}, I{operationName}EndpointResult");
         sb.AppendLine("{");
-        sb.AppendLine(4, $"public {operationName}EndpointResult(EndpointResponse response)");
+        sb.AppendLine(4, $"public {operationName}EndpointResult({baseType} response)");
         sb.AppendLine(8, ": base(response)");
         sb.AppendLine(4, "{");
         sb.AppendLine(4, "}");
@@ -1777,7 +1672,13 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(4, $"/// Creates a result representing HTTP {response.StatusEnumName}.");
             sb.AppendLine(4, "/// </summary>");
 
-            if (response.ContentType is null)
+            if (streamedItemType is not null && response.IsSuccess)
+            {
+                // A streamed success: the items it yields
+                sb.AppendLine(4, $"public static {operationName}EndpointResult {response.PropertyName}(IAsyncEnumerable<{streamedItemType}?> items)");
+                sb.AppendLine(8, $"=> Create({response.StatusCodeExpression}, contentObject: null, items);");
+            }
+            else if (response.ContentType is null)
             {
                 sb.AppendLine(4, $"public static {operationName}EndpointResult {response.PropertyName}()");
                 sb.AppendLine(8, $"=> Create({response.StatusCodeExpression}, contentObject: null);");
@@ -1820,15 +1721,43 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
-        sb.AppendLine(4, $"private static {operationName}EndpointResult Create(");
-        sb.AppendLine(8, "HttpStatusCode statusCode,");
-        sb.AppendLine(8, "object? contentObject)");
-        sb.AppendLine(8, "=> new(new EndpointResponse(");
-        sb.AppendLine(12, "isSuccess: (int)statusCode is >= 200 and < 300,");
-        sb.AppendLine(12, "statusCode: statusCode,");
-        sb.AppendLine(12, "content: string.Empty,");
-        sb.AppendLine(12, "contentObject: contentObject,");
-        sb.AppendLine(12, "headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));");
+        if (streamedItemType is null)
+        {
+            sb.AppendLine(4, $"private static {operationName}EndpointResult Create(");
+            sb.AppendLine(8, "HttpStatusCode statusCode,");
+            sb.AppendLine(8, "object? contentObject)");
+            sb.AppendLine(8, "=> new(new EndpointResponse(");
+            sb.AppendLine(12, "isSuccess: (int)statusCode is >= 200 and < 300,");
+            sb.AppendLine(12, "statusCode: statusCode,");
+            sb.AppendLine(12, "content: string.Empty,");
+            sb.AppendLine(12, "contentObject: contentObject,");
+            sb.AppendLine(12, "headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)));");
+        }
+        else
+        {
+            sb.AppendLine(4, $"private static {operationName}EndpointResult Create(");
+            sb.AppendLine(8, "HttpStatusCode statusCode,");
+            sb.AppendLine(8, "object? contentObject,");
+            sb.AppendLine(8, $"IAsyncEnumerable<{streamedItemType}?>? items = null)");
+            sb.AppendLine(8, $"=> new(new StreamingEndpointResponse<{streamedItemType}>(");
+            sb.AppendLine(12, "isSuccess: (int)statusCode is >= 200 and < 300,");
+            sb.AppendLine(12, "statusCode: statusCode,");
+            sb.AppendLine(12, "content: items,");
+            sb.AppendLine(12, "errorContent: contentObject as string,");
+            sb.AppendLine(12, "httpResponse: null,");
+            sb.AppendLine(12, "errorContentObject: contentObject,");
+            sb.AppendLine(12, "headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)));");
+            sb.AppendLine();
+
+            // The accessors below read what an EndpointResponse calls Content and ContentObject: the error text, and the
+            // error read as the registered type - or, as there, the text when it could not be read as it
+            sb.AppendLine(4, "private string ErrorText");
+            sb.AppendLine(8, "=> ErrorContent ?? string.Empty;");
+            sb.AppendLine();
+            sb.AppendLine(4, "private object? ErrorObject");
+            sb.AppendLine(8, "=> ErrorContentObject ?? ErrorContent;");
+        }
+
         sb.AppendLine();
 
         // Is{PropertyName} properties
@@ -2029,7 +1958,23 @@ public static class EndpointPerOperationExtractor
             content = content.Substring(0, content.Length - 1);
         }
 
-        return content + "}\n";
+        return streamedItemType is null
+            ? content + "}\n"
+            : StreamedResultText(content + "}\n");
+    }
+
+    /// <summary>
+    /// The result class of a streamed operation, from the text written for a response read whole: the base class is
+    /// <c>StreamingEndpointResponse&lt;T&gt;</c>, where the error body is <c>ErrorContentObject</c> and its text
+    /// <c>ErrorContent</c> (<c>Content</c> is the items) - read through the class's <c>ErrorObject</c> and
+    /// <c>ErrorText</c> - and the exception of a wrong access is not generic.
+    /// </summary>
+    private static string StreamedResultText(string text)
+    {
+        var timeout = TimeSpan.FromSeconds(5);
+        text = Regex.Replace(text, @"(?<![\w.])ContentObject\b", "ErrorObject", RegexOptions.None, timeout);
+        text = Regex.Replace(text, @"(?<![\w.""])Content\b(?![""-])", "ErrorText", RegexOptions.None, timeout);
+        return Regex.Replace(text, @"InvalidContentAccessException<.*?>\(", "InvalidContentAccessException(", RegexOptions.None, timeout);
     }
 
     private static string GetSchemaTypeName(
@@ -2339,32 +2284,4 @@ public static class EndpointPerOperationExtractor
                 Text: (b, indent, name, text) => b.AppendLine(indent, $"requestBuilder.WithFormField({CSharpLiteralHelper.ToStringLiteral(name)}, {text});"),
                 Json: (b, indent, name, value) => b.AppendLine(indent, $"requestBuilder.WithFormJsonField({CSharpLiteralHelper.ToStringLiteral(name)}, {value});")));
     }
-
-    /// <summary>
-    /// Determines whether a streaming operation reads its response via the emitted per-operation
-    /// <c>StreamReaders</c> helper (rather than the JSON-array-based <c>BuildStreamingEndpointResponseAsync</c>).
-    /// That is true for the wire framings whose bytes are not a JSON array: Server-Sent Events,
-    /// JSON Lines, JSON Text Sequence and multipart/mixed.
-    /// </summary>
-    private static bool UsesStreamReaders(StreamingFraming framing)
-        => framing is StreamingFraming.ServerSentEvents
-            or StreamingFraming.JsonLines
-            or StreamingFraming.JsonSequence
-            or StreamingFraming.MultipartMixed;
-
-    /// <summary>
-    /// Maps a StreamReaders-based framing to the emitted per-operation reader method name. Throws
-    /// for any framing not explicitly handled so a newly-added framing (e.g. json-seq in a later
-    /// task) fails loudly here instead of silently routing through the JSON Lines reader.
-    /// </summary>
-    private static string ReaderMethodName(StreamingFraming framing)
-        => framing switch
-        {
-            StreamingFraming.ServerSentEvents => "ReadServerSentEventsAsync",
-            StreamingFraming.JsonLines => "ReadJsonLinesAsync",
-            StreamingFraming.JsonSequence => "ReadJsonSequenceAsync",
-            StreamingFraming.MultipartMixed => "ReadMultipartMixedAsync",
-            _ => throw new InvalidOperationException(
-                $"No per-operation StreamReaders method is defined for framing '{framing}'."),
-        };
 }
