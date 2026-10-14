@@ -260,31 +260,31 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         }
 
         if (!string.IsNullOrWhiteSpace(settings.EnumStyle) &&
-            Enum.TryParse<TypeScriptEnumStyle>(settings.EnumStyle, ignoreCase: true, out var enumStyle))
+            EnumOptionHelper.TryParse<TypeScriptEnumStyle>(settings.EnumStyle, out var enumStyle))
         {
             config.EnumStyle = enumStyle;
         }
 
         if (!string.IsNullOrWhiteSpace(settings.HooksStyle) &&
-            Enum.TryParse<TypeScriptHooksStyle>(settings.HooksStyle, ignoreCase: true, out var hooksStyle))
+            EnumOptionHelper.TryParse<TypeScriptHooksStyle>(settings.HooksStyle, out var hooksStyle))
         {
             config.HooksStyle = hooksStyle;
         }
 
         if (!string.IsNullOrWhiteSpace(settings.HooksMode) &&
-            Enum.TryParse<TypeScriptHooksMode>(settings.HooksMode, ignoreCase: true, out var hooksMode))
+            EnumOptionHelper.TryParse<TypeScriptHooksMode>(settings.HooksMode, out var hooksMode))
         {
             config.HooksMode = hooksMode;
         }
 
         if (!string.IsNullOrWhiteSpace(settings.ClientType) &&
-            Enum.TryParse<TypeScriptHttpClient>(settings.ClientType, ignoreCase: true, out var httpClient))
+            EnumOptionHelper.TryParse<TypeScriptHttpClient>(settings.ClientType, out var httpClient))
         {
             config.HttpClient = httpClient;
         }
 
         if (!string.IsNullOrWhiteSpace(settings.NamingStrategy) &&
-            Enum.TryParse<TypeScriptNamingStrategy>(settings.NamingStrategy, ignoreCase: true, out var namingStrategy))
+            EnumOptionHelper.TryParse<TypeScriptNamingStrategy>(settings.NamingStrategy, out var namingStrategy))
         {
             config.NamingStrategy = namingStrategy;
         }

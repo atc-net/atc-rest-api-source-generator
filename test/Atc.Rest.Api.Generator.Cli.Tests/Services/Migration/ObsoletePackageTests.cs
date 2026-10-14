@@ -38,6 +38,52 @@ public sealed class ObsoletePackageTests : IDisposable
 
         // Atc.Rest.MinimalApi is what the source generator's server code builds on - it is upgraded, not obsolete
         Assert.Equal(["Atc.Rest.Extended"], result.PackagesToRemove);
+
+        // ... to the version the generated server needs: the first build stops with ATC_API_DEP013 otherwise
+        var upgrade = Assert.Single(result.PackagesToUpgrade);
+        Assert.Equal(("Atc.Rest.MinimalApi", "1.0.87", "3.0.0", "ATC_API_DEP013"), (upgrade.Package, upgrade.Version, upgrade.Minimum, upgrade.RuleId));
+    }
+
+    [Theory]
+    [InlineData("Atc.Rest.MinimalApi", "2.0.41", "3.0.0")]
+    [InlineData("Atc.Rest.Client", "1.0.79", "2.6.0")]
+    [InlineData("Atc.Rest.Client", "2.5.0", "2.6.0")]
+    public void Analyze_APackageOlderThanTheGeneratedCodeNeeds_IsToBeUpgraded(
+        string package,
+        string version,
+        string minimum)
+    {
+        var project = Write("src/Contoso.Api/Contoso.Api.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+              <ItemGroup>
+                <PackageReference Include="{package}" Version="{version}" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        var result = PackageReferenceAnalyzer.Analyze([project]);
+
+        var upgrade = Assert.Single(result.PackagesToUpgrade);
+        Assert.Equal((package, version, minimum), (upgrade.Package, upgrade.Version, upgrade.Minimum));
+    }
+
+    [Theory]
+    [InlineData("Atc.Rest.MinimalApi", "3.0.0")]
+    [InlineData("Atc.Rest.Client", "2.6.0")]
+    [InlineData("Atc.Rest.Client", "2.7.1-preview.3")]
+    public void Analyze_APackageTheGeneratedCodeCanUse_IsNotToBeUpgraded(
+        string package,
+        string version)
+    {
+        var project = Write("src/Contoso.Api/Contoso.Api.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+              <ItemGroup>
+                <PackageReference Include="{package}" Version="{version}" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        Assert.Empty(PackageReferenceAnalyzer.Analyze([project]).PackagesToUpgrade);
     }
 
     [Fact]

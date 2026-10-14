@@ -50,6 +50,11 @@ internal static class PackageVersionDefaults
     public static readonly Version ResilienceMinFallback = new(10, 7, 0);
 
     /// <summary>
+    /// The minimum Atc.Rest.MinimalApi a generated server that builds on it needs (the generator's ATC_API_DEP013).
+    /// </summary>
+    public static readonly Version MinimalApiMin = new(3, 0, 0);
+
+    /// <summary>
     /// Fallback minimum version for Microsoft.AspNetCore.SignalR.Client.
     /// </summary>
     public static readonly Version SignalRClientMinFallback = new(10, 0, 12);

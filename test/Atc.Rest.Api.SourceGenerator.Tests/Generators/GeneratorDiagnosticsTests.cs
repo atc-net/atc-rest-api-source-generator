@@ -200,6 +200,28 @@ public class GeneratorDiagnosticsTests
     }
 
     /// <summary>
+    /// A server that builds on Atc.Rest.MinimalApi needs the 3.0 package: its validation keys, a handler's
+    /// ValidationException with its field errors and its problem bodies are what the generated server is written for. An
+    /// older package would compile and answer differently on the wire, so it is an error naming both versions - unless the
+    /// marker turns every use of the package off.
+    /// </summary>
+    [Fact]
+    public void Server_WithAnAtcRestMinimalApiOlderThan3_ReportsDEP013()
+    {
+        var old = Plus(Without("Atc.Rest.MinimalApi"), "Atc.Rest.MinimalApi", "2.0.41.0");
+        var diagnostics = RunDiagnostics(new ApiServerGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server", "{}")], old);
+        var error = Assert.Single(diagnostics, d => d.Id == "ATC_API_DEP013");
+        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+        Assert.Contains("2.0.41", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        Assert.Contains("3.0.0", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+        Assert.DoesNotContain("ATC_API_DEP013", Run(new ApiServerGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server", "{}")], Full(includeMinimalApi: true)));
+        Assert.DoesNotContain("ATC_API_DEP013", Run(new ApiServerGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server", "{}")], Full()));
+        var none = Marker(".atc-rest-api-server", """{ "useMinimalApiPackage": "Disabled", "useValidationFilter": "Disabled", "useGlobalErrorHandler": "Disabled" }""");
+        Assert.DoesNotContain("ATC_API_DEP013", Run(new ApiServerGenerator(), [Spec(Yaml), none], old));
+    }
+
+    /// <summary>
     /// The ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json); an
     /// operation that declares its 400 as a string cannot carry its field errors, so the client reads only the title
     /// as the string. A note, not a warning: the specification is valid, and a hand-written 400 may be the string.

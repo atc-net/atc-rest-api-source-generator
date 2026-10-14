@@ -9,6 +9,10 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiServerGenerator : IIncrementalGenerator
 {
+    // The Atc.Rest.MinimalApi a server that builds on it needs: 3.0.0 keys validation errors by the names the client sent,
+    // keeps a handler's ValidationException field errors and writes every error as a problem
+    private static readonly Version MinimumMinimalApiVersion = new(3, 0, 0);
+
     /// <summary>
     /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the server code and its diagnostics as the output.
     /// </summary>
@@ -51,8 +55,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 NamesFoundFirst = project.RequestDelegateGenerator ? NamesBesideRequestDelegates(project.Compilation) : string.Empty,
                 HasAspNetCore = project.Compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase)),
-                HasMinimalApi = project.Compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase)),
+                MinimalApiVersion = project.Compilation.ReferencedAssemblyNames
+                    .FirstOrDefault(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase))?.Version,
                 HasHealthChecks = project.Compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.Equals("Atc.Rest.HealthChecks", StringComparison.OrdinalIgnoreCase)),
                 HasBearerHandler = project.Compilation.ReferencedAssemblyNames
@@ -78,7 +82,12 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         public bool HasAspNetCore { get; init; }
 
-        public bool HasMinimalApi { get; init; }
+        public bool HasMinimalApi => MinimalApiVersion is not null;
+
+        /// <summary>
+        /// The version of the referenced Atc.Rest.MinimalApi, or <see langword="null"/> when there is none.
+        /// </summary>
+        public Version? MinimalApiVersion { get; init; }
 
         public bool HasHealthChecks { get; init; }
 
@@ -231,6 +240,15 @@ public class ApiServerGenerator : IIncrementalGenerator
             MinimalApiPackageMode.Disabled => false,
             _ => hasMinimalApi,
         };
+
+        // ... in the version the generated server is written for
+        if ((useMinimalApiPackage || useValidationFilter || useGlobalErrorHandler) &&
+            packages.MinimalApiVersion is { } minimalApiVersion &&
+            minimalApiVersion < MinimumMinimalApiVersion)
+        {
+            DiagnosticHelpers.ReportMinimalApiTooOld(productionContext, MinimumMinimalApiVersion, minimalApiVersion);
+            return;
+        }
 
         // Everything from here runs under the catch: a failure before the base file is known is reported on the marker
         var filePath = marker.Path;

@@ -154,14 +154,14 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
 
         // Validate sub-folder strategy if provided
         if (!string.IsNullOrWhiteSpace(SubFolderStrategy) &&
-            !Enum.TryParse<SubFolderStrategyType>(SubFolderStrategy, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<SubFolderStrategyType>(SubFolderStrategy, out _))
         {
-            return ValidationResult.Error($"Invalid sub-folder strategy: '{SubFolderStrategy}'. Valid values: None, FirstPathSegment, OpenApiTag.");
+            return ValidationResult.Error($"Invalid sub-folder strategy: '{SubFolderStrategy}'. Valid values: {EnumOptionHelper.ValidValues<SubFolderStrategyType>()}.");
         }
 
         // Validate versioning strategy if provided
         if (!string.IsNullOrWhiteSpace(VersioningStrategy) &&
-            !Enum.TryParse<VersioningStrategyType>(VersioningStrategy, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<VersioningStrategyType>(VersioningStrategy, out _))
         {
             return ValidationResult.Error($"Invalid versioning strategy: '{VersioningStrategy}'. Valid values: {string.Join(", ", Enum.GetNames<VersioningStrategyType>())}.");
         }
@@ -185,9 +185,9 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
 
         // Validate project structure if provided
         if (!string.IsNullOrWhiteSpace(ProjectStructure) &&
-            !Enum.TryParse<ProjectStructureType>(ProjectStructure, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<ProjectStructureType>(ProjectStructure, out _))
         {
-            return ValidationResult.Error($"Invalid project structure: '{ProjectStructure}'. Valid values: SingleProject, TwoProjects, ThreeProjects.");
+            return ValidationResult.Error($"Invalid project structure: '{ProjectStructure}'. Valid values: {EnumOptionHelper.ValidValues<ProjectStructureType>()}.");
         }
 
         // Validate project name overrides don't contain spaces
@@ -208,16 +208,16 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
 
         // Validate host UI type if provided
         if (!string.IsNullOrWhiteSpace(HostUi) &&
-            !Enum.TryParse<HostUiType>(HostUi, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<HostUiType>(HostUi, out _))
         {
-            return ValidationResult.Error($"Invalid host UI type: '{HostUi}'. Valid values: None, Swagger, Scalar.");
+            return ValidationResult.Error($"Invalid host UI type: '{HostUi}'. Valid values: {EnumOptionHelper.ValidValues<HostUiType>()}.");
         }
 
         // Validate host UI mode if provided
         if (!string.IsNullOrWhiteSpace(HostUiMode) &&
-            !Enum.TryParse<HostUiModeType>(HostUiMode, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<HostUiModeType>(HostUiMode, out _))
         {
-            return ValidationResult.Error($"Invalid host UI mode: '{HostUiMode}'. Valid values: DevelopmentOnly, Always.");
+            return ValidationResult.Error($"Invalid host UI mode: '{HostUiMode}'. Valid values: {EnumOptionHelper.ValidValues<HostUiModeType>()}.");
         }
 
         return ValidationResult.Success();

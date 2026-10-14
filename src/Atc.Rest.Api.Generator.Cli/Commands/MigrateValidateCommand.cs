@@ -131,6 +131,11 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
             report.Warnings.Add("No Atc.Rest packages found. This may not be an ATC-generated project.");
         }
 
+        foreach (var upgrade in report.PackageReferences.PackagesToUpgrade)
+        {
+            report.Warnings.Add($"{upgrade.Package} {upgrade.Version} is older than the generated code needs: update it to {upgrade.Minimum} or later, or the first build stops with {upgrade.RuleId}.");
+        }
+
         // 5. Analyze generated code
         ctx.Status("Analyzing generated code...");
         report.GeneratedCode = GeneratedCodeAnalyzer.Analyze(

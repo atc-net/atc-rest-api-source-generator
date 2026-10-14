@@ -85,16 +85,16 @@ public sealed class GenerateClientCommandSettings : BaseGenerateCommandSettings
 
         // Validate generation mode if provided
         if (!string.IsNullOrWhiteSpace(GenerationMode) &&
-            !Enum.TryParse<GenerationModeType>(GenerationMode, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<GenerationModeType>(GenerationMode, out _))
         {
-            return ValidationResult.Error($"Invalid generation mode: '{GenerationMode}'. Valid values: TypedClient, EndpointPerOperation.");
+            return ValidationResult.Error($"Invalid generation mode: '{GenerationMode}'. Valid values: {EnumOptionHelper.ValidValues<GenerationModeType>()}.");
         }
 
         // Validate client granularity if provided; an unknown value used to fall back to PerArea without a word
         if (!string.IsNullOrWhiteSpace(ClientGranularity) &&
-            !Enum.TryParse<ClientGranularityType>(ClientGranularity, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<ClientGranularityType>(ClientGranularity, out _))
         {
-            return ValidationResult.Error($"Invalid client granularity: '{ClientGranularity}'. Valid values: PerArea, Single.");
+            return ValidationResult.Error($"Invalid client granularity: '{ClientGranularity}'. Valid values: {EnumOptionHelper.ValidValues<ClientGranularityType>()}.");
         }
 
         // Validate client project name override doesn't contain spaces

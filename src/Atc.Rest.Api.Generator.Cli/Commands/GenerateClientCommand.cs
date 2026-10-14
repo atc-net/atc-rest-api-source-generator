@@ -294,7 +294,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
         // Override generation mode if specified
         if (!string.IsNullOrWhiteSpace(settings.GenerationMode) &&
-            Enum.TryParse<GenerationModeType>(settings.GenerationMode, ignoreCase: true, out var mode))
+            EnumOptionHelper.TryParse<GenerationModeType>(settings.GenerationMode, out var mode))
         {
             config.GenerationMode = mode;
         }
@@ -307,7 +307,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
         // Override client granularity if specified
         if (!string.IsNullOrWhiteSpace(settings.ClientGranularity) &&
-            Enum.TryParse<ClientGranularityType>(settings.ClientGranularity, ignoreCase: true, out var granularity))
+            EnumOptionHelper.TryParse<ClientGranularityType>(settings.ClientGranularity, out var granularity))
         {
             config.ClientGranularity = granularity;
         }

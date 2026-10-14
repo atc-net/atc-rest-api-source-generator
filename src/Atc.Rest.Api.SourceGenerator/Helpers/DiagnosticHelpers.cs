@@ -327,6 +327,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi and the project references a version older than 3.0.0.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MinimalApiTooOld = new(
+        RuleIdentifiers.MinimalApiTooOld,
+        "Atc.Rest.MinimalApi Version Too Old",
+        "The generated server builds on Atc.Rest.MinimalApi {0} or later (its validation keys, a handler's ValidationException with its field errors, its problem bodies), and the project references {1}. Update the Atc.Rest.MinimalApi package reference, or turn useMinimalApiPackage, useValidationFilter and useGlobalErrorHandler off in the marker.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATC_API_DEP012: SignalR hubs are declared and the client project has no Microsoft.AspNetCore.SignalR.Client.
     /// </summary>
     public static readonly DiagnosticDescriptor SignalRClientPackageRecommended = new(
@@ -841,6 +852,18 @@ internal static class DiagnosticHelpers
             Location.None,
             hubClients.Count,
             string.Join(", ", hubClients)));
+    }
+
+    public static void ReportMinimalApiTooOld(
+        SourceProductionContext context,
+        Version minimum,
+        Version referenced)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            MinimalApiTooOld,
+            Location.None,
+            minimum.ToString(3),
+            referenced.ToString(3)));
     }
 
     public static void ReportAtcRestClientTooOld(

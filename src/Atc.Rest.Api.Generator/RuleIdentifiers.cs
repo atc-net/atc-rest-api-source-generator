@@ -197,6 +197,12 @@ public static class RuleIdentifiers
     public const string SignalRClientPackageRecommended = "ATC_API_DEP012";
 
     /// <summary>
+    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi (its endpoint interface, ValidationFilter or error
+    /// handler) and the project references a version older than 3.0.0.
+    /// </summary>
+    public const string MinimalApiTooOld = "ATC_API_DEP013";
+
+    /// <summary>
     /// ATC_API_AOT001: The project turns the Request Delegate Generator on (EnableRequestDelegateGenerator, which
     /// PublishAot sets), but that generator does not see the endpoints this one emits: they are bound by reflection
     /// at run time, which trimming and Native AOT do not support - and the build's trim analysis does not say so.

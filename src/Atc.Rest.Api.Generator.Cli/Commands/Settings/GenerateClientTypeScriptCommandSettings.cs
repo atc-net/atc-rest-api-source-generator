@@ -227,37 +227,44 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
 
         // Validate enum style if provided
         if (!string.IsNullOrWhiteSpace(EnumStyle) &&
-            !Enum.TryParse<TypeScriptEnumStyle>(EnumStyle, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<TypeScriptEnumStyle>(EnumStyle, out _))
         {
-            return ValidationResult.Error($"Invalid enum style: '{EnumStyle}'. Valid values: Union, Enum.");
+            return ValidationResult.Error($"Invalid enum style: '{EnumStyle}'. Valid values: {EnumOptionHelper.ValidValues<TypeScriptEnumStyle>()}.");
         }
 
         // Validate hooks style if provided
         if (!string.IsNullOrWhiteSpace(HooksStyle) &&
-            !Enum.TryParse<TypeScriptHooksStyle>(HooksStyle, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<TypeScriptHooksStyle>(HooksStyle, out _))
         {
-            return ValidationResult.Error($"Invalid hooks style: '{HooksStyle}'. Valid values: None, ReactQuery, Swr.");
+            return ValidationResult.Error($"Invalid hooks style: '{HooksStyle}'. Valid values: {EnumOptionHelper.ValidValues<TypeScriptHooksStyle>()}.");
         }
 
         // Validate hooks mode if provided
         if (!string.IsNullOrWhiteSpace(HooksMode) &&
-            !Enum.TryParse<TypeScriptHooksMode>(HooksMode, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<TypeScriptHooksMode>(HooksMode, out _))
         {
-            return ValidationResult.Error($"Invalid hooks mode: '{HooksMode}'. Valid values: Standard, Suspense, Both.");
+            return ValidationResult.Error($"Invalid hooks mode: '{HooksMode}'. Valid values: {EnumOptionHelper.ValidValues<TypeScriptHooksMode>()}.");
+        }
+
+        // The hooks mode chooses between React Query's hooks: with SWR or without hooks it would be ignored
+        if (!string.IsNullOrWhiteSpace(HooksMode) &&
+            !(EnumOptionHelper.TryParse<TypeScriptHooksStyle>(HooksStyle, out var hooks) && hooks == TypeScriptHooksStyle.ReactQuery))
+        {
+            return ValidationResult.Error($"--hooks-mode applies to --hooks ReactQuery only (--hooks is '{HooksStyle ?? TypeScriptHooksStyle.None.ToString()}').");
         }
 
         // Validate client type if provided
         if (!string.IsNullOrWhiteSpace(ClientType) &&
-            !Enum.TryParse<TypeScriptHttpClient>(ClientType, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<TypeScriptHttpClient>(ClientType, out _))
         {
-            return ValidationResult.Error($"Invalid client type: '{ClientType}'. Valid values: Fetch, Axios.");
+            return ValidationResult.Error($"Invalid client type: '{ClientType}'. Valid values: {EnumOptionHelper.ValidValues<TypeScriptHttpClient>()}.");
         }
 
         // Validate naming strategy if provided
         if (!string.IsNullOrWhiteSpace(NamingStrategy) &&
-            !Enum.TryParse<TypeScriptNamingStrategy>(NamingStrategy, ignoreCase: true, out _))
+            !EnumOptionHelper.TryParse<TypeScriptNamingStrategy>(NamingStrategy, out _))
         {
-            return ValidationResult.Error($"Invalid naming strategy: '{NamingStrategy}'. Valid values: CamelCase, Original, PascalCase.");
+            return ValidationResult.Error($"Invalid naming strategy: '{NamingStrategy}'. Valid values: {EnumOptionHelper.ValidValues<TypeScriptNamingStrategy>()}.");
         }
 
         return ValidationResult.Success();

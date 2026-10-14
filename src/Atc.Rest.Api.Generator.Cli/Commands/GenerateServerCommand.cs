@@ -395,7 +395,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
 
         if (!string.IsNullOrWhiteSpace(settings.ProjectStructure) &&
-            Enum.TryParse<ProjectStructureType>(settings.ProjectStructure, ignoreCase: true, out var projectStructure))
+            EnumOptionHelper.TryParse<ProjectStructureType>(settings.ProjectStructure, out var projectStructure))
         {
             config.ProjectStructure = projectStructure;
         }
@@ -434,13 +434,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Apply host UI overrides
         if (!string.IsNullOrWhiteSpace(settings.HostUi) &&
-            Enum.TryParse<HostUiType>(settings.HostUi, ignoreCase: true, out var hostUi))
+            EnumOptionHelper.TryParse<HostUiType>(settings.HostUi, out var hostUi))
         {
             config.HostUi = hostUi;
         }
 
         if (!string.IsNullOrWhiteSpace(settings.HostUiMode) &&
-            Enum.TryParse<HostUiModeType>(settings.HostUiMode, ignoreCase: true, out var hostUiMode))
+            EnumOptionHelper.TryParse<HostUiModeType>(settings.HostUiMode, out var hostUiMode))
         {
             config.HostUiMode = hostUiMode;
         }
@@ -493,14 +493,14 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Override sub-folder strategy if specified
         if (!string.IsNullOrWhiteSpace(settings.SubFolderStrategy) &&
-            Enum.TryParse<SubFolderStrategyType>(settings.SubFolderStrategy, ignoreCase: true, out var subFolderStrategy))
+            EnumOptionHelper.TryParse<SubFolderStrategyType>(settings.SubFolderStrategy, out var subFolderStrategy))
         {
             config.SubFolderStrategy = subFolderStrategy;
         }
 
         // Override versioning strategy if specified
         if (!string.IsNullOrWhiteSpace(settings.VersioningStrategy) &&
-            Enum.TryParse<VersioningStrategyType>(settings.VersioningStrategy, ignoreCase: true, out var versioningStrategy))
+            EnumOptionHelper.TryParse<VersioningStrategyType>(settings.VersioningStrategy, out var versioningStrategy))
         {
             config.VersioningStrategy = versioningStrategy;
         }

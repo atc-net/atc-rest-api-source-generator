@@ -41,6 +41,11 @@ public sealed class PackageReferenceResult
     public List<string> PackagesToRemove { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the referenced packages older than the generated code needs.
+    /// </summary>
+    public List<PackageUpgrade> PackagesToUpgrade { get; set; } = [];
+
+    /// <summary>
     /// Gets a value indicating whether Atc packages were found.
     /// </summary>
     public bool HasAtcPackages => AtcPackages.Count > 0;
