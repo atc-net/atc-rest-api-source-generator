@@ -17,7 +17,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <!-- Property-based tests of the escapers and sanitisers: any string, not a handful of odd ones -->
     <PackageReference Include="CsCheck" Version="4.9.1" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.10.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.11.0" />
     <!-- The scenario snapshots moved here from the integration-test project, so that they are
          produced by the real Roslyn generators rather than a parallel orchestration. -->
     <!-- Pinned to 32.x: Verify 33 fails every Release build until the project declares a sponsorship license (SponsorCheck SC021) -->
@@ -25,7 +25,7 @@
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
     <!-- Same purpose: the resilience/retry scenarios emit code against Polly, so those assemblies
          must be present in the test host for the compilation gate to resolve them. -->
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
     <!-- Likewise for the OpenID Connect security scenario, whose emitted authentication wiring
          lives outside the ASP.NET Core shared framework. -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
