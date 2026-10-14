@@ -93,7 +93,7 @@ public sealed partial class GatewayService
         int status,
         CancellationToken cancellationToken = default)
     {
-        var parameters = new Showcase.Generated.Testing.Client.GetErrorResponseTestParameters(Status: status);
+        var parameters = new Showcase.Generated.Testing.Client.GetErrorResponseTestParameters(Status: status, Reason: null);
 
         var result = await getErrorResponseTestEndpoint
             .ExecuteAsync(

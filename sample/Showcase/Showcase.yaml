@@ -1397,6 +1397,12 @@ paths:
           schema:
             type: integer
             format: int32
+        - name: reason
+          in: query
+          required: false
+          description: With 400, a refusal that is no field error - written as the problem's detail instead of field errors.
+          schema:
+            type: string
       responses:
         '204':
           description: No error requested

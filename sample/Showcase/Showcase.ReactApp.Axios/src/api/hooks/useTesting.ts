@@ -53,12 +53,12 @@ export function useGetExceptionTest(code: number, options?: Omit<UseQueryOptions
 }
 
 /** Test error responses */
-export function useGetErrorResponseTest(options?: Omit<UseMutationOptions<void, ApiError, number>, 'mutationFn'>) {
+export function useGetErrorResponseTest(query?: { reason?: string }, options?: Omit<UseMutationOptions<void, ApiError, number>, 'mutationFn'>) {
   const api = useApiService();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (status: number) => {
-      const result = await api.testing.getErrorResponseTest(status);
+      const result = await api.testing.getErrorResponseTest(status, query);
       if (result.status === 'noContent') {
         return;
       }

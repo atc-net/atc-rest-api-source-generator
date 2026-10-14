@@ -128,4 +128,18 @@ test.describe('Exception mapping on the wire', () => {
     expect(problem.status).toBe(400);
     expect(problem.errors).toEqual({ '': ['Validation Exception (code 8) - This maps to 400 Bad Request'] });
   });
+
+  // BadRequest("…"): a refusal that is no field error is a 400 ProblemDetails with the message as detail, as
+  // NotFound("…") is - no field errors
+  test('a 400 the handler refuses with a message has the message as detail and no field errors', async ({ request }) => {
+    const reason = 'A receiver needs an http or https address.';
+    const response = await request.post(`${apiBaseUrl}/testing/error-responses/400?reason=${encodeURIComponent(reason)}`);
+
+    expect(response.status()).toBe(400);
+    expect(response.headers()['content-type']).toContain('application/problem+json');
+    const problem = await response.json();
+    expect(problem.status).toBe(400);
+    expect(problem.detail).toBe(reason);
+    expect(problem.errors).toBeUndefined();
+  });
 });

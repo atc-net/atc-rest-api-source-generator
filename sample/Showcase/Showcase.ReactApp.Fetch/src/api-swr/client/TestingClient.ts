@@ -51,8 +51,11 @@ export class TestingClient {
   }
 
   /** Test error responses */
-  async getErrorResponseTest(status: number, signal?: AbortSignal): Promise<GetErrorResponseTestResult> {
+  async getErrorResponseTest(status: number, query?: { reason?: string }, signal?: AbortSignal): Promise<GetErrorResponseTestResult> {
     return this.api.request<void>('POST', `/testing/error-responses/${encodeURIComponent(status)}`, {
+      query: {
+        reason: query?.reason,
+      },
       arms: ['noContent', 'badRequest', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [],
       signal,

@@ -18,6 +18,8 @@ public sealed class GetErrorResponseTestHandler : IGetErrorResponseTestHandler
 
         var result = parameters.Status switch
         {
+            // A refusal that is no field error: the message is the problem's detail, as for NotFound("…")
+            400 when parameters.Reason is { Length: > 0 } reason => GetErrorResponseTestResult.BadRequest(reason),
             400 => GetErrorResponseTestResult.BadRequest(
                 new Microsoft.AspNetCore.Mvc.ValidationProblemDetails(
                     new Dictionary<string, string[]>(StringComparer.Ordinal)

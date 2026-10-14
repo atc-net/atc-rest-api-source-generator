@@ -37,14 +37,14 @@ export function useGetExceptionTest(code: number, config?: SWRConfiguration<Exce
 }
 
 /** Test error responses */
-export function useGetErrorResponseTest(config?: SWRMutationConfiguration<void, ApiError, typeof testingKeys.all, number>) {
+export function useGetErrorResponseTest(query?: { reason?: string }, config?: SWRMutationConfiguration<void, ApiError, typeof testingKeys.all, number>) {
   const api = useApiService();
   const { mutate } = useSWRConfig();
   return useSWRMutation<void, ApiError, typeof testingKeys.all, number>(
     testingKeys.all,
     async (_key, { arg }) => {
       const status = arg;
-      const result = await api.testing.getErrorResponseTest(status);
+      const result = await api.testing.getErrorResponseTest(status, query);
       if (result.status === 'noContent') {
         return;
       }
