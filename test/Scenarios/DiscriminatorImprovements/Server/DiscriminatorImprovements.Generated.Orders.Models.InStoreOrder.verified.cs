@@ -22,5 +22,5 @@ namespace DiscriminatorImprovements.Generated.Orders.Models;
 /// <param name="StoreId">Physical store identifier.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record InStoreOrder(
-    [property: Required, JsonRequired, Display(Name = "orderType")] string OrderType,
-    [property: Required, JsonRequired, Display(Name = "storeId")] string StoreId) : Order;
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "orderType")] string OrderType,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "storeId")] string StoreId) : Order;

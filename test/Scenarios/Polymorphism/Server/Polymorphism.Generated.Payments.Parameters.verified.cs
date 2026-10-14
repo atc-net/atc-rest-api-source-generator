@@ -34,4 +34,4 @@ public sealed record CreatePaymentParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPaymentByIdParameters(
-    [property: FromRoute(Name = "paymentId"), Required, Display(Name = "paymentId")] Guid PaymentId);
+    [property: FromRoute(Name = "paymentId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "paymentId")] Guid PaymentId);

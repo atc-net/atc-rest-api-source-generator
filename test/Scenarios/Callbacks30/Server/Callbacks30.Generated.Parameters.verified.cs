@@ -34,4 +34,4 @@ public sealed record CreateSubscriptionParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteSubscriptionParameters(
-    [property: FromRoute(Name = "subscriptionId"), Required, Display(Name = "subscriptionId")] Guid SubscriptionId);
+    [property: FromRoute(Name = "subscriptionId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "subscriptionId")] Guid SubscriptionId);

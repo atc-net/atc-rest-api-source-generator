@@ -23,6 +23,6 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// <param name="Message">SMS message content.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SmsNotification(
-    [property: Required, JsonRequired, Display(Name = "kind")] string Kind,
-    [property: Required, RegularExpression(@"^\+?[1-9]\d{6,14}$"), JsonRequired, Display(Name = "phoneNumber")] string PhoneNumber,
-    [property: Required, ApiMaxLength(160), JsonRequired, Display(Name = "message")] string Message) : Notification;
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "kind")] string Kind,
+    [property: Required, RegularExpression(@"^\+?[1-9]\d{6,14}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "phoneNumber")] string PhoneNumber,
+    [property: Required, ApiMaxLength(160), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "message")] string Message) : Notification;

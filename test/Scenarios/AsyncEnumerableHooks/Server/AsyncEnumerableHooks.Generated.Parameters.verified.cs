@@ -49,7 +49,7 @@ public sealed record ListItemPagesParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemLogsParameters(
-    [property: FromRoute(Name = "itemId"), Required, Display(Name = "itemId")] Guid ItemId,
+    [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] Guid ItemId,
     [property: FromQuery(Name = "logLevel")] GetItemLogsParametersLogLevel? LogLevel,
     [property: FromQuery(Name = "from")] DateTimeOffset? From);
 
@@ -61,4 +61,4 @@ public sealed record GetItemLogsParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SearchItemsParameters(
     [property: FromQuery(Name = "createdAfter")] DateTimeOffset? CreatedAfter,
-    [property: FromQuery(Name = "createdBefore"), Required, Display(Name = "createdBefore")] DateTimeOffset CreatedBefore);
+    [property: FromQuery(Name = "createdBefore"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "createdBefore")] DateTimeOffset CreatedBefore);

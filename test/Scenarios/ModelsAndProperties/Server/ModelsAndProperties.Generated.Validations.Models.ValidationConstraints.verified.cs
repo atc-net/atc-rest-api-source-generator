@@ -37,8 +37,8 @@ namespace ModelsAndProperties.Generated.Validations.Models;
 /// <param name="LargeLong">Large long integer with range.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ValidationConstraints(
-    [property: Required, JsonRequired, Display(Name = "requiredString")] string RequiredString,
-    [property: Required, JsonRequired, Display(Name = "requiredInteger")] int RequiredInteger,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "requiredString")] string RequiredString,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "requiredInteger")] int RequiredInteger,
     [property: ApiMinLength(5)] string? MinLengthString = null,
     [property: ApiMaxLength(100)] string? MaxLengthString = null,
     [property: ApiMinLength(2), ApiMaxLength(50)] string? LengthRangeString = null,

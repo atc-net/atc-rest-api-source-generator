@@ -23,6 +23,6 @@ namespace Polymorphism.Generated.Payments.Models;
 /// <param name="PayerId">PayPal payer ID.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PayPal(
-    [property: Required, JsonRequired, Display(Name = "type")] string Type,
-    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, Display(Name = "email")] string Email,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "type")] string Type,
+    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     string? PayerId = null) : PaymentMethod;

@@ -17,5 +17,5 @@ namespace RateLimit.Generated.Exports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ExportRequest(
-    [property: Required, JsonRequired, Display(Name = "format")] string Format,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "format")] string Format,
     Dictionary<string, string>? Filters = null);

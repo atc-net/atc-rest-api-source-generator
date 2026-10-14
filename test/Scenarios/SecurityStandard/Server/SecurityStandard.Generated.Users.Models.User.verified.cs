@@ -24,7 +24,7 @@ namespace SecurityStandard.Generated.Users.Models;
 /// <param name="Role">User role.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
-    [property: Required, JsonRequired, Display(Name = "username")] string Username,
-    [property: EmailAddress, Display(Name = "email")] string? Email = null,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "username")] string Username,
+    [property: EmailAddress, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string? Email = null,
     UserRole? Role = null);

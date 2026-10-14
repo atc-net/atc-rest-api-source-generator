@@ -17,8 +17,8 @@ namespace RateLimit.Generated.Orders.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(
-    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
-    [property: Required, JsonRequired, Display(Name = "status")] string Status,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "status")] string Status,
     string? CustomerName = null,
     double? TotalAmount = null,
     DateTimeOffset? CreatedAt = null);

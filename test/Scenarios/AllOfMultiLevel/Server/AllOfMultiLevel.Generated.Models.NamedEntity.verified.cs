@@ -18,6 +18,6 @@ namespace AllOfMultiLevel.Generated.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record NamedEntity(
     Guid Id,
-    [property: Required, JsonRequired, Display(Name = "name")] string Name,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     DateTimeOffset? CreatedAt = null,
     string? Description = null) : Entity(Id, CreatedAt);

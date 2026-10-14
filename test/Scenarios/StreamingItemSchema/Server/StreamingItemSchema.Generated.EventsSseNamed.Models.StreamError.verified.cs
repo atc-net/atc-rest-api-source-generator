@@ -18,5 +18,5 @@ namespace StreamingItemSchema.Generated.EventsSseNamed.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record StreamError(
-    [property: Required, JsonRequired, Display(Name = "code")] string Code,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "code")] string Code,
     string? Message = null);

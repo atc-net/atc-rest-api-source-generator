@@ -17,6 +17,6 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Triangle(
-    [property: Required, JsonRequired, Display(Name = "base")] double Base,
-    [property: Required, JsonRequired, Display(Name = "height")] double Height,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "base")] double Base,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "height")] double Height,
     string? Color = null) : Shape;

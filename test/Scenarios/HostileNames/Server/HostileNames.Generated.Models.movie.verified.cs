@@ -17,5 +17,5 @@ namespace HostileNames.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record movie(
-    [property: Required, JsonRequired, Display(Name = "id")] int Id,
-    [property: Required, JsonRequired, Display(Name = "title")] string Title);
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] int Id,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "title")] string Title);

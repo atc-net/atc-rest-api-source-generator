@@ -22,5 +22,5 @@ namespace SecurityStandard.Generated.Orders.Models;
 /// <param name="Items">List of item IDs.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderRequest(
-    [property: Required, JsonRequired, Display(Name = "customerId")] string CustomerId,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "customerId")] string CustomerId,
     List<string>? Items = null);

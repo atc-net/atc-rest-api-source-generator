@@ -43,7 +43,7 @@ public sealed record AddPetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FindPetsByStatusParameters(
-    [property: FromQuery(Name = "status"), Required, DefaultValue(FindPetsByStatusParametersStatus.Available), Display(Name = "status")] FindPetsByStatusParametersStatus Status = FindPetsByStatusParametersStatus.Available);
+    [property: FromQuery(Name = "status"), Required, DefaultValue(FindPetsByStatusParametersStatus.Available), global::System.ComponentModel.DataAnnotations.Display(Name = "status")] FindPetsByStatusParametersStatus Status = FindPetsByStatusParametersStatus.Available);
 
 /// <summary>
 /// Parameters for operation request.
@@ -52,7 +52,7 @@ public sealed record FindPetsByStatusParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FindPetsByTagsParameters(
-    [property: FromQuery(Name = "tags"), Required, Display(Name = "tags")] ParsableList<string> Tags);
+    [property: FromQuery(Name = "tags"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "tags")] ParsableList<string> Tags);
 
 /// <summary>
 /// Parameters for operation request.
@@ -61,7 +61,7 @@ public sealed record FindPetsByTagsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPetByIdParameters(
-    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] long PetId);
+    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -70,7 +70,7 @@ public sealed record GetPetByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetWithFormParameters(
-    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] long PetId,
+    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
 #nullable disable annotations
     string Name,
     string Status)
@@ -93,7 +93,7 @@ public sealed record DeletePetParameters(
 #nullable disable annotations
     string ApiKey,
 #nullable restore annotations
-    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] long PetId)
+    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId)
 {
     [FromHeader(Name = "api_key")]
     public string? ApiKey { get; init; } = ApiKey;
@@ -106,7 +106,7 @@ public sealed record DeletePetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UploadFileParameters(
-    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] long PetId,
+    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
 #nullable disable annotations
     string AdditionalMetadata,
 #nullable restore annotations

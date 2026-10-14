@@ -17,6 +17,6 @@ namespace CachingHybrid.Generated.Users.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserRequest(
-    [property: Required, EmailAddress, JsonRequired, Display(Name = "email")] string Email,
-    [property: Required, JsonRequired, Display(Name = "name")] string Name,
+    [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     string? Role = null);

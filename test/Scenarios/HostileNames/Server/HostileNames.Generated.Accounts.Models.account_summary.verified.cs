@@ -18,5 +18,5 @@ namespace HostileNames.Generated.Accounts.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record account_summary(
-    [property: Required, JsonRequired, Display(Name = "sid")] string Sid,
-    [property: JsonPropertyName("friendly_name"), Required, JsonRequired, Display(Name = "friendly_name")] string FriendlyName);
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "sid")] string Sid,
+    [property: JsonPropertyName("friendly_name"), Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "friendly_name")] string FriendlyName);

@@ -8,6 +8,9 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 /// </summary>
 internal static class WireDisplayNameHelper
 {
+    // Written in full: Microsoft.OpenApi, which a host often imports globally, has a DisplayAttribute too
+    private const string DisplayAttributeName = "global::System.ComponentModel.DataAnnotations.Display";
+
     private static readonly HashSet<string> ValidationAttributes = new(StringComparer.Ordinal)
     {
         "Required",
@@ -79,13 +82,13 @@ internal static class WireDisplayNameHelper
         if (wireName is null ||
             string.Equals(wireName, parameter.Name, StringComparison.Ordinal) ||
             parameter.Attributes is null ||
-            parameter.Attributes.Any(a => a.Name == "Display") ||
+            parameter.Attributes.Any(a => a.Name is "Display" or DisplayAttributeName) ||
             !parameter.Attributes.Any(a => ValidationAttributes.Contains(a.Name)))
         {
             return parameter;
         }
 
         var literal = "\"" + wireName.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
-        return parameter with { Attributes = [.. parameter.Attributes, new AttributeParameters("Display", $"Name = {literal}")] };
+        return parameter with { Attributes = [.. parameter.Attributes, new AttributeParameters(DisplayAttributeName, $"Name = {literal}")] };
     }
 }

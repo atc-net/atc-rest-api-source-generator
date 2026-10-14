@@ -34,7 +34,7 @@ public sealed record PlaceOrderParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOrderByIdParameters(
-    [property: FromRoute(Name = "orderId"), Required, Display(Name = "orderId")] long OrderId);
+    [property: FromRoute(Name = "orderId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "orderId")] long OrderId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -43,4 +43,4 @@ public sealed record GetOrderByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteOrderParameters(
-    [property: FromRoute(Name = "orderId"), Required, Display(Name = "orderId")] long OrderId);
+    [property: FromRoute(Name = "orderId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "orderId")] long OrderId);

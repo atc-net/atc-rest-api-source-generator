@@ -22,5 +22,5 @@ namespace DiscriminatorImprovements.Generated.Orders.Models;
 /// <param name="Url">Online storefront URL.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record OnlineOrder(
-    [property: Required, JsonRequired, Display(Name = "orderType")] string OrderType,
-    [property: Required, JsonRequired, Display(Name = "url")] Uri Url) : Order;
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "orderType")] string OrderType,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "url")] Uri Url) : Order;

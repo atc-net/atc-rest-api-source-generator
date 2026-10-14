@@ -43,7 +43,7 @@ public sealed record CreateAccountParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetAccountByIdParameters(
-    [property: FromRoute(Name = "accountId"), Required, Display(Name = "accountId")] string AccountId);
+    [property: FromRoute(Name = "accountId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "accountId")] string AccountId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -52,7 +52,7 @@ public sealed record GetAccountByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteAccountByIdParameters(
-    [property: FromRoute(Name = "accountId"), Required, Display(Name = "accountId")] string AccountId);
+    [property: FromRoute(Name = "accountId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "accountId")] string AccountId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -61,7 +61,7 @@ public sealed record DeleteAccountByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateAccountByIdParameters(
-    [property: FromRoute(Name = "accountId"), Required, Display(Name = "accountId")] string AccountId,
+    [property: FromRoute(Name = "accountId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "accountId")] string AccountId,
     [property: FromBody, Required] Account Request);
 
 /// <summary>

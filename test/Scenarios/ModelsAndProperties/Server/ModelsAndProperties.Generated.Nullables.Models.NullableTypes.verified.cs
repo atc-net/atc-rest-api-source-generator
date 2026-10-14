@@ -38,7 +38,7 @@ namespace ModelsAndProperties.Generated.Nullables.Models;
 /// <param name="NullableAddress">Nullable address reference.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record NullableTypes(
-    [property: Required, JsonRequired, Display(Name = "requiredString")] string RequiredString,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "requiredString")] string RequiredString,
     string? NullableString = null,
     int? NullableInteger = null,
     long? NullableLong = null,
@@ -49,7 +49,7 @@ public sealed record NullableTypes(
     DateTimeOffset? NullableDateTime = null,
     DateOnly? NullableDate = null,
     Uri? NullableUri = null,
-    [property: EmailAddress, Display(Name = "nullableEmail")] string? NullableEmail = null,
+    [property: EmailAddress, global::System.ComponentModel.DataAnnotations.Display(Name = "nullableEmail")] string? NullableEmail = null,
     [property: Range(0, 100)] int? NullableIntegerWithRange = null,
     [property: ApiMinLength(1), ApiMaxLength(255)] string? NullableStringWithLength = null,
     string? NullableWithDefault = "default-nullable",

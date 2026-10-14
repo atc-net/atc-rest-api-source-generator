@@ -51,5 +51,5 @@ public sealed record CreatePetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetPhotoParameters(
-    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] string PetId,
+    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] string PetId,
     [property: Required] PetPhoto Request);

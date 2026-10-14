@@ -25,7 +25,7 @@ namespace Demo.Generated.Files.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetFileByIdParameters(
-    [property: FromRoute(Name = "id"), Required, Display(Name = "id")] string Id);
+    [property: FromRoute(Name = "id"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] string Id);
 
 /// <summary>
 /// Parameters for operation request.

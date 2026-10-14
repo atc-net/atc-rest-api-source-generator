@@ -17,5 +17,5 @@ namespace StreamingItemSchema.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Event(
-    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
-    [property: Required, JsonRequired, Display(Name = "type")] string Type);
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "type")] string Type);

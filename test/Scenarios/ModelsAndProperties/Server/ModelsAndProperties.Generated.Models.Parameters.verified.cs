@@ -35,4 +35,4 @@ public sealed record CreateModelParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetModelByIdParameters(
-    [property: FromRoute(Name = "modelId"), Required, Display(Name = "modelId")] Guid ModelId);
+    [property: FromRoute(Name = "modelId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "modelId")] Guid ModelId);

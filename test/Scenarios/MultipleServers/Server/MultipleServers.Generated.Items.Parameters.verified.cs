@@ -34,4 +34,4 @@ public sealed record ListItemsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemByIdParameters(
-    [property: FromRoute(Name = "itemId"), Required, Display(Name = "itemId")] Guid ItemId);
+    [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] Guid ItemId);

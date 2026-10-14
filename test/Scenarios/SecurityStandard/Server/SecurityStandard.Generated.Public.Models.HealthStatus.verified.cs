@@ -22,5 +22,5 @@ namespace SecurityStandard.Generated.Public.Models;
 /// <param name="Timestamp">Timestamp of health check.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record HealthStatus(
-    [property: Required, JsonRequired, Display(Name = "status")] string Status,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "status")] string Status,
     DateTimeOffset? Timestamp = null);

@@ -22,5 +22,5 @@ namespace DiscriminatorImprovements.Generated.Events.Models;
 /// <param name="UserId">Created user identifier.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UserCreatedEvent(
-    [property: Required, JsonRequired, Display(Name = "eventType")] string EventType,
-    [property: Required, JsonRequired, Display(Name = "userId")] Guid UserId) : Event;
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "eventType")] string EventType,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "userId")] Guid UserId) : Event;

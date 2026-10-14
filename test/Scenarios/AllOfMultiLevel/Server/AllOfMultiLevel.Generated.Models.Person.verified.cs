@@ -19,7 +19,7 @@ namespace AllOfMultiLevel.Generated.Models;
 public record Person(
     Guid Id,
     string Name,
-    [property: Required, EmailAddress, JsonRequired, Display(Name = "email")] string Email,
+    [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     DateTimeOffset? CreatedAt = null,
     string? Description = null,
     [property: Range(0, 150)] int? Age = null) : NamedEntity(Id, Name, CreatedAt, Description);

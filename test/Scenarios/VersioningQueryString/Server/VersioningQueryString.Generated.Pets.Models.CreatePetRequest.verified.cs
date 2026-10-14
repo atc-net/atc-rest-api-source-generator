@@ -17,8 +17,8 @@ namespace VersioningQueryString.Generated.Pets.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePetRequest(
-    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, Display(Name = "name")] string Name,
-    [property: Required, JsonRequired, Display(Name = "species")] string Species,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "species")] string Species,
     string? Breed = null,
     [property: Range(0, long.MaxValue)] int? Age = null,
     Guid? OwnerId = null);

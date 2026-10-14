@@ -17,6 +17,6 @@ namespace CachingHybrid.Generated.Users.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserRequest(
-    [property: EmailAddress, Display(Name = "email")] string? Email = null,
+    [property: EmailAddress, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string? Email = null,
     string? Name = null,
     string? Role = null);

@@ -17,5 +17,5 @@ namespace ParameterSerialization.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed partial record Paging(
-    [property: Required, JsonRequired, Display(Name = "page")] int Page,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "page")] int Page,
     int? PerPage = null);

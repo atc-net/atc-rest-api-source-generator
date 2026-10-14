@@ -347,6 +347,6 @@ public sealed class OptionalPropertyRuntimeTests
         // And the order is the required ones first, the spec order kept within each group. (A server model names a
         // validated property by its JSON name, for the validation messages.)
         var item = sources.Single(s => s.HintName.EndsWith(".Item.g.cs", StringComparison.Ordinal)).Source;
-        Assert.Matches(new Regex(@"record Item\(\s*\[property: Required(?:, Display\(Name = ""name""\))?\] string Name,\s*string\? Id = null,\s*string Tag = ""none""\);", RegexOptions.None, TimeSpan.FromSeconds(1)), item);
+        Assert.Matches(new Regex(@"record Item\(\s*\[property: Required(?:, global::System\.ComponentModel\.DataAnnotations\.Display\(Name = ""name""\))?\] string Name,\s*string\? Id = null,\s*string Tag = ""none""\);", RegexOptions.None, TimeSpan.FromSeconds(1)), item);
     }
 }

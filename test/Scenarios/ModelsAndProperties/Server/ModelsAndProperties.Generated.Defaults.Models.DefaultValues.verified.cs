@@ -32,7 +32,7 @@ namespace ModelsAndProperties.Generated.Defaults.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DefaultValues(
     string StringDefault = "default-value",
-    [property: EmailAddress, Display(Name = "emailDefault")] string EmailDefault = "default@example.com",
+    [property: EmailAddress, global::System.ComponentModel.DataAnnotations.Display(Name = "emailDefault")] string EmailDefault = "default@example.com",
     int IntegerDefault = 42,
     long Int64Default = 1000000,
     double NumberDefault = 3.14159,

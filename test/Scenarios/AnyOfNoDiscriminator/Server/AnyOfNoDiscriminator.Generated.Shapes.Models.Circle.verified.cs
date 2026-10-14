@@ -17,5 +17,5 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Circle(
-    [property: Required, JsonRequired, Display(Name = "radius")] double Radius,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "radius")] double Radius,
     string? Color = null) : Shape;

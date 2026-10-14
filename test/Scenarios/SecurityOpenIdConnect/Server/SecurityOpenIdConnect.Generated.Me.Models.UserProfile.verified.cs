@@ -25,8 +25,8 @@ namespace SecurityOpenIdConnect.Generated.Me.Models;
 /// <param name="EmailVerified">Whether email is verified.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UserProfile(
-    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
-    [property: Required, EmailAddress, JsonRequired, Display(Name = "email")] string Email,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
+    [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     string? DisplayName = null,
     Uri? Picture = null,
     bool? EmailVerified = null);

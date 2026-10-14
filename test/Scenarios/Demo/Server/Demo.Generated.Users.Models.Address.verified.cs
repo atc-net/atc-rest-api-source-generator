@@ -28,10 +28,10 @@ namespace Demo.Generated.Users.Models;
 /// <param name="Longitude">Geographic longitude.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
-    [property: Required, ApiMinLength(1), ApiMaxLength(200), JsonRequired, Display(Name = "street")] string Street,
-    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, Display(Name = "city")] string City,
-    [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired, Display(Name = "postalCode")] string PostalCode,
-    [property: Required, ApiMinLength(2), ApiMaxLength(100), JsonRequired, Display(Name = "country")] string Country,
+    [property: Required, ApiMinLength(1), ApiMaxLength(200), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "street")] string Street,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "city")] string City,
+    [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "postalCode")] string PostalCode,
+    [property: Required, ApiMinLength(2), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "country")] string Country,
     [property: ApiMaxLength(100)] string? State = null,
     [property: ApiMinLength(2), ApiMaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
     [property: Range(-90, 90)] double? Latitude = null,

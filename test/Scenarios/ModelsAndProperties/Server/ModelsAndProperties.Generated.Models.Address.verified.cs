@@ -26,9 +26,9 @@ namespace ModelsAndProperties.Generated.Models;
 /// <param name="State">State or region.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
-    [property: Required, ApiMaxLength(255), JsonRequired, Display(Name = "streetName")] string StreetName,
-    [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired, Display(Name = "postalCode")] string PostalCode,
-    [property: Required, ApiMaxLength(100), JsonRequired, Display(Name = "cityName")] string CityName,
-    [property: Required, JsonRequired, Display(Name = "country")] Country Country,
+    [property: Required, ApiMaxLength(255), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "streetName")] string StreetName,
+    [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "postalCode")] string PostalCode,
+    [property: Required, ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "cityName")] string CityName,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "country")] Country Country,
     [property: ApiMaxLength(20)] string? StreetNumber = null,
     [property: ApiMaxLength(100)] string? State = null);

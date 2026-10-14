@@ -26,8 +26,8 @@ namespace PetStoreFull.Generated.Pet.Models;
 /// <param name="Status">pet status in the store.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed partial record Pet(
-    [property: Required, JsonRequired, Display(Name = "name")] string Name,
-    [property: Required, JsonRequired, Display(Name = "photoUrls")] List<string> PhotoUrls,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "photoUrls")] List<string> PhotoUrls,
     long? Id = null,
     Category? Category = null,
     List<Tag>? Tags = null,

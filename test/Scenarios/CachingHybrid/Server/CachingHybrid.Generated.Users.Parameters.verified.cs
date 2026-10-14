@@ -54,7 +54,7 @@ public sealed record CreateUserParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetUserByIdParameters(
-    [property: FromRoute(Name = "userId"), Required, Display(Name = "userId")] Guid UserId);
+    [property: FromRoute(Name = "userId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "userId")] Guid UserId);
 
 /// <summary>
 /// Parameters for operation request.
@@ -63,7 +63,7 @@ public sealed record GetUserByIdParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserParameters(
-    [property: FromRoute(Name = "userId"), Required, Display(Name = "userId")] Guid UserId,
+    [property: FromRoute(Name = "userId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "userId")] Guid UserId,
     [property: FromBody, Required] UpdateUserRequest Request);
 
 /// <summary>
@@ -73,4 +73,4 @@ public sealed record UpdateUserParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteUserParameters(
-    [property: FromRoute(Name = "userId"), Required, Display(Name = "userId")] Guid UserId);
+    [property: FromRoute(Name = "userId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "userId")] Guid UserId);

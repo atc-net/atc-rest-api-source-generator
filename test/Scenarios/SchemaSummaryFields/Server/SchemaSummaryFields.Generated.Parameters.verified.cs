@@ -34,4 +34,4 @@ public sealed record CreatePetParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPetByIdParameters(
-    [property: FromRoute(Name = "petId"), Required, Display(Name = "petId")] int PetId);
+    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] int PetId);

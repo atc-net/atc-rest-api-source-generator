@@ -25,8 +25,8 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// <param name="IsHtml">Whether body is HTML formatted.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EmailNotification(
-    [property: Required, JsonRequired, Display(Name = "kind")] string Kind,
-    [property: Required, EmailAddress, JsonRequired, Display(Name = "to")] string To,
-    [property: Required, ApiMaxLength(200), JsonRequired, Display(Name = "subject")] string Subject,
-    [property: Required, ApiMaxLength(10000), JsonRequired, Display(Name = "body")] string Body,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "kind")] string Kind,
+    [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "to")] string To,
+    [property: Required, ApiMaxLength(200), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "subject")] string Subject,
+    [property: Required, ApiMaxLength(10000), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "body")] string Body,
     bool IsHtml = false) : Notification;

@@ -31,12 +31,12 @@ namespace Demo.Generated.Users.Models;
 /// <param name="IsActive">The isActive property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserRequest(
-    [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired, Display(Name = "firstName")] string FirstName,
-    [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired, Display(Name = "lastName")] string LastName,
-    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, Display(Name = "email")] string Email,
-    [property: Required, JsonRequired, Display(Name = "dateOfBirth")] DateOnly DateOfBirth,
-    [property: Required, JsonRequired, Display(Name = "role")] UserRole Role,
-    [property: Required, JsonRequired, Display(Name = "address")] AddressRequest Address,
+    [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "firstName")] string FirstName,
+    [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "lastName")] string LastName,
+    [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "dateOfBirth")] DateOnly DateOfBirth,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "role")] UserRole Role,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "address")] AddressRequest Address,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
     Uri? Website = null,
     [property: ApiMaxLength(1000)] string? Bio = null,

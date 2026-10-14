@@ -26,4 +26,4 @@ namespace Pagination.Generated.Logs.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListLogsParameters(
-    [property: FromQuery(Name = "continuation"), Required, Display(Name = "continuation")] string Continuation);
+    [property: FromQuery(Name = "continuation"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "continuation")] string Continuation);

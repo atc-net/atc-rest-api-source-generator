@@ -24,7 +24,7 @@ namespace Demo.Generated.Tests.Models;
 /// <param name="CreatedAt">When the item was created.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TestItem(
-    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
-    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, Display(Name = "name")] string Name,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
+    [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     [property: ApiMaxLength(500)] string? Description = null,
     DateTimeOffset? CreatedAt = null);

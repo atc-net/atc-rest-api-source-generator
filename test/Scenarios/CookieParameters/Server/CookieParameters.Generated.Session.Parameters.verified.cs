@@ -25,7 +25,7 @@ namespace CookieParameters.Generated.Session.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetSessionParameters(
-    [property: FromHeader(Name = "x-cookie-sessionId"), Required, Display(Name = "sessionId")] string SessionId,
+    [property: FromHeader(Name = "x-cookie-sessionId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "sessionId")] string SessionId,
 #nullable disable annotations
     string Preferences)
 #nullable restore annotations

@@ -17,6 +17,6 @@ namespace CachingOutput.Generated.Categories.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Category(
-    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
-    [property: Required, JsonRequired, Display(Name = "name")] string Name,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     string? Description = null);

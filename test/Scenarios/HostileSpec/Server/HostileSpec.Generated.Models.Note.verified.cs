@@ -35,7 +35,7 @@ namespace HostileSpec.Generated.Models;
 /// <param name="Quota">An enum whose values need 64 bits.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Note(
-    [property: Required, JsonRequired, Display(Name = "id")] string Id,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] string Id,
     string Title = "Untitled \"note\" \\ draft",
     string Path = "C:\\notes\\new",
     NoteKind? Kind = null,

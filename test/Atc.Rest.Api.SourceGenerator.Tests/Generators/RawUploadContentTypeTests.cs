@@ -102,8 +102,8 @@ public sealed class RawUploadContentTypeTests
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml);
         var parameters = string.Join(Environment.NewLine, sources.Where(s => s.HintName.Contains("Parameters", StringComparison.Ordinal)).Select(s => s.Source));
 
-        Assert.Matches(new Regex(@"record UploadDocumentParameters\(\s*\[property: FromBody, Required\] Stream File,\s*\[property: FromHeader\(Name = ""Content-Type""\), Required, Display\(Name = ""Content-Type""\)\] string ContentType\);", RegexOptions.None, TimeSpan.FromSeconds(1)), parameters);
-        Assert.Matches(new Regex(@"record UploadImageParameters\(\s*\[property: FromBody, Required\] Stream File,\s*\[property: FromHeader\(Name = ""Content-Type""\), Required, Display\(Name = ""Content-Type""\)\] string ContentType\);", RegexOptions.None, TimeSpan.FromSeconds(1)), parameters);
+        Assert.Matches(new Regex(@"record UploadDocumentParameters\(\s*\[property: FromBody, Required\] Stream File,\s*\[property: FromHeader\(Name = ""Content-Type""\), Required, global::System\.ComponentModel\.DataAnnotations\.Display\(Name = ""Content-Type""\)\] string ContentType\);", RegexOptions.None, TimeSpan.FromSeconds(1)), parameters);
+        Assert.Matches(new Regex(@"record UploadImageParameters\(\s*\[property: FromBody, Required\] Stream File,\s*\[property: FromHeader\(Name = ""Content-Type""\), Required, global::System\.ComponentModel\.DataAnnotations\.Display\(Name = ""Content-Type""\)\] string ContentType\);", RegexOptions.None, TimeSpan.FromSeconds(1)), parameters);
         Assert.Matches(new Regex(@"record UploadPdfParameters\(\s*\[property: FromBody, Required\] Stream File\);", RegexOptions.None, TimeSpan.FromSeconds(1)), parameters);
     }
 

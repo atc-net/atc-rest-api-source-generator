@@ -62,7 +62,7 @@ public sealed record LoginUserParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetUserByNameParameters(
-    [property: FromRoute(Name = "username"), Required, Display(Name = "username")] string Username);
+    [property: FromRoute(Name = "username"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "username")] string Username);
 
 /// <summary>
 /// Parameters for operation request.
@@ -71,7 +71,7 @@ public sealed record GetUserByNameParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserParameters(
-    [property: FromRoute(Name = "username"), Required, Display(Name = "username")] string Username,
+    [property: FromRoute(Name = "username"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "username")] string Username,
     [property: Required] PetStoreFull.Generated.User.Models.User Request);
 
 /// <summary>
@@ -81,4 +81,4 @@ public sealed record UpdateUserParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteUserParameters(
-    [property: FromRoute(Name = "username"), Required, Display(Name = "username")] string Username);
+    [property: FromRoute(Name = "username"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "username")] string Username);

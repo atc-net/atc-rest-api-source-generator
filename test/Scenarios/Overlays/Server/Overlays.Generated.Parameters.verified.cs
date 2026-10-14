@@ -25,4 +25,4 @@ namespace Overlays.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetDeviceParameters(
-    [property: FromRoute(Name = "deviceId"), Required, Display(Name = "deviceId")] long DeviceId);
+    [property: FromRoute(Name = "deviceId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "deviceId")] long DeviceId);

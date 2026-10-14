@@ -17,6 +17,6 @@ namespace AnyOfNoDiscriminator.Generated.Notifications.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EmailNotification(
-    [property: Required, EmailAddress, JsonRequired, Display(Name = "to")] string To,
-    [property: Required, JsonRequired, Display(Name = "subject")] string Subject,
+    [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "to")] string To,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "subject")] string Subject,
     string? Body = null);

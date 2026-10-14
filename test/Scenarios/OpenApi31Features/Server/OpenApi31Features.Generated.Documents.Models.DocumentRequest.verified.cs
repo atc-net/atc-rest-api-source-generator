@@ -24,6 +24,6 @@ namespace OpenApi31Features.Generated.Documents.Models;
 /// <param name="Metadata">The metadata property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DocumentRequest(
-    [property: Required, JsonRequired, Display(Name = "name")] string Name,
-    [property: Required, JsonRequired, Display(Name = "content")] string Content,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "content")] string Content,
     Dictionary<string, string>? Metadata = null);

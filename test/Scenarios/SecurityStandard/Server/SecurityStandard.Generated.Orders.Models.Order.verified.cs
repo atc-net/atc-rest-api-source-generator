@@ -25,8 +25,8 @@ namespace SecurityStandard.Generated.Orders.Models;
 /// <param name="CreatedAt">Order creation timestamp.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(
-    [property: Required, JsonRequired, Display(Name = "id")] Guid Id,
-    [property: Required, JsonRequired, Display(Name = "customerId")] string CustomerId,
-    [property: Required, JsonRequired, Display(Name = "status")] OrderStatus Status,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "customerId")] string CustomerId,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "status")] OrderStatus Status,
     double? TotalAmount = null,
     DateTimeOffset? CreatedAt = null);

@@ -22,5 +22,5 @@ namespace ModelsAndProperties.Generated.Models;
 /// <param name="Age">Animal age in years.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record Animal(
-    [property: Required, JsonRequired, Display(Name = "name")] string Name,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     int? Age = null);

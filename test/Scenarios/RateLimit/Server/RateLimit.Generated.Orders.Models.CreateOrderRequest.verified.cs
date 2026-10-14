@@ -17,5 +17,5 @@ namespace RateLimit.Generated.Orders.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderRequest(
-    [property: Required, JsonRequired, Display(Name = "customerName")] string CustomerName,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "customerName")] string CustomerName,
     List<string>? Items = null);

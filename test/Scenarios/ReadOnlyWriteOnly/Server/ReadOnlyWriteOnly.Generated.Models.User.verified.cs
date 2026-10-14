@@ -26,7 +26,7 @@ namespace ReadOnlyWriteOnly.Generated.Models;
 /// <param name="DisplayName">Regular read-write property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    [property: Required, EmailAddress, JsonRequired, Display(Name = "email")] string Email,
+    [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     Guid? Id = null,
     string? Password = null,
     DateTimeOffset? CreatedAt = null,

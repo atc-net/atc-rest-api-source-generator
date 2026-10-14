@@ -21,7 +21,7 @@ public sealed record Employee(
     Guid Id,
     string Name,
     string Email,
-    [property: Required, JsonRequired, Display(Name = "department")] string Department,
+    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "department")] string Department,
     DateTimeOffset? CreatedAt = null,
     string? Description = null,
     int? Age = null,
