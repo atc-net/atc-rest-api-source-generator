@@ -191,7 +191,13 @@ public static class ExtensibleEnumContentGenerator
         sb.AppendLine("    /// </summary>");
         sb.AppendLine($"    public bool IsKnown => Value is {string.Join(" or ", members.Select(m => "Names." + m.Name))};");
         sb.AppendLine();
-        sb.AppendLine($"    public static implicit operator {name}(string value)");
+
+        // Explicit: an implicit conversion took a null for a string (`none ? null : Status.Online`) and threw
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// A value as it is sent on the wire, written out: <c>(" + name + ")\"value\"</c>.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"value\">The value.</param>");
+        sb.AppendLine($"    public static explicit operator {name}(string value)");
         sb.AppendLine("        => new(value);");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");

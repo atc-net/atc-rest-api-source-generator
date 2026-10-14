@@ -78,7 +78,11 @@ public readonly record struct NoteKind : IParsable<NoteKind>
     /// </summary>
     public bool IsKnown => Value is Names.Plain or Names.Its or Names.SayHi or Names.BackSlash;
 
-    public static implicit operator NoteKind(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(NoteKind)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator NoteKind(string value)
         => new(value);
 
     /// <summary>

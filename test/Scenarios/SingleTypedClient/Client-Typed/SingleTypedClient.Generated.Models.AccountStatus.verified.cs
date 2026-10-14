@@ -70,7 +70,11 @@ public readonly record struct AccountStatus : IParsable<AccountStatus>
     /// </summary>
     public bool IsKnown => Value is Names.Active or Names.Suspended or Names.Closed;
 
-    public static implicit operator AccountStatus(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(AccountStatus)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator AccountStatus(string value)
         => new(value);
 
     /// <summary>

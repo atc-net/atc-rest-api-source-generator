@@ -75,7 +75,11 @@ public readonly record struct GetItemLogsParametersLogLevel : IParsable<GetItemL
     /// </summary>
     public bool IsKnown => Value is Names.Debug or Names.Info or Names.Warn or Names.Error;
 
-    public static implicit operator GetItemLogsParametersLogLevel(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(GetItemLogsParametersLogLevel)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator GetItemLogsParametersLogLevel(string value)
         => new(value);
 
     /// <summary>

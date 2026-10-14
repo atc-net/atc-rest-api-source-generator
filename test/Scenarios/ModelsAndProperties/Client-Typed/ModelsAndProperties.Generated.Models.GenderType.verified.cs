@@ -78,7 +78,11 @@ public readonly record struct GenderType : IParsable<GenderType>
     /// </summary>
     public bool IsKnown => Value is Names.None or Names.NonBinary or Names.Male or Names.Female;
 
-    public static implicit operator GenderType(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(GenderType)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator GenderType(string value)
         => new(value);
 
     /// <summary>

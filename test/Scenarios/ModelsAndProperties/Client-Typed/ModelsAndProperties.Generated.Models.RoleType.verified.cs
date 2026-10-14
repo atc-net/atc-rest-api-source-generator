@@ -83,7 +83,11 @@ public readonly record struct RoleType : IParsable<RoleType>
     /// </summary>
     public bool IsKnown => Value is Names.Admin or Names.Manager or Names.Editor or Names.Viewer or Names.Guest;
 
-    public static implicit operator RoleType(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(RoleType)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator RoleType(string value)
         => new(value);
 
     /// <summary>

@@ -88,7 +88,11 @@ public readonly record struct PriorityType : IParsable<PriorityType>
     /// </summary>
     public bool IsKnown => Value is Names.VeryLow or Names.Low or Names.Medium or Names.High or Names.VeryHigh or Names.Critical;
 
-    public static implicit operator PriorityType(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(PriorityType)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator PriorityType(string value)
         => new(value);
 
     /// <summary>

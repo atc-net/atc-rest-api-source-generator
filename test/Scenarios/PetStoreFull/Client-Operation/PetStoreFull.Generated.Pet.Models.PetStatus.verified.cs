@@ -73,7 +73,11 @@ public readonly record struct PetStatus : IParsable<PetStatus>
     /// </summary>
     public bool IsKnown => Value is Names.Available or Names.Pending or Names.Sold;
 
-    public static implicit operator PetStatus(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(PetStatus)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator PetStatus(string value)
         => new(value);
 
     /// <summary>

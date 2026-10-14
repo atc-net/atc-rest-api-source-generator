@@ -65,7 +65,11 @@ public readonly record struct DeviceStatus : IParsable<DeviceStatus>
     /// </summary>
     public bool IsKnown => Value is Names.Online or Names.Offline;
 
-    public static implicit operator DeviceStatus(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(DeviceStatus)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator DeviceStatus(string value)
         => new(value);
 
     /// <summary>

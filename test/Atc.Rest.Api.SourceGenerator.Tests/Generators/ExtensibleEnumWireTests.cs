@@ -294,8 +294,59 @@ public sealed class ExtensibleEnumWireTests
         object?[] nullArguments = [null, null, null];
         Assert.False((bool)status.GetMethod("TryParse", [typeof(string), typeof(IFormatProvider), status.MakeByRefType()])!.Invoke(null, nullArguments)!);
 
-        var implicitConversion = status.GetMethod("op_Implicit", [typeof(string)])!;
-        Assert.Equal(Static(status, "InMaintenance"), implicitConversion.Invoke(null, ["in-maintenance"]));
+        // Written out only: an implicit conversion took a null for a string and threw
+        Assert.Null(status.GetMethod("op_Implicit", [typeof(string)]));
+        var explicitConversion = status.GetMethod("op_Explicit", [typeof(string)])!;
+        Assert.Equal(Static(status, "InMaintenance"), explicitConversion.Invoke(null, ["in-maintenance"]));
+    }
+
+    /// <summary>
+    /// A string becomes an extensible enum only when the code says so (<c>(DeviceStatus)"online"</c>,
+    /// <c>new DeviceStatus("online")</c>): with an implicit conversion, <c>none ? null : DeviceStatus.Online</c> took the
+    /// null as a string, typed the conditional as <c>DeviceStatus</c> and threw - now it is a <c>DeviceStatus?</c> that is
+    /// null - and <c>DeviceStatus s = "online";</c> does not compile.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Clients))]
+    public void AStringBecomesTheEnum_OnlyWhenWrittenOut_SoANullInAConditionalIsNoValue(
+        string client)
+    {
+        const string consumer = """
+            namespace Consumer;
+
+            public static class UsesTheEnum
+            {
+                public static DeviceStatus? Pick(bool none) => none ? null : DeviceStatus.Online;
+
+                public static DeviceStatus Written(string value) => (DeviceStatus)value;
+            }
+            """;
+        var sources = Sources(client);
+        var usings = string.Join(
+            Environment.NewLine,
+            sources
+                .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
+                .Where(ns => ns.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+                .Select(ns => $"global using {ns};"));
+        sources.Add(("Consumer.cs", usings + Environment.NewLine + consumer));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+
+        var uses = assembly.GetType("Consumer.UsesTheEnum", throwOnError: true)!;
+        Assert.Null(uses.GetMethod("Pick")!.Invoke(null, [true]));
+        Assert.Equal("online", Value(uses.GetMethod("Written")!.Invoke(null, ["online"])!));
+
+        const string implicitUse = """
+            namespace Consumer;
+
+            public static class Implicit
+            {
+                public static DeviceStatus Status => "online";
+            }
+            """;
+        sources[^1] = ("Consumer.cs", usings + Environment.NewLine + implicitUse);
+        var errors = CompilationVerificationHarness.CreateCompilation(sources).GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.Id).ToList();
+        Assert.Contains("CS0266", errors, StringComparer.Ordinal);
     }
 
     [Theory]
@@ -374,13 +425,15 @@ public sealed class ExtensibleEnumWireTests
     }
 
     private static Assembly Load(string client)
-        => CompilationVerificationHarness.EmitAndLoad(
-            ErrorResponseBodyRuntimeTests.Generate(
-                new ApiClientGenerator(),
-                ".atc-rest-api-client",
-                client == "TypedClient" ? """{ "generationMode": "TypedClient" }""" : ErrorResponseBodyRuntimeTests.ClientOperationMarker("ProblemDetails"),
-                includeMinimalApi: false,
-                Yaml));
+        => CompilationVerificationHarness.EmitAndLoad(Sources(client));
+
+    private static List<(string HintName, string Source)> Sources(string client)
+        => ErrorResponseBodyRuntimeTests.Generate(
+            new ApiClientGenerator(),
+            ".atc-rest-api-client",
+            client == "TypedClient" ? """{ "generationMode": "TypedClient" }""" : ErrorResponseBodyRuntimeTests.ClientOperationMarker("ProblemDetails"),
+            includeMinimalApi: false,
+            Yaml);
 
     private static Type TypeOf(
         Assembly assembly,

@@ -68,7 +68,11 @@ public readonly record struct ProfileStatus : IParsable<ProfileStatus>
     /// </summary>
     public bool IsKnown => Value is Names.Active or Names.Inactive;
 
-    public static implicit operator ProfileStatus(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(ProfileStatus)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator ProfileStatus(string value)
         => new(value);
 
     /// <summary>

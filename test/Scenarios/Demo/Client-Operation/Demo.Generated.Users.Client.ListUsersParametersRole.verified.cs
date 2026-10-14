@@ -75,7 +75,11 @@ public readonly record struct ListUsersParametersRole : IParsable<ListUsersParam
     /// </summary>
     public bool IsKnown => Value is Names.Admin or Names.Manager or Names.Employee or Names.Guest;
 
-    public static implicit operator ListUsersParametersRole(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(ListUsersParametersRole)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator ListUsersParametersRole(string value)
         => new(value);
 
     /// <summary>

@@ -65,7 +65,11 @@ public readonly record struct Color : IParsable<Color>
     /// </summary>
     public bool IsKnown => Value is Names.Red or Names.DarkBlue;
 
-    public static implicit operator Color(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(Color)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator Color(string value)
         => new(value);
 
     /// <summary>

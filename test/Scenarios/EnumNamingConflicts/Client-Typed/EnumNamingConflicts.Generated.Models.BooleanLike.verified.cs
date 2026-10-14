@@ -73,7 +73,11 @@ public readonly record struct BooleanLike : IParsable<BooleanLike>
     /// </summary>
     public bool IsKnown => Value is Names.True or Names.False or Names.Unknown;
 
-    public static implicit operator BooleanLike(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(BooleanLike)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator BooleanLike(string value)
         => new(value);
 
     /// <summary>

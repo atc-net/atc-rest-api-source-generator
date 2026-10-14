@@ -83,7 +83,11 @@ public readonly record struct Mark : IParsable<Mark>
     /// </summary>
     public bool IsKnown => Value is Names.Empty or Names.A or Names.Value2nd or Names.WithSpace or Names.KebabCase;
 
-    public static implicit operator Mark(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(Mark)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator Mark(string value)
         => new(value);
 
     /// <summary>

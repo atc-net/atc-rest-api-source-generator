@@ -65,7 +65,11 @@ public readonly record struct ItemStatus : IParsable<ItemStatus>
     /// </summary>
     public bool IsKnown => Value is Names.InStock or Names.SoldOut;
 
-    public static implicit operator ItemStatus(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(ItemStatus)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator ItemStatus(string value)
         => new(value);
 
     /// <summary>

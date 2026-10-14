@@ -78,7 +78,11 @@ public readonly record struct Visibility : IParsable<Visibility>
     /// </summary>
     public bool IsKnown => Value is Names.Public or Names.Private or Names.Internal or Names.Protected;
 
-    public static implicit operator Visibility(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(Visibility)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator Visibility(string value)
         => new(value);
 
     /// <summary>

@@ -68,7 +68,11 @@ public readonly record struct Tone : IParsable<Tone>
     /// </summary>
     public bool IsKnown => Value is Names.Warm or Names.Cold;
 
-    public static implicit operator Tone(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(Tone)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator Tone(string value)
         => new(value);
 
     /// <summary>

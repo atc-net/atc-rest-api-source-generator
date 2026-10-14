@@ -80,7 +80,11 @@ public readonly record struct OrderStatus : IParsable<OrderStatus>
     /// </summary>
     public bool IsKnown => Value is Names.Pending or Names.Confirmed or Names.Shipped or Names.Delivered or Names.Cancelled;
 
-    public static implicit operator OrderStatus(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(OrderStatus)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator OrderStatus(string value)
         => new(value);
 
     /// <summary>

@@ -68,7 +68,11 @@ public readonly record struct Status : IParsable<Status>
     /// </summary>
     public bool IsKnown => Value is Names.Active or Names.Archived;
 
-    public static implicit operator Status(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(Status)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator Status(string value)
         => new(value);
 
     /// <summary>

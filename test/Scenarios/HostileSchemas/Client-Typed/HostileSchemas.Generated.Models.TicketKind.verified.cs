@@ -65,7 +65,11 @@ public readonly record struct TicketKind : IParsable<TicketKind>
     /// </summary>
     public bool IsKnown => Value is Names.Bug or Names.Feature;
 
-    public static implicit operator TicketKind(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(TicketKind)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator TicketKind(string value)
         => new(value);
 
     /// <summary>

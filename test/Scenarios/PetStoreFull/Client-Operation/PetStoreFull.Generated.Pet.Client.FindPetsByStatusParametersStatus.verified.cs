@@ -70,7 +70,11 @@ public readonly record struct FindPetsByStatusParametersStatus : IParsable<FindP
     /// </summary>
     public bool IsKnown => Value is Names.Available or Names.Pending or Names.Sold;
 
-    public static implicit operator FindPetsByStatusParametersStatus(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(FindPetsByStatusParametersStatus)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator FindPetsByStatusParametersStatus(string value)
         => new(value);
 
     /// <summary>

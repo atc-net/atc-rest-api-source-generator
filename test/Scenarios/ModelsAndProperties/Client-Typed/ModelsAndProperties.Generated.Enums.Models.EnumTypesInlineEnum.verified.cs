@@ -73,7 +73,11 @@ public readonly record struct EnumTypesInlineEnum : IParsable<EnumTypesInlineEnu
     /// </summary>
     public bool IsKnown => Value is Names.Option1 or Names.Option2 or Names.Option3;
 
-    public static implicit operator EnumTypesInlineEnum(string value)
+    /// <summary>
+    /// A value as it is sent on the wire, written out: <c>(EnumTypesInlineEnum)"value"</c>.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public static explicit operator EnumTypesInlineEnum(string value)
         => new(value);
 
     /// <summary>
