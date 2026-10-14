@@ -66,15 +66,22 @@ public static class EnumExtractor
     /// <param name="stringOnTheWire">Whether a string enum carries its string converter even when no value needs
     /// <c>[EnumMember]</c> (the server: a host without a <c>JsonStringEnumConverter</c> would write the member's
     /// number; a converter the host registers still decides).</param>
+    /// <param name="memberNameEnumConverter">With <c>readEnumMemberNames</c>, the fully qualified
+    /// <c>EnumWireConverterFactory</c>: a string enum names it in its <c>[JsonConverter]</c>, so it is read by its member
+    /// name too in a host that builds its own JSON options; an extensible enum recognizes its member names.</param>
     public static string GenerateEnumContent(
         EnumParameters parameters,
         bool extensible = false,
-        bool stringOnTheWire = false)
+        bool stringOnTheWire = false,
+        string? memberNameEnumConverter = null)
     {
         if (extensible && ExtensibleEnumContentGenerator.AppliesTo(parameters))
         {
-            return ExtensibleEnumContentGenerator.Generate(parameters);
+            return ExtensibleEnumContentGenerator.Generate(parameters, readMemberNames: memberNameEnumConverter is not null);
         }
+
+        // Every string enum names the converter that also reads its member names
+        stringOnTheWire |= memberNameEnumConverter is not null;
 
         // An integer enum is its number on the wire: its own converter says so (a JsonStringEnumConverter the host or a
         // client registers would write the member's name; the generated EnumWireConverterFactory lets this one decide)
@@ -110,11 +117,17 @@ public static class EnumExtractor
 
         // The generic converter: the non-generic one creates its converter with MakeGenericType, which a Native AOT
         // build cannot do (and System.Text.Json's source generator refuses it). The same defaults, so the same wire.
-        return generator
+        var content = generator
             .Generate()
             .Replace(
                 "[JsonConverter(typeof(JsonStringEnumConverter))]",
                 $"[JsonConverter(typeof(JsonStringEnumConverter<{parameters.EnumTypeName}>))]");
+
+        return memberNameEnumConverter is null
+            ? content
+            : content.Replace(
+                $"[JsonConverter(typeof(JsonStringEnumConverter<{parameters.EnumTypeName}>))]",
+                $"[JsonConverter(typeof({memberNameEnumConverter}))]");
     }
 
     /// <summary>

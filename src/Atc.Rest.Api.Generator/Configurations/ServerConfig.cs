@@ -108,4 +108,12 @@ public class ServerConfig : BaseConfig
     /// host then calls <c>AddAntiforgery()</c> and <c>UseAntiforgery()</c>, or a form post fails at request time.
     /// </summary>
     public bool UseAntiforgery { get; set; }
+
+    /// <summary>
+    /// Whether a string enum is also read by its C# member name. Default: false - only the specification's value
+    /// (<c>rtsp</c>) is read. When true, a JSON body may also carry the member name (<c>Rtsp</c>), in another casing
+    /// when only one member matches; the value is still what is written. For a rollout: a client built on 2.x wrote
+    /// the member name for a value that is no member name (2.x wrote <c>Rtsp</c> for <c>rtsp</c>).
+    /// </summary>
+    public bool ReadEnumMemberNames { get; set; }
 }

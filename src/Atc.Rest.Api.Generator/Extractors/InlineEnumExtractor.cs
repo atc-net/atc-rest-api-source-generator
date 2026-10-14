@@ -175,9 +175,12 @@ public static class InlineEnumExtractor
     /// <param name="parameters">The enum.</param>
     /// <param name="extensible">Whether a string enum is written as an extensible enum (a generated client).</param>
     /// <param name="stringOnTheWire">Whether a string enum always carries its string converter (the server).</param>
+    /// <param name="memberNameEnumConverter">The <c>EnumWireConverterFactory</c> a string enum names in its
+    /// <c>[JsonConverter]</c> to be read by its member name too (<c>readEnumMemberNames</c>); <see langword="null"/> without it.</param>
     public static string GenerateEnumContent(
         EnumParameters parameters,
         bool extensible = false,
-        bool stringOnTheWire = false)
-        => EnumExtractor.GenerateEnumContent(parameters, extensible, stringOnTheWire);
+        bool stringOnTheWire = false,
+        string? memberNameEnumConverter = null)
+        => EnumExtractor.GenerateEnumContent(parameters, extensible, stringOnTheWire, memberNameEnumConverter);
 }

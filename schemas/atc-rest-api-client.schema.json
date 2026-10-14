@@ -186,6 +186,11 @@
       "description": "Generate string enums as extensible enums. Default: true. When true, a string enum is a readonly record struct over the value on the wire, with the specification's values as named members (DeviceStatus.Online), their constants in Names for a switch, and KnownValues; a value the specification does not list is kept with IsKnown false instead of failing the response, so a server can add a value without breaking clients built before it. When false, string enums are C# enums, and an unknown value fails the response with a JsonException. Integer enums are C# enums either way (they already hold any number), and servers always keep strict C# enums.",
       "default": true
     },
+    "readEnumMemberNames": {
+      "type": "boolean",
+      "description": "Whether a string enum is also read by its C# member name. Default: false - only the specification's value (rtsp) is read. When true, a response may also carry the member name (Rtsp), in another casing when only one member matches; the value is still what is written. For a rollout: a server built on 2.x wrote the member name for a value that is no member name (2.x wrote Rtsp for rtsp). An extensible enum already takes a listed value in any casing; the key adds the member name (InProgress for in-progress).",
+      "default": false
+    },
     "errorResponseFormat": {
       "enum": [
         "ProblemDetails",

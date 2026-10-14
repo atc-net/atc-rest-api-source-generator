@@ -10,13 +10,30 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 /// It also notes every C# enum it emits (<see cref="Enums"/>), so a file that lists them - the
 /// <c>EnumWireConverterFactory</c> - is written from what was generated, after it.
 /// </para>
+/// <para>
+/// With <c>readEnumMemberNames</c> it names the <c>EnumWireConverterFactory</c> every string enum then names in its
+/// <c>[JsonConverter]</c> (<see cref="MemberNameEnumConverter"/>), so the enum is read by its member name too, also in
+/// a host that builds its own JSON options.
+/// </para>
 /// </summary>
 internal readonly struct GeneratedSourceContext(
     SourceProductionContext context,
     bool excludeFromCodeCoverage,
-    bool suppressObsolete)
+    bool suppressObsolete,
+    string? memberNameEnumConverter = null)
 {
     private readonly List<GeneratedEnumDeclaration> enums = [];
+
+    /// <summary>
+    /// The fully qualified <c>EnumWireConverterFactory</c> a string enum names in its <c>[JsonConverter]</c> when the
+    /// marker sets <c>readEnumMemberNames</c>; <see langword="null"/> without it.
+    /// </summary>
+    public string? MemberNameEnumConverter => memberNameEnumConverter;
+
+    /// <summary>
+    /// Whether a string enum is also read by its member name (<c>readEnumMemberNames</c>).
+    /// </summary>
+    public bool ReadEnumMemberNames => memberNameEnumConverter is not null;
 
     /// <summary>
     /// The enums emitted so far, in order.

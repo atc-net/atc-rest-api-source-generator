@@ -37,8 +37,12 @@ public static class ExtensibleEnumContentGenerator
     /// Generates the extensible enum, its JSON converter and its <c>ToWireValue()</c> extension for a nullable value.
     /// </summary>
     /// <param name="parameters">The enum, as the enum extractors describe it.</param>
+    /// <param name="readMemberNames">Whether a value is also recognized by its C# member name (<c>InProgress</c> for
+    /// <c>in-progress</c>) - the marker's <c>readEnumMemberNames</c>, for a server that writes member names.</param>
     /// <returns>The source of the file.</returns>
-    public static string Generate(EnumParameters parameters)
+    public static string Generate(
+        EnumParameters parameters,
+        bool readMemberNames = false)
     {
         if (parameters is null)
         {
@@ -81,7 +85,7 @@ public static class ExtensibleEnumContentGenerator
         AppendKnownMembers(sb, name, members);
         AppendConstructorAndValue(sb, name, members);
         AppendParsing(sb, name);
-        AppendRecognize(sb, members);
+        AppendRecognize(sb, members, readMemberNames ? MemberNamesOf(parameters, members) : []);
 
         sb.AppendLine("}");
         sb.AppendLine();
@@ -120,6 +124,16 @@ public static class ExtensibleEnumContentGenerator
 
         return members;
     }
+
+    // The C# member name of each value that differs from the value by more than casing (the casing is recognized anyway)
+    private static List<(string MemberName, string Name)> MemberNamesOf(
+        EnumParameters parameters,
+        List<(string Name, string Literal)> members)
+        => parameters.Values
+            .Select((value, index) => (value, index))
+            .Where(v => !string.Equals(v.value.Name, v.value.EnumMemberValue ?? v.value.Name, StringComparison.OrdinalIgnoreCase))
+            .Select(v => (v.value.Name, members[v.index].Name))
+            .ToList();
 
     private static void AppendNames(
         StringBuilder sb,
@@ -248,7 +262,8 @@ public static class ExtensibleEnumContentGenerator
 
     private static void AppendRecognize(
         StringBuilder sb,
-        List<(string Name, string Literal)> members)
+        List<(string Name, string Literal)> members,
+        List<(string MemberName, string Name)> memberNames)
     {
         sb.AppendLine("    private static string Recognize(string value)");
         sb.AppendLine("    {");
@@ -262,6 +277,16 @@ public static class ExtensibleEnumContentGenerator
             sb.AppendLine($"        if (string.Equals(value, Names.{member.Name}, StringComparison.OrdinalIgnoreCase))");
             sb.AppendLine("        {");
             sb.AppendLine($"            return Names.{member.Name};");
+            sb.AppendLine("        }");
+            sb.AppendLine();
+        }
+
+        // readEnumMemberNames: a server that writes the C# member name (as 2.x did) sends the listed value
+        foreach (var (memberName, name) in memberNames)
+        {
+            sb.AppendLine($"        if (string.Equals(value, {CSharpLiteralHelper.ToStringLiteral(memberName)}, StringComparison.OrdinalIgnoreCase))");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            return Names.{name};");
             sb.AppendLine("        }");
             sb.AppendLine();
         }

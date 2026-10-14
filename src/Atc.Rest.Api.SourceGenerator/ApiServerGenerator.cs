@@ -468,7 +468,11 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
         // configured. Used by every sub-generation method below that only ever calls AddSource.
-        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage, DeprecationDetector.HasDeprecatedMembers(openApiDoc));
+        var generatedContext = new GeneratedSourceContext(
+            context,
+            config.ExcludeFromCodeCoverage,
+            DeprecationDetector.HasDeprecatedMembers(openApiDoc),
+            config.ReadEnumMemberNames ? $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}" : null);
 
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
@@ -891,7 +895,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate inline enum files first (before records that use them)
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, stringOnTheWire: true);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -1035,7 +1039,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate each enum as a separate file
         foreach (var enumParams in enumParametersList)
         {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, stringOnTheWire: true);
+            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
 
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName),
@@ -1548,7 +1552,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Emit inline enum files first so the parameter record's type references resolve.
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, stringOnTheWire: true);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(parametersNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -1986,7 +1990,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             context.AddGeneratedSource(
                 $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
-                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName), context.Enums).NormalizeForSourceOutput(), Encoding.UTF8));
+                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName), context.Enums, context.ReadEnumMemberNames).NormalizeForSourceOutput(), Encoding.UTF8));
         }
     }
 

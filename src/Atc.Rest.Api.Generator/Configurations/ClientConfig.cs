@@ -93,6 +93,16 @@ public class ClientConfig : BaseConfig
     public bool ExtensibleEnums { get; set; } = true;
 
     /// <summary>
+    /// Whether a string enum is also read by its C# member name. Default: false - only the specification's value
+    /// (<c>rtsp</c>) is read. When true, a response may also carry the member name (<c>Rtsp</c>), in another casing
+    /// when only one member matches; the value is still what is written. For a rollout: a server built on 2.x wrote
+    /// the member name for a value that is no member name (2.x wrote <c>Rtsp</c> for <c>rtsp</c>). An extensible enum
+    /// already takes a listed value in any casing; the key adds the member name (<c>InProgress</c> for
+    /// <c>in-progress</c>).
+    /// </summary>
+    public bool ReadEnumMemberNames { get; set; }
+
+    /// <summary>
     /// Error response format expected from the API. Default: ProblemDetails.
     /// Only applies to EndpointPerOperation generation mode.
     /// </summary>
