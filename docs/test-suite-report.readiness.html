@@ -101,7 +101,10 @@
     <code>Content</code>; a declared error model reads a body of another shape leniently; Fetch and Axios read success
     and error bodies by one rule.</li>
   <li><b>Models and enums.</b> Properties are written under their exact spec names; a server string enum is a string in
-    every host; the clients' enums are extensible (<code>extensibleEnums: false</code> keeps the classic enum).</li>
+    every host; the clients' enums are extensible (<code>extensibleEnums: false</code> keeps the classic enum). A string
+    enum whose values are not its member names (<code>rtsp</code>, <code>in-progress</code>) was written by v2 as the
+    member name, so a v2 and a v3 peer refuse each other's JSON bodies; <code>readEnumMemberNames: true</code> in the
+    marker reads both during a rollout.</li>
   <li><b>OpenAPI Overlays</b> in the build and the CLI.</li>
   <li><b>A broken specification is reported, never a crash</b> (a fuzz test over every scenario).</li>
 </ul>
