@@ -25,6 +25,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🔐 **Security**                  | JWT, OAuth2 scopes, API Key, role-based auth - all from OpenAPI                  |
 |            | ⏱️ **Rate Limiting**             | Server-side rate limiting from `x-ratelimit-*` extensions                        |
 |            | 💾 **Caching**                   | Output caching and HybridCache support from `x-cache-*` extensions               |
+|            | 🪝 **Webhooks**                  | OpenAPI 3.1 `webhooks` → the receiving endpoints, handler interfaces and typed results (sending them is your code) |
 | **Client** | 🔌 **Type-Safe Client**          | Strongly-typed HTTP client with full IntelliSense                                |
 |            | 🔄 **Resilience**                | Per-operation retry/circuit breaker from `x-retry-*`; POST/PATCH never resent unasked |
 |            | 🔗 **URL Encoding**              | Automatic RFC 3986 compliant encoding - no more broken URLs                      |
@@ -32,7 +33,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |
 | **Data**   | 📁 **Files**                     | Upload and download any file type (PDF, Excel, images) with its media type and file name; a response can be a model **or** a file |
 |            | 🧾 **XML**                       | XML bodies mapped by the `xml` keyword, negotiated by `Accept`; `application/problem+xml` on request |
-|            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` in five formats: JSON array, JSON Lines, JSON Text Sequence, Server-Sent Events, multipart |
+|            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` in five formats: JSON array, JSON Lines, JSON Text Sequence, Server-Sent Events, multipart - read by every C# and TypeScript client; a Server-Sent Events stream can resume with `Last-Event-ID` |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
 |            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios, interceptors, retry, MSW handlers    |
 |            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — `queryOptions` factories for loaders and prefetching, cancellation through `AbortSignal`, streaming hooks for `IAsyncEnumerable` |
@@ -258,7 +259,9 @@ Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-ap
 | [⏱️ Working with Rate Limiting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Rate-Limiting) | Server-side rate limiting configuration |
 | [💾 Working with Caching](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Caching) | Output caching and HybridCache configuration |
 | [🔢 Working with Versioning](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Versioning) | API versioning strategies |
-| [🪝 Working with Webhooks](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Webhooks) | OpenAPI webhooks on server and client |
+| [📣 Working with Server Push](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Server-Push) | Streams, SignalR hubs, webhooks or polling with ETag - which one to use |
+| [📡 Working with SignalR Hubs](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-SignalR-Hubs) | `x-signalr-hubs`: typed hub contract, C# and TypeScript hub clients |
+| [🪝 Working with Webhooks](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Webhooks) | Receive OpenAPI 3.1 webhooks: endpoints, handlers, results |
 | [🗺️ Working with Endpoint Definitions](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Endpoint-Definitions) | How endpoints are grouped and mapped |
 | [🔌 Working with the C# Client](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CSharp-Client) | Typed client and endpoint-per-operation modes |
 | [🧪 Working with C# Client Testing](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CSharp-Client-Testing) | Test doubles for generated clients |
