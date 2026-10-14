@@ -26,6 +26,22 @@ export class StreamsClient {
     }, 'sse');
   }
 
+  /** The live price feed as Server-Sent Events */
+  async *listLivePriceEvents(query?: { heartbeatSeconds?: number; count?: number }, headers?: { 'Last-Event-ID'?: string }, signal?: AbortSignal, onEvent?: (event: { lastEventId?: string; event?: string; retry?: number }) => void): AsyncGenerator<PriceTick> {
+    yield* this.api.requestStream<PriceTick>('GET', '/streams/prices/live', {
+      query: {
+        heartbeatSeconds: query?.heartbeatSeconds,
+        count: query?.count,
+      },
+      headers: {
+        'Last-Event-ID': headers?.['Last-Event-ID'],
+      },
+      signal,
+      onEvent,
+      security: [{ type: 'bearer' }],
+    }, 'sse');
+  }
+
   /** Live prices as JSON Lines */
   async *listPriceLines(query?: { count?: number /* default: 40 */; closed?: boolean /* default: false */ }, signal?: AbortSignal): AsyncGenerator<PriceTick> {
     yield* this.api.requestStream<PriceTick>('GET', '/streams/prices/lines', {

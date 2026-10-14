@@ -69,13 +69,16 @@ builder.Services.AddWebhookHandlersFromDomain();
 builder.Services.AddApiHealthChecks();
 
 // Register Showcase dependencies (repositories)
-builder.Services.AddSingleton<AccountInMemoryRepository>();
-builder.Services.AddSingleton<TaskInMemoryRepository>();
-builder.Services.AddSingleton<FileInMemoryRepository>();
-builder.Services.AddSingleton<DocumentInMemoryRepository>();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<UserInMemoryRepository>();
+
+builder.Services.AddSingleton<AccountInMemoryRepository>();
+builder.Services.AddSingleton<DocumentInMemoryRepository>();
+builder.Services.AddSingleton<FileInMemoryRepository>();
 builder.Services.AddSingleton<SubscriptionInMemoryRepository>();
+builder.Services.AddSingleton<TaskInMemoryRepository>();
+builder.Services.AddSingleton<UserInMemoryRepository>();
+
+builder.Services.AddSingleton<Showcase.Api.Domain.ApiHandlers.Streams.LivePriceFeed>();
 
 var app = builder.Build();
 

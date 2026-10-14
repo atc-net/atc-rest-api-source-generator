@@ -1121,6 +1121,60 @@ paths:
                 type: integer
                 format: int32
 
+  /streams/prices/live:
+    # No retry: a live stream is not sent again from the start
+    x-retry-enabled: false
+    get:
+      summary: The live price feed as Server-Sent Events
+      operationId: listLivePriceEvents
+      tags:
+        - streams
+      description: |
+        The one live feed every subscriber shares - what a long-lived event stream needs besides its items.
+        Every event's id is the price's sequence: a client that sends the last id it read as Last-Event-ID gets
+        the prices after it from a buffer of the latest ones (X-Events-Missed says how many the buffer no longer
+        had), then the live ones. When no price comes for heartbeatSeconds, a named event "ping" - which the
+        clients read past - keeps a proxy from closing the idle connection. A subscriber that falls behind is cut
+        off (and resumes), so it never holds up the feed.
+      x-return-async-enumerable: true
+      parameters:
+        - name: heartbeatSeconds
+          in: query
+          required: false
+          description: Seconds without a price before a ping event (15 when left out)
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 60
+        - name: count
+          in: query
+          required: false
+          description: End the stream after this many prices (left out, it does not end)
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: The id of the last event read - the stream goes on after it
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The live prices, one at a time
+          headers:
+            X-Events-Missed:
+              description: How many prices after Last-Event-ID the buffer no longer had (0 when it had them all)
+              schema:
+                type: integer
+                format: int64
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+
   /streams/prices/lines:
     # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
     x-retry-enabled: false
