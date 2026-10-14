@@ -46,8 +46,15 @@ public sealed class UpdatePetResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdatePetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid ID supplied.
+    /// </summary>
+    public static UpdatePetResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
@@ -108,8 +115,15 @@ public sealed class AddPetResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid input.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static AddPetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid input.
+    /// </summary>
+    public static AddPetResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 422 Unprocessable Entity - Validation exception.
@@ -167,8 +181,15 @@ public sealed class FindPetsByStatusResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid status value.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static FindPetsByStatusResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid status value.
+    /// </summary>
+    public static FindPetsByStatusResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -220,8 +241,15 @@ public sealed class FindPetsByTagsResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid tag value.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static FindPetsByTagsResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid tag value.
+    /// </summary>
+    public static FindPetsByTagsResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -270,8 +298,15 @@ public sealed class GetPetByIdResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static GetPetByIdResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid ID supplied.
+    /// </summary>
+    public static GetPetByIdResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
@@ -326,8 +361,15 @@ public sealed class UpdatePetWithFormResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid input.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdatePetWithFormResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid input.
+    /// </summary>
+    public static UpdatePetWithFormResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -373,8 +415,15 @@ public sealed class DeletePetResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid pet value.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static DeletePetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid pet value.
+    /// </summary>
+    public static DeletePetResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -423,8 +472,15 @@ public sealed class UploadFileResult : IResult
     /// <summary>
     /// 400 Bad Request - No file uploaded.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UploadFileResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - No file uploaded.
+    /// </summary>
+    public static UploadFileResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - Pet not found.

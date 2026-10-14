@@ -682,6 +682,7 @@ public partial class ErrorResponseBodyRuntimeTests
                         None.BadRequest(),
                         None.BadRequest(null),
                         None.BadRequest(new ValidationProblemDetails()),
+                        None.BadRequest("m"),
                         None.Unauthorized(),
                         None.Forbidden(),
                         None.NotFound(),
@@ -742,6 +743,12 @@ public partial class ErrorResponseBodyRuntimeTests
                   responses:
                     '204':
                       description: No Content
+                    '400':
+                      description: Bad Request
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ProblemDetails'
                     '404':
                       description: Not Found
                       content:
@@ -790,6 +797,10 @@ public partial class ErrorResponseBodyRuntimeTests
                 public static object[] All()
                     =>
                     [
+                        Thing.BadRequest(),
+                        Thing.BadRequest(null),
+                        Thing.BadRequest("m"),
+                        Thing.BadRequest(new ProblemDetails()),
                         Thing.NotFound(),
                         Thing.NotFound(null),
                         Thing.NotFound("m"),
@@ -815,6 +826,96 @@ public partial class ErrorResponseBodyRuntimeTests
         var errors = CompilationVerificationHarness.CompileGeneratedSources(sources, includeMinimalApi: true);
 
         Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors.Concat(sources.Select(s => s.HintName))));
+    }
+
+    /// <summary>
+    /// <c>BadRequest("…")</c> refuses a request for a reason that is no field error, as <c>NotFound("…")</c> does: a 400
+    /// ProblemDetails with the message as <c>detail</c> - with a declared ProblemDetails and without one.
+    /// <c>BadRequest()</c> and <c>BadRequest(null)</c> keep the validation problem's overload.
+    /// </summary>
+    [Fact]
+    public void BadRequest_TakesAMessage_AsTheProblemsDetail()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /declared:
+                post:
+                  operationId: postDeclared
+                  responses:
+                    '204':
+                      description: No Content
+                    '400':
+                      description: Bad Request
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ProblemDetails'
+              /undeclared:
+                post:
+                  operationId: postUndeclared
+                  responses:
+                    '204':
+                      description: No Content
+                    '400':
+                      description: Bad Request
+            components:
+              schemas:
+                ProblemDetails:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    status:
+                      type: integer
+                    detail:
+                      type: string
+            """;
+
+        const string probe = """
+            using Microsoft.AspNetCore.Http.HttpResults;
+            using Declared = ErrorBodies.Generated.Declared.Results.PostDeclaredResult;
+            using Undeclared = ErrorBodies.Generated.Undeclared.Results.PostUndeclaredResult;
+
+            namespace ErrorBodies.RuntimeTest;
+
+            public static class BadRequestProbe
+            {
+                public static string[] Run()
+                    =>
+                    [
+                        Describe(Declared.BadRequest("A receiver needs an http or https address.").Result),
+                        Describe(Declared.BadRequest().Result),
+                        Describe(Declared.BadRequest(null).Result),
+                        Describe(Undeclared.BadRequest("The path does not name a recording.").Result),
+                        Describe(Undeclared.BadRequest(null).Result),
+                    ];
+
+                private static string Describe(Microsoft.AspNetCore.Http.IResult result)
+                    => result is ProblemHttpResult problem
+                        ? $"{problem.StatusCode} {problem.ContentType} detail={problem.ProblemDetails.Detail ?? "-"}"
+                        : result.GetType().Name;
+            }
+            """;
+
+        var sources = Generate(new ApiServerGenerator(), ".atc-rest-api-server", ServerMarker, includeMinimalApi: true, yaml);
+        sources.Add(("BadRequestProbe.cs", probe));
+
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
+        var rows = (string[])assembly.GetType("ErrorBodies.RuntimeTest.BadRequestProbe", throwOnError: true)!.GetMethod("Run")!.Invoke(null, [])!;
+
+        Assert.Equal(
+            [
+                "400 application/problem+json detail=A receiver needs an http or https address.",
+                "400 application/problem+json detail=-",
+                "400 application/problem+json detail=-",
+                "400 application/problem+json detail=The path does not name a recording.",
+                "400 application/problem+json detail=-",
+            ],
+            rows);
     }
 
     /// <summary>

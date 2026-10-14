@@ -87,8 +87,15 @@ public sealed class CreateUserResult : IResult
     /// <summary>
     /// 400 Bad Request - Validation error.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static CreateUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Validation error.
+    /// </summary>
+    public static CreateUserResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 409 Conflict - User with this email already exists.
@@ -177,8 +184,15 @@ public sealed class UpdateUserByIdResult : IResult
     /// <summary>
     /// 400 Bad Request - Validation error.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdateUserByIdResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Validation error.
+    /// </summary>
+    public static UpdateUserByIdResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - User not found.

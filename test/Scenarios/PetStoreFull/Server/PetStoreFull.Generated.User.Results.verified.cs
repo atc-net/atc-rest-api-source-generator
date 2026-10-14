@@ -137,8 +137,15 @@ public sealed class LoginUserResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid username/password supplied.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static LoginUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid username/password supplied.
+    /// </summary>
+    public static LoginUserResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// Default error response - Unexpected error.
@@ -228,8 +235,15 @@ public sealed class GetUserByNameResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid username supplied.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static GetUserByNameResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid username supplied.
+    /// </summary>
+    public static GetUserByNameResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - User not found.
@@ -281,8 +295,15 @@ public sealed class UpdateUserResult : IResult
     /// <summary>
     /// 400 Bad Request - bad request.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdateUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - bad request.
+    /// </summary>
+    public static UpdateUserResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - user not found.
@@ -334,8 +355,15 @@ public sealed class DeleteUserResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid username supplied.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static DeleteUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid username supplied.
+    /// </summary>
+    public static DeleteUserResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - User not found.

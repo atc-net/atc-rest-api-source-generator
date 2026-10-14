@@ -767,7 +767,17 @@ public static class ResultClassExtractor
                     doc,
                     name,
                     [CreateParameter(errorsType, "errors", nullable: true, isReference: true, defaultValue: "null")],
-                    $"new(errors is null ? TypedResults.Problem(statusCode: 400) : {fromErrors})"));
+                    $"new(errors is null ? TypedResults.Problem(statusCode: 400) : {fromErrors})",
+                    [new AttributeParameters("System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]));
+
+                // A request refused for a reason that is no field error, as NotFound("…") says it. No default, so
+                // BadRequest() and BadRequest(null) stay the 2.x shape above.
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [CreateParameter("string", "message", nullable: false, isReference: true, defaultValue: null)],
+                    $"new({problemFromMessage})"));
             }
             else if (code is 500 or 504)
             {

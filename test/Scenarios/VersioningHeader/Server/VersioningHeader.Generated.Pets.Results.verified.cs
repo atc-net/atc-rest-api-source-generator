@@ -87,8 +87,15 @@ public sealed class CreatePetResult : IResult
     /// <summary>
     /// 400 Bad Request - Bad Request.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static CreatePetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Bad Request.
+    /// </summary>
+    public static CreatePetResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

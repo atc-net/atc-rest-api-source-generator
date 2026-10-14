@@ -87,8 +87,15 @@ public sealed class PlaceOrderResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid input.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static PlaceOrderResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid input.
+    /// </summary>
+    public static PlaceOrderResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 422 Unprocessable Entity - Validation exception.
@@ -143,8 +150,15 @@ public sealed class GetOrderByIdResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static GetOrderByIdResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid ID supplied.
+    /// </summary>
+    public static GetOrderByIdResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - Order not found.
@@ -196,8 +210,15 @@ public sealed class DeleteOrderResult : IResult
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static DeleteOrderResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Invalid ID supplied.
+    /// </summary>
+    public static DeleteOrderResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     /// <summary>
     /// 404 Not Found - Order not found.

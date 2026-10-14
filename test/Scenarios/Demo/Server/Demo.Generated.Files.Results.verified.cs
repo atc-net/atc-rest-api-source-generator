@@ -94,8 +94,15 @@ public sealed class UploadFormDataFileResult : IResult
     /// <summary>
     /// 400 Bad Request - Bad Request.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UploadFormDataFileResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Bad Request.
+    /// </summary>
+    public static UploadFormDataFileResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -133,8 +140,15 @@ public sealed class UploadFormDataFilesResult : IResult
     /// <summary>
     /// 400 Bad Request - Bad Request.
     /// </summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UploadFormDataFilesResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
+
+    /// <summary>
+    /// 400 Bad Request - Bad Request.
+    /// </summary>
+    public static UploadFormDataFilesResult BadRequest(string message)
+        => new(TypedResults.Problem(detail: message, statusCode: 400));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
