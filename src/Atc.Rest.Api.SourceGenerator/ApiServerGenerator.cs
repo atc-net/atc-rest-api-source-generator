@@ -793,18 +793,18 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
 
-        // Generate simplified API surface (only if global error handler is enabled, which implies MinimalApi package)
-        if (useGlobalErrorHandler)
-        {
-            GenerateApiOptions(generatedContext, openApiDoc, projectName, config);
+        // Generate the simplified API surface: Add…Api() and Map…Api() with their options. Without
+        // Atc.Rest.MinimalApi too - then the framework's exception handler stands where the package's error handler
+        // would, and everything else the host wiring does (ProblemDetails, the enum converter, the output cache, the
+        // order of authentication and the rate limiter) is the same.
+        GenerateApiOptions(generatedContext, openApiDoc, projectName, config, useGlobalErrorHandler);
 
-            // The unified extensions register the handlers and map the endpoints: with no operations there are
-            // none of either (ATC_API_PTH002 says so), and the extensions would name namespaces that do not exist
-            if (operationCount > 0)
-            {
-                GenerateUnifiedServiceCollection(generatedContext, openApiDoc, projectName, config, effectiveSegments);
-                GenerateUnifiedWebApplicationExtensions(generatedContext, openApiDoc, projectName, config);
-            }
+        // The unified extensions register the handlers and map the endpoints: with no operations there are
+        // none of either (ATC_API_PTH002 says so), and the extensions would name namespaces that do not exist
+        if (operationCount > 0)
+        {
+            GenerateUnifiedServiceCollection(generatedContext, openApiDoc, projectName, config, effectiveSegments);
+            GenerateUnifiedWebApplicationExtensions(generatedContext, openApiDoc, projectName, config, useGlobalErrorHandler);
         }
 
         // The JSON results and stream writers write through the metadata the app's JSON options resolve (trim- and AOT-safe)
@@ -1924,7 +1924,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useGlobalErrorHandler)
     {
         // Generate ApiServiceOptions
         var serviceOptionsContent = ApiOptionsExtractor.ExtractServiceOptions(openApiDoc, projectName, config);
@@ -1933,7 +1934,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             SourceText.From(serviceOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
 
         // Generate ApiMiddlewareOptions
-        var middlewareOptionsContent = ApiOptionsExtractor.ExtractMiddlewareOptions(openApiDoc, projectName);
+        var middlewareOptionsContent = ApiOptionsExtractor.ExtractMiddlewareOptions(openApiDoc, projectName, useGlobalErrorHandler);
         context.AddGeneratedSource(
             $"{projectName}.ApiMiddlewareOptions.g.cs",
             SourceText.From(middlewareOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -1971,9 +1972,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useGlobalErrorHandler)
     {
-        var generatedContent = WebApplicationExtensionsExtractor.ExtractUnified(openApiDoc, projectName, config);
+        var generatedContent = WebApplicationExtensionsExtractor.ExtractUnified(openApiDoc, projectName, config, useGlobalErrorHandler);
 
         context.AddGeneratedSource(
             $"{projectName}.UnifiedWebApplicationExtensions.g.cs",

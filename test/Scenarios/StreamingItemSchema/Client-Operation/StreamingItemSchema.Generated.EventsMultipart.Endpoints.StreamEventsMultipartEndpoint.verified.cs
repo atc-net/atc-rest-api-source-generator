@@ -42,7 +42,8 @@ public sealed class StreamEventsMultipartEndpoint : IStreamEventsMultipartEndpoi
 
     public async Task<StreamEventsMultipartEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        StreamReadOptions? streamReadOptions = null)
     {
         var client = factory.CreateClient(httpClientName);
 
@@ -54,6 +55,6 @@ public sealed class StreamEventsMultipartEndpoint : IStreamEventsMultipartEndpoi
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsMultipartEndpointResult>(x => new StreamEventsMultipartEndpointResult(x), StreamFraming.MultipartMixed, cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsMultipartEndpointResult>(x => new StreamEventsMultipartEndpointResult(x), StreamFraming.MultipartMixed, streamReadOptions, cancellationToken).ConfigureAwait(false);
     }
 }

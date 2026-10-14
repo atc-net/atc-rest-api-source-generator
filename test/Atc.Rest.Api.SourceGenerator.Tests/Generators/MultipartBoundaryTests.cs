@@ -74,7 +74,7 @@ public sealed class MultipartBoundaryTests
                     assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                     var provider = services.BuildServiceProvider();
                     var endpointType = assembly.GetTypes().Single(t => t.Name == "IStreamMixedEndpoint");
-                    var task = (Task)endpointType.GetMethod("ExecuteAsync")!.Invoke(provider.GetRequiredService(endpointType), [httpClientName, CancellationToken.None])!;
+                    var task = (Task)endpointType.GetMethod("ExecuteAsync")!.Invoke(provider.GetRequiredService(endpointType), [httpClientName, CancellationToken.None, .. Enumerable.Repeat(Type.Missing, endpointType.GetMethod("ExecuteAsync")!.GetParameters().Length - 2)])!;
                     await task;
                     var result = task.GetType().GetProperty("Result")!.GetValue(task)!;
                     stream = result.GetType().GetProperty("OkContent")!.GetValue(result)!;

@@ -29,5 +29,6 @@ public interface IStreamEventsEndpoint
     /// </summary>
     Task<StreamEventsEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        StreamReadOptions? streamReadOptions = null);
 }

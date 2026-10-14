@@ -96,7 +96,7 @@ public sealed class ClientConfigureAwaitTests
                     var provider = services.BuildServiceProvider();
                     var endpointType = assembly.GetTypes().Single(t => t.Name == "I" + method + "Endpoint");
                     var endpoint = provider.GetRequiredService(endpointType);
-                    result = OnContext(context, () => endpointType.GetMethod("ExecuteAsync")!.Invoke(endpoint, [httpClientName, CancellationToken.None])!);
+                    result = OnContext(context, () => endpointType.GetMethod("ExecuteAsync")!.Invoke(endpoint, [httpClientName, CancellationToken.None, .. Enumerable.Repeat(Type.Missing, endpointType.GetMethod("ExecuteAsync")!.GetParameters().Length - 2)])!);
                 }
 
                 if (result is Task task)

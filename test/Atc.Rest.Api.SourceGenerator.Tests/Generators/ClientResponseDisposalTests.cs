@@ -104,7 +104,7 @@ public sealed class ClientResponseDisposalTests
                 assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
                 var provider = services.BuildServiceProvider();
                 var endpointType = assembly.GetTypes().Single(t => t.Name == "I" + method + "Endpoint");
-                await (Task)endpointType.GetMethod("ExecuteAsync")!.Invoke(provider.GetRequiredService(endpointType), [httpClientName, CancellationToken.None])!;
+                await (Task)endpointType.GetMethod("ExecuteAsync")!.Invoke(provider.GetRequiredService(endpointType), [httpClientName, CancellationToken.None, .. Enumerable.Repeat(Type.Missing, endpointType.GetMethod("ExecuteAsync")!.GetParameters().Length - 2)])!;
             }
 
             private sealed class StubHandler(HttpStatusCode status, bool failRead) : HttpMessageHandler

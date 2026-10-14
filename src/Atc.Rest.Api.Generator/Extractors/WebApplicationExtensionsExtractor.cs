@@ -59,7 +59,8 @@ public static class WebApplicationExtensionsExtractor
     public static string ExtractUnified(
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useGlobalErrorHandler = true)
     {
         if (openApiDoc is null)
         {
@@ -75,7 +76,7 @@ public static class WebApplicationExtensionsExtractor
                                RateLimitPoliciesExtractor.CollectPolicies(openApiDoc, config?.IncludeDeprecated ?? false)
                                    .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User);
 
-        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, openApiDoc.HasOutputCaching());
+        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, openApiDoc.HasOutputCaching(), useGlobalErrorHandler);
     }
 
     /// <summary>
@@ -86,7 +87,8 @@ public static class WebApplicationExtensionsExtractor
         bool hasRateLimiting,
         bool hasSecurity,
         bool limiterNeedsUser,
-        bool hasOutputCaching)
+        bool hasOutputCaching,
+        bool useGlobalErrorHandler)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -94,7 +96,11 @@ public static class WebApplicationExtensionsExtractor
         contentBuilder.AppendLine("public static class UnifiedWebApplicationExtensions");
         contentBuilder.AppendLine("public static WebApplication MapApi(this WebApplication app, Action<ApiMiddlewareOptions>? configure = null)");
         contentBuilder.AppendLine("var options = new ApiMiddlewareOptions();");
-        contentBuilder.AppendLine("app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
+        if (useGlobalErrorHandler)
+        {
+            contentBuilder.AppendLine("app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
+        }
+
         contentBuilder.AppendLine("app.MapEndpoints();");
         var content = contentBuilder.ToString();
 
@@ -115,7 +121,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine("{");
 
         // Generate Map{ProjectName}Api method
-        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, hasOutputCaching);
+        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, hasOutputCaching, useGlobalErrorHandler);
 
         builder.AppendLine("}");
 
@@ -131,7 +137,8 @@ public static class WebApplicationExtensionsExtractor
         bool hasRateLimiting,
         bool hasSecurity,
         bool limiterNeedsUser,
-        bool hasOutputCaching)
+        bool hasOutputCaching,
+        bool useGlobalErrorHandler)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Configures {projectName} API middleware and maps all endpoints.");
@@ -158,7 +165,9 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine(4, "/// - Output cache middleware (auto-detected, after authentication)");
         }
 
-        builder.AppendLine(4, "/// - Global error handling middleware");
+        builder.AppendLine(4, useGlobalErrorHandler
+            ? "/// - Global error handling middleware"
+            : "/// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)");
         builder.AppendLine(4, "/// - All API endpoints");
         builder.AppendLine(4, "/// </remarks>");
         builder.AppendLine(4, $"public static WebApplication Map{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}Api(");
@@ -167,6 +176,21 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, "{");
         builder.AppendLine(8, "var options = new ApiMiddlewareOptions();");
         builder.AppendLine(8, "configure?.Invoke(options);");
+
+        if (!useGlobalErrorHandler)
+        {
+            // Without Atc.Rest.MinimalApi's error handler: the framework's, outermost, so it sees what anything below
+            // throws. Development keeps its developer exception page.
+            builder.AppendLine();
+            builder.AppendLine(8, "// An unhandled exception as a ProblemDetails 500 (needs AddProblemDetails; not in Development, where the");
+            builder.AppendLine(8, "// developer exception page shows it)");
+            builder.AppendLine(8, "if (options.UseExceptionHandler &&");
+            builder.AppendLine(8, "    !global::Microsoft.Extensions.Hosting.HostEnvironmentEnvExtensions.IsDevelopment(app.Environment) &&");
+            builder.AppendLine(8, "    app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, "app.UseExceptionHandler();");
+            builder.AppendLine(8, "}");
+        }
 
         // Status code pages first, so every empty error response below (rate limiter, auth, routing,
         // endpoints) gets a ProblemDetails body. Only with ProblemDetails registered: on its own,
@@ -208,10 +232,13 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine(8, "}");
         }
 
-        // Global error handler (always)
-        builder.AppendLine();
-        builder.AppendLine(8, "// Global error handling middleware (converts exceptions to ProblemDetails)");
-        builder.AppendLine(8, "app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
+        // Global error handler (with Atc.Rest.MinimalApi)
+        if (useGlobalErrorHandler)
+        {
+            builder.AppendLine();
+            builder.AppendLine(8, "// Global error handling middleware (converts exceptions to ProblemDetails)");
+            builder.AppendLine(8, "app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
+        }
 
         // Map endpoints (always)
         builder.AppendLine();

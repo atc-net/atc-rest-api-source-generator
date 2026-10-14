@@ -158,10 +158,11 @@ internal static class ResponseHeaders
 }
 
 /// <summary>
-/// Writes the wrapped result with the headers that have a value.
+/// Writes the wrapped result with the headers that have a value. Its status code and its value are the
+/// wrapped result's, so a test reads them the same way with or without headers.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class ResponseHeadersHttpResult : IResult
+internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult inner;
     private readonly (string Name, string? Value)[] headers;
@@ -173,6 +174,12 @@ internal sealed class ResponseHeadersHttpResult : IResult
         this.inner = inner;
         this.headers = headers;
     }
+
+    public int? StatusCode
+        => (inner as IStatusCodeHttpResult)?.StatusCode;
+
+    public object? Value
+        => (inner as IValueHttpResult)?.Value;
 
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
     {

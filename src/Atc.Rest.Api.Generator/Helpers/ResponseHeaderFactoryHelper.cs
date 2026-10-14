@@ -144,10 +144,11 @@ public static class ResponseHeaderFactoryHelper
             }
 
             /// <summary>
-            /// Writes the wrapped result with the headers that have a value.
+            /// Writes the wrapped result with the headers that have a value. Its status code and its value are the
+            /// wrapped result's, so a test reads them the same way with or without headers.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class ResponseHeadersHttpResult : IResult
+            internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult
             {
                 private readonly IResult inner;
                 private readonly (string Name, string? Value)[] headers;
@@ -159,6 +160,12 @@ public static class ResponseHeaderFactoryHelper
                     this.inner = inner;
                     this.headers = headers;
                 }
+
+                public int? StatusCode
+                    => (inner as IStatusCodeHttpResult)?.StatusCode;
+
+                public object? Value
+                    => (inner as IValueHttpResult)?.Value;
 
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
                 {

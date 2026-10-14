@@ -2472,7 +2472,7 @@ public partial class ErrorResponseBodyRuntimeTests
         /// </param>
         /// <param name="plainHost">
         /// Generate without <c>Atc.Rest.MinimalApi</c> (an empty marker, no reference: no ValidationFilter, no global
-        /// error handler, no unified extensions) and wire the host by hand, as the README's second path does.
+        /// error handler). The host is wired by the generated <c>Add…Api()</c> / <c>Map…Api()</c> all the same.
         /// </param>
         /// <param name="environment">The host environment: Production (the matrices) or Development.</param>
         public static async Task<ErrorBodyHost> StartAsync(
@@ -2523,26 +2523,14 @@ public partial class ErrorResponseBodyRuntimeTests
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = environment });
             builder.Logging.ClearProviders();
 
+            // The generated Add…Api() - with the package or without it (then no ValidationFilter and no global error
+            // handler: the framework's exception handler stands in, added by Map…Api())
             registration.GetMethod("Register")!.Invoke(null, [builder.Services]);
-            if (plainHost)
-            {
-                // The two lines Working with Error Responses tells a project without the package to add
-                builder.Services.AddProblemDetails();
-            }
-            else
-            {
-                assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!
-                    .GetMethod("AddErrorBodiesApi")!
-                    .Invoke(null, [builder.Services, serviceOptions]);
-            }
+            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!
+                .GetMethod("AddErrorBodiesApi")!
+                .Invoke(null, [builder.Services, serviceOptions]);
 
             var webApp = builder.Build();
-            if (plainHost && !webApp.Environment.IsDevelopment())
-            {
-                // Without the global error handler an unhandled exception is the framework's: a 500 ProblemDetails
-                // outside Development; in Development the developer exception page (added by the builder) names it
-                webApp.UseExceptionHandler();
-            }
 
             // Bodies the generated server never writes (any route ending in a stub mode), in front of the generated endpoints.
             webApp.Use(async (context, next) =>
@@ -2568,19 +2556,9 @@ public partial class ErrorResponseBodyRuntimeTests
             });
             webApp.Urls.Add("http://127.0.0.1:0");
 
-            if (plainHost)
-            {
-                webApp.UseStatusCodePages();
-                assembly.GetType("ErrorBodies.Generated.Endpoints.EndpointMappingExtensions", throwOnError: true)!
-                    .GetMethod("MapEndpoints")!
-                    .Invoke(null, [webApp]);
-            }
-            else
-            {
-                assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!
-                    .GetMethod("MapErrorBodiesApi")!
-                    .Invoke(null, [webApp, middlewareOptions]);
-            }
+            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!
+                .GetMethod("MapErrorBodiesApi")!
+                .Invoke(null, [webApp, middlewareOptions]);
 
             await webApp.StartAsync(TestContext.Current.CancellationToken);
 

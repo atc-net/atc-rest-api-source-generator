@@ -43,7 +43,8 @@ public sealed class StreamEventsSseNamedEndpoint : IStreamEventsSseNamedEndpoint
 
     public async Task<StreamEventsSseNamedEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        StreamReadOptions? streamReadOptions = null)
     {
         var client = factory.CreateClient(httpClientName);
 
@@ -58,6 +59,12 @@ public sealed class StreamEventsSseNamedEndpoint : IStreamEventsSseNamedEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError, "application/problem+json");
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout, "application/problem+json");
         responseBuilder.AddDefaultErrorResponse<StreamError>();
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseNamedEndpointResult>(x => new StreamEventsSseNamedEndpointResult(x), StreamFraming.ServerSentEvents, new StreamReadOptions { ItemEventNames = new[] { "created", "updated" } }, cancellationToken).ConfigureAwait(false);
+        var readOptions = new StreamReadOptions
+        {
+            MaxRecordLength = streamReadOptions?.MaxRecordLength,
+            ItemEventNames = streamReadOptions?.ItemEventNames ?? new[] { "created", "updated" },
+            OnEvent = streamReadOptions?.OnEvent,
+        };
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseNamedEndpointResult>(x => new StreamEventsSseNamedEndpointResult(x), StreamFraming.ServerSentEvents, readOptions, cancellationToken).ConfigureAwait(false);
     }
 }

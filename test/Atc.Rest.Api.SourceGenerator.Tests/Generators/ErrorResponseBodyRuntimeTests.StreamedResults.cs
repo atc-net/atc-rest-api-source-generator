@@ -187,6 +187,42 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 return seen;
             }
 
+            // The options a caller gives ExecuteAsync: what is told per event, and a limit on one record
+            public static async Task<List<string>> StreamReadOptionsAsync()
+            {
+                var services = new ServiceCollection();
+                services
+                    .AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = new Uri("http://stub/"))
+                    .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
+                services.AddErrorBodiesEndpoints();
+                using var provider = services.BuildServiceProvider();
+
+                var seen = new List<string>();
+                var options = new StreamReadOptions { OnEvent = e => seen.Add("event id=" + (e.LastEventId ?? "(null)")) };
+                using (var result = await provider.GetRequiredService<IListSseEndpoint>().ExecuteAsync(new ListSseParameters(200), streamReadOptions: options))
+                {
+                    await foreach (var item in result.Content!)
+                    {
+                        seen.Add(item!.Name);
+                    }
+                }
+
+                using var limited = await provider.GetRequiredService<IListLinesEndpoint>().ExecuteAsync(new ListLinesParameters(200), streamReadOptions: new StreamReadOptions { MaxRecordLength = 5 });
+                try
+                {
+                    await foreach (var item in limited.Content!)
+                    {
+                        seen.Add(item!.Name);
+                    }
+                }
+                catch (System.IO.InvalidDataException)
+                {
+                    seen.Add("a line past the limit of 5 bytes");
+                }
+
+                return seen;
+            }
+
             // What a test builds without a server: the factories of a streamed result
             public static async Task<List<string>> FactoriesAsync()
             {
@@ -328,6 +364,11 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(["start=(null)", "t1=(null)", "t2=41", "end=42"], ids);
         Assert.NotNull(assembly.GetTypes().Single(t => t.Name == "IListSseEndpointResult").GetProperty("LastEventId"));
         Assert.Null(assembly.GetTypes().Single(t => t.Name == "IListLinesEndpointResult").GetProperty("LastEventId"));
+
+        // The options a caller hands ExecuteAsync reach the reader: each item's event is told before the item, and a
+        // limit of the caller's own stops a record that is longer
+        var withOptions = await (Task<List<string>>)probe.GetMethod("StreamReadOptionsAsync")!.Invoke(null, [])!;
+        Assert.Equal(["event id=(null)", "t1", "event id=41", "t2", "a line past the limit of 5 bytes"], withOptions);
 
         var built = await (Task<List<string>>)probe.GetMethod("FactoriesAsync")!.Invoke(null, [])!;
         Assert.Equal(

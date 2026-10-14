@@ -44,7 +44,8 @@ public sealed class ListItemPagesEndpoint : IListItemPagesEndpoint
     public async Task<ListItemPagesEndpointResult> ExecuteAsync(
         ListItemPagesParameters parameters,
         string httpClientName = Constants.HttpClientName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        StreamReadOptions? streamReadOptions = null)
     {
         var client = factory.CreateClient(httpClientName);
 
@@ -61,6 +62,6 @@ public sealed class ListItemPagesEndpoint : IListItemPagesEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<ListItemPagesResponse, ListItemPagesEndpointResult>(x => new ListItemPagesEndpointResult(x), StreamFraming.JsonArray, cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<ListItemPagesResponse, ListItemPagesEndpointResult>(x => new ListItemPagesEndpointResult(x), StreamFraming.JsonArray, streamReadOptions, cancellationToken).ConfigureAwait(false);
     }
 }

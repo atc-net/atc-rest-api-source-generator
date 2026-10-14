@@ -42,7 +42,8 @@ public sealed class StreamEventsArrayEndpoint : IStreamEventsArrayEndpoint
 
     public async Task<StreamEventsArrayEndpointResult> ExecuteAsync(
         string httpClientName = Constants.HttpClientName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        StreamReadOptions? streamReadOptions = null)
     {
         var client = factory.CreateClient(httpClientName);
 
@@ -54,6 +55,6 @@ public sealed class StreamEventsArrayEndpoint : IStreamEventsArrayEndpoint
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsArrayEndpointResult>(x => new StreamEventsArrayEndpointResult(x), StreamFraming.JsonArray, cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsArrayEndpointResult>(x => new StreamEventsArrayEndpointResult(x), StreamFraming.JsonArray, streamReadOptions, cancellationToken).ConfigureAwait(false);
     }
 }

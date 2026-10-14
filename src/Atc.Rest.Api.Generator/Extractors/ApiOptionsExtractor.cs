@@ -38,7 +38,8 @@ public static class ApiOptionsExtractor
     /// <returns>Generated code content for the ApiMiddlewareOptions class.</returns>
     public static string ExtractMiddlewareOptions(
         OpenApiDocument openApiDoc,
-        string projectName)
+        string projectName,
+        bool useGlobalErrorHandler = true)
     {
         if (openApiDoc is null)
         {
@@ -48,7 +49,7 @@ public static class ApiOptionsExtractor
         var hasRateLimiting = openApiDoc.HasRateLimiting();
         var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
 
-        return GenerateApiMiddlewareOptionsContent(projectName, hasRateLimiting, hasSecurity, openApiDoc.HasOutputCaching());
+        return GenerateApiMiddlewareOptionsContent(projectName, hasRateLimiting, hasSecurity, openApiDoc.HasOutputCaching(), useGlobalErrorHandler);
     }
 
     /// <summary>
@@ -84,12 +85,17 @@ public static class ApiOptionsExtractor
         string projectName,
         bool hasRateLimiting,
         bool hasSecurity,
-        bool hasOutputCaching)
+        bool hasOutputCaching,
+        bool useGlobalErrorHandler)
     {
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         contentBuilder.AppendLine("public class ApiMiddlewareOptions");
-        contentBuilder.AppendLine("public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }");
+        if (useGlobalErrorHandler)
+        {
+            contentBuilder.AppendLine("public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }");
+        }
+
         var content = contentBuilder.ToString();
 
         var builder = new StringBuilder();
@@ -98,7 +104,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        GenerateApiMiddlewareOptions(builder, projectName, hasRateLimiting, hasSecurity, hasOutputCaching);
+        GenerateApiMiddlewareOptions(builder, projectName, hasRateLimiting, hasSecurity, hasOutputCaching, useGlobalErrorHandler);
 
         return builder.ToString();
     }
@@ -174,7 +180,8 @@ public static class ApiOptionsExtractor
         string projectName,
         bool hasRateLimiting,
         bool hasSecurity,
-        bool hasOutputCaching)
+        bool hasOutputCaching,
+        bool useGlobalErrorHandler)
     {
         builder.AppendLine("/// <summary>");
         builder.AppendLine($"/// Options for configuring {projectName} API middleware pipeline.");
@@ -223,11 +230,24 @@ public static class ApiOptionsExtractor
         builder.AppendLine(4, "public bool UseStatusCodePages { get; set; } = true;");
         builder.AppendLine();
 
-        // ConfigureErrorHandling - always available
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Configure global error handling options.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, "public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }");
+        if (useGlobalErrorHandler)
+        {
+            // ConfigureErrorHandling - with Atc.Rest.MinimalApi's global error handler
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Configure global error handling options.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }");
+        }
+        else
+        {
+            // Without the package the framework's own exception handler answers an unhandled exception
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Answer an unhandled exception with a ProblemDetails 500 (<c>UseExceptionHandler()</c>). Only applied");
+            builder.AppendLine(4, "/// when ProblemDetails is registered (see <c>ApiServiceOptions.UseProblemDetails</c>) and outside the");
+            builder.AppendLine(4, "/// Development environment, where the developer exception page shows the exception. Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseExceptionHandler { get; set; } = true;");
+        }
 
         builder.AppendLine("}");
     }

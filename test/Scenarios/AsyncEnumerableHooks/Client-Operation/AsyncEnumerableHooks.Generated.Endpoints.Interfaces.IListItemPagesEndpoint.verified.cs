@@ -31,5 +31,6 @@ public interface IListItemPagesEndpoint
     Task<ListItemPagesEndpointResult> ExecuteAsync(
         ListItemPagesParameters parameters,
         string httpClientName = Constants.HttpClientName,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        StreamReadOptions? streamReadOptions = null);
 }

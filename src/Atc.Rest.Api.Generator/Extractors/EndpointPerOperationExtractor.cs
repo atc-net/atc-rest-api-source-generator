@@ -696,7 +696,7 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine();
 
         // Build method parameters
-        var methodParameters = ExecuteAsyncParameters(operationName, hasParameters);
+        var methodParameters = ExecuteAsyncParameters(operationName, hasParameters, isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType));
 
         // Determine return type: StreamBinaryEndpointResponse for binary, the result class otherwise (for a streamed
         // operation it derives from StreamingEndpointResponse<T>)
@@ -873,7 +873,7 @@ public static class EndpointPerOperationExtractor
             Parameters: constructorParams);
 
         // Build ExecuteAsync method parameters
-        var methodParameters = ExecuteAsyncParameters(operationName, hasParameters);
+        var methodParameters = ExecuteAsyncParameters(operationName, hasParameters, isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType));
 
         // Build method body content
         var methodBodyContent = BuildExecuteAsyncMethodBody(
@@ -1312,10 +1312,22 @@ public static class EndpointPerOperationExtractor
             var itemEvents = operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents
                 ? operation.GetServerSentEventItemNames()
                 : [];
-            var readOptions = itemEvents.Count == 0
-                ? string.Empty
-                : $"new StreamReadOptions {{ ItemEventNames = new[] {{ {string.Join(", ", itemEvents.Select(CSharpLiteralHelper.ToStringLiteral))} }} }}, ";
-            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}, {operationName}EndpointResult>(x => new {operationName}EndpointResult(x), StreamFraming.{operation.GetStreamingFraming()}, {readOptions}cancellationToken).ConfigureAwait(false);");
+
+            // The caller's options for reading the stream; the item events of the specification apply unless the
+            // caller names its own
+            var readOptions = "streamReadOptions";
+            if (itemEvents.Count > 0)
+            {
+                sb.AppendLine("var readOptions = new StreamReadOptions");
+                sb.AppendLine("{");
+                sb.AppendLine(4, "MaxRecordLength = streamReadOptions?.MaxRecordLength,");
+                sb.AppendLine(4, $"ItemEventNames = streamReadOptions?.ItemEventNames ?? new[] {{ {string.Join(", ", itemEvents.Select(CSharpLiteralHelper.ToStringLiteral))} }},");
+                sb.AppendLine(4, "OnEvent = streamReadOptions?.OnEvent,");
+                sb.AppendLine("};");
+                readOptions = "readOptions";
+            }
+
+            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}, {operationName}EndpointResult>(x => new {operationName}EndpointResult(x), StreamFraming.{operation.GetStreamingFraming()}, {readOptions}, cancellationToken).ConfigureAwait(false);");
         }
         else
         {
@@ -2220,11 +2232,14 @@ public static class EndpointPerOperationExtractor
 
     /// <summary>
     /// The parameters of the generated <c>ExecuteAsync</c> - the operation's parameters record when it has one, the
-    /// HTTP client name and the cancellation token - the same on the endpoint interface and its class.
+    /// HTTP client name and the cancellation token - the same on the endpoint interface and its class. A streamed
+    /// operation takes the options for reading its stream as well, last and optional: the limit on one record, and
+    /// for an event stream what is told per event (its id, its name, the retry time the server asks for).
     /// </summary>
     private static List<ParameterBaseParameters> ExecuteAsyncParameters(
         string operationName,
-        bool hasParameters)
+        bool hasParameters,
+        bool isStreamed)
     {
         var methodParameters = new List<ParameterBaseParameters>();
         if (hasParameters)
@@ -2259,6 +2274,19 @@ public static class EndpointPerOperationExtractor
             IsReferenceType: false,
             Name: "cancellationToken",
             DefaultValue: "default"));
+
+        if (isStreamed)
+        {
+            methodParameters.Add(new ParameterBaseParameters(
+                Attributes: null,
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: "StreamReadOptions",
+                IsNullableType: true,
+                IsReferenceType: true,
+                Name: "streamReadOptions",
+                DefaultValue: "null"));
+        }
 
         return methodParameters;
     }

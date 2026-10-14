@@ -131,6 +131,36 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
         public static class Probe
         {
+            // What a handler's unit test reads from a result without executing it: the status code and the value, through
+            // the framework's interfaces - whether or not the result carries headers
+            public static List<string> WhatATestSees()
+            {
+                var thing = new Thing("1");
+                return
+                [
+                    Describe("ok", GetThingResult.Ok(thing)),
+                    Describe("ok-with-header", GetThingResult.Ok(thing, eTag: "\"v1\"")),
+                    Describe("notfound", GetThingResult.NotFound("gone")),
+                    Describe("notfound-with-header", GetThingResult.NotFound("gone", messageHeader: "why")),
+                    Describe("head-with-header", ProbeThingResult.Ok(eTag: "\"v2\"")),
+                ];
+
+                static string Describe(string name, IResult result)
+                {
+                    var inner = (IResult)result.GetType().GetProperty("Result")!.GetValue(result)!;
+                    var status = inner is IStatusCodeHttpResult withStatus ? withStatus.StatusCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
+                    var value = inner is IValueHttpResult withValue ? withValue.Value : null;
+                    var text = value switch
+                    {
+                        null => "(none)",
+                        Thing t => "Thing " + t.Id,
+                        Microsoft.AspNetCore.Mvc.ProblemDetails problem => "ProblemDetails " + problem.Detail,
+                        _ => value.GetType().Name,
+                    };
+                    return $"{name}: status={status ?? "(none)"} value={text}";
+                }
+            }
+
             public static async Task<List<string>> RunAsync()
             {
                 var services = new ServiceCollection();
@@ -177,6 +207,19 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         var run = assembly.GetType("ErrorBodies.RuntimeTest.Probe", throwOnError: true)!.GetMethod("RunAsync")!;
 
         var lines = await (Task<List<string>>)run.Invoke(null, [])!;
+
+        // A handler's unit test asserts the status code and the value through IStatusCodeHttpResult and IValueHttpResult:
+        // a result that also carries headers answers like the one it wraps
+        var seen = (List<string>)assembly.GetType("ErrorBodies.RuntimeTest.Probe", throwOnError: true)!.GetMethod("WhatATestSees")!.Invoke(null, [])!;
+        Assert.Equal(
+            [
+                "ok: status=200 value=Thing 1",
+                "ok-with-header: status=200 value=Thing 1",
+                "notfound: status=404 value=ProblemDetails gone",
+                "notfound-with-header: status=404 value=ProblemDetails gone",
+                "head-with-header: status=200 value=(none)",
+            ],
+            seen);
 
         // RFC 3339 for a date-time, the HTTP date for the headers HTTP defines as one, an array joined by commas
         Assert.Equal(
