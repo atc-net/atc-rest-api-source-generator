@@ -1353,7 +1353,9 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("        while (pos < buffer.length && ' \\t\\r\\n,'.includes(buffer.charAt(pos))) pos++;");
         sb.AppendLine("        if (pos >= buffer.length) break;");
         sb.AppendLine("        if (inArray === undefined) { inArray = buffer.charAt(pos) === '['; if (inArray) { pos++; continue; } }");
-        sb.AppendLine("        if (inArray && buffer.charAt(pos) === ']') { ended = true; break; }");
+        sb.AppendLine("        // The closing bracket ends the array: it was read to its end, so the reader is released, not cancelled");
+        sb.AppendLine("        // (a body that does not signal its end there, as MSW's, never settles a cancel)");
+        sb.AppendLine("        if (inArray && buffer.charAt(pos) === ']') { ended = true; finished = true; break; }");
         sb.AppendLine("        const end = scanJsonValue(buffer, pos, done);");
         sb.AppendLine("        if (end === -1) break;");
         sb.AppendLine("        guardRecord(end - pos);");

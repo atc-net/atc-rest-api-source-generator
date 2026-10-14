@@ -190,7 +190,9 @@ async function* parseJsonArrayStream<T>(reader: ReadableStreamDefaultReader<Uint
         while (pos < buffer.length && ' \t\r\n,'.includes(buffer.charAt(pos))) pos++;
         if (pos >= buffer.length) break;
         if (inArray === undefined) { inArray = buffer.charAt(pos) === '['; if (inArray) { pos++; continue; } }
-        if (inArray && buffer.charAt(pos) === ']') { ended = true; break; }
+        // The closing bracket ends the array: it was read to its end, so the reader is released, not cancelled
+        // (a body that does not signal its end there, as MSW's, never settles a cancel)
+        if (inArray && buffer.charAt(pos) === ']') { ended = true; finished = true; break; }
         const end = scanJsonValue(buffer, pos, done);
         if (end === -1) break;
         guardRecord(end - pos);

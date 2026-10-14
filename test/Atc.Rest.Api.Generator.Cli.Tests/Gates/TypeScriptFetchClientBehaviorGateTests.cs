@@ -196,6 +196,19 @@ public sealed class TypeScriptFetchClientBehaviorGateTests
             check(label + ' bodiless-' + status + '-arm', r5.status === arm, 'expected ' + arm + ', got ' + r5.status);
             check(label + ' bodiless-' + status + '-read', bodiless.bodyUsed, 'the empty body was left unread');
           }
+
+          // Case 6: a streamed JSON array is complete at its closing ']', also when the body does not end there - as
+          // MSW's mocked body does, which never signals its end and whose cancel() never settles: the stream ends with
+          // its items, instead of waiting on the cancel of a body that was read to its end
+          nextResponse = () => new Response(new ReadableStream<Uint8Array>({
+            start: (controller) => controller.enqueue(new TextEncoder().encode('["a","b"]')),
+            cancel: () => new Promise<void>(() => {}),
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          const items: string[] = [];
+          const read = (async () => { for await (const item of client.requestStream('get', '/items')) items.push(item as string); return 'ended'; })();
+          const outcome = await Promise.race([read, new Promise((resolve) => setTimeout(() => resolve('hung'), 2000))]);
+          check(label + ' json-array-ends-at-its-bracket', outcome === 'ended', 'the stream did not end after the closing bracket (' + outcome + ')');
+          check(label + ' json-array-items', JSON.stringify(items) === '["a","b"]', 'expected ["a","b"], got ' + JSON.stringify(items));
         }
 
         async function main(): Promise<void> {
