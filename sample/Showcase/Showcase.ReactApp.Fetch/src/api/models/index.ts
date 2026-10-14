@@ -9,6 +9,7 @@ export type * from './DataChangeEvent';
 export type * from './DeclaredBadRequestTestRequest';
 export type * from './Document';
 export type * from './DocumentSummary';
+export type * from './EnumWire';
 export type * from './ExceptionTestResponse';
 export type * from './FileAsFormDataRequest';
 export type * from './FileMetadata';

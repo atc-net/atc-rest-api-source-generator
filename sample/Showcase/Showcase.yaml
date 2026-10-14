@@ -1448,8 +1448,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TestingProblem"
+
+  /testing/enum-wire:
+    x-retry-enabled: false
+    post:
+      summary: Echo a string enum
+      description: |
+        Answers the body as the server read it. The server marker sets `readEnumMemberNames`, so the enum is read by
+        its value (`DARK_BLUE`) and by its C# member name (`DarkBlue`) - what a client built on 2.x sent; the answer
+        has the value, as the specification writes it.
+      operationId: echoEnumWire
+      tags:
+        - testing
+      # Public endpoint - no auth required for testing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnumWire"
+      responses:
+        '200':
+          description: The body as the server read it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnumWire"
+        '400':
+          description: Bad Request - a value that is no value of Shade
 components:
   schemas:
+    EnumWire:
+      title: EnumWire
+      type: object
+      description: A body with a string enum whose values are not its member names
+      required:
+        - shade
+      properties:
+        shade:
+          $ref: "#/components/schemas/Shade"
+    Shade:
+      type: string
+      description: A shade - on the wire as LIGHT or DARK_BLUE (the C# member of DARK_BLUE is DarkBlue)
+      enum:
+        - LIGHT
+        - DARK_BLUE
     PriceTick:
       title: PriceTick
       type: object

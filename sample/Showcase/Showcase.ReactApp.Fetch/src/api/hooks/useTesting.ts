@@ -4,7 +4,7 @@ import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
 import { useApiService } from './useApiService';
 import type { ApiService } from '../client/ApiService';
 import { ApiError } from '../errors/ApiError';
-import type { DeclaredBadRequestTestRequest, ExceptionTestResponse } from '../models';
+import type { DeclaredBadRequestTestRequest, EnumWire, ExceptionTestResponse } from '../models';
 
 const testingKeys = {
   all: ['testing'] as const,
@@ -89,6 +89,34 @@ export function usePostDeclaredBadRequestTest(options?: Omit<UseMutationOptions<
       const result = await api.testing.postDeclaredBadRequestTest(body);
       if (result.status === 'noContent') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    ...options,
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({ queryKey: testingKeys.all });
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
+    },
+  });
+}
+
+/** Echo a string enum */
+export function useEchoEnumWire(options?: Omit<UseMutationOptions<EnumWire, ApiError, EnumWire>, 'mutationFn'>) {
+  const api = useApiService();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: EnumWire) => {
+      const result = await api.testing.echoEnumWire(body);
+      if (result.status === 'ok') {
+        return result.data;
       }
       if ('error' in result && result.error instanceof ApiError) {
         throw result.error;

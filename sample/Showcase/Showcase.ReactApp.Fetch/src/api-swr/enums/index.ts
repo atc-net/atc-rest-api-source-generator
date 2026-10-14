@@ -2,5 +2,6 @@
 export * from './DataOperation';
 export * from './NotificationSeverity';
 export * from './NotificationType';
+export * from './Shade';
 export * from './UserAction';
 export * from './UserRole';

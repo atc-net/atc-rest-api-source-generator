@@ -142,4 +142,18 @@ test.describe('Exception mapping on the wire', () => {
     expect(problem.detail).toBe(reason);
     expect(problem.errors).toBeUndefined();
   });
+
+  // readEnumMemberNames in the server marker: a string enum is read by its value and by its C# member name (what a
+  // client built on 2.x sent), and always written as the value
+  test('a string enum is read by its value and by its member name, and written as its value', async ({ request }) => {
+    for (const sent of ['DARK_BLUE', 'DarkBlue', 'darkblue']) {
+      const response = await request.post(`${apiBaseUrl}/testing/enum-wire`, { data: { shade: sent } });
+
+      expect(response.status(), sent).toBe(200);
+      expect(await response.json(), sent).toEqual({ shade: 'DARK_BLUE' });
+    }
+
+    const unknown = await request.post(`${apiBaseUrl}/testing/enum-wire`, { data: { shade: 'green' } });
+    expect(unknown.status()).toBe(400);
+  });
 });

@@ -3,7 +3,7 @@ import useSWR, { useSWRConfig, type SWRConfiguration } from 'swr';
 import useSWRMutation, { type SWRMutationConfiguration } from 'swr/mutation';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
-import type { DeclaredBadRequestTestRequest, ExceptionTestResponse } from '../models';
+import type { DeclaredBadRequestTestRequest, EnumWire, ExceptionTestResponse } from '../models';
 
 const testingKeys = {
   all: ['testing'] as const,
@@ -79,6 +79,38 @@ export function usePostDeclaredBadRequestTest(config?: SWRMutationConfiguration<
       const result = await api.testing.postDeclaredBadRequestTest(body);
       if (result.status === 'noContent') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    {
+      ...config,
+      onSuccess: (data, key, currentConfig) => {
+        void mutate((cacheKey) => Array.isArray(cacheKey) && cacheKey[0] === 'testing');
+        config?.onSuccess?.(data, key, currentConfig);
+      },
+    },
+  );
+}
+
+/** Echo a string enum */
+export function useEchoEnumWire(config?: SWRMutationConfiguration<EnumWire, ApiError, typeof testingKeys.all, EnumWire>) {
+  const api = useApiService();
+  const { mutate } = useSWRConfig();
+  return useSWRMutation<EnumWire, ApiError, typeof testingKeys.all, EnumWire>(
+    testingKeys.all,
+    async (_key, { arg }) => {
+      const body = arg;
+      const result = await api.testing.echoEnumWire(body);
+      if (result.status === 'ok') {
+        return result.data;
       }
       if ('error' in result && result.error instanceof ApiError) {
         throw result.error;

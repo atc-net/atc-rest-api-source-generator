@@ -6,6 +6,7 @@
     "useValidationFilter": "enabled",
     "useGlobalErrorHandler": "enabled",
     "generateWebhooks": true,
+    "readEnumMemberNames": true,
     "healthChecks": {
         "enabled": true,
         "includeLiveness": true,
