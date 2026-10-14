@@ -817,7 +817,8 @@ if (!REPORT) {
     `Run ${esc(REPORT.generatedAt)} (${esc(REPORT.durationSeconds)} s)`,
     `commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ` + ${esc(p.uncommittedFiles)} uncommitted files (working tree <span class="mono" title="git stash create">${esc(String(p.workingTreeStash ?? '').slice(0, 10))}</span>, ${esc(Object.keys(p.untrackedFiles ?? {}).length)} untracked source files hashed)` : ''}`,
     ...Object.entries(p.packages ?? {}).map(([name, version]) => `${esc(name)} <span class="mono">${esc(version)}</span>`),
-    `.NET ${esc(p.dotnet)} · Node ${esc(p.node)}`,
+    `.NET ${esc(p.dotnet)}`,
+    `Node ${esc(p.node)}`,
     esc(p.os),
     `error bodies: ${cases.length} cases × ${clients.length} clients`,
   ].map((s) => `<span>${s}</span>`).join('');
@@ -948,7 +949,11 @@ if (!REPORT) {
     $('#matrixplain-intro').innerHTML = `
       <h2>Error bodies &middot; the <code>MapEndpoints()</code> host</h2>
       <p>The same specification, handlers and clients as the <b>Error bodies</b> tab, against a server generated <i>without</i> <code>Atc.Rest.MinimalApi</code> (an empty marker, no package reference) and hosted the way the README's second path and three samples do: <code>builder.Services.AddProblemDetails()</code>, <code>app.UseExceptionHandler()</code>, <code>app.UseStatusCodePages()</code>, <code>app.MapEndpoints()</code>. What the package adds is not there, and the wire says so as <span class="v lossy">lossy</span>: nothing validates a request (the ValidationFilter), so the too-long value reaches the handler; an unhandled exception is the framework's 500 ProblemDetails (no <code>detail</code> outside Development) instead of the global error handler's exception &rarr; status mapping. Everything else - the generated factories, the host wiring's ProblemDetails for an empty error, the statuses below 400, the stubs - must be the same, and every client must read it the same.</p>
-      <p class="counts">${plain.cases.length} cases × ${plain.clients.length} clients: ${Object.entries(plainCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(plain.generatedAt)} in ${esc(plain.durationSeconds)} s · a <span class="dv">≠</span> marks a cell that differs from the Atc.Rest.MinimalApi host</p>
+      <ul class="tight counts">
+        <li>${plain.cases.length} cases × ${plain.clients.length} clients: ${Object.entries(plainCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+        <li>run ${esc(plain.generatedAt)} in ${esc(plain.durationSeconds)} s</li>
+        <li>a <span class="dv">≠</span> marks a cell that differs from the Atc.Rest.MinimalApi host</li>
+      </ul>
       <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost"</code></p></div>`;
     mountErrorMatrix('errorBodiesPlain', 'matrixplain', $('#matrixplain'), plain, { cases: REPORT.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
   }
@@ -1007,7 +1012,11 @@ if (!REPORT) {
     <p><b>The server</b> is checked against values computed by the test, not by the handlers: each file's bytes (SHA-256 and length), media type and exact file name (<code>filename*</code> - the names have an Å; none for a stream); the handler's model, read back from the JSON or XML on the wire; and for an error its status, media type and body (a ProblemDetails' title and validation key, the declared XML error model's fields, the proxy's page; no exception text). Whether a case expects a file, a model or an error comes from the case, never from the wire. A JSON-or-XML case is captured twice: without an <code>Accept</code>, and XML first as a <code>preferXml</code> client asks (the server then writes <code>application/xml</code> and <code>application/problem+xml</code>).</p>
     <p><b>A client</b> passes when it exposes what the server wrote: a file with the same bytes, content type (the file's own - <code>DownloadedFile.ContentType</code>, the <code>Blob</code>'s <code>type</code>; no fallback to the headers) and file name; a model equal to the handler's, field by field, with the status and media type it got (a <code>preferXml</code> client must get XML, the others JSON; the TypedClient <code>Throw</code> style exposes neither and is checked on the model only); an error with the server's status and media type and, read into the typed value, the ProblemDetails' <code>detail</code> (else <code>title</code>) and validation keys, or the XML error model's <code>code</code> and <code>message</code> (the TypedClient has no typed errors by design: its <code>Result</code> style must hold the server's raw body, its <code>Throw</code> style throws with the status).</p>
     <p><b>Not exercised.</b> ${notExercisedHtml('bodyMedia')} The 502 rows come from a stub in front of the API (no generated server code runs), and the 404/500/502 rows repeat per file kind.</p>
-    <p class="counts">${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · ${wireTotal} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(media.generatedAt)} in ${esc(media.durationSeconds)} s</p>
+    <ul class="tight counts">
+      <li>${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+      <li>${wireTotal} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+      <li>run ${esc(media.generatedAt)} in ${esc(media.durationSeconds)} s</li>
+    </ul>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsEveryBodyMediaType"</code> (fails on any fail cell).</p></div>`;
 
   mountCaseMatrix('bodyMedia', 'media', $('#media'), media, 'bodyMedia');
@@ -1027,7 +1036,10 @@ function openApi31Intro(title, sameAs, data, test) {
   return `
     <h2>${title} &middot; an OpenAPI 3.1 document</h2>
     <p>The same specification, handlers, clients and cases as ${sameAs}, with the specification written as an OpenAPI 3.1 document (<code>openapi: ${esc(data.openApi ?? '3.1.0')}</code>; a nullable type is a type array, <code>type: [string, 'null']</code>): the server, every C# client and every TypeScript client are generated from it. A 3.1 document that says the same must give the same server and the same clients, so every cell must be what it is from the 3.0 document - a <span class="dv">≠</span> marks one that is not.</p>
-    <p class="counts">${data.cases.length} cases × ${data.clients.length} clients: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</p>
+    <ul class="tight counts">
+      <li>${data.cases.length} cases × ${data.clients.length} clients: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+      <li>run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</li>
+    </ul>
     <div class="note"><p><b>Reproduce:</b> <code>${esc(reproduce31(test))}</code></p></div>`;
 }
 
@@ -1155,7 +1167,12 @@ function renderCaseMatrix(key, tab, data, intro, share, baseline) {
   const wireCounts = {};
   for (const c of wire) wireCounts[c.wire.verdict] = (wireCounts[c.wire.verdict] ?? 0) + 1;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  $(introSel).innerHTML = intro + `<p class="counts">${data.cases.length} cases × ${data.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}${wire.length ? ` · ${wire.length} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}` : ''} · run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s · click a cell for the whole answer</p>`;
+  $(introSel).innerHTML = intro + `<ul class="tight counts">
+    <li>${data.cases.length} cases × ${data.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+    ${wire.length ? `<li>${wire.length} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>` : ''}
+    <li>run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</li>
+    <li>click a cell for the whole answer</li>
+  </ul>`;
   mountCaseMatrix(key, tab, $('#' + tab), data, share, baseline?.cases ? baseline : null);
 }
 
@@ -1252,11 +1269,11 @@ for (const [key, tab, base, title, sameAs] of [
   if (tsc) for (const combo of tsc.combinations ?? []) { const [sc] = combo.split('/'); (tscByScenario[sc] ??= { total: 0, failing: 0 }).total++; if ((tsc.failing ?? []).includes(combo)) tscByScenario[sc].failing++; }
   const notClean = (x) => Object.values(x.generators).some((g) => g.errors || g.warnings) || Boolean(tscByScenario[x.name]?.failing);
   const versions = [...new Set(s.scenarios.map((x) => x.openApi))].sort();
-  const byVersion = versions.map((v) => { const rows = s.scenarios.filter((x) => x.openApi === v); const bad = rows.filter((x) => Object.values(x.generators).some((g) => g.errors || g.warnings)).length; return `<b>OpenAPI ${esc(v)}</b>: ${rows.length} scenarios, ${rows.length - bad} compile clean for every generator`; }).join(' · ');
+  const byVersion = versions.map((v) => { const rows = s.scenarios.filter((x) => x.openApi === v); const bad = rows.filter((x) => Object.values(x.generators).some((g) => g.errors || g.warnings)).length; return `<li><b>OpenAPI ${esc(v)}</b>: ${rows.length} scenarios, ${rows.length - bad} compile clean for every generator</li>`; }).join('');
   const failing = tsc?.failing ?? [];
   $('#support').innerHTML = `<h2>Feature support</h2>
     <p>Every scenario specification under <code>test/Scenarios</code> is given to every C# generator - with its marker folder when it has one, else the default marker - and the output is compiled the way a strict consumer does (nullable, documentation, warnings). A scenario with an overlay (<code>{Name}.overlay.yaml</code>, listed by its markers) is compiled as the overlay changes it in every column whose marker lists it; a column on the default marker gets the specification as it is, and the TypeScript column applies the overlay as <code>--overlay</code> does. A ✓ is a clean compilation; the compile gate (<code>GeneratorCompilationGateTests</code>) fails on anything else. The TypeScript column is the strict <code>tsc</code> matrix over the same specifications (Fetch and Axios × no hooks, React Query, SWR × Default and Full flavours), from its gate's data file.</p>
-    <p class="counts">${byVersion}${tsc ? ` · tsc matrix: ${(tsc.combinations ?? []).length} combinations, ${failing.length} failing (the gate runs with the test suite; its result has not changed since ${esc(tsc.generatedAt)})` : ' · tsc matrix: not run on this machine (<code>TypeScriptScenarioTscMatrixGateTests</code> writes <code>docs/test-suite-report.tsc-matrix.json</code>)'}</p>
+    <ul class="tight counts">${byVersion}<li>${tsc ? `<b>tsc matrix</b>: ${(tsc.combinations ?? []).length} combinations, ${failing.length} failing (the gate runs with the test suite; its result has not changed since ${esc(tsc.generatedAt)})` : '<b>tsc matrix</b>: not run on this machine (<code>TypeScriptScenarioTscMatrixGateTests</code> writes <code>docs/test-suite-report.tsc-matrix.json</code>)'}</li></ul>
     ${failing.length ? `<details open><summary style="cursor:pointer"><span class="v fail">fail</span> ${failing.length} failing tsc combination${failing.length === 1 ? '' : 's'}</summary><ul class="tight mono" style="margin-top:8px">${failing.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></details>` : ''}
     <div class="filters"><div class="row">
       <span class="label">Scenario</span><input type="search" id="s-q" placeholder="a part of the name" size="22">
@@ -1396,7 +1413,10 @@ document.addEventListener('click', (e) => {
       ${diag ? stat(`${diag.tested} / ${diag.rules}`, 'diagnostic rules with a test', diag.tested === diag.rules ? 'good' : 'warn') : ''}
       ${pw?.stale ? stat('stale', 'Playwright run older than this commit', 'warn') : pw ? stat(pw.failed ? `${pw.failed} failed` : 'green', `Playwright, ${pw.apps} apps${pw.flaky ? `, ${pw.flaky} flaky (passed on a retry)` : ''}`, pw.failed ? 'bad' : pw.flaky ? 'warn' : 'good') : stat('not run', 'Playwright (Showcase apps)', '')}
     </div>
-    <p class="counts">Run ${esc(REPORT.generatedAt)} on commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ' + uncommitted changes' : ''} · regenerate: <code>${esc(cmdFor(REPORT_TEST, true))}</code> ${copyButton(cmdFor(REPORT_TEST, true))}</p>`;
+    <ul class="tight counts">
+      <li>Run ${esc(REPORT.generatedAt)} on commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ' + uncommitted changes' : ''}</li>
+      <li>regenerate: <code>${esc(cmdFor(REPORT_TEST, true))}</code> ${copyButton(cmdFor(REPORT_TEST, true))}</li>
+    </ul>`;
 
   // Every runtime matrix in one table: its size, its verdicts, and a way in
   const verdictOrder = ['pass', 'lossy', 'fail', 'harness', 'platform', 'na'];
@@ -1424,7 +1444,7 @@ document.addEventListener('click', (e) => {
       who: 'New here?', title: 'Is this tool solid?',
       body: `<ul>
         <li>${totalCells.toLocaleString()} recorded checks of generated code - a real server on Kestrel, real clients over HTTP - not unit-test mocks.</li>
-        <li>Every HTTP status, every body media type, every way a parameter travels, security, rate limiting, streaming, pagination, polymorphism: each has a tab with the cases and the verdict per client.</li>
+        <li>Every HTTP status, every body media type, every way a parameter travels, security, rate limiting, streaming, SignalR hubs, pagination, polymorphism: each has a tab with the cases and the verdict per client.</li>
         <li>${gate ? `${gate.clean} of ${gate.scenarios} scenario specifications compile warning-free for every C# generator; ` : ''}${diag ? `${diag.tested} of ${diag.rules} build diagnostics have a test that triggers them.` : ''}</li>
         <li>A <span class="v lossy">lossy</span> cell is a documented trade-off, not a bug: open <b>Design review</b> below to see why.</li></ul>`,
       go: ['method', 'How it was tested'],
@@ -1505,7 +1525,14 @@ document.addEventListener('click', (e) => {
       <tr><td>provenance</td><td>Commit, uncommitted file count, <code>packages</code> (the Atc.Rest.MinimalApi and Atc.Rest.Client versions the run used), .NET and Node versions, OS.</td></tr>
     </tbody></table></div>
     <h3>Verdicts</h3>
-    <p><code>pass</code> the documented contract holds · <code>lossy</code> holds, but the typed value cannot carry the fields named in <code>loss</code> (each has an <code>assessment</code>) · <code>fail</code> the contract is broken · <code>platform</code> the runtime refuses the response outside generated code · <code>na</code> not applicable. Only <code>fail</code> fails a test, and only when the cell is not in the ratchet.</p>
+    <ul class="tight">
+      <li><code>pass</code> the documented contract holds</li>
+      <li><code>lossy</code> holds, but the typed value cannot carry the fields named in <code>loss</code> (each has an <code>assessment</code>)</li>
+      <li><code>fail</code> the contract is broken</li>
+      <li><code>platform</code> the runtime refuses the response outside generated code</li>
+      <li><code>na</code> not applicable</li>
+    </ul>
+    <p>Only <code>fail</code> fails a test, and only when the cell is not in the ratchet.</p>
     <h3>Commands</h3>
     <p>Each matrix is one test that runs the generated server and every client; it fails on any unexpected fail. The report test runs all of them and writes this page (explicit: it does not run with the suite). All need .NET 10 and Node (the TypeScript clients run on <code>tsx</code>).</p>
     <div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Test</th><th>Command</th><th>Cases live in</th></tr></thead><tbody>

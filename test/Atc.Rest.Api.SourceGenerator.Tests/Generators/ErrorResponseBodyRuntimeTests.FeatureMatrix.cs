@@ -269,6 +269,24 @@ public partial class ErrorResponseBodyRuntimeTests
               properties:
                 day: { type: string, format: date }
                 at: { type: string, format: date-time }
+        x-signalr-hubs:
+          feature:
+            url: /hubs/feature
+            events:
+              - name: Noticed
+                payload: '#/components/schemas/Moment'
+              - name: moment-sent
+                payload: '#/components/schemas/Moment'
+              - name: Ping
+            methods:
+              - name: Trigger
+                payload: string
+              - name: Sum
+                payload: { type: array, items: { type: integer, format: int32 } }
+                returns: { type: integer, format: int32 }
+              - name: get-moments
+                payload: { type: integer, format: int32 }
+                returns: Moment[]
         """;
 
     /// <summary>
@@ -596,7 +614,38 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IFeatureTimeoutHandler, FeatureTimeoutHandlerImpl>();
                 services.AddScoped<IFeatureStallTimeoutHandler, FeatureStallTimeoutHandlerImpl>();
                 services.AddScoped<IFeatureInvalidHandler, FeatureInvalidHandlerImpl>();
+                services.AddSignalR();
             }
+        }
+
+        // The hub of x-signalr-hubs, built on the generated contract: an event sent back on request (by the typed
+        // client interface, or - for a name that is no identifier - the contract's Send...Async on an untyped proxy),
+        // a method that sums an array, and one, named get-moments on the wire, that answers a list of models
+        public sealed class FeatureHub(Microsoft.AspNetCore.SignalR.IHubContext<FeatureHub> untyped) : Microsoft.AspNetCore.SignalR.Hub<IFeatureHubClient>, IFeatureHub
+        {
+            public static Moment Sample(int days)
+                => new(new System.DateOnly(2026, 3, 4).AddDays(days), System.DateTimeOffset.Parse("2026-03-04T05:06:07+02:00", System.Globalization.CultureInfo.InvariantCulture));
+
+            public System.Threading.Tasks.Task Trigger(string payload)
+                => payload switch
+                {
+                    "Noticed" => Clients.Caller.Noticed(Sample(0)),
+                    "moment-sent" => untyped.Clients.Client(Context.ConnectionId).SendMomentSentAsync(Sample(0)),
+                    _ => Clients.Caller.Ping(),
+                };
+
+            public System.Threading.Tasks.Task<int> Sum(System.Collections.Generic.IReadOnlyList<int> payload)
+                => System.Threading.Tasks.Task.FromResult(System.Linq.Enumerable.Sum(payload));
+
+            [Microsoft.AspNetCore.SignalR.HubMethodName(FeatureHubContract.Methods.GetMoments)]
+            public System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Moment>> GetMoments(int payload)
+                => System.Threading.Tasks.Task.FromResult<System.Collections.Generic.IReadOnlyList<Moment>>([.. System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(1, payload), Sample)]);
+        }
+
+        public static class FeatureHubMapping
+        {
+            public static void Map(Microsoft.AspNetCore.Builder.WebApplication app)
+                => Microsoft.AspNetCore.Builder.HubEndpointRouteBuilderExtensions.MapHub<FeatureHub>(app, FeatureHubContract.Url);
         }
         """";
 
@@ -687,6 +736,36 @@ public partial class ErrorResponseBodyRuntimeTests
                 }
 
                 return results;
+            }
+
+            // A SignalR hub (x-signalr-hubs) through the generated hub client, the same in every generation mode: the
+            // event the hub sends back, or what a method answers
+            private static async System.Threading.Tasks.Task<JsonObject> HubAsync(JsonObject c)
+            {
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+                var received = new System.Threading.Tasks.TaskCompletionSource<JsonNode?>(System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+                await using var hub = new FeatureHubClient(Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilderHttpExtensions.WithUrl(new Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilder(), new Uri(new Uri(serverAddress), FeatureHubClient.Url)).Build());
+                using var noticed = hub.OnNoticed(m => received.TrySetResult(JsonSerializer.SerializeToNode(m, Json)));
+                using var sent = hub.OnMomentSent(m => received.TrySetResult(JsonSerializer.SerializeToNode(m, Json)));
+                using var ping = hub.OnPing(() => received.TrySetResult(JsonValue.Create("ping")));
+                await hub.StartAsync(cts.Token);
+
+                JsonNode? value;
+                switch ((string)c["scenario"]!)
+                {
+                    case "event":
+                        await hub.TriggerAsync((string)c["trigger"]!, cts.Token);
+                        value = await received.Task.WaitAsync(cts.Token);
+                        break;
+                    case "sum":
+                        value = JsonValue.Create(await hub.SumAsync([1, 2, 3], cts.Token));
+                        break;
+                    default:
+                        value = JsonSerializer.SerializeToNode(await hub.GetMomentsAsync(2, cts.Token), Json);
+                        break;
+                }
+
+                return new JsonObject { ["kind"] = "value", ["value"] = value };
             }
 
             // The names streamed until the end, the handler's failure, or the client's own stop; the stop is what a
@@ -964,6 +1043,9 @@ public partial class ErrorResponseBodyRuntimeTests
                         return r.IsSuccess ? Value(r.OkContent) : Error((int)r.StatusCode, r.Content);
                     }
 
+                    case "hub":
+                        return await HubAsync(c);
+
                     case "color":
                     {
                         var r = await provider.GetRequiredService<IFeatureColorEndpoint>().ExecuteAsync(new FeatureColorParameters(JsonSerializer.Deserialize<Color>("\"" + (string)c["color"]! + "\"", Json)), httpClientName);
@@ -1148,6 +1230,9 @@ public partial class ErrorResponseBodyRuntimeTests
                         return r.IsSuccess ? Value(r.SuccessContent) : Error((int)r.StatusCode, r.Content);
                     }
 
+                    case "hub":
+                        return await HubAsync(c);
+
                     case "color":
                     {
                         var r = await client.FeatureColorAsync(new FeatureColorParameters(JsonSerializer.Deserialize<Color>("\"" + (string)c["color"]! + "\"", Json)));
@@ -1294,6 +1379,9 @@ public partial class ErrorResponseBodyRuntimeTests
                     case "nested":
                         return Value(await client.FeatureNestedAsync(new FeatureNestedParameters(JsonSerializer.Deserialize<Leaf>(c["body"]!.ToJsonString(), Json)!)));
 
+                    case "hub":
+                        return await HubAsync(c);
+
                     case "color":
                         return Value(await client.FeatureColorAsync(new FeatureColorParameters(JsonSerializer.Deserialize<Color>("\"" + (string)c["color"]! + "\"", Json))));
 
@@ -1433,7 +1521,45 @@ public partial class ErrorResponseBodyRuntimeTests
           };
         }
 
+        // A SignalR hub (x-signalr-hubs) through the generated hub client: the event the hub sends back, or what a
+        // method answers - with React hooks through the generated use<Hub>Hub
+        async function viaHub(c: any, wrapper: any): Promise<Record<string, unknown>> {
+          const hubs: any = await import(`./${which}/hubs/index.ts`);
+          let received: (value: unknown) => void = () => {};
+          const event = new Promise((resolve) => { received = resolve; });
+          const callbacks = { onNoticed: (m: unknown) => received(m), onMomentSent: (m: unknown) => received(m), onPing: () => received('ping') };
+          const run = async (methods: any) => {
+            if (c.scenario === 'event') {
+              await methods.trigger(c.trigger);
+              return await Promise.race([event, sleep(20000).then(() => { throw new Error('no event in twenty seconds'); })]);
+            }
+            if (c.scenario === 'sum') return await methods.sum([1, 2, 3]);
+            return await methods.getMoments(2);
+          };
+
+          if (!wrapper) {
+            const connection = hubs.createFeatureHubConnection(baseUrl, () => callbacks);
+            await connection.start();
+            try {
+              return { kind: 'value', value: await run(hubs.featureHubMethods(connection)) };
+            } finally {
+              await connection.stop();
+            }
+          }
+
+          const { result, unmount } = renderHook(() => hubs.useFeatureHub(callbacks), { wrapper });
+          await act(async () => { await result.current.connect(); });
+          await waitFor(() => { if (!result.current.isConnected) throw new Error('waiting'); }, WAIT);
+          try {
+            return { kind: 'value', value: await run(result.current.methods) };
+          } finally {
+            await act(async () => { await result.current.disconnect(); });
+            unmount();
+          }
+        }
+
         async function viaClient(api: any, c: any): Promise<Record<string, unknown>> {
+          if (c.kind === 'hub') return await viaHub(c, null);
           const f = api.feature;
           const m = c.operation.charAt(0).toLowerCase() + c.operation.slice(1);
           switch (c.kind) {
@@ -1519,6 +1645,7 @@ public partial class ErrorResponseBodyRuntimeTests
         async function viaHooks(c: any): Promise<Record<string, unknown>> {
           const wrapper = wrapperFor(c, { ...c.headers, 'X-Probe': `ts-${which}|${c.name}` });
           const H = hookModule;
+          if (c.kind === 'hub') return await viaHub(c, wrapper);
           switch (c.kind) {
             case 'stream': {
               const hook = H['use' + c.operation + 'Stream'];
@@ -1645,6 +1772,7 @@ public partial class ErrorResponseBodyRuntimeTests
           "private": true,
           "type": "module",
           "dependencies": {
+            "@microsoft/signalr": "^10.0.11",
             "@tanstack/react-query": "^5.81.0",
             "axios": "^1.7.0",
             "react": "^18.3.0",
@@ -1702,6 +1830,13 @@ public partial class ErrorResponseBodyRuntimeTests
         // two events, and the client goes on after the last id it read
         cases.Add(new("wire: Server-Sent Events that drop after two events and are resumed with Last-Event-ID", "stream formats on the wire", "FeatureSseResume", "resume", new JsonObject { ["count"] = 5 }));
 
+        // A SignalR hub (x-signalr-hubs) on the generated server, through each client's generated hub client
+        cases.Add(new("hub: an event with a model (a date and a date-time)", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "event", ["trigger"] = "Noticed", ["expect"] = HubMoments(0) }));
+        cases.Add(new("hub: an event whose name is no identifier (moment-sent)", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "event", ["trigger"] = "moment-sent", ["expect"] = HubMoments(0) }));
+        cases.Add(new("hub: an event without a payload", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "event", ["trigger"] = "Ping", ["expect"] = "\"ping\"" }));
+        cases.Add(new("hub: a method that takes an array and answers a number", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "sum", ["expect"] = "6" }));
+        cases.Add(new("hub: a method whose name is no identifier (get-moments), answering a list of models", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "list", ["expect"] = "[" + HubMoments(1) + "," + HubMoments(2) + "]" }));
+
         cases.Add(new("pagination: five things in pages of three, by continuation", "pagination", "FeaturePage", "page", new JsonObject { ["pageSize"] = 3 }));
         cases.Add(new("oneOf: a circle round-trips through the discriminator", "polymorphism", "FeatureShape", "shape", new JsonObject { ["body"] = new JsonObject { ["kind"] = "circle", ["radius"] = 2.5 } }));
         cases.Add(new("oneOf: a square round-trips through the discriminator", "polymorphism", "FeatureShape", "shape", new JsonObject { ["body"] = new JsonObject { ["kind"] = "square", ["side"] = 4 } }));
@@ -1721,6 +1856,40 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("network: the host name does not resolve", "network", "FeatureReset", "net", new JsonObject { ["scenario"] = "dns" }));
         cases.Add(new("validation: the handler throws FluentValidation's ValidationException", "validation", "FeatureInvalid", "invalid", new JsonObject()));
         return cases;
+    }
+
+    // What the feature hub sends: the moment the given number of days after 2026-03-04, as JSON
+    private static string HubMoments(int days)
+        => $"{{\"day\":\"{new DateOnly(2026, 3, 4).AddDays(days):yyyy-MM-dd}\",\"at\":\"2026-03-04T05:06:07+02:00\"}}";
+
+    // Two values the same as a hub carries them: the same JSON, a date or date-time the same instant however written
+    private static bool SameHubValue(
+        JsonNode? expected,
+        JsonNode? actual)
+    {
+        switch (expected)
+        {
+            case null:
+                return actual is null;
+            case JsonObject expectedObject:
+                return actual is JsonObject actualObject &&
+                       expectedObject.Count == actualObject.Count &&
+                       expectedObject.All(p => actualObject.TryGetPropertyValue(p.Key, out var value) && SameHubValue(p.Value, value));
+            case JsonArray expectedArray:
+                return actual is JsonArray actualArray &&
+                       expectedArray.Count == actualArray.Count &&
+                       expectedArray.Zip(actualArray).All(pair => SameHubValue(pair.First, pair.Second));
+            default:
+                if (expected.GetValueKind() == JsonValueKind.String &&
+                    actual?.GetValueKind() == JsonValueKind.String &&
+                    DateTimeOffset.TryParse((string)expected!, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var expectedTime) &&
+                    DateTimeOffset.TryParse((string)actual!, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var actualTime))
+                {
+                    return expectedTime == actualTime;
+                }
+
+                return actual is not null && expected.ToJsonString() == actual.ToJsonString();
+        }
     }
 
     /// <summary>
@@ -1923,6 +2092,16 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(circle, client, Value("Circle", """{"kind":"circle","radius":2.5}"""), cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(circle, client, Value("Shape", """{"kind":"circle","radius":2.5}"""), cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(circle, client, Value("Circle", """{"kind":"circle","radius":3}"""), cancelled: false)["verdict"]);
+
+        // A hub's event or answer: the same value passes, a date-time written in another offset is the same instant, and
+        // a changed, lost or missing value fails
+        var hubEvent = cases.Single(c => c.Name == "hub: an event with a model (a date and a date-time)");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04","at":"2026-03-04T03:06:07.000Z"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04","at":"2026-03-04T05:06:07Z"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, new JsonObject { ["kind"] = "threw", ["error"] = "TimeoutException: no event" }, cancelled: false)["verdict"]);
+        var hubList = cases.Single(c => c.Name.StartsWith("hub: a method whose name is no identifier", StringComparison.Ordinal));
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubList, client, Value(null, """[{"day":"2026-03-05","at":"2026-03-04T05:06:07+02:00"}]"""), cancelled: false)["verdict"]);
 
         var nested = cases.Single(c => c.Kind == "nested");
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(nested, client, Value("Leaf", """{"id":"leaf-1","name":"Leaf","extra":"more"}"""), cancelled: false)["verdict"]);
@@ -2235,6 +2414,20 @@ public partial class ErrorResponseBodyRuntimeTests
                 return Cell(VerdictPass, "the echo equals what was sent" + (featureCase.Kind == "shape" && isCSharp ? ", as the derived type" : string.Empty), summary);
             }
 
+            case "hub":
+            {
+                var expected = JsonNode.Parse((string)arguments["expect"]!);
+                var got = observed["value"]?.ToJsonString() ?? "null";
+                if (kind != "value")
+                {
+                    return Cell(VerdictFail, $"{kind}: {(string?)observed["error"] ?? "no value"}", "-");
+                }
+
+                return SameHubValue(expected, observed["value"])
+                    ? Cell(VerdictPass, (string?)arguments["scenario"] == "event" ? "the event reaches its handler with the payload the hub sent" : "the method's answer, as the hub sent it", got)
+                    : Cell(VerdictFail, $"expected {expected?.ToJsonString()}, got {got}", got);
+            }
+
             case "color":
             {
                 var unknown = arguments["unknown"] is not null;
@@ -2512,7 +2705,8 @@ public partial class ErrorResponseBodyRuntimeTests
                 {
                     await next(context);
                 }
-            }));
+            }),
+            configureWithAssembly: (app, assembly) => assembly.GetType("ErrorBodies.RuntimeTest.FeatureHubMapping", throwOnError: true)!.GetMethod("Map")!.Invoke(null, [app]));
 
         var casesJson = FeatureCasesJson(cases).ToJsonString();
         var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
