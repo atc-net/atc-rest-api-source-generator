@@ -134,6 +134,16 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                         cancellationToken));
                 }
 
+                // The SignalR client, if the spec declares hubs: the typed hub clients build on it
+                Version? signalRClientVersion = null;
+                if (parsedDocument is not null && SignalRHubHelper.Parse(parsedDocument).Count > 0)
+                {
+                    signalRClientVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                        PackageVersionDefaults.SignalRClientPackageId,
+                        PackageVersionDefaults.SignalRClientMinFallback,
+                        cancellationToken));
+                }
+
                 // Step 2: Check for conflicting project files in output directory
                 if (!ValidateOutputDirectory(outputPath, projectName))
                 {
@@ -197,7 +207,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 6: Create or update project file (using local YAML file name)
                 ctx.Status("Creating project file...");
-                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, partFileNames, sourceGeneratorVersion, restClientVersion, resilienceVersion))
+                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, partFileNames, sourceGeneratorVersion, restClientVersion, resilienceVersion, signalRClientVersion))
                 {
                     return 1;
                 }
@@ -467,7 +477,8 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         IReadOnlyList<string> partFileNames,
         Version sourceGeneratorVersion,
         Version restClientVersion,
-        Version? resilienceVersion)
+        Version? resilienceVersion,
+        Version? signalRClientVersion)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -475,7 +486,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion);
+                var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion, signalRClientVersion);
                 File.WriteAllText(csprojPath, csprojContent);
                 foreach (var partFileName in partFileNames)
                 {
@@ -515,12 +526,19 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         string specFileName,
         Version sourceGeneratorVersion,
         Version restClientVersion,
-        Version? resilienceVersion)
+        Version? resilienceVersion,
+        Version? signalRClientVersion)
     {
         var resilienceRef = resilienceVersion is not null
             ? $"""
 
                    <PackageReference Include="{PackageVersionDefaults.ResiliencePackageId}" Version="{resilienceVersion}" />
+               """
+            : string.Empty;
+        var signalRClientRef = signalRClientVersion is not null
+            ? $"""
+
+                   <PackageReference Include="{PackageVersionDefaults.SignalRClientPackageId}" Version="{signalRClientVersion}" />
                """
             : string.Empty;
 
@@ -536,7 +554,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
               <ItemGroup>
                 <PackageReference Include="{PackageVersionDefaults.SourceGeneratorPackageId}" Version="{sourceGeneratorVersion}" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-                <PackageReference Include="{PackageVersionDefaults.RestClientPackageId}" Version="{restClientVersion}" />{resilienceRef}
+                <PackageReference Include="{PackageVersionDefaults.RestClientPackageId}" Version="{restClientVersion}" />{resilienceRef}{signalRClientRef}
               </ItemGroup>
 
               <ItemGroup>

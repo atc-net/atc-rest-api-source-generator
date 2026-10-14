@@ -578,6 +578,45 @@ public sealed class GenerateClientCommandTests : IDisposable
         Assert.DoesNotContain("Microsoft.Extensions.Http.Resilience", csprojContent, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A specification with SignalR hubs (<c>x-signalr-hubs</c>) gets the SignalR client its typed hub clients build on,
+    /// as one with retry settings gets the resilience package - so a scaffolded client has its hub clients from the
+    /// first build instead of ATC_API_DEP012.
+    /// </summary>
+    [Fact]
+    public async Task GenerateClient_WithSignalRHubs_CsprojContainsTheSignalRClient()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("AsyncEnumerableHooks");
+        var outputPath = Path.Combine(tempOutputDir, "HubsPkgTest", "Client");
+        var projectName = "Hubs.PkgTest";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var csprojContent = await File.ReadAllTextAsync(Path.Combine(outputPath, $"{projectName}.csproj"), TestContext.Current.CancellationToken);
+        Assert.Contains("<PackageReference Include=\"Microsoft.AspNetCore.SignalR.Client\" Version=\"", csprojContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateClient_WithoutSignalRHubs_CsprojDoesNotContainTheSignalRClient()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "NoHubsPkgTest", "Client");
+        var projectName = "Demo.NoHubsPkg";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var csprojContent = await File.ReadAllTextAsync(Path.Combine(outputPath, $"{projectName}.csproj"), TestContext.Current.CancellationToken);
+        Assert.DoesNotContain("Microsoft.AspNetCore.SignalR.Client", csprojContent, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GenerateClient_MarkerFile_ReferencesItsSchema_AndHasOnlyKnownSettings()
     {

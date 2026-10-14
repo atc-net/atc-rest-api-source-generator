@@ -233,6 +233,48 @@ public class SchemaReferenceValidatorTests
                     Thing: { type: object, properties: { name: { type: string } } }
                 """
             },
+            {
+                "payload of a SignalR hub event (x-signalr-hubs)",
+                """
+                x-signalr-hubs:
+                  things:
+                    events:
+                      - name: ThingChanged
+                        payload: '#/components/schemas/Missing'
+                paths: {}
+                components:
+                  schemas:
+                    Thing: { type: object, properties: { name: { type: string } } }
+                """
+            },
+            {
+                "items of what a SignalR hub method returns (x-signalr-hubs)",
+                """
+                x-signalr-hubs:
+                  things:
+                    methods:
+                      - name: GetThings
+                        returns: { type: array, items: { $ref: '#/components/schemas/Missing' } }
+                paths: {}
+                components:
+                  schemas:
+                    Thing: { type: object, properties: { name: { type: string } } }
+                """
+            },
+            {
+                "short array payload of a SignalR hub method (x-signalr-hubs)",
+                """
+                x-signalr-hubs:
+                  things:
+                    methods:
+                      - name: Watch
+                        payload: Missing[]
+                paths: {}
+                components:
+                  schemas:
+                    Thing: { type: object, properties: { name: { type: string } } }
+                """
+            },
         };
 
     [Theory]

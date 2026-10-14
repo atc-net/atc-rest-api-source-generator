@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
-using AsyncEnumerableHooks.Generated.Models;
 
 namespace AsyncEnumerableHooks.Generated.Hubs;
 
@@ -27,7 +26,7 @@ public interface IItemsHubClient
     /// <summary>
     /// The <c>ItemChanged</c> event.
     /// </summary>
-    Task ItemChanged(Item payload);
+    Task ItemChanged(global::AsyncEnumerableHooks.Generated.Models.Item payload);
 
     /// <summary>
     /// The <c>Heartbeat</c> event.
@@ -50,7 +49,7 @@ public interface IItemsHub
     /// <summary>
     /// The <c>GetRecentLogs</c> method.
     /// </summary>
-    Task<IReadOnlyList<ItemLog>> GetRecentLogs(int payload);
+    Task<IReadOnlyList<global::AsyncEnumerableHooks.Generated.Models.ItemLog>> GetRecentLogs(int payload);
 
     /// <summary>
     /// The <c>Count</c> method.
@@ -95,7 +94,7 @@ public static class ItemsHubContract
     /// </summary>
     public static Task SendItemChangedAsync(
         this IClientProxy clients,
-        Item payload,
+        global::AsyncEnumerableHooks.Generated.Models.Item payload,
         CancellationToken cancellationToken = default)
         => clients.SendAsync(Events.ItemChanged, payload, cancellationToken);
 
@@ -104,7 +103,7 @@ public static class ItemsHubContract
     /// </summary>
     public static Task SendLogWrittenAsync(
         this IClientProxy clients,
-        ItemLog payload,
+        global::AsyncEnumerableHooks.Generated.Models.ItemLog payload,
         CancellationToken cancellationToken = default)
         => clients.SendAsync(Events.LogWritten, payload, cancellationToken);
 

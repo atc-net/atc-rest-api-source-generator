@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
-using AsyncEnumerableHooks.Generated.Models;
 
 namespace AsyncEnumerableHooks.Generated.Hubs;
 
@@ -74,25 +73,25 @@ public sealed class ItemsHubClient : IAsyncDisposable
     /// <summary>
     /// Subscribes to the <c>ItemChanged</c> event; dispose what is returned to unsubscribe.
     /// </summary>
-    public IDisposable OnItemChanged(Action<Item> handler)
+    public IDisposable OnItemChanged(Action<global::AsyncEnumerableHooks.Generated.Models.Item> handler)
         => Connection.On(Events.ItemChanged, handler);
 
     /// <summary>
     /// Subscribes to the <c>ItemChanged</c> event with an asynchronous handler; dispose what is returned to unsubscribe.
     /// </summary>
-    public IDisposable OnItemChanged(Func<Item, Task> handler)
+    public IDisposable OnItemChanged(Func<global::AsyncEnumerableHooks.Generated.Models.Item, Task> handler)
         => Connection.On(Events.ItemChanged, handler);
 
     /// <summary>
     /// Subscribes to the <c>log-written</c> event; dispose what is returned to unsubscribe.
     /// </summary>
-    public IDisposable OnLogWritten(Action<ItemLog> handler)
+    public IDisposable OnLogWritten(Action<global::AsyncEnumerableHooks.Generated.Models.ItemLog> handler)
         => Connection.On(Events.LogWritten, handler);
 
     /// <summary>
     /// Subscribes to the <c>log-written</c> event with an asynchronous handler; dispose what is returned to unsubscribe.
     /// </summary>
-    public IDisposable OnLogWritten(Func<ItemLog, Task> handler)
+    public IDisposable OnLogWritten(Func<global::AsyncEnumerableHooks.Generated.Models.ItemLog, Task> handler)
         => Connection.On(Events.LogWritten, handler);
 
     /// <summary>
@@ -118,10 +117,10 @@ public sealed class ItemsHubClient : IAsyncDisposable
     /// <summary>
     /// Invokes the hub's <c>GetRecentLogs</c> method and waits for it.
     /// </summary>
-    public Task<IReadOnlyList<ItemLog>> GetRecentLogsAsync(
+    public Task<IReadOnlyList<global::AsyncEnumerableHooks.Generated.Models.ItemLog>> GetRecentLogsAsync(
         int payload,
         CancellationToken cancellationToken = default)
-        => Connection.InvokeAsync<IReadOnlyList<ItemLog>>(Methods.GetRecentLogs, payload, cancellationToken);
+        => Connection.InvokeAsync<IReadOnlyList<global::AsyncEnumerableHooks.Generated.Models.ItemLog>>(Methods.GetRecentLogs, payload, cancellationToken);
 
     /// <summary>
     /// Invokes the hub's <c>Count</c> method and waits for it.

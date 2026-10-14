@@ -21,6 +21,11 @@ internal static class PackageVersionDefaults
     public const string ResiliencePackageId = "Microsoft.Extensions.Http.Resilience";
 
     /// <summary>
+    /// Package ID for the SignalR client the typed hub clients of x-signalr-hubs build on.
+    /// </summary>
+    public const string SignalRClientPackageId = "Microsoft.AspNetCore.SignalR.Client";
+
+    /// <summary>
     /// Fallback version for Atc.Rest.Api.SourceGenerator when NuGet cannot be reached: the CLI's own version, since the
     /// CLI and the generator are released together.
     /// </summary>
@@ -43,6 +48,11 @@ internal static class PackageVersionDefaults
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.
     /// </summary>
     public static readonly Version ResilienceMinFallback = new(10, 7, 0);
+
+    /// <summary>
+    /// Fallback minimum version for Microsoft.AspNetCore.SignalR.Client.
+    /// </summary>
+    public static readonly Version SignalRClientMinFallback = new(10, 0, 12);
 
     private static Version OwnVersion()
     {

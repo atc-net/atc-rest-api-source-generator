@@ -7,7 +7,7 @@ namespace Atc.Rest.Api.Generator.Validators;
 /// generated. Looks everywhere a reference can sit: path items and webhooks with their parameters, the operations'
 /// parameters, request bodies and responses (headers, content, the schema and the item schema of a media type), and
 /// the component schemas with their properties, items, <c>allOf</c>/<c>oneOf</c>/<c>anyOf</c> members,
-/// <c>additionalProperties</c> and <c>not</c>.
+/// <c>additionalProperties</c> and <c>not</c>; and the payloads of the SignalR hubs (<c>x-signalr-hubs</c>).
 /// </summary>
 internal static class DanglingReferenceValidator
 {
@@ -24,6 +24,30 @@ internal static class DanglingReferenceValidator
         foreach (var webhook in document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal))
         {
             walk.PathItem(webhook.Value, $"webhooks/{webhook.Key}");
+        }
+
+        // The payloads of the SignalR hubs (x-signalr-hubs) name component schemas too
+        foreach (var hub in SignalRHubHelper.Parse(document))
+        {
+            foreach (var (kind, members) in new[] { ("events", hub.Events), ("methods", hub.Methods) })
+            {
+                foreach (var member in members)
+                {
+                    foreach (var (field, payload) in new[] { ("payload", member.Payload), ("returns", member.Returns) })
+                    {
+                        foreach (var schema in payload?.Schemas ?? [])
+                        {
+                            if (document.Components?.Schemas?.ContainsKey(schema) != true)
+                            {
+                                walk.Diagnostics.Add(DiagnosticBuilder.SchemaReferenceError(
+                                    schema,
+                                    $"{SignalRHubHelper.ExtensionName}/{hub.Key}/{kind}/{member.Name}/{field}",
+                                    sourceFilePath));
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         var components = document.Components;

@@ -25,9 +25,9 @@ public static class SignalRHubExtractor
         string projectName)
     {
         var hubs = SignalRHubHelper.Parse(openApiDoc);
-        var usings = SignalRHubHelper.ModelUsings(openApiDoc, projectName, hubs);
+        var models = SignalRHubHelper.ModelTypeNames(openApiDoc, projectName, hubs);
         return hubs
-            .Select(hub => ($"{projectName}.Generated.Hubs.{TypeName(hub)}Hub.g.cs", ServerFile(projectName, hub, usings)))
+            .Select(hub => ($"{projectName}.Generated.Hubs.{TypeName(hub)}Hub.g.cs", ServerFile(projectName, hub, models)))
             .ToList();
     }
 
@@ -44,9 +44,9 @@ public static class SignalRHubExtractor
         bool singleModelsNamespace = false)
     {
         var hubs = SignalRHubHelper.Parse(openApiDoc);
-        var usings = SignalRHubHelper.ModelUsings(openApiDoc, projectName, hubs, singleModelsNamespace);
+        var models = SignalRHubHelper.ModelTypeNames(openApiDoc, projectName, hubs, singleModelsNamespace);
         return hubs
-            .Select(hub => ($"{projectName}.Generated.Hubs.{TypeName(hub)}HubClient.g.cs", ClientFile(projectName, hub, usings)))
+            .Select(hub => ($"{projectName}.Generated.Hubs.{TypeName(hub)}HubClient.g.cs", ClientFile(projectName, hub, models)))
             .ToList();
     }
 
@@ -73,12 +73,15 @@ public static class SignalRHubExtractor
     /// list of either.
     /// </summary>
     /// <param name="payload">The payload.</param>
+    /// <param name="models">The C# type of each payload schema (<see cref="SignalRHubHelper.ModelTypeNames"/>).</param>
     /// <returns>The C# type.</returns>
-    public static string CSharpType(SignalRHubPayload payload)
+    public static string CSharpType(
+        SignalRHubPayload payload,
+        IReadOnlyDictionary<string, string> models)
         => payload switch
         {
-            { Items: { } items } => $"IReadOnlyList<{CSharpType(items)}>",
-            { SchemaName: { } schema } => schema.ToPascalCaseForDotNet(),
+            { Items: { } items } => $"IReadOnlyList<{CSharpType(items, models)}>",
+            { SchemaName: { } schema } => models.TryGetValue(schema, out var model) ? model : OpenApiSchemaExtensions.SanitizeSchemaName(schema),
             { Type: "integer", Format: "int64" } => "long",
             { Type: "integer" } => "int",
             { Type: "number", Format: "float" } => "float",
@@ -94,10 +97,10 @@ public static class SignalRHubExtractor
     private static string ServerFile(
         string projectName,
         SignalRHub hub,
-        List<string> modelUsings)
+        Dictionary<string, string> models)
     {
         var name = TypeName(hub);
-        var sb = Header(projectName, modelUsings, "Microsoft.AspNetCore.SignalR");
+        var sb = Header(projectName, "Microsoft.AspNetCore.SignalR");
         var members = Named(hub);
 
         // The events, as the interface of a strongly typed hub: SignalR sends a method of it under the method's
@@ -120,7 +123,7 @@ public static class SignalRHubExtractor
         AppendMembers(
             sb,
             typedEvents,
-            e => $"Task {e.Member.Name}({Parameter(e.Member.Payload)});",
+            e => $"Task {e.Member.Name}({Parameter(e.Member.Payload, models)});",
             e => $"The <c>{e.Member.Name}</c> event.");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -142,7 +145,7 @@ public static class SignalRHubExtractor
         AppendMembers(
             sb,
             members.Methods,
-            m => $"{ReturnType(m.Member.Returns)} {(m.NameIsIdentifier ? m.Member.Name : m.Identifier)}({Parameter(m.Member.Payload)});",
+            m => $"{ReturnType(m.Member.Returns, models)} {(m.NameIsIdentifier ? m.Member.Name : m.Identifier)}({Parameter(m.Member.Payload, models)});",
             m => m.NameIsIdentifier ? $"The <c>{m.Member.Name}</c> method." : $"The <c>{m.Member.Name}</c> method (<c>[HubMethodName({CSharpLiteralHelper.ToStringLiteral(m.Member.Name)})]</c>).");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -166,7 +169,7 @@ public static class SignalRHubExtractor
             sb.AppendLine(8, "this IClientProxy clients,");
             if (e.Member.Payload is not null)
             {
-                sb.AppendLine(8, $"{Parameter(e.Member.Payload)},");
+                sb.AppendLine(8, $"{Parameter(e.Member.Payload, models)},");
             }
 
             sb.AppendLine(8, "CancellationToken cancellationToken = default)");
@@ -182,10 +185,10 @@ public static class SignalRHubExtractor
     private static string ClientFile(
         string projectName,
         SignalRHub hub,
-        List<string> modelUsings)
+        Dictionary<string, string> models)
     {
         var name = TypeName(hub);
-        var sb = Header(projectName, modelUsings, "Microsoft.AspNetCore.SignalR.Client");
+        var sb = Header(projectName, "Microsoft.AspNetCore.SignalR.Client");
         var members = Named(hub);
 
         sb.AppendLine("/// <summary>");
@@ -230,7 +233,7 @@ public static class SignalRHubExtractor
 
         foreach (var e in members.Events)
         {
-            var payload = e.Member.Payload is null ? null : CSharpType(e.Member.Payload);
+            var payload = e.Member.Payload is null ? null : CSharpType(e.Member.Payload, models);
             sb.AppendLine();
             sb.AppendLine(4, "/// <summary>");
             sb.AppendLine(4, $"/// Subscribes to the <c>{e.Member.Name}</c> event; dispose what is returned to unsubscribe.");
@@ -251,15 +254,15 @@ public static class SignalRHubExtractor
 
         foreach (var m in members.Methods)
         {
-            var returns = m.Member.Returns is null ? null : CSharpType(m.Member.Returns);
+            var returns = m.Member.Returns is null ? null : CSharpType(m.Member.Returns, models);
             sb.AppendLine();
             sb.AppendLine(4, "/// <summary>");
             sb.AppendLine(4, $"/// Invokes the hub's <c>{m.Member.Name}</c> method and waits for it.");
             sb.AppendLine(4, "/// </summary>");
-            sb.AppendLine(4, $"public {ReturnType(m.Member.Returns)} {m.Identifier}Async(");
+            sb.AppendLine(4, $"public {ReturnType(m.Member.Returns, models)} {m.Identifier}Async(");
             if (m.Member.Payload is not null)
             {
-                sb.AppendLine(8, $"{Parameter(m.Member.Payload)},");
+                sb.AppendLine(8, $"{Parameter(m.Member.Payload, models)},");
             }
 
             sb.AppendLine(8, "CancellationToken cancellationToken = default)");
@@ -275,7 +278,6 @@ public static class SignalRHubExtractor
 
     private static StringBuilder Header(
         string projectName,
-        List<string> modelUsings,
         string signalRNamespace)
     {
         var sb = new StringBuilder();
@@ -288,10 +290,6 @@ public static class SignalRHubExtractor
         sb.AppendLine("using System.Threading;");
         sb.AppendLine("using System.Threading.Tasks;");
         sb.AppendLine($"using {signalRNamespace};");
-        foreach (var modelUsing in modelUsings)
-        {
-            sb.AppendLine($"using {modelUsing};");
-        }
 
         sb.AppendLine();
         sb.AppendLine($"namespace {NamespaceOf(projectName)};");
@@ -350,11 +348,15 @@ public static class SignalRHubExtractor
         }
     }
 
-    private static string Parameter(SignalRHubPayload? payload)
-        => payload is null ? string.Empty : $"{CSharpType(payload)} payload";
+    private static string Parameter(
+        SignalRHubPayload? payload,
+        Dictionary<string, string> models)
+        => payload is null ? string.Empty : $"{CSharpType(payload, models)} payload";
 
-    private static string ReturnType(SignalRHubPayload? returns)
-        => returns is null ? "Task" : $"Task<{CSharpType(returns)}>";
+    private static string ReturnType(
+        SignalRHubPayload? returns,
+        Dictionary<string, string> models)
+        => returns is null ? "Task" : $"Task<{CSharpType(returns, models)}>";
 
     private static string TypeName(SignalRHub hub)
         => hub.Key.ToPascalCaseForDotNet();

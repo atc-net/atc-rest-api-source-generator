@@ -187,7 +187,13 @@ public sealed class SignalRHubTests
         string marker)
     {
         var (sources, diagnostics) = Run(kind, marker, CompilationVerificationHarness.GetFullFrameworkReferences());
-        var hub = Assert.Single(sources, s => s.HintName.Contains(".Hubs.Notifications", StringComparison.Ordinal)).Source;
+        var qualified = Assert.Single(sources, s => s.HintName.Contains(".Hubs.Notifications", StringComparison.Ordinal)).Source;
+
+        // A model is written in full - its Models namespace (shared, or its path segment's) and its name - so no type
+        // the hub file imports can stand in for it; read without the namespaces below
+        Assert.Matches(new Regex(@"global::ErrorBodies\.Generated(\.\w+)?\.Models\.Notice\b", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)), qualified);
+        Assert.DoesNotContain("using ErrorBodies.Generated", qualified, StringComparison.Ordinal);
+        var hub = Regex.Replace(qualified, @"global::ErrorBodies\.Generated(\.\w+)?\.Models\.", string.Empty, RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
 
         Assert.DoesNotContain(diagnostics, d => d.Id == "ATC_API_DEP012");
         Assert.Contains("namespace ErrorBodies.Generated.Hubs;", hub, StringComparison.Ordinal);
@@ -224,6 +230,93 @@ public sealed class SignalRHubTests
 
         var compilation = CompilationVerificationHarness.CreateCompilation(sources);
         Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    /// <summary>
+    /// A payload is the type its schema is generated as: a schema whose name is a .NET type the hub file uses
+    /// (<c>Task</c>) is the model, not that type; an array or primitive alias is the type it names (no type is
+    /// generated for it); a name that is no identifier is the model's sanitized name.
+    /// </summary>
+    [Theory]
+    [InlineData("server", "{}")]
+    [InlineData("client", """{ "generationMode": "EndpointPerOperation" }""")]
+    [InlineData("client", """{ "generationMode": "TypedClient" }""")]
+    [InlineData("client", """{ "generationMode": "TypedClient", "clientGranularity": "Single" }""")]
+    public void Generator_TypesAPayloadAsItsSchemaIsGenerated_AndTheHubCompiles(
+        string kind,
+        string marker)
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /tasks:
+                get:
+                  operationId: listTasks
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Tasks'
+            components:
+              schemas:
+                Task:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: { type: string }
+                Tasks:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Task'
+                Score:
+                  type: integer
+                  format: int64
+                Device.Status:
+                  type: object
+                  properties:
+                    online: { type: boolean }
+            x-signalr-hubs:
+              tasks:
+                events:
+                  - name: TaskChanged
+                    payload: '#/components/schemas/Task'
+                  - name: StatusChanged
+                    payload: '#/components/schemas/Device.Status'
+                methods:
+                  - name: GetTasks
+                    returns: '#/components/schemas/Tasks'
+                  - name: GetScore
+                    returns: '#/components/schemas/Score'
+            """;
+
+        var (sources, diagnostics) = Run(kind, marker, CompilationVerificationHarness.GetFullFrameworkReferences(), yaml);
+        var hub = Assert.Single(sources, s => s.HintName.Contains(".Hubs.Tasks", StringComparison.Ordinal)).Source;
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains("Task<long>", hub, StringComparison.Ordinal);
+        Assert.Matches(new Regex(@"\.Models\.Task[ >]", RegexOptions.None, TimeSpan.FromSeconds(1)), hub);
+        Assert.Contains("Task<IReadOnlyList<global::ErrorBodies.Generated", hub, StringComparison.Ordinal);
+        Assert.DoesNotContain("<Tasks>", hub, StringComparison.Ordinal);
+
+        var compilation = CompilationVerificationHarness.CreateCompilation(sources);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Fact]
+    public void Generator_APayloadNamingNoSchema_IsAnErrorNamingIt_NotCodeThatFailsToCompile()
+    {
+        var yaml = Yaml.Replace("payload: '#/components/schemas/UserActivity'", "payload: '#/components/schemas/Missing'", StringComparison.Ordinal);
+
+        var (sources, diagnostics) = Run("server", "{}", CompilationVerificationHarness.GetFullFrameworkReferences(), yaml);
+
+        var error = Assert.Single(diagnostics, d => d.Id == "ATC_API_SCH013");
+        Assert.Contains("Missing", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        Assert.Empty(CompilationVerificationHarness.CreateCompilation(sources).GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 
     [Theory]

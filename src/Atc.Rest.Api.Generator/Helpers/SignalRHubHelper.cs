@@ -63,8 +63,8 @@ public static class SignalRHubHelper
             hubs.Add(new SignalRHub(
                 hub.Key,
                 url,
-                Members(hubObject["events"], withResult: false),
-                Members(hubObject["methods"], withResult: true)));
+                Members(openApiDoc, hubObject["events"], withResult: false),
+                Members(openApiDoc, hubObject["methods"], withResult: true)));
         }
 
         return hubs;
@@ -84,54 +84,40 @@ public static class SignalRHubHelper
             .ToList();
 
     /// <summary>
-    /// The Models namespaces the payload schemas are generated in: the shared one, or the one of the single path
-    /// segment that uses the schema.
+    /// The C# type of each payload schema, fully qualified (<c>global::{Project}.Generated[.{Segment}].Models.{Name}</c>):
+    /// the model is in the shared Models namespace or in that of the single path segment that uses it, under its
+    /// sanitized name - and, written in full, no type the hub file imports (<c>Task</c>) can stand in for it.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <param name="projectName">The root namespace of the generated code.</param>
     /// <param name="hubs">The hubs.</param>
     /// <param name="singleModelsNamespace">Whether every model is in one namespace (a single typed client).</param>
-    /// <returns>The namespaces to import, ordered.</returns>
-    public static List<string> ModelUsings(
+    /// <returns>Per schema name, its C# type.</returns>
+    public static Dictionary<string, string> ModelTypeNames(
         OpenApiDocument openApiDoc,
         string projectName,
         IEnumerable<SignalRHub> hubs,
         bool singleModelsNamespace = false)
     {
-        var usings = new HashSet<string>(StringComparer.Ordinal);
-        if (singleModelsNamespace)
-        {
-            if (PayloadSchemas(hubs).Count > 0)
-            {
-                usings.Add(NamespaceBuilder.ForModels(projectName, string.Empty));
-            }
-
-            return usings.ToList();
-        }
-
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
         var schemaSegments = PathSegmentHelper.GetSchemaSegmentMap(openApiDoc);
         foreach (var schema in PayloadSchemas(hubs))
         {
-            if (BuiltInErrorContractNames.IsReserved(schema))
-            {
-                continue;
-            }
-
-            var segment = !sharedSchemas.Contains(schema) &&
+            var segment = !singleModelsNamespace &&
+                          !sharedSchemas.Contains(schema) &&
                           schemaSegments.TryGetValue(schema, out var segments) &&
                           segments.Count == 1
                 ? PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, segments.First())
                 : null;
-            usings.Add(NamespaceBuilder.ForModels(projectName, segment));
+            names[schema] = $"global::{NamespaceBuilder.ForModels(projectName, segment ?? string.Empty)}.{OpenApiSchemaExtensions.SanitizeSchemaName(schema)}";
         }
 
-        return usings
-            .OrderBy(u => u, StringComparer.Ordinal)
-            .ToList();
+        return names;
     }
 
     private static List<SignalRHubMember> Members(
+        OpenApiDocument openApiDoc,
         JsonNode? node,
         bool withResult)
     {
@@ -155,8 +141,8 @@ public static class SignalRHubHelper
 
             members.Add(new SignalRHubMember(
                 name,
-                Payload(member["payload"]),
-                withResult ? Payload(member["returns"]) : null));
+                Resolve(openApiDoc, Payload(member["payload"])),
+                withResult ? Resolve(openApiDoc, Payload(member["returns"])) : null));
         }
 
         return members;
@@ -211,6 +197,70 @@ public static class SignalRHubHelper
         return type is not null && IsPrimitive(type)
             ? new SignalRHubPayload(null, type, Text(schema["format"]), null)
             : null;
+    }
+
+    // A component schema that is generated as no type - an array or primitive alias (Tasks: array of Task) - is the
+    // type it names, as everywhere else it is used
+    private static SignalRHubPayload? Resolve(
+        OpenApiDocument openApiDoc,
+        SignalRHubPayload? payload,
+        int depth = 0)
+    {
+        if (payload is null || depth > 16)
+        {
+            return payload;
+        }
+
+        if (payload.Items is not null)
+        {
+            return payload with { Items = Resolve(openApiDoc, payload.Items, depth + 1) };
+        }
+
+        if (payload.SchemaName is null ||
+            openApiDoc.Components?.Schemas is not { } schemas ||
+            !schemas.TryGetValue(payload.SchemaName, out var schema) ||
+            TypeConflictRegistry.IsGeneratedType(schema))
+        {
+            return payload;
+        }
+
+        return FromSchema(openApiDoc, schema, depth + 1) ?? payload;
+    }
+
+    private static SignalRHubPayload? FromSchema(
+        OpenApiDocument openApiDoc,
+        IOpenApiSchema schema,
+        int depth)
+    {
+        if (schema is OpenApiSchemaReference reference)
+        {
+            return reference.Reference.Id is { } id
+                ? Resolve(openApiDoc, new SignalRHubPayload(id, null, null, null), depth)
+                : null;
+        }
+
+        if (schema is not OpenApiSchema { Type: { } type } inline)
+        {
+            return null;
+        }
+
+        var withoutNull = type & ~JsonSchemaType.Null;
+        if (withoutNull == JsonSchemaType.Array)
+        {
+            return inline.Items is not null && FromSchema(openApiDoc, inline.Items, depth + 1) is { } items
+                ? new SignalRHubPayload(null, "array", null, items)
+                : null;
+        }
+
+        var primitive = withoutNull switch
+        {
+            JsonSchemaType.String => "string",
+            JsonSchemaType.Integer => "integer",
+            JsonSchemaType.Number => "number",
+            JsonSchemaType.Boolean => "boolean",
+            _ => null,
+        };
+        return primitive is null ? null : new SignalRHubPayload(null, primitive, inline.Format, null);
     }
 
     private static bool IsPrimitive(string type)
