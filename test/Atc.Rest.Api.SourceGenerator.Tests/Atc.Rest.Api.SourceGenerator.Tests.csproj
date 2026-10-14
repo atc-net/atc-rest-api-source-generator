@@ -28,12 +28,12 @@
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
     <!-- Likewise for the OpenID Connect security scenario, whose emitted authentication wiring
          lives outside the ASP.NET Core shared framework. -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
     <!-- The generated scope and role policies against real signed JWTs, as an identity provider issues them -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
     <!-- The SDK's trim and AOT analyzer, for the AOT gate over the generated code: only its DLL is copied to the
          output, so it does not analyze this project -->
-    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.12" ExcludeAssets="all" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.13" ExcludeAssets="all" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,7 +52,7 @@
     <PackageReference Include="Atc.Rest.Client" Version="2.6.0" />
 
     <!-- The typed hub clients of x-signalr-hubs build on its HubConnection; a runtime test connects one to a hub. -->
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses

@@ -57,7 +57,7 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// Fallback minimum version for Microsoft.AspNetCore.SignalR.Client.
     /// </summary>
-    public static readonly Version SignalRClientMinFallback = new(10, 0, 12);
+    public static readonly Version SignalRClientMinFallback = new(10, 0, 13);
 
     private static Version OwnVersion()
     {

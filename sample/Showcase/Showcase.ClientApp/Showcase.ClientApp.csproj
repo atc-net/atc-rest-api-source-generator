@@ -12,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Atc.Rest.Client" Version="2.6.0" />
     <!-- The typed client of the notifications hub (x-signalr-hubs) builds on it -->
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>

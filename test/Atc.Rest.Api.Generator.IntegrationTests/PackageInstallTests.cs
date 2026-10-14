@@ -365,7 +365,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
                <ItemGroup>
                  <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{package.Version}" />
                  {AtcRestClientReference}
-                 <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+                 <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
                </ItemGroup>
                <ItemGroup>
                  <AdditionalFiles Include="PetStoreSimple.yaml" />
@@ -408,7 +408,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
                <ItemGroup>
                  <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{package.Version}" />
                  {AtcRestClientReference}
-                 <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+                 <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
                </ItemGroup>
                <ItemGroup>
                  <AdditionalFiles Include="Contoso.yaml" />
