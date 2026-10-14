@@ -327,6 +327,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_DEP012: SignalR hubs are declared and the client project has no Microsoft.AspNetCore.SignalR.Client.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SignalRClientPackageRecommended = new(
+        RuleIdentifiers.SignalRClientPackageRecommended,
+        "SignalR Client Package Not Referenced",
+        "The specification declares {0} SignalR hub(s) with x-signalr-hubs, and the project does not reference Microsoft.AspNetCore.SignalR.Client: the typed hub client(s) ({1}) are not generated. Add the package reference to get them.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI014: Resilience extensions require Microsoft.Extensions.Http.Resilience reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ResilienceRequiresPackage = new(
@@ -821,6 +832,17 @@ internal static class DiagnosticHelpers
     /// <summary>
     /// Reports that the client EndpointPerOperation mode requires a newer Atc.Rest.Client than the one referenced.
     /// </summary>
+    public static void ReportSignalRClientPackageRecommended(
+        SourceProductionContext context,
+        IReadOnlyList<string> hubClients)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            SignalRClientPackageRecommended,
+            Location.None,
+            hubClients.Count,
+            string.Join(", ", hubClients)));
+    }
+
     public static void ReportAtcRestClientTooOld(
         SourceProductionContext context,
         Version minimum,

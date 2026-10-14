@@ -50,6 +50,9 @@
          2.6.0: streamed responses read by the library (StreamFraming) and its default registrations, on the trim- and Native AOT-ready (URL-encoded form fields, a body with its own media type, repeated
          multipart fields, a multipart field sent as a JSON part), and query parameter keys are URI-escaped. -->
     <PackageReference Include="Atc.Rest.Client" Version="2.6.0" />
+
+    <!-- The typed hub clients of x-signalr-hubs build on its HubConnection; a runtime test connects one to a hub. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses

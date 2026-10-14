@@ -3,8 +3,10 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// <summary>
 /// Emits clients for SignalR-style server-push hubs declared via the <c>x-signalr-hubs</c> document-level vendor
 /// extension. Each hub becomes a framework-neutral <c>{hub}Hub.ts</c> (<c>create&lt;HubKey&gt;HubConnection</c>: a
-/// connection whose inbound events go to optional caller-supplied callbacks) and, when the client has React hooks, a
-/// <c>use&lt;HubKey&gt;Hub</c> hook that owns the connection lifecycle. Distinctive surface — no other OpenAPI TS
+/// connection whose inbound events go to optional caller-supplied callbacks; with <c>methods</c>,
+/// <c>&lt;hubKey&gt;HubMethods</c>: the hub's methods over a connection) and, when the client has React hooks, a
+/// <c>use&lt;HubKey&gt;Hub</c> hook that owns the connection lifecycle. The extension is read by
+/// <see cref="SignalRHubHelper"/>, the same reader the C# generators use. Distinctive surface — no other OpenAPI TS
 /// generator emits this.
 /// </summary>
 /// <remarks>
@@ -21,7 +23,9 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// </code>
 /// The callbacks are <c>{ onSystemNotification?: (n: SystemNotification) =&gt; void; onUserActivity?: ... }</c>: an
 /// event name that is no identifier is written in PascalCase for its callback, and stays as it is on the wire. An
-/// event declared twice is generated once. The hook returns <c>{ connectionState, isConnected, connect, disconnect }</c>.
+/// event declared twice is generated once; two names that give one callback are told apart by a number, as in C#.
+/// The hook returns <c>{ connectionState, isConnected, connect, disconnect }</c>, and <c>methods</c> when the hub has
+/// any.
 /// </remarks>
 public static class TypeScriptSignalRHubExtractor
 {
@@ -42,83 +46,56 @@ public static class TypeScriptSignalRHubExtractor
         foreach (var hub in ParseHubs(openApiDoc))
         {
             var hubPascal = hub.Key.ToPascalCase();
-            results.Add((ToCamelCase(hubPascal) + "Hub", GenerateConnectionFile(hub, hubPascal, headerContent, wireNames)));
+            results.Add((ToCamelCase(hubPascal) + "Hub", GenerateConnectionFile(openApiDoc, hub, hubPascal, headerContent, wireNames)));
             if (includeReactHooks)
             {
-                results.Add(("use" + hubPascal + "Hub", GenerateHookFile(hubPascal, headerContent)));
+                results.Add(("use" + hubPascal + "Hub", GenerateHookFile(hub, hubPascal, headerContent)));
             }
         }
 
         return results;
     }
 
+    // Each event with its callback and each method with its function name: an identifier from the name, numbered when
+    // two names give one
     private static List<HubDefinition> ParseHubs(OpenApiDocument openApiDoc)
+        => SignalRHubHelper.Parse(openApiDoc)
+            .Select(hub => new HubDefinition(
+                hub.Key,
+                hub.Path,
+                Named(hub.Events, name => "on" + name),
+                Named(hub.Methods, ToCamelCase)))
+            .ToList();
+
+    private static List<HubMember> Named(
+        IReadOnlyList<SignalRHubMember> members,
+        Func<string, string> identifier)
     {
-        var hubs = new List<HubDefinition>();
-        if (openApiDoc.Extensions is null ||
-            !openApiDoc.Extensions.TryGetValue("x-signalr-hubs", out var extension) ||
-            extension is not JsonNodeExtension jsonNodeExt ||
-            jsonNodeExt.Node is not JsonObject hubsObject)
+        var taken = new HashSet<string>(StringComparer.Ordinal);
+        var named = new List<HubMember>();
+        foreach (var member in members)
         {
-            return hubs;
-        }
-
-        foreach (var (hubKey, hubValue) in hubsObject)
-        {
-            if (hubValue is not JsonObject hubObj)
+            var name = identifier(ToIdentifier(member.Name));
+            var unique = name;
+            var number = 1;
+            while (!taken.Add(unique))
             {
-                continue;
+                number++;
+                unique = name + number.ToString(CultureInfo.InvariantCulture);
             }
 
-            var url = hubObj["url"] is JsonValue urlValue && urlValue.TryGetValue<string>(out var u)
-                ? u
-                : "/hubs/" + hubKey;
-
-            var events = new List<HubEvent>();
-            var callbackNames = new HashSet<string>(StringComparer.Ordinal);
-            if (hubObj["events"] is JsonArray eventsArr)
-            {
-                foreach (var ev in eventsArr)
-                {
-                    if (ev is not JsonObject evObj ||
-                        evObj["name"] is not JsonValue nameValue ||
-                        !nameValue.TryGetValue<string>(out var name) ||
-                        string.IsNullOrWhiteSpace(name))
-                    {
-                        continue;
-                    }
-
-                    // One callback per event: an event declared twice (or two names that give one callback) once
-                    var callbackName = "on" + ToIdentifier(name);
-                    if (!callbackNames.Add(callbackName))
-                    {
-                        continue;
-                    }
-
-                    string? payloadType = null;
-                    if (evObj["payload"] is JsonValue payloadValue && payloadValue.TryGetValue<string>(out var payloadRef))
-                    {
-                        // Extract the schema name from a "#/components/schemas/X" ref string.
-                        var lastSlash = payloadRef.LastIndexOf('/');
-                        payloadType = lastSlash >= 0 && lastSlash < payloadRef.Length - 1
-                            ? payloadRef[(lastSlash + 1)..]
-                            : payloadRef;
-                    }
-
-                    events.Add(new HubEvent(name, callbackName, payloadType));
-                }
-            }
-
-            hubs.Add(new HubDefinition(hubKey, url, events));
+            named.Add(new HubMember(member.Name, unique, member.Payload, member.Returns));
         }
 
-        return hubs;
+        return named;
     }
 
     /// <summary>
-    /// The framework-neutral hub: its callbacks, its connection states and <c>create{Hub}HubConnection</c>.
+    /// The framework-neutral hub: its callbacks, its connection states, <c>create{Hub}HubConnection</c> and, with
+    /// methods, <c>{hub}HubMethods</c>.
     /// </summary>
     private static string GenerateConnectionFile(
+        OpenApiDocument openApiDoc,
         HubDefinition hub,
         string hubPascal,
         string? headerContent,
@@ -130,23 +107,33 @@ public static class TypeScriptSignalRHubExtractor
             sb.Append(headerContent);
         }
 
-        // An event payload whose model renames keys arrives with the API's property names: rename it first.
-        var payloadShapes = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var ev in hub.Events)
-        {
-            if (ev.PayloadType is not null && wireNames?.ShapeOfModel(ev.PayloadType) is { } shape)
-            {
-                payloadShapes[ev.Name] = shape;
-            }
-        }
+        // A payload whose model renames keys travels with the API's property names: renamed on the way in and out
+        string? ShapeOf(SignalRHubPayload? payload)
+            => payload is null || wireNames is null ? null : wireNames.ShapeOf(SchemaOf(openApiDoc, payload));
+
+        var usesFromWire = hub.Events.Any(e => ShapeOf(e.Payload) is not null) || hub.Methods.Any(m => ShapeOf(m.Returns) is not null);
+        var usesToWire = hub.Methods.Any(m => ShapeOf(m.Payload) is not null);
 
         sb.AppendLine("import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';");
-        if (payloadShapes.Count > 0)
+        if (usesFromWire || usesToWire)
         {
-            sb.AppendLine("import { fromWire } from '../helpers/wireNames';");
+            var helpers = new List<string>();
+            if (usesFromWire)
+            {
+                helpers.Add("fromWire");
+            }
+
+            if (usesToWire)
+            {
+                helpers.Add("toWire");
+            }
+
+            sb.Append("import { ").Append(string.Join(", ", helpers)).AppendLine(" } from '../helpers/wireNames';");
         }
 
-        var payloadImports = new SortedSet<string>(hub.Events.Where(e => e.PayloadType is not null).Select(e => e.PayloadType!), StringComparer.Ordinal);
+        var payloadImports = new SortedSet<string>(
+            hub.Events.Select(e => e.Payload).Concat(hub.Methods.SelectMany(m => new[] { m.Payload, m.Returns })).SelectMany(p => p?.Schemas ?? []),
+            StringComparer.Ordinal);
         if (payloadImports.Count > 0)
         {
             sb.Append("import type { ").Append(string.Join(", ", payloadImports)).AppendLine(" } from '../models';");
@@ -159,7 +146,7 @@ public static class TypeScriptSignalRHubExtractor
         sb.Append("export interface ").Append(hubPascal).AppendLine("HubCallbacks {");
         foreach (var ev in hub.Events)
         {
-            sb.Append("  ").Append(ev.CallbackName).Append("?: (event: ").Append(ev.PayloadType ?? "unknown").AppendLine(") => void;");
+            sb.Append("  ").Append(ev.Identifier).Append("?: (event: ").Append(TypeOf(ev.Payload) ?? "unknown").AppendLine(") => void;");
         }
 
         sb.AppendLine("}");
@@ -178,17 +165,16 @@ public static class TypeScriptSignalRHubExtractor
         sb.AppendLine();
         foreach (var ev in hub.Events)
         {
-            var wireName = ev.Name.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\\'", StringComparison.Ordinal);
-            var payload = ev.PayloadType ?? "unknown";
-            if (payloadShapes.TryGetValue(ev.Name, out var shape))
+            var payload = TypeOf(ev.Payload) ?? "unknown";
+            if (ShapeOf(ev.Payload) is { } shape)
             {
-                sb.Append("  connection.on('").Append(wireName).AppendLine("', (event: unknown) => {");
-                sb.Append("    callbacks().").Append(ev.CallbackName).Append("?.(fromWire<").Append(payload).Append(">(event, ").Append(shape).AppendLine("));");
+                sb.Append("  connection.on(").Append(Literal(ev.Name)).AppendLine(", (event: unknown) => {");
+                sb.Append("    callbacks().").Append(ev.Identifier).Append("?.(fromWire<").Append(payload).Append(">(event, ").Append(shape).AppendLine("));");
             }
             else
             {
-                sb.Append("  connection.on('").Append(wireName).Append("', (event: ").Append(payload).AppendLine(") => {");
-                sb.Append("    callbacks().").Append(ev.CallbackName).AppendLine("?.(event);");
+                sb.Append("  connection.on(").Append(Literal(ev.Name)).Append(", (event: ").Append(payload).AppendLine(") => {");
+                sb.Append("    callbacks().").Append(ev.Identifier).AppendLine("?.(event);");
             }
 
             sb.AppendLine("  });");
@@ -198,17 +184,85 @@ public static class TypeScriptSignalRHubExtractor
         sb.AppendLine("  return connection;");
         sb.AppendLine("}");
 
+        if (hub.Methods.Count == 0)
+        {
+            return sb.ToString();
+        }
+
+        sb.AppendLine();
+        sb.Append("export interface ").Append(hubPascal).AppendLine("HubMethods {");
+        foreach (var method in hub.Methods)
+        {
+            sb.Append("  ").Append(method.Identifier).Append('(').Append(method.Payload is null ? string.Empty : "payload: " + TypeOf(method.Payload))
+                .Append("): Promise<").Append(TypeOf(method.Returns) ?? "void").AppendLine(">;");
+        }
+
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/**");
+        sb.Append(" * The ").Append(hub.Key).AppendLine(" hub's methods over a started connection: each invokes the method under its name on");
+        sb.AppendLine(" * the wire and resolves with its answer.");
+        sb.AppendLine(" */");
+        sb.Append("export function ").Append(ToCamelCase(hubPascal)).Append("HubMethods(connection: Pick<HubConnection, 'invoke'>): ").Append(hubPascal).AppendLine("HubMethods {");
+        sb.AppendLine("  return {");
+        foreach (var method in hub.Methods)
+        {
+            var returns = TypeOf(method.Returns) ?? "void";
+            var argument = method.Payload is null
+                ? string.Empty
+                : ", " + (ShapeOf(method.Payload) is { } inShape ? $"toWire(payload, {inShape})" : "payload");
+            var call = $"connection.invoke<{(ShapeOf(method.Returns) is null ? returns : "unknown")}>({Literal(method.Name)}{argument})";
+            if (ShapeOf(method.Returns) is { } outShape)
+            {
+                call += $".then((answer) => fromWire<{returns}>(answer, {outShape}))";
+            }
+
+            sb.Append("    ").Append(method.Identifier).Append(": (").Append(method.Payload is null ? string.Empty : "payload: " + TypeOf(method.Payload))
+                .Append(") => ").Append(call).AppendLine(",");
+        }
+
+        sb.AppendLine("  };");
+        sb.AppendLine("}");
+
         return sb.ToString();
     }
+
+    // The TypeScript type of a payload: the model, a primitive, or an array of one; null for none
+    private static string? TypeOf(SignalRHubPayload? payload)
+        => payload switch
+        {
+            null => null,
+            { Items: { } items } => TypeOf(items) + "[]",
+            { SchemaName: { } schema } => schema,
+            { Type: "integer" or "number" } => "number",
+            { Type: "boolean" } => "boolean",
+            _ => "string",
+        };
+
+    // The schema of a payload, for the wire shape of what it carries
+    private static IOpenApiSchema SchemaOf(
+        OpenApiDocument openApiDoc,
+        SignalRHubPayload payload)
+        => payload switch
+        {
+            { Items: { } items } => new OpenApiSchema { Type = JsonSchemaType.Array, Items = SchemaOf(openApiDoc, items) },
+            { SchemaName: { } schema } => new OpenApiSchemaReference(schema, openApiDoc),
+            _ => new OpenApiSchema { Type = JsonSchemaType.String },
+        };
+
+    private static string Literal(string name)
+        => "'" + name.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\\'", StringComparison.Ordinal) + "'";
 
     /// <summary>
     /// The React hook over the neutral hub: it owns the connection lifecycle (StrictMode-safe) and reads the base URL
     /// from the generated <c>ApiProvider</c>.
     /// </summary>
     private static string GenerateHookFile(
+        HubDefinition hub,
         string hubPascal,
         string? headerContent)
     {
+        var hasMethods = hub.Methods.Count > 0;
         var sb = new StringBuilder();
         if (headerContent is not null)
         {
@@ -216,16 +270,42 @@ public static class TypeScriptSignalRHubExtractor
         }
 
         var hubModule = ToCamelCase(hubPascal) + "Hub";
-        sb.AppendLine("import { useCallback, useEffect, useRef, useState } from 'react';");
+        sb.AppendLine(hasMethods
+            ? "import { useCallback, useEffect, useMemo, useRef, useState } from 'react';"
+            : "import { useCallback, useEffect, useRef, useState } from 'react';");
         sb.AppendLine("import type { HubConnection } from '@microsoft/signalr';");
         sb.AppendLine("import { useApiService } from '../hooks/useApiService';");
-        sb.Append("import { create").Append(hubPascal).Append("HubConnection, type ").Append(hubPascal).Append("HubConnectionState, type ").Append(hubPascal).Append("HubCallbacks } from './").Append(hubModule).AppendLine("';");
+        sb.Append("import { create").Append(hubPascal).Append("HubConnection, ");
+        if (hasMethods)
+        {
+            sb.Append(hubModule).Append("Methods, ");
+        }
+
+        sb.Append("type ").Append(hubPascal).Append("HubConnectionState, type ").Append(hubPascal).Append("HubCallbacks } from './").Append(hubModule).AppendLine("';");
         sb.AppendLine();
 
+        // React's StrictMode unmounts a component right after mounting it, and stopping a connection during its
+        // negotiation fails the start: a stop waits for the start to settle
+        sb.AppendLine("// Stops a connection once its start has settled (stopping during the negotiation fails the start)");
+        sb.AppendLine("async function stopWhenStarted(connection: HubConnection, start: Promise<void> | null): Promise<void> {");
+        sb.AppendLine("  await start?.catch(() => undefined);");
+        sb.AppendLine("  await connection.stop();");
+        sb.AppendLine("}");
+        sb.AppendLine();
+
+        // The ApiProvider's baseUrl is the API's, with its base path ("https://host/api/v1", "/api/v1"); a hub is
+        // mapped on the server, so its path goes on the origin - or on the page's, for a relative base URL
+        sb.AppendLine("// The server a base URL is on: its origin, or '' (the page's) for a relative one - a hub's path is the server's,");
+        sb.AppendLine("// not the API's");
+        sb.AppendLine("function serverUrlOf(baseUrl: string): string {");
+        sb.AppendLine("""  return /^[a-z][a-z\d+.-]*:\/\/[^/?#]+/i.exec(baseUrl)?.[0] ?? '';""");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.Append("export function use").Append(hubPascal).Append("Hub(callbacks: ").Append(hubPascal).AppendLine("HubCallbacks) {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  const [connectionState, setConnectionState] = useState<").Append(hubPascal).AppendLine("HubConnectionState>('Disconnected');");
         sb.AppendLine("  const connectionRef = useRef<HubConnection | null>(null);");
+        sb.AppendLine("  const startRef = useRef<Promise<void> | null>(null);");
         sb.AppendLine("  const callbacksRef = useRef(callbacks);");
         sb.AppendLine("  callbacksRef.current = callbacks;");
         sb.AppendLine();
@@ -235,24 +315,33 @@ public static class TypeScriptSignalRHubExtractor
         sb.AppendLine("    if (connectionRef.current) return;");
         sb.AppendLine();
         sb.AppendLine("    setConnectionState('Connecting');");
-        sb.Append("    const connection = create").Append(hubPascal).AppendLine("HubConnection(api.baseUrl, () => callbacksRef.current);");
-        sb.AppendLine("    connection.onreconnecting(() => setConnectionState('Reconnecting'));");
-        sb.AppendLine("    connection.onreconnected(() => setConnectionState('Connected'));");
-        sb.AppendLine("    connection.onclose(() => setConnectionState('Disconnected'));");
+        sb.Append("    const connection = create").Append(hubPascal).AppendLine("HubConnection(serverUrlOf(api.baseUrl), () => callbacksRef.current);");
+        sb.AppendLine();
+        sb.AppendLine("    // Only the current connection updates the state: one that was replaced or stopped is history, and a");
+        sb.AppendLine("    // closed one is let go of so connect() starts a new one");
+        sb.AppendLine("    const isCurrent = () => connectionRef.current === connection;");
+        sb.AppendLine("    connection.onreconnecting(() => {");
+        sb.AppendLine("      if (isCurrent()) setConnectionState('Reconnecting');");
+        sb.AppendLine("    });");
+        sb.AppendLine("    connection.onreconnected(() => {");
+        sb.AppendLine("      if (isCurrent()) setConnectionState('Connected');");
+        sb.AppendLine("    });");
+        sb.AppendLine("    connection.onclose(() => {");
+        sb.AppendLine("      if (!isCurrent()) return;");
+        sb.AppendLine("      connectionRef.current = null;");
+        sb.AppendLine("      setConnectionState('Disconnected');");
+        sb.AppendLine("    });");
         sb.AppendLine();
         sb.AppendLine("    connectionRef.current = connection;");
-        sb.AppendLine();
+        sb.AppendLine("    const start = connection.start();");
+        sb.AppendLine("    startRef.current = start;");
         sb.AppendLine("    try {");
-        sb.AppendLine("      await connection.start();");
-
-        // StrictMode-safe: only mutate state if our connection ref is still the active one.
-        sb.AppendLine("      if (connectionRef.current === connection) {");
-        sb.AppendLine("        setConnectionState('Connected');");
-        sb.AppendLine("      }");
+        sb.AppendLine("      await start;");
+        sb.AppendLine("      if (isCurrent()) setConnectionState('Connected');");
         sb.AppendLine("    } catch {");
-        sb.AppendLine("      if (connectionRef.current === connection) {");
-        sb.AppendLine("        setConnectionState('Disconnected');");
+        sb.AppendLine("      if (isCurrent()) {");
         sb.AppendLine("        connectionRef.current = null;");
+        sb.AppendLine("        setConnectionState('Disconnected');");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine("  }, [api]);");
@@ -263,7 +352,7 @@ public static class TypeScriptSignalRHubExtractor
         sb.AppendLine();
         sb.AppendLine("    connectionRef.current = null;");
         sb.AppendLine("    try {");
-        sb.AppendLine("      await connection.stop();");
+        sb.AppendLine("      await stopWhenStarted(connection, startRef.current);");
         sb.AppendLine("    } finally {");
         sb.AppendLine("      setConnectionState('Disconnected');");
         sb.AppendLine("    }");
@@ -271,12 +360,33 @@ public static class TypeScriptSignalRHubExtractor
         sb.AppendLine();
         sb.AppendLine("  useEffect(() => {");
         sb.AppendLine("    return () => {");
-        sb.AppendLine("      connectionRef.current?.stop();");
+        sb.AppendLine("      const connection = connectionRef.current;");
         sb.AppendLine("      connectionRef.current = null;");
+        sb.AppendLine("      if (connection) {");
+        sb.AppendLine("        void stopWhenStarted(connection, startRef.current);");
+        sb.AppendLine("      }");
         sb.AppendLine("    };");
         sb.AppendLine("  }, []);");
         sb.AppendLine();
-        sb.AppendLine("  return { connectionState, isConnected, connect, disconnect };");
+        if (!hasMethods)
+        {
+            sb.AppendLine("  return { connectionState, isConnected, connect, disconnect };");
+            sb.AppendLine("}");
+            return sb.ToString();
+        }
+
+        // The methods go to the connection of the moment, and fail while there is none
+        sb.AppendLine("  const methods = useMemo(");
+        sb.Append("    () => ").Append(hubModule).AppendLine("Methods({");
+        sb.AppendLine("      invoke: <T>(methodName: string, ...args: unknown[]): Promise<T> => {");
+        sb.AppendLine("        const connection = connectionRef.current;");
+        sb.Append("        return connection ? connection.invoke<T>(methodName, ...args) : Promise.reject(new Error('The ").Append(hub.Key.Replace("'", "\\'", StringComparison.Ordinal)).AppendLine(" hub is not connected'));");
+        sb.AppendLine("      },");
+        sb.AppendLine("    }),");
+        sb.AppendLine("    [],");
+        sb.AppendLine("  );");
+        sb.AppendLine();
+        sb.AppendLine("  return { connectionState, isConnected, connect, disconnect, methods };");
         sb.AppendLine("}");
 
         return sb.ToString();
@@ -313,10 +423,12 @@ public static class TypeScriptSignalRHubExtractor
     private sealed record HubDefinition(
         string Key,
         string Url,
-        List<HubEvent> Events);
+        List<HubMember> Events,
+        List<HubMember> Methods);
 
-    private sealed record HubEvent(
+    private sealed record HubMember(
         string Name,
-        string CallbackName,
-        string? PayloadType);
+        string Identifier,
+        SignalRHubPayload? Payload,
+        SignalRHubPayload? Returns);
 }

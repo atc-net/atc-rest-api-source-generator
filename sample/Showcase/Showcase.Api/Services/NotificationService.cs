@@ -5,13 +5,13 @@ namespace Showcase.Api.Services;
 /// </summary>
 public sealed class NotificationService : INotificationService
 {
-    private readonly IHubContext<NotificationHub> hubContext;
+    private readonly IHubContext<NotificationHub, INotificationsHubClient> hubContext;
     private readonly ILogger<NotificationService> logger;
     private readonly ConcurrentDictionary<string, SubscriptionInfo> subscriptions = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, HashSet<string>> connectionSubscriptions = new(StringComparer.Ordinal);
 
     public NotificationService(
-        IHubContext<NotificationHub> hubContext,
+        IHubContext<NotificationHub, INotificationsHubClient> hubContext,
         ILogger<NotificationService> logger)
     {
         this.hubContext = hubContext;
@@ -123,21 +123,21 @@ public sealed class NotificationService : INotificationService
         // Send to all clients in the "System" group
         await hubContext.Clients
             .Group("System")
-            .SendAsync("SystemNotification", notification);
+            .SystemNotification(notification);
 
         // Also send to "Alert" and "Metric" groups if applicable
         if (notification.Severity is NotificationSeverity.Warning or NotificationSeverity.Error or NotificationSeverity.Critical)
         {
             await hubContext.Clients
                 .Group("Alert")
-                .SendAsync("SystemNotification", notification);
+                .SystemNotification(notification);
         }
 
         if (notification.Metrics is not null)
         {
             await hubContext.Clients
                 .Group("Metric")
-                .SendAsync("SystemNotification", notification);
+                .SystemNotification(notification);
         }
 
         UpdateLastNotificationTime("System");
@@ -153,7 +153,7 @@ public sealed class NotificationService : INotificationService
 
         await hubContext.Clients
             .Group("User")
-            .SendAsync("UserActivity", activityEvent);
+            .UserActivity(activityEvent);
 
         UpdateLastNotificationTime("User");
     }
@@ -168,7 +168,7 @@ public sealed class NotificationService : INotificationService
 
         await hubContext.Clients
             .Group("Data")
-            .SendAsync("DataChange", changeEvent);
+            .DataChange(changeEvent);
 
         UpdateLastNotificationTime("Data");
     }

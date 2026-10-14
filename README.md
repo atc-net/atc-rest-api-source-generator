@@ -20,6 +20,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🚨 **ProblemDetails Errors**     | Every error is RFC 9457 `application/problem+json` - server, C# and TS clients agree |
 |            | 🔎 **HTTP `QUERY` (OAS 3.2)**    | `query:` operations - a read with a request body, for criteria too big for a URL |
 |            | 🩹 **OpenAPI Overlays**          | Patch a specification you do not own - names, `required`, formats, removed paths - with an [OpenAPI Overlay](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Overlays) (1.0 to 1.2, full RFC 9535 JSONPath), applied by the build and the CLI |
+|            | 📡 **SignalR Hubs**              | `x-signalr-hubs`: the hub's events and methods once in the spec - a typed hub contract on the server, typed hub clients in C# and TypeScript |
 | **Server** | 📝 **Handler Scaffolds**         | Auto-generates handler stubs for unimplemented operations                        |
 |            | 🔐 **Security**                  | JWT, OAuth2 scopes, API Key, role-based auth - all from OpenAPI                  |
 |            | ⏱️ **Rate Limiting**             | Server-side rate limiting from `x-ratelimit-*` extensions                        |
@@ -37,7 +38,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — `queryOptions` factories for loaders and prefetching, cancellation through `AbortSignal`, streaming hooks for `IAsyncEnumerable` |
 |            | 🪪 **Branded ID types**          | `--branded-ids` emits nominal types — `getUser(petId)` becomes a compile error  |
 |            | 🔍 **Runtime Zod validation**    | `--zod-runtime-validate` wires Zod into response parsing — spec-drift detection  |
-|            | 🔌 **SignalR Hub Hooks**         | `x-signalr-hubs` extension → typed `use<Hub>Hub()` with auto-reconnect          |
+|            | 🔌 **SignalR Hub Hooks**         | `x-signalr-hubs` extension → typed hub connection, methods and `use<Hub>Hub()`   |
 |            | 📋 **Spec Validation**           | `spec validate` validates OpenAPI specs with strict/standard modes               |
 |            | 🔗 **Multi-Part Specs**          | `spec merge` / `spec split` for large API specifications                         |
 |            | ⚙️ **Options Management**        | `options create` / `options validate` for configuration files                    |

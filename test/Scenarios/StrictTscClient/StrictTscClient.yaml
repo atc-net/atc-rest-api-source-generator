@@ -15,7 +15,8 @@ info:
       without ever referencing it (unused import).
     - x-signalr-hubs: server-push hubs - a hub file must compile under every hooks
       style (none: no React, no hooks folder), with an event name that is no
-      identifier (device-updated) and an event declared twice.
+      identifier (device-updated) and an event declared twice; its methods take and
+      answer arrays, dates (LogLine, Device) and nothing.
   version: v1
 servers:
   - url: /api/v1
@@ -156,3 +157,14 @@ x-signalr-hubs:
       - name: LogLine
         payload: '#/components/schemas/LogLine'
       - name: Ping
+    methods:
+      - name: Subscribe
+        payload: string[]
+        returns: string
+      - name: GetRecent
+        payload: { type: integer, format: int32 }
+        returns: { type: array, items: { $ref: '#/components/schemas/LogLine' } }
+      - name: annotate-device
+        payload: '#/components/schemas/Device'
+        returns: boolean
+      - name: Clear

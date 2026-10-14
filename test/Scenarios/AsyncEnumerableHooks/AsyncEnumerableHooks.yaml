@@ -8,6 +8,7 @@ info:
     - getItemLogs: GET with path + query params
     - searchItems: GET with date-time query param + convertDates=true
     - streamItemEvents: Server-Sent Events declared with a schema (no itemSchema)
+    - x-signalr-hubs: an items hub - events and methods with models, arrays, primitives and nothing
   version: v1
 servers:
   - url: /api/v1
@@ -169,3 +170,20 @@ components:
           nullable: true
         totalCount:
           type: integer
+x-signalr-hubs:
+  items:
+    url: /hubs/items
+    events:
+      - name: ItemChanged
+        payload: '#/components/schemas/Item'
+      - name: log-written
+        payload: '#/components/schemas/ItemLog'
+      - name: Heartbeat
+    methods:
+      - name: Watch
+        payload: string[]
+      - name: GetRecentLogs
+        payload: { type: integer, format: int32 }
+        returns: { type: array, items: { $ref: '#/components/schemas/ItemLog' } }
+      - name: Count
+        returns: { type: integer, format: int64 }

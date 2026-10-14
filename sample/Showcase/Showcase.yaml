@@ -2286,3 +2286,19 @@ components:
       in: header
       name: X-API-Key
       description: API key authentication
+x-signalr-hubs:
+  notifications:
+    url: /hubs/notifications
+    events:
+      - name: SystemNotification
+        payload: '#/components/schemas/SystemNotification'
+      - name: UserActivity
+        payload: '#/components/schemas/UserActivityEvent'
+      - name: DataChange
+        payload: '#/components/schemas/DataChangeEvent'
+    methods:
+      - name: Subscribe
+        payload: string[]
+        returns: string
+      - name: Unsubscribe
+        payload: string

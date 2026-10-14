@@ -53,6 +53,8 @@ public class ApiClientGenerator : IIncrementalGenerator
                     .Any(a => a.Name.Equals("Microsoft.Extensions.Http.Resilience", StringComparison.OrdinalIgnoreCase)),
                 HasHttpClientFactory = compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.Equals("Microsoft.Extensions.Http", StringComparison.OrdinalIgnoreCase)),
+                HasSignalRClient = compilation.ReferencedAssemblyNames
+                    .Any(a => a.Name.Equals("Microsoft.AspNetCore.SignalR.Client", StringComparison.OrdinalIgnoreCase)),
             });
 
         // Combine ALL YAML files (as collection) with marker files and compilation info
@@ -222,6 +224,12 @@ public class ApiClientGenerator : IIncrementalGenerator
         /// AddHttpClient&lt;TInterface, TClient&gt;(), so it can only be emitted when present.
         /// </summary>
         public bool HasHttpClientFactory { get; init; }
+
+        /// <summary>
+        /// True when Microsoft.AspNetCore.SignalR.Client is referenced: the typed hub clients of x-signalr-hubs build
+        /// on its HubConnection.
+        /// </summary>
+        public bool HasSignalRClient { get; init; }
     }
 
     private static void GenerateApiClient(
@@ -378,6 +386,26 @@ public class ApiClientGenerator : IIncrementalGenerator
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Generated.LengthLimitAttributes.g.cs",
                 SourceText.From(LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
+        // The SignalR hubs of the specification (x-signalr-hubs): a typed client per hub, where the project has the
+        // SignalR client to build it on
+        var hubClients = SignalRHubExtractor.ExtractClient(
+            openApiDoc,
+            projectName,
+            singleModelsNamespace: config.GenerationMode != GenerationModeType.EndpointPerOperation && config.ClientGranularity == ClientGranularityType.Single);
+        if (hubClients.Count > 0 && packages.HasSignalRClient)
+        {
+            foreach (var (hintName, content) in hubClients)
+            {
+                generatedContext.AddGeneratedSource(hintName, SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+            }
+        }
+        else if (hubClients.Count > 0)
+        {
+            DiagnosticHelpers.ReportSignalRClientPackageRecommended(
+                context,
+                SignalRHubExtractor.ClientTypeNames(openApiDoc));
         }
 
         // Single-client mode: emit one client covering every operation, with all models flattened

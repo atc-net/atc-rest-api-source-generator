@@ -3,5 +3,6 @@ export * from './client';
 export * from './errors';
 export * from './helpers';
 export * from './hooks';
+export * from './hubs';
 export * from './models';
 export * from './types';

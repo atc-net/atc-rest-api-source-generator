@@ -741,6 +741,13 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateRateLimitDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
+        // The SignalR hubs of the specification (x-signalr-hubs): the client interface of a typed hub, the hub's own
+        // methods, and its names and path
+        foreach (var (hintName, content) in SignalRHubExtractor.ExtractServer(openApiDoc, projectName))
+        {
+            generatedContext.AddGeneratedSource(hintName, SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Generate Output Caching policies and DI extensions (only if output caching is configured)
         if (openApiDoc.HasOutputCaching())
         {

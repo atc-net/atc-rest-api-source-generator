@@ -191,6 +191,12 @@ public static class RuleIdentifiers
     public const string AtcRestClientTooOld = "ATC_API_DEP011";
 
     /// <summary>
+    /// ATC_API_DEP012: The specification declares SignalR hubs (x-signalr-hubs) and the client project does not
+    /// reference Microsoft.AspNetCore.SignalR.Client, so the typed hub clients are not generated.
+    /// </summary>
+    public const string SignalRClientPackageRecommended = "ATC_API_DEP012";
+
+    /// <summary>
     /// ATC_API_AOT001: The project turns the Request Delegate Generator on (EnableRequestDelegateGenerator, which
     /// PublishAot sets), but that generator does not see the endpoints this one emits: they are bound by reflection
     /// at run time, which trimming and Native AOT do not support - and the build's trim analysis does not say so.

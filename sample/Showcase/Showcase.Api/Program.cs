@@ -83,7 +83,7 @@ var app = builder.Build();
 app.UseCors();
 
 // Map SignalR hub for real-time notifications
-app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<NotificationHub>(NotificationsHubContract.Url);
 
 // ============================================
 // SHOWCASE API MIDDLEWARE AND ENDPOINTS - Simplified pipeline

@@ -76,8 +76,52 @@ public class TypeScriptSignalRHubExtractorTests
         Assert.Contains("import { useApiService } from '../hooks/useApiService';", hook, StringComparison.Ordinal);
         Assert.Contains("from './notificationsHub';", hook, StringComparison.Ordinal);
         Assert.Contains("export function useNotificationsHub(callbacks: NotificationsHubCallbacks)", hook, StringComparison.Ordinal);
-        Assert.Contains("createNotificationsHubConnection(api.baseUrl, () => callbacksRef.current)", hook, StringComparison.Ordinal);
+        Assert.Contains("createNotificationsHubConnection(serverUrlOf(api.baseUrl), () => callbacksRef.current)", hook, StringComparison.Ordinal);
         Assert.Contains("return { connectionState, isConnected, connect, disconnect };", hook, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_Hook_ConnectsToTheHubPathOnTheServer_NotUnderTheApiBasePath()
+    {
+        var doc = ParseYaml(NotificationsYaml);
+        Assert.NotNull(doc);
+
+        var hook = Assert.Single(TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null), r => r.FileName == "useNotificationsHub").Content;
+
+        // The ApiProvider's baseUrl is the API's ("https://host/api/v1", "/api/v1"); a hub is mapped on the server
+        // ("/hubs/notifications"), so the hook connects to the base URL's origin - or the page's, for a relative one
+        Assert.Contains("createNotificationsHubConnection(serverUrlOf(api.baseUrl), () => callbacksRef.current)", hook, StringComparison.Ordinal);
+        Assert.Contains("function serverUrlOf(baseUrl: string): string {", hook, StringComparison.Ordinal);
+        Assert.Contains("""return /^[a-z][a-z\d+.-]*:\/\/[^/?#]+/i.exec(baseUrl)?.[0] ?? '';""", hook, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_Hook_CanConnectAgainAfterAClose_AndStopsOnlyOnceTheStartHasSettled()
+    {
+        var doc = ParseYaml(NotificationsYaml);
+        Assert.NotNull(doc);
+
+        var hook = Assert.Single(TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null), r => r.FileName == "useNotificationsHub").Content;
+
+        // A closed connection (the server went away, the reconnects gave up) is let go of, so connect() starts a new one
+        const string onClose = """
+                                   connection.onclose(() => {
+                                     if (!isCurrent()) return;
+                                     connectionRef.current = null;
+                                     setConnectionState('Disconnected');
+                                   });
+                               """;
+        Assert.Contains(onClose.Replace("\r\n", "\n", StringComparison.Ordinal), hook.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+
+        // Only the current connection updates the state: one that was replaced or stopped is history
+        Assert.Contains("connection.onreconnecting(() => {", hook, StringComparison.Ordinal);
+        Assert.Contains("if (isCurrent()) setConnectionState('Reconnecting');", hook, StringComparison.Ordinal);
+
+        // React's StrictMode unmounts a component right after mounting it: stopping during the negotiation fails the
+        // start, so a stop waits for the start to settle
+        Assert.Contains("await start?.catch(() => undefined);", hook, StringComparison.Ordinal);
+        Assert.Contains("void stopWhenStarted(connection, startRef.current);", hook, StringComparison.Ordinal);
+        Assert.Contains("await stopWhenStarted(connection, startRef.current);", hook, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -166,6 +210,58 @@ public class TypeScriptSignalRHubExtractorTests
         var content = Assert.Single(results, r => r.FileName == "healthHub").Content;
 
         Assert.Contains("onPing?: (event: unknown) => void;", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_Methods_AreTypedInvokes_AndTheHookOffersThem()
+    {
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: T, version: '1' }
+                            x-signalr-hubs:
+                              chat:
+                                events:
+                                  - name: message
+                                    payload: '#/components/schemas/Message'
+                                  - name: message!
+                                    payload: string
+                                methods:
+                                  - name: Join
+                                    payload: string[]
+                                    returns: { type: integer }
+                                  - name: get-history
+                                    returns: { type: array, items: { $ref: '#/components/schemas/Message' } }
+                                  - name: Leave
+                            paths: {}
+                            components:
+                              schemas:
+                                Message: { type: object, properties: { text: { type: string } } }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var results = TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null);
+        var content = Assert.Single(results, r => r.FileName == "chatHub").Content;
+        var hook = Assert.Single(results, r => r.FileName == "useChatHub").Content;
+
+        // Two names that give one callback are told apart by a number, as the C# client does
+        Assert.Contains("onMessage?: (event: Message) => void;", content, StringComparison.Ordinal);
+        Assert.Contains("onMessage2?: (event: string) => void;", content, StringComparison.Ordinal);
+        Assert.Contains("connection.on('message!', (event: string) => {", content, StringComparison.Ordinal);
+        Assert.Contains(".withUrl(`${baseUrl}/hubs/chat`)", content, StringComparison.Ordinal);
+
+        Assert.Contains("export interface ChatHubMethods {", content, StringComparison.Ordinal);
+        Assert.Contains("join(payload: string[]): Promise<number>;", content, StringComparison.Ordinal);
+        Assert.Contains("getHistory(): Promise<Message[]>;", content, StringComparison.Ordinal);
+        Assert.Contains("leave(): Promise<void>;", content, StringComparison.Ordinal);
+        Assert.Contains("export function chatHubMethods(connection: Pick<HubConnection, 'invoke'>): ChatHubMethods {", content, StringComparison.Ordinal);
+        Assert.Contains("join: (payload: string[]) => connection.invoke<number>('Join', payload),", content, StringComparison.Ordinal);
+        Assert.Contains("getHistory: () => connection.invoke<Message[]>('get-history'),", content, StringComparison.Ordinal);
+        Assert.Contains("import type { Message } from '../models';", content, StringComparison.Ordinal);
+
+        Assert.Contains("import { createChatHubConnection, chatHubMethods, type ChatHubConnectionState, type ChatHubCallbacks } from './chatHub';", hook, StringComparison.Ordinal);
+        Assert.Contains("return { connectionState, isConnected, connect, disconnect, methods };", hook, StringComparison.Ordinal);
+        Assert.Contains("Promise.reject(new Error('The chat hub is not connected'))", hook, StringComparison.Ordinal);
     }
 
     private static int CountOf(
