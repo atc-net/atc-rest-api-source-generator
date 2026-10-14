@@ -1,160 +1,133 @@
 <h2>Atc REST 3.0 readiness</h2>
-<p>State of <code>feature/error-body-3.0</code> (generator) and <code>feature/error-body-backlog</code> (minimalapi),
-5 October 2026. <code>Atc.Rest.Client</code> 2.1.0 is released on nuget.org and the generator now uses the package.
-Nothing else is released or pushed; the generator still uses minimalapi through a temporary project reference.</p>
+<p>State of <code>feature/error-body-3.0</code> (generator), 14 October 2026.</p>
+<ul class="tight">
+  <li><code>Atc.Rest.MinimalApi</code> 3.0.0 is released on nuget.org. The tests and the samples have referenced the
+    package since 12 October; the temporary project references are gone.</li>
+  <li><code>Atc.Rest.Client</code> is released up to 2.6.0, with every library issue this branch raised. 2.6.0 is the
+    minimum for the EndpointPerOperation client and the TypedClient's Result style (<code>ATC_API_DEP011</code>).</li>
+  <li>The generator 3.0 is <b>not released</b>. The branch and the wiki are committed locally and not pushed yet.</li>
+</ul>
 
 <div class="note">
   <p>The numbers on this page come from the run that wrote it: the verdicts per matrix on the Overview tab, the
     compile gate and the diagnostics on <i>Feature support</i>, and the Showcase apps under <i>Playwright</i>. The
     commit the run was made from is in the page header. These notes are written by hand, so they carry no counts -
     a test checks that, so editing this page alone can turn a run red. A Playwright run that started before that
-    commit is marked stale rather than shown as this commit's.
-    <b>MinimalApi</b> is tested in its own repository, unit tests and Aspire/Playwright E2E, 0 failed on 28 September.</p>
+    commit is marked stale rather than shown as this commit's.</p>
 </div>
 
 <h3>Decisions</h3>
 <div class="table-wrap"><table>
 <thead><tr><th>#</th><th>Decision</th><th>Status</th></tr></thead>
 <tbody>
-<tr><td>1</td><td><b>Release Atc.Rest.MinimalApi 3.0.0?</b> The agreed rule: only when the generator is done and all
-  three of us agree.</td><td><span class="v na">open</span> Waiting until everything works and the coworkers have approved
-  the changes; until then the work continues.</td></tr>
+<tr><td>1</td><td><b>Release Atc.Rest.MinimalApi 3.0.0?</b></td>
+  <td><span class="v pass">released</span> 3.0.0 is on nuget.org. The report run on the released package showed no cell
+    different from the run on the branch it was built from, and every test project and sample now uses it.</td></tr>
 <tr><td>2</td><td><b>The validation 400 against a declared 400 body.</b> The ValidationFilter always answers an invalid
   request with a <code>ValidationProblemDetails</code>, even where the specification declares its own 400 body.</td>
   <td><span class="v pass">done</span>
     <ul class="tight">
       <li>A declared <code>ProblemDetails</code> 400 is read as the <code>ValidationProblemDetails</code> subtype. The
-        generated <code>ValidationProblemDetails</code> now derives from <code>ProblemDetails</code>, so the field
-        errors stay typed. Those matrix cells flipped from lossy to pass.</li>
+        generated <code>ValidationProblemDetails</code> derives from <code>ProblemDetails</code>, so the field errors stay
+        typed.</li>
       <li>A declared model or string 400 keeps its type, and the field errors are only in <code>Content</code>.
-        Documented.</li>
+        Documented, with the hint <code>ATC_API_SRV002</code>.</li>
     </ul>
   </td></tr>
-<tr><td>3</td><td><b>Atc.Rest.Client drops non-text error bodies.</b> <code>MessageResponseBuilder</code> keeps a body as
-  bytes when the media type is neither JSON nor text, so <code>Content</code> is empty.</td>
-  <td><span class="v pass">released in 2.1.0</span> Fixed from
-    <code>atc-rest-client/issues/0001-error-body-kept-as-bytes-for-non-text-media-types.md</code> and released as
-    <code>Atc.Rest.Client</code> 2.1.0 on nuget.org: an error body of any media type is now read as text. The test
-    project, every sample client and the Showcase client apps now reference the 2.1.0 package (the temporary project
-    references are gone), and the guard test <code>AtcRestClient_ReadsAnErrorBodyOfAnyMediaTypeAsText</code> passes on
-    it. The matrix did not change when the fix arrived, because the generated 3.0 client already works around the bug
-    with every Atc.Rest.Client version. So the fix is a benefit for hand-written callers.
-    <br>2.1.0 also carries <code>atc-rest-client/issues/0002</code>: binary responses keep an error's content type and
-    headers, read <code>filename*</code>, and give a typed <code>ErrorContentObject</code>. The generated streamed download
-    (<code>x-return-stream</code>) registers its error types, so that object is the declared error.</td></tr>
+<tr><td>3</td><td><b>What belongs in Atc.Rest.Client, not in generated workarounds.</b></td>
+  <td><span class="v pass">released in 2.1.0 - 2.6.0</span>
+    <ul class="tight">
+      <li>Error bodies of every media type are read as text; binary responses keep an error's content type, headers and
+        typed error (2.1.0).</li>
+      <li>Trim- and Native AOT-ready requests: URL-encoded forms, a body with its own media type, repeated multipart
+        fields and a JSON part, URI-escaped query keys (2.2.0, 2.3.0).</li>
+      <li>Streamed responses read by the library in five formats (<code>StreamFraming</code>), with typed errors and
+        headers, record and error-body limits, and the default error registrations (2.4.0, 2.5.0).</li>
+      <li>Server-Sent Events with their event state: the last event id for a resume, in the EndpointPerOperation client
+        and the TypedClient's Result style (2.6.0).</li>
+    </ul>
+    The generated code uses the library for each and keeps no workaround for them.</td></tr>
+<tr><td>4</td><td><b>Release the generator 3.0?</b></td>
+  <td><span class="v na">open</span> Waiting for the branch and the wiki to be pushed, the review with the coworkers, and
+    their approval. Until then the work continues on this branch.</td></tr>
 </tbody></table></div>
 
-<h3>Fixed in this round (all in 3.0, nothing deferred)</h3>
+<h3>Since the 5 October notes</h3>
 <ul class="tight">
-  <li><b>Every status below 400</b> (found by extending the matrix to every <code>HttpStatusCode</code>). v2 answered
-    every status except 200/201/202/204 with a ProblemDetails of that status: a 301 without <code>Location</code>, a
-    304 with a body, a 205 that hung, a 206 that could not send its model. Now:
+  <li><b>Server.</b>
     <ul class="tight">
-      <li>2xx and 300 write their declared body;</li>
-      <li>205 and 304 write none;</li>
-      <li>the redirects take the location and write <code>Location</code> (a generated <code>LocationHttpResult</code>
-        for 303, which ASP.NET Core has no result for);</li>
-      <li>a 1xx gets no factory and the new warning ATC_API_OPR030;</li>
-      <li>the C# client never reads a 3xx as an error;</li>
-      <li>TypeScript gains the arms <code>notModified</code> and <code>redirection</code>, and 205 is
-        <code>noContent</code>;</li>
-      <li>the TypedClient returns the body of a 202-only (or 203/206/…) operation;</li>
-      <li>status names use the RFC names (307 <code>TemporaryRedirect</code>, not <code>RedirectKeepVerb</code>).</li>
+      <li>A factory for an error status that declares a model takes the model; a result factory takes the headers its
+        response declares.</li>
+      <li>Every server gets the one-call host wiring (<code>Add{Api}Api()</code> / <code>Map{Api}Api()</code>), also
+        without Atc.Rest.MinimalApi.</li>
+      <li>Validation messages name the value as it was sent; a server without the ValidationFilter still rejects a
+        missing required parameter or property.</li>
+      <li>The parameters build and bind through the Request Delegate Generator, and the JSON writes are trim- and Native
+        AOT-ready (<code>ATC_API_AOT001</code> for what still binds by reflection).</li>
     </ul></li>
-  <li><b>TypeScript naming.</b> A naming strategy that differs from the API's casing renames the wire too:
-    responses, request bodies, error bodies, stream items, SignalR payloads and MSW mocks
-    (<code>helpers/wireNames.ts</code>). v2 read <code>undefined</code> for every renamed property.</li>
-  <li><b>TypeScript, other former 3.1 items.</b>
+  <li><b>Parameters and bodies.</b> Objects in the query (deepObject, form with explode), arrays in the path and headers,
+    a JSON part of a multipart form, a <code>oneOf</code> part, charset-aware text bodies, HEAD and OPTIONS operations,
+    and new diagnostics for what cannot be bound or sent (<code>ATC_API_OPR037</code>, <code>OPR038</code>,
+    <code>OPR040</code>).</li>
+  <li><b>Streaming.</b>
     <ul class="tight">
-      <li>Typed <code>default</code> arms.</li>
-      <li>An <code>options</code> parameter on React Query infinite hooks.</li>
-      <li>Unique query-key names.</li>
-      <li>A streamed operation sends its own method and body.</li>
-      <li><code>globalThis.Error</code> when a spec model is named <code>Error</code>.</li>
-      <li>Cookie and querystring names under every naming strategy.</li>
+      <li>Server-Sent Events, JSON Lines, JSON arrays, JSON Text Sequences and <code>multipart/mixed</code> are read the
+        same way in every client, including what other servers put between records.</li>
+      <li>A streamed EndpointPerOperation operation has its own result class with typed errors and declared headers.</li>
+      <li><code>x-sse-item-events</code> names the events that carry items.</li>
+      <li>An event stream can be resumed: the server sets each event's id, every client gives the last id back.</li>
     </ul></li>
-  <li><b>C# string error accessors.</b> A declared string or text, or <code>PlainText</code> /
-    <code>PlainTextOnly</code>, gives an <code>application/problem+json</code> body's message (detail, else title)
-    instead of the ProblemDetails' JSON text. The client splits by media type.</li>
-  <li><b>C# non-text error bodies.</b> <code>application/xml</code> and <code>application/octet-stream</code> error
-    bodies now reach <code>Content</code> and the typed accessors (decoded by the Content-Type charset). They used to be
-    lost; a body without a Content-Type was already read as text.</li>
-  <li><b>C# declared error models.</b> The accessor no longer throws for a body of another shape (a proxy's page,
-    another API's error). It fills the shared properties, as the custom model does.</li>
-  <li><b>C# TypedClient, Result style, downloads.</b> The error body is now in <code>Content</code>; it used to be
-    empty.</li>
-  <li><b>C# custom error model.</b>
-    <ul class="tight">
-      <li>It gets its own namespace when its name collides with a spec schema (the Monta <code>ErrorResponse</code>).</li>
-      <li>It reads a body leniently, for example a numeric <code>status</code> into a string property, instead of
-        throwing.</li>
-    </ul></li>
-  <li><b>TypeScript error bodies.</b> One rule for Fetch and Axios, and for success and error bodies:
-    <ul class="tight">
-      <li>JSON is parsed.</li>
-      <li>Text (<code>text/*</code>, <code>application/xml</code>, <code>+xml</code>) stays a string.</li>
-      <li>Anything else is <code>undefined</code>.</li>
-    </ul>
-    Before this, Axios kept binary bodies as strings and parsed a JSON-string error twice (<code>"42"</code> became the
-    number 42), and Fetch dropped XML.</li>
-  <li><b>Server.</b> Model properties are written under their exact spec names (<code>user_name</code>,
-    <code>UserId</code>, <code>HTTPStatus</code>).</li>
-  <li><b>Server string enums.</b> A string enum is a string on the wire in every host: the generated enum carries its
-    own <code>JsonStringEnumConverter</code>. Before, a host without a registered converter wrote numbers.</li>
-  <li><b>Extensible client enums.</b> The C# and TypeScript clients read a value the specification does not list
-    instead of failing: a C# <code>readonly record struct</code> with the known values, a TypeScript open union. The
-    two feature-matrix cells that failed on an unknown value pass; <code>extensibleEnums: false</code> keeps the
-    classic enum. The matrix runs that client too: its cell passes when the classic enum refuses the unknown value,
-    which is what the option documents.</li>
-  <li><b>OpenAPI Overlays.</b> A marker lists overlay files (Overlay 1.0 to 1.2, RFC 9535 JSONPath) that the build
-    applies to the specification before it validates and generates; the CLI applies them too
-    (<code>spec overlay apply</code>, <code>--overlay</code>).</li>
-  <li><b>Axios uploads.</b> The Axios client names a <code>FormData</code> body <code>multipart/form-data</code>
-    itself: on its fetch adapter in Node, axios labelled it form-urlencoded and the server answered 415 (the last
-    known failure of the matrices). A Showcase spec proves the browser still sends it with its boundary.</li>
-  <li><b>Hints for the lossy cells.</b> <code>ATC_API_SRV002</code> (information) notes a 400 declared as a string
-    while the ValidationFilter is on, and an error factory whose status declares a model says in its remarks what a
-    call without the model writes. Both kinds of cell stay lossy; the remaining options are design decisions (see the
-    design review).</li>
-  <li><b>A broken specification is reported, never a crash.</b> A fuzz test (every scenario, mutated from a fixed
-    seed, through the server, handler and client generators) found crashes that are now diagnostics: JSON text with an
-    escaped emoji (SharpYaml; it is read as JSON now), an unknown <code>openapi</code> version and an empty
-    <code>$ref</code> (the parser's reason is reported), a value of another kind where an object belongs
-    (<code>ATC_API_VAL001</code> naming the place), a <code>prefixItems</code> keyword that is no string, and a
-    handler scaffold that cannot be written (<code>ATC_API_GEN019</code>).</li>
-  <li><b>Showcase.</b> Since the generated endpoints enforce scopes, the demo user had none and the scoped operations
-    answered 403; with Playwright in this report it showed at once. The demo user now holds the oauth2 scopes.</li>
+  <li><b>SignalR hubs (<code>x-signalr-hubs</code>).</b> The server gets the hub contract and the C# clients a typed hub
+    client; hubs declare methods beside events; the TypeScript client reads hubs with the same parser and its React hook
+    connects to the hub on the server, reconnects after a close and is StrictMode-safe.</li>
+  <li><b>TypeScript.</b> Every SignalR hub compiles, Zod schemas carry a default written next to a <code>$ref</code>,
+    and the clients read bodies by their charset.</li>
+  <li><b>Tooling.</b> Overlays from the CLI options file; the CLI cannot hang on a tool it runs; one rule names the root
+    namespace for the server, the handlers and the client.</li>
+  <li><b>Report.</b> Every matrix also runs from its specification as an OpenAPI 3.1 document; the feature matrix covers
+    the stream formats on the wire, a resumed event stream and SignalR hubs; the Changes tab keeps the run history.</li>
+  <li><b>Showcase.</b> Live streams in every format with a drop and a resume, a live price feed with a heartbeat, a
+    replay buffer and fan-out, and the notifications hub generated from the specification in all three apps.</li>
+</ul>
+
+<h3>Fixed in the 5 October round</h3>
+<ul class="tight">
+  <li><b>Every status below 400.</b> 2xx and 300 write their declared body, 205 and 304 none, the redirects write
+    <code>Location</code>, a 1xx gets no factory (<code>ATC_API_OPR030</code>); the C# client never reads a 3xx as an
+    error; TypeScript has the arms <code>notModified</code> and <code>redirection</code>.</li>
+  <li><b>TypeScript naming.</b> A naming strategy that differs from the API's casing renames the wire too
+    (<code>helpers/wireNames.ts</code>).</li>
+  <li><b>Error bodies.</b> String accessors give a problem's message; XML and binary error bodies reach
+    <code>Content</code>; a declared error model reads a body of another shape leniently; Fetch and Axios read success
+    and error bodies by one rule.</li>
+  <li><b>Models and enums.</b> Properties are written under their exact spec names; a server string enum is a string in
+    every host; the clients' enums are extensible (<code>extensibleEnums: false</code> keeps the classic enum).</li>
+  <li><b>OpenAPI Overlays</b> in the build and the CLI.</li>
+  <li><b>A broken specification is reported, never a crash</b> (a fuzz test over every scenario).</li>
 </ul>
 
 <h3>Known limitations (documented)</h3>
 <ul class="tight">
-  <li>The C# EndpointPerOperation client has no result class for streamed item operations (SSE, JSON Lines) or for a
-    streamed download (<code>x-return-stream</code>, which returns <code>StreamBinaryEndpointResponse</code> with a typed
-    <code>ErrorContentObject</code>), so they get no <code>IsDefaultError</code>. A buffered file download does have a
-    result class, with typed errors.</li>
-  <li><code>HttpClient.Timeout</code> (100 s) caps long per-operation retry timeouts.</li>
+  <li><code>HttpClient.Timeout</code> (100 s) caps long per-operation retry timeouts; a long-lived stream needs a client
+    of its own (<i>Working with C# Client</i>).</li>
   <li>The build finds multi-part specs by the <code>{Base}_{Part}.yaml</code> convention only.</li>
-  <li>Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407 in Node. Browsers
-    behave differently; this is a platform limit, not a client one.</li>
-  <li>Not exercised by the matrix: the <i>How it was tested</i> tab lists everything the E2E run does not cover
-    (secured and rate-limited operations, the Development environment, browser runtime, …).</li>
+  <li>Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407 in Node. Browsers behave
+    differently; this is a platform limit, not a client one.</li>
+  <li>The framework's event-stream writer has no comment line, so a server heartbeat is a named event that the clients
+    read past.</li>
+  <li>A SignalR event whose name is no C# identifier cannot be a method of the typed hub client interface; the server
+    sends it with the generated contract's <code>Send…Async</code>.</li>
+  <li>Not exercised by the matrix: the <i>How it was tested</i> tab lists everything the E2E run does not cover.</li>
 </ul>
 
 <h3>What 3.0 changes</h3>
 <p>The complete list, with a fix for each break, is the wiki page <i>Upgrading to v3</i>
 (<code>Upgrading-to-v3.md</code> in the local wiki repository until it is pushed).</p>
 
-<div class="note"><p><b>On hold - do not release.</b> The generator 3.0 is not released while it waits on
-  <code>Atc.Rest.MinimalApi</code> 3.0.0 (after the team approval). <code>Atc.Rest.Client</code> 2.1.0 is released and
-  already in use. Until minimalapi is released, work continues on this branch and its temporary project reference
-  stays.</p></div>
 <h3>Release sequence once we agree</h3>
 <ol class="tight">
-  <li>Commit this round, then push the generator and minimalapi branches.</li>
-  <li>Merge and release <code>Atc.Rest.MinimalApi</code> 3.0.0. (<code>Atc.Rest.Client</code> 2.1.0: done, released
-    30 September.)</li>
-  <li>Replace the temporary minimalapi project references with the released package (the test project,
-    Showcase.Api.Contracts and MultipartDemo.Api.Contracts), then rerun the full suite, this matrix and the Showcase
-    E2E. (Atc.Rest.Client: done, the 2.1.0 package everywhere.)</li>
-  <li>Push the wiki, merge the generator branch, and release 3.0.</li>
+  <li>Push the generator branch and the wiki.</li>
+  <li>Review with the coworkers. (<code>Atc.Rest.MinimalApi</code> 3.0.0 and <code>Atc.Rest.Client</code> 2.6.0: done,
+    released and in use.)</li>
+  <li>Merge the generator branch and release 3.0.</li>
 </ol>
