@@ -84,11 +84,52 @@ public static class TypeScriptSignalRHubExtractor
                 unique = name + number.ToString(CultureInfo.InvariantCulture);
             }
 
-            named.Add(new HubMember(member.Name, unique, member.Payload, member.Returns));
+            named.Add(new HubMember(member.Name, unique, ArgumentsOf(member), member.Returns));
         }
 
         return named;
     }
+
+    // The short form's one argument keeps the names it always had (`event` in a callback, `payload` in a method)
+    private static bool IsShortForm(HubMember member)
+        => member.Arguments.Count == 1 && member.Arguments[0].Name == "payload";
+
+    // A member's arguments as TypeScript parameters: the specification's names in camel case, numbered where the
+    // generated code uses the name itself (connection, callbacks, event), where it is a reserved word, or where two
+    // names give one
+    private static List<HubArgument> ArgumentsOf(SignalRHubMember member)
+    {
+        var taken = new HashSet<string>(["connection", "callbacks", "event", "answer"], StringComparer.Ordinal);
+        var arguments = new List<HubArgument>();
+        foreach (var argument in member.Arguments)
+        {
+            var name = ToCamelCase(ToIdentifier(argument.Name));
+            if (ReservedWords.Contains(name))
+            {
+                name += "Value";
+            }
+
+            var unique = name;
+            var number = 1;
+            while (!taken.Add(unique))
+            {
+                number++;
+                unique = name + number.ToString(CultureInfo.InvariantCulture);
+            }
+
+            arguments.Add(new HubArgument(argument.Name, unique, argument.Payload));
+        }
+
+        return arguments;
+    }
+
+    private static readonly HashSet<string> ReservedWords = new(StringComparer.Ordinal)
+    {
+        "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
+        "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import", "in",
+        "instanceof", "interface", "let", "new", "null", "package", "private", "protected", "public", "return", "static",
+        "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield",
+    };
 
     /// <summary>
     /// The framework-neutral hub: its callbacks, its connection states, <c>create{Hub}HubConnection</c> and, with
@@ -111,8 +152,8 @@ public static class TypeScriptSignalRHubExtractor
         string? ShapeOf(SignalRHubPayload? payload)
             => payload is null || wireNames is null ? null : wireNames.ShapeOf(SchemaOf(openApiDoc, payload));
 
-        var usesFromWire = hub.Events.Any(e => ShapeOf(e.Payload) is not null) || hub.Methods.Any(m => ShapeOf(m.Returns) is not null);
-        var usesToWire = hub.Methods.Any(m => ShapeOf(m.Payload) is not null);
+        var usesFromWire = hub.Events.Any(e => e.Arguments.Any(a => ShapeOf(a.Payload) is not null)) || hub.Methods.Any(m => ShapeOf(m.Returns) is not null);
+        var usesToWire = hub.Methods.Any(m => m.Arguments.Any(a => ShapeOf(a.Payload) is not null));
 
         sb.AppendLine("import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';");
         if (usesFromWire || usesToWire)
@@ -132,7 +173,7 @@ public static class TypeScriptSignalRHubExtractor
         }
 
         var payloadImports = new SortedSet<string>(
-            hub.Events.Select(e => e.Payload).Concat(hub.Methods.SelectMany(m => new[] { m.Payload, m.Returns })).SelectMany(p => p?.Schemas ?? []),
+            hub.Events.Concat(hub.Methods).SelectMany(m => m.Arguments.Select(a => a.Payload).Append(m.Returns)).SelectMany(p => p?.Schemas ?? []),
             StringComparer.Ordinal);
         if (payloadImports.Count > 0)
         {
@@ -146,7 +187,12 @@ public static class TypeScriptSignalRHubExtractor
         sb.Append("export interface ").Append(hubPascal).AppendLine("HubCallbacks {");
         foreach (var ev in hub.Events)
         {
-            sb.Append("  ").Append(ev.Identifier).Append("?: (event: ").Append(TypeOf(ev.Payload) ?? "unknown").AppendLine(") => void;");
+            var parameters = ev.Arguments.Count == 0
+                ? "event: unknown"
+                : IsShortForm(ev)
+                    ? "event: " + TypeOf(ev.Arguments[0].Payload)
+                    : string.Join(", ", ev.Arguments.Select(a => a.Identifier + ": " + TypeOf(a.Payload)));
+            sb.Append("  ").Append(ev.Identifier).Append("?: (").Append(parameters).AppendLine(") => void;");
         }
 
         sb.AppendLine("}");
@@ -165,8 +211,21 @@ public static class TypeScriptSignalRHubExtractor
         sb.AppendLine();
         foreach (var ev in hub.Events)
         {
-            var payload = TypeOf(ev.Payload) ?? "unknown";
-            if (ShapeOf(ev.Payload) is { } shape)
+            if (ev.Arguments.Count > 1 || (ev.Arguments.Count == 1 && !IsShortForm(ev)))
+            {
+                // Several arguments (or one by its own name), each read as its type
+                var received = string.Join(", ", ev.Arguments.Select(a => a.Identifier + ": unknown"));
+                var passed = string.Join(", ", ev.Arguments.Select(a => ShapeOf(a.Payload) is { } argumentShape
+                    ? $"fromWire<{TypeOf(a.Payload)}>({a.Identifier}, {argumentShape})"
+                    : $"{a.Identifier} as {TypeOf(a.Payload)}"));
+                sb.Append("  connection.on(").Append(Literal(ev.Name)).Append(", (").Append(received).AppendLine(") => {");
+                sb.Append("    callbacks().").Append(ev.Identifier).Append("?.(").Append(passed).AppendLine(");");
+                sb.AppendLine("  });");
+                continue;
+            }
+
+            var payload = ev.Arguments.Count == 0 ? "unknown" : TypeOf(ev.Arguments[0].Payload) ?? "unknown";
+            if (ev.Arguments.Count == 1 && ShapeOf(ev.Arguments[0].Payload) is { } shape)
             {
                 sb.Append("  connection.on(").Append(Literal(ev.Name)).AppendLine(", (event: unknown) => {");
                 sb.Append("    callbacks().").Append(ev.Identifier).Append("?.(fromWire<").Append(payload).Append(">(event, ").Append(shape).AppendLine("));");
@@ -193,7 +252,7 @@ public static class TypeScriptSignalRHubExtractor
         sb.Append("export interface ").Append(hubPascal).AppendLine("HubMethods {");
         foreach (var method in hub.Methods)
         {
-            sb.Append("  ").Append(method.Identifier).Append('(').Append(method.Payload is null ? string.Empty : "payload: " + TypeOf(method.Payload))
+            sb.Append("  ").Append(method.Identifier).Append('(').Append(ParameterList(method))
                 .Append("): Promise<").Append(TypeOf(method.Returns) ?? "void").AppendLine(">;");
         }
 
@@ -208,16 +267,14 @@ public static class TypeScriptSignalRHubExtractor
         foreach (var method in hub.Methods)
         {
             var returns = TypeOf(method.Returns) ?? "void";
-            var argument = method.Payload is null
-                ? string.Empty
-                : ", " + (ShapeOf(method.Payload) is { } inShape ? $"toWire(payload, {inShape})" : "payload");
+            var argument = string.Concat(method.Arguments.Select(a => ", " + (ShapeOf(a.Payload) is { } inShape ? $"toWire({a.Identifier}, {inShape})" : a.Identifier)));
             var call = $"connection.invoke<{(ShapeOf(method.Returns) is null ? returns : "unknown")}>({Literal(method.Name)}{argument})";
             if (ShapeOf(method.Returns) is { } outShape)
             {
                 call += $".then((answer) => fromWire<{returns}>(answer, {outShape}))";
             }
 
-            sb.Append("    ").Append(method.Identifier).Append(": (").Append(method.Payload is null ? string.Empty : "payload: " + TypeOf(method.Payload))
+            sb.Append("    ").Append(method.Identifier).Append(": (").Append(ParameterList(method))
                 .Append(") => ").Append(call).AppendLine(",");
         }
 
@@ -226,6 +283,9 @@ public static class TypeScriptSignalRHubExtractor
 
         return sb.ToString();
     }
+
+    private static string ParameterList(HubMember member)
+        => string.Join(", ", member.Arguments.Select(a => a.Identifier + ": " + TypeOf(a.Payload)));
 
     // The TypeScript type of a payload: the model, a primitive, or an array of one; null for none
     private static string? TypeOf(SignalRHubPayload? payload)
@@ -429,6 +489,11 @@ public static class TypeScriptSignalRHubExtractor
     private sealed record HubMember(
         string Name,
         string Identifier,
-        SignalRHubPayload? Payload,
+        List<HubArgument> Arguments,
         SignalRHubPayload? Returns);
+
+    private sealed record HubArgument(
+        string Name,
+        string Identifier,
+        SignalRHubPayload Payload);
 }

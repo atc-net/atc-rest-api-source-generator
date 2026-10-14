@@ -1599,6 +1599,7 @@ internal static class DiagnosticHelpers
             "STREAM" => "Streaming",
             "VER" => "Specification Version",
             "WBH" => "Webhook",
+            "HUB" => "SignalR Hub",
             _ => ruleId,
         };
     }

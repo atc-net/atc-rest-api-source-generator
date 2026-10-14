@@ -213,6 +213,51 @@ public class TypeScriptSignalRHubExtractorTests
     }
 
     [Fact]
+    public void Extract_SeveralArguments_ArePassedInOrder_UnderTheirNames_RenamedWhereTheGeneratedCodeUsesTheName()
+    {
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: T, version: '1' }
+                            x-signalr-hubs:
+                              cameras:
+                                events:
+                                  - name: Swapped
+                                    arguments:
+                                      - name: cameraId
+                                        payload: { type: string, format: uuid }
+                                      - name: event
+                                        payload: '#/components/schemas/Move'
+                                methods:
+                                  - name: SwapCameras
+                                    arguments:
+                                      - name: connection
+                                        payload: string
+                                      - name: default
+                                        payload: integer
+                                    returns: boolean
+                            paths: {}
+                            components:
+                              schemas:
+                                Move: { type: object, properties: { to: { type: string } } }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var content = Assert.Single(TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null), r => r.FileName == "camerasHub").Content;
+
+        // An event's callback takes the arguments under their names; `event` is the generated parameter's name, so the
+        // argument named so is numbered
+        Assert.Contains("onSwapped?: (cameraId: string, event2: Move) => void;", content, StringComparison.Ordinal);
+        Assert.Contains("connection.on('Swapped', (cameraId: unknown, event2: unknown) => {", content, StringComparison.Ordinal);
+        Assert.Contains("callbacks().onSwapped?.(cameraId as string, event2 as Move);", content, StringComparison.Ordinal);
+
+        // A method takes them in their order on the wire; `connection` would shadow the hub connection, `default` is a
+        // reserved word
+        Assert.Contains("swapCameras(connection2: string, defaultValue: number): Promise<boolean>;", content, StringComparison.Ordinal);
+        Assert.Contains("swapCameras: (connection2: string, defaultValue: number) => connection.invoke<boolean>('SwapCameras', connection2, defaultValue),", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_Methods_AreTypedInvokes_AndTheHookOffersThem()
     {
         const string yaml = """

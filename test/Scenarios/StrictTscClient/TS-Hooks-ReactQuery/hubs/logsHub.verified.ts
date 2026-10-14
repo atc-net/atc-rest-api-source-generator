@@ -39,6 +39,7 @@ export interface LogsHubMethods {
   getRecent(payload: number): Promise<LogLine[]>;
   annotateDevice(payload: Device): Promise<boolean>;
   clear(): Promise<void>;
+  moveDevice(deviceId: string, connection2: Device, deleteValue: boolean): Promise<LogLine>;
 }
 
 /**
@@ -51,5 +52,6 @@ export function logsHubMethods(connection: Pick<HubConnection, 'invoke'>): LogsH
     getRecent: (payload: number) => connection.invoke<unknown>('GetRecent', payload).then((answer) => fromWire<LogLine[]>(answer, { array: 'LogLine' })),
     annotateDevice: (payload: Device) => connection.invoke<boolean>('annotate-device', toWire(payload, 'Device')),
     clear: () => connection.invoke<void>('Clear'),
+    moveDevice: (deviceId: string, connection2: Device, deleteValue: boolean) => connection.invoke<unknown>('MoveDevice', deviceId, toWire(connection2, 'Device'), deleteValue).then((answer) => fromWire<LogLine>(answer, 'LogLine')),
   };
 }

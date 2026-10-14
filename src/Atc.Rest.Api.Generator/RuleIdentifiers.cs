@@ -203,6 +203,13 @@ public static class RuleIdentifiers
     public const string MinimalApiTooOld = "ATC_API_DEP013";
 
     /// <summary>
+    /// ATC_API_HUB001: A member of a SignalR hub (x-signalr-hubs) cannot be read - a payload, an answer or an argument the
+    /// generator does not understand, payload next to arguments, an argument without a name or payload, a name twice,
+    /// more arguments than SignalR's typed handlers take, an answer on an event, a member without a name.
+    /// </summary>
+    public const string SignalRHubMemberUnreadable = "ATC_API_HUB001";
+
+    /// <summary>
     /// ATC_API_AOT001: The project turns the Request Delegate Generator on (EnableRequestDelegateGenerator, which
     /// PublishAot sets), but that generator does not see the endpoints this one emits: they are bound by reflection
     /// at run time, which trimming and Native AOT do not support - and the build's trim analysis does not say so.

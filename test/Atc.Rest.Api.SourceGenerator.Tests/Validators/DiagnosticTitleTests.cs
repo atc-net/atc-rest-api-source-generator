@@ -28,6 +28,7 @@ public sealed class DiagnosticTitleTests
     [InlineData("ATC_API_STREAM001", "Streaming")]
     [InlineData("ATC_API_VER001", "Specification Version")]
     [InlineData("ATC_API_WBH001", "Webhook")]
+    [InlineData("ATC_API_HUB001", "SignalR Hub")]
     public void Title_IsTheCategoryName(
         string ruleId,
         string expectedTitle)

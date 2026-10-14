@@ -9,6 +9,7 @@ export interface ItemsHubCallbacks {
   onItemChanged?: (event: Item) => void;
   onLogWritten?: (event: ItemLog) => void;
   onHeartbeat?: (event: unknown) => void;
+  onItemMoved?: (itemId: string, to: Item, clients: number) => void;
 }
 
 /**
@@ -30,6 +31,9 @@ export function createItemsHubConnection(baseUrl: string, callbacks: () => Items
   connection.on('Heartbeat', (event: unknown) => {
     callbacks().onHeartbeat?.(event);
   });
+  connection.on('ItemMoved', (itemId: unknown, to: unknown, clients: unknown) => {
+    callbacks().onItemMoved?.(itemId as string, to as Item, clients as number);
+  });
 
   return connection;
 }
@@ -38,6 +42,7 @@ export interface ItemsHubMethods {
   watch(payload: string[]): Promise<void>;
   getRecentLogs(payload: number): Promise<ItemLog[]>;
   count(): Promise<number>;
+  moveItem(itemId: string, cancellationToken: boolean): Promise<Item>;
 }
 
 /**
@@ -49,5 +54,6 @@ export function itemsHubMethods(connection: Pick<HubConnection, 'invoke'>): Item
     watch: (payload: string[]) => connection.invoke<void>('Watch', payload),
     getRecentLogs: (payload: number) => connection.invoke<unknown>('GetRecentLogs', payload).then((answer) => fromWire<ItemLog[]>(answer, { array: 'ItemLog' })),
     count: () => connection.invoke<number>('Count'),
+    moveItem: (itemId: string, cancellationToken: boolean) => connection.invoke<Item>('MoveItem', itemId, cancellationToken),
   };
 }

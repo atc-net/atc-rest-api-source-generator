@@ -32,6 +32,11 @@ public interface IItemsHubClient
     /// The <c>Heartbeat</c> event.
     /// </summary>
     Task Heartbeat();
+
+    /// <summary>
+    /// The <c>ItemMoved</c> event.
+    /// </summary>
+    Task ItemMoved(Guid itemId, global::AsyncEnumerableHooks.Generated.Models.Item to, int clients);
 }
 
 /// <summary>
@@ -55,6 +60,11 @@ public interface IItemsHub
     /// The <c>Count</c> method.
     /// </summary>
     Task<long> Count();
+
+    /// <summary>
+    /// The <c>MoveItem</c> method.
+    /// </summary>
+    Task<global::AsyncEnumerableHooks.Generated.Models.Item> MoveItem(Guid itemId, bool cancellationToken);
 }
 
 /// <summary>
@@ -77,6 +87,7 @@ public static class ItemsHubContract
         public const string ItemChanged = "ItemChanged";
         public const string LogWritten = "log-written";
         public const string Heartbeat = "Heartbeat";
+        public const string ItemMoved = "ItemMoved";
     }
 
     /// <summary>
@@ -87,6 +98,7 @@ public static class ItemsHubContract
         public const string Watch = "Watch";
         public const string GetRecentLogs = "GetRecentLogs";
         public const string Count = "Count";
+        public const string MoveItem = "MoveItem";
     }
 
     /// <summary>
@@ -114,4 +126,15 @@ public static class ItemsHubContract
         this IClientProxy clients,
         CancellationToken cancellationToken = default)
         => clients.SendAsync(Events.Heartbeat, cancellationToken);
+
+    /// <summary>
+    /// Sends the <c>ItemMoved</c> event.
+    /// </summary>
+    public static Task SendItemMovedAsync(
+        this IClientProxy clients,
+        Guid itemId,
+        global::AsyncEnumerableHooks.Generated.Models.Item to,
+        int clients2,
+        CancellationToken cancellationToken = default)
+        => clients.SendAsync(Events.ItemMoved, itemId, to, clients2, cancellationToken);
 }

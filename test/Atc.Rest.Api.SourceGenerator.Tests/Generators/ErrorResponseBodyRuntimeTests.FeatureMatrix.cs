@@ -278,6 +278,14 @@ public partial class ErrorResponseBodyRuntimeTests
               - name: moment-sent
                 payload: '#/components/schemas/Moment'
               - name: Ping
+              - name: Placed
+                arguments:
+                  - name: id
+                    payload: { type: string, format: uuid }
+                  - name: moment
+                    payload: '#/components/schemas/Moment'
+                  - name: count
+                    payload: { type: integer, format: int32 }
             methods:
               - name: Trigger
                 payload: string
@@ -287,6 +295,15 @@ public partial class ErrorResponseBodyRuntimeTests
               - name: get-moments
                 payload: { type: integer, format: int32 }
                 returns: Moment[]
+              - name: Place
+                arguments:
+                  - name: id
+                    payload: { type: string, format: uuid }
+                  - name: moment
+                    payload: Moment
+                  - name: count
+                    payload: { type: integer, format: int32 }
+                returns: string
         """;
 
     /// <summary>
@@ -637,6 +654,12 @@ public partial class ErrorResponseBodyRuntimeTests
             public System.Threading.Tasks.Task<int> Sum(System.Collections.Generic.IReadOnlyList<int> payload)
                 => System.Threading.Tasks.Task.FromResult(System.Linq.Enumerable.Sum(payload));
 
+            public async System.Threading.Tasks.Task<string> Place(System.Guid id, Moment moment, int count)
+            {
+                await Clients.Caller.Placed(id, moment, count);
+                return id + "|" + moment.Day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) + "|" + count;
+            }
+
             [Microsoft.AspNetCore.SignalR.HubMethodName(FeatureHubContract.Methods.GetMoments)]
             public System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Moment>> GetMoments(int payload)
                 => System.Threading.Tasks.Task.FromResult<System.Collections.Generic.IReadOnlyList<Moment>>([.. System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(1, payload), Sample)]);
@@ -738,6 +761,9 @@ public partial class ErrorResponseBodyRuntimeTests
                 return results;
             }
 
+            private const string PlaceId = "6f9619ff-8b86-d011-b42d-00c04fc964ff";
+            private const string PlaceMoment = "{\"day\":\"2026-03-04\",\"at\":\"2026-03-04T05:06:07+02:00\"}";
+
             // A SignalR hub (x-signalr-hubs) through the generated hub client, the same in every generation mode: the
             // event the hub sends back, or what a method answers
             private static async System.Threading.Tasks.Task<JsonObject> HubAsync(JsonObject c)
@@ -748,6 +774,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 using var noticed = hub.OnNoticed(m => received.TrySetResult(JsonSerializer.SerializeToNode(m, Json)));
                 using var sent = hub.OnMomentSent(m => received.TrySetResult(JsonSerializer.SerializeToNode(m, Json)));
                 using var ping = hub.OnPing(() => received.TrySetResult(JsonValue.Create("ping")));
+                using var placed = hub.OnPlaced((id, moment, count) => received.TrySetResult(new JsonArray(JsonValue.Create(id.ToString()), JsonSerializer.SerializeToNode(moment, Json), JsonValue.Create(count))));
                 await hub.StartAsync(cts.Token);
 
                 JsonNode? value;
@@ -760,6 +787,13 @@ public partial class ErrorResponseBodyRuntimeTests
                     case "sum":
                         value = JsonValue.Create(await hub.SumAsync([1, 2, 3], cts.Token));
                         break;
+                    case "place-method":
+                    case "place-event":
+                    {
+                        var answer = await hub.PlaceAsync(new Guid(PlaceId), JsonSerializer.Deserialize<Moment>(PlaceMoment, Json)!, 3, cts.Token);
+                        value = (string)c["scenario"]! == "place-method" ? JsonValue.Create(answer) : await received.Task.WaitAsync(cts.Token);
+                        break;
+                    }
                     default:
                         value = JsonSerializer.SerializeToNode(await hub.GetMomentsAsync(2, cts.Token), Json);
                         break;
@@ -1527,13 +1561,18 @@ public partial class ErrorResponseBodyRuntimeTests
           const hubs: any = await import(`./${which}/hubs/index.ts`);
           let received: (value: unknown) => void = () => {};
           const event = new Promise((resolve) => { received = resolve; });
-          const callbacks = { onNoticed: (m: unknown) => received(m), onMomentSent: (m: unknown) => received(m), onPing: () => received('ping') };
+          const callbacks = { onNoticed: (m: unknown) => received(m), onMomentSent: (m: unknown) => received(m), onPing: () => received('ping'), onPlaced: (id: unknown, moment: unknown, count: unknown) => received([id, moment, count]) };
           const run = async (methods: any) => {
             if (c.scenario === 'event') {
               await methods.trigger(c.trigger);
               return await Promise.race([event, sleep(20000).then(() => { throw new Error('no event in twenty seconds'); })]);
             }
             if (c.scenario === 'sum') return await methods.sum([1, 2, 3]);
+            if (c.scenario === 'place-method' || c.scenario === 'place-event') {
+              const answer = await methods.place('6f9619ff-8b86-d011-b42d-00c04fc964ff', { day: '2026-03-04', at: '2026-03-04T05:06:07+02:00' }, 3);
+              if (c.scenario === 'place-method') return answer;
+              return await Promise.race([event, sleep(20000).then(() => { throw new Error('no event in twenty seconds'); })]);
+            }
             return await methods.getMoments(2);
           };
 
@@ -1835,6 +1874,8 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("hub: an event whose name is no identifier (moment-sent)", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "event", ["trigger"] = "moment-sent", ["expect"] = HubMoments(0) }));
         cases.Add(new("hub: an event without a payload", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "event", ["trigger"] = "Ping", ["expect"] = "\"ping\"" }));
         cases.Add(new("hub: a method that takes an array and answers a number", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "sum", ["expect"] = "6" }));
+        cases.Add(new("hub: a method with several arguments (an id, a model, a number), each received in its place", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "place-method", ["expect"] = "\"6f9619ff-8b86-d011-b42d-00c04fc964ff|2026-03-04|3\"" }));
+        cases.Add(new("hub: an event with several arguments, each reaching the handler in its place", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "place-event", ["expect"] = "[\"6f9619ff-8b86-d011-b42d-00c04fc964ff\"," + HubMoments(0) + ",3]" }));
         cases.Add(new("hub: a method whose name is no identifier (get-moments), answering a list of models", "SignalR hubs", "FeatureHub", "hub", new JsonObject { ["scenario"] = "list", ["expect"] = "[" + HubMoments(1) + "," + HubMoments(2) + "]" }));
 
         cases.Add(new("pagination: five things in pages of three, by continuation", "pagination", "FeaturePage", "page", new JsonObject { ["pageSize"] = 3 }));
@@ -2424,7 +2465,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 }
 
                 return SameHubValue(expected, observed["value"])
-                    ? Cell(VerdictPass, (string?)arguments["scenario"] == "event" ? "the event reaches its handler with the payload the hub sent" : "the method's answer, as the hub sent it", got)
+                    ? Cell(VerdictPass, (string?)arguments["scenario"] is "event" or "place-event" ? "the event reaches its handler with the payload the hub sent" : "the method's answer, as the hub sent it", got)
                     : Cell(VerdictFail, $"expected {expected?.ToJsonString()}, got {got}", got);
             }
 

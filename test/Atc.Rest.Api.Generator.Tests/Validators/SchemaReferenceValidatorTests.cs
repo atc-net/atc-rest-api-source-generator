@@ -262,6 +262,24 @@ public class SchemaReferenceValidatorTests
                 """
             },
             {
+                "an argument of a SignalR hub method (x-signalr-hubs)",
+                """
+                x-signalr-hubs:
+                  things:
+                    methods:
+                      - name: Move
+                        arguments:
+                          - name: id
+                            payload: string
+                          - name: to
+                            payload: '#/components/schemas/Missing'
+                paths: {}
+                components:
+                  schemas:
+                    Thing: { type: object, properties: { name: { type: string } } }
+                """
+            },
+            {
                 "short array payload of a SignalR hub method (x-signalr-hubs)",
                 """
                 x-signalr-hubs:

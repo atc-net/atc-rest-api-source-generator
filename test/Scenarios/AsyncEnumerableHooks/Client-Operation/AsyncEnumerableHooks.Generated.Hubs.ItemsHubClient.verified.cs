@@ -41,6 +41,7 @@ public sealed class ItemsHubClient : IAsyncDisposable
         public const string ItemChanged = "ItemChanged";
         public const string LogWritten = "log-written";
         public const string Heartbeat = "Heartbeat";
+        public const string ItemMoved = "ItemMoved";
     }
 
     /// <summary>
@@ -51,6 +52,7 @@ public sealed class ItemsHubClient : IAsyncDisposable
         public const string Watch = "Watch";
         public const string GetRecentLogs = "GetRecentLogs";
         public const string Count = "Count";
+        public const string MoveItem = "MoveItem";
     }
 
     public ItemsHubClient(HubConnection connection)
@@ -107,6 +109,18 @@ public sealed class ItemsHubClient : IAsyncDisposable
         => Connection.On(Events.Heartbeat, handler);
 
     /// <summary>
+    /// Subscribes to the <c>ItemMoved</c> event; dispose what is returned to unsubscribe.
+    /// </summary>
+    public IDisposable OnItemMoved(Action<Guid, global::AsyncEnumerableHooks.Generated.Models.Item, int> handler)
+        => Connection.On(Events.ItemMoved, handler);
+
+    /// <summary>
+    /// Subscribes to the <c>ItemMoved</c> event with an asynchronous handler; dispose what is returned to unsubscribe.
+    /// </summary>
+    public IDisposable OnItemMoved(Func<Guid, global::AsyncEnumerableHooks.Generated.Models.Item, int, Task> handler)
+        => Connection.On(Events.ItemMoved, handler);
+
+    /// <summary>
     /// Invokes the hub's <c>Watch</c> method and waits for it.
     /// </summary>
     public Task WatchAsync(
@@ -128,4 +142,13 @@ public sealed class ItemsHubClient : IAsyncDisposable
     public Task<long> CountAsync(
         CancellationToken cancellationToken = default)
         => Connection.InvokeAsync<long>(Methods.Count, cancellationToken);
+
+    /// <summary>
+    /// Invokes the hub's <c>MoveItem</c> method and waits for it.
+    /// </summary>
+    public Task<global::AsyncEnumerableHooks.Generated.Models.Item> MoveItemAsync(
+        Guid itemId,
+        bool cancellationToken2,
+        CancellationToken cancellationToken = default)
+        => Connection.InvokeAsync<global::AsyncEnumerableHooks.Generated.Models.Item>(Methods.MoveItem, itemId, cancellationToken2, cancellationToken);
 }

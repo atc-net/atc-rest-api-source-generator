@@ -168,3 +168,12 @@ x-signalr-hubs:
         payload: '#/components/schemas/Device'
         returns: boolean
       - name: Clear
+      - name: MoveDevice
+        arguments:
+          - name: deviceId
+            payload: string
+          - name: connection
+            payload: '#/components/schemas/Device'
+          - name: delete
+            payload: boolean
+        returns: '#/components/schemas/LogLine'

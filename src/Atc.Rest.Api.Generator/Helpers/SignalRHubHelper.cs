@@ -21,11 +21,19 @@ namespace Atc.Rest.Api.Generator.Helpers;
 ///       - name: GetHistory
 ///         payload: { type: integer, format: int32 }
 ///         returns: { type: array, items: { $ref: '#/components/schemas/SystemNotification' } }
+///       - name: SwapCameras          # several arguments, in their order on the wire
+///         arguments:
+///           - name: cameraId
+///             payload: { type: string, format: uuid }
+///           - name: direction
+///             payload: SwapDirection
 /// </code>
 /// A payload is written short - a component schema (by its <c>#/components/schemas/</c> reference or its name), a
 /// primitive (<c>string</c>, <c>integer</c>, <c>number</c>, <c>boolean</c>), either followed by <c>[]</c> for an
 /// array - or as a schema: <c>$ref</c>, <c>type</c> with <c>format</c>, or <c>type: array</c> with <c>items</c>.
-/// Without one the event or method carries nothing. An event or a method declared twice is read once.
+/// Without one the event or method carries nothing; <c>payload</c> is the short form of one argument named
+/// <c>payload</c>, <c>arguments</c> lists several (at most <see cref="MaxArguments"/>, what SignalR's typed handlers
+/// take). An event or a method declared twice is read once. What cannot be read is reported by <see cref="FindProblems"/>.
 /// </remarks>
 public static class SignalRHubHelper
 {
@@ -33,6 +41,11 @@ public static class SignalRHubHelper
     /// The name of the document extension.
     /// </summary>
     public const string ExtensionName = "x-signalr-hubs";
+
+    /// <summary>
+    /// The most arguments an event or a method takes: SignalR's typed handlers (<c>HubConnection.On</c>) take eight.
+    /// </summary>
+    public const int MaxArguments = 8;
 
     /// <summary>
     /// The hubs the document declares, in the order they are written; empty without the extension.
@@ -78,7 +91,7 @@ public static class SignalRHubHelper
     public static List<string> PayloadSchemas(IEnumerable<SignalRHub> hubs)
         => hubs
             .SelectMany(h => h.Events.Concat(h.Methods))
-            .SelectMany(m => new[] { m.Payload, m.Returns })
+            .SelectMany(m => m.Arguments.Select(a => a.Payload).Append(m.Returns))
             .SelectMany(p => p?.Schemas ?? [])
             .Distinct(StringComparer.Ordinal)
             .ToList();
@@ -116,6 +129,127 @@ public static class SignalRHubHelper
         return names;
     }
 
+    /// <summary>
+    /// What the generator cannot read in the document's hubs, each as the place (<c>x-signalr-hubs/{hub}/{kind}/{member}/{field}</c>)
+    /// and what is wrong: a member it would otherwise generate without the value it carries.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>The problems, in the order they are written.</returns>
+    public static List<(string Path, string Message)> FindProblems(
+        OpenApiDocument? openApiDoc)
+    {
+        var problems = new List<(string Path, string Message)>();
+        if (openApiDoc?.Extensions is null ||
+            !openApiDoc.Extensions.TryGetValue(ExtensionName, out var extension) ||
+            extension is not JsonNodeExtension { Node: JsonObject hubsObject })
+        {
+            return problems;
+        }
+
+        const string valueForm = "write a component schema (its #/components/schemas/ reference or its name), a primitive " +
+                                 "(string, integer, number, boolean, or { type, format }), or an array of one ([] or { type: array, items }); " +
+                                 "an inline object or enum belongs in components/schemas";
+        foreach (var hubEntry in hubsObject)
+        {
+            var hubKey = hubEntry.Key;
+            if (hubEntry.Value is not JsonObject hub)
+            {
+                continue;
+            }
+
+            foreach (var kind in new[] { "events", "methods" })
+            {
+                if (hub[kind] is not JsonArray list)
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < list.Count; i++)
+                {
+                    if (list[i] is not JsonObject member)
+                    {
+                        continue;
+                    }
+
+                    var name = Text(member["name"]);
+                    var path = $"{ExtensionName}/{hubKey}/{kind}/{name ?? "[" + i.ToString(CultureInfo.InvariantCulture) + "]"}";
+                    if (name is null)
+                    {
+                        problems.Add((path + "/name", $"A member of the {hubKey} hub's {kind} has no name."));
+                        continue;
+                    }
+
+                    if (member["payload"] is { } payload && Payload(payload) is null)
+                    {
+                        problems.Add((path + "/payload", $"The payload of {name} (hub {hubKey}) cannot be read: {valueForm}."));
+                    }
+
+                    if (member["returns"] is { } returns)
+                    {
+                        if (kind == "events")
+                        {
+                            problems.Add((path + "/returns", $"The event {name} (hub {hubKey}) has returns: an event answers nothing - only a method does."));
+                        }
+                        else if (Payload(returns) is null)
+                        {
+                            problems.Add((path + "/returns", $"What {name} (hub {hubKey}) returns cannot be read: {valueForm}."));
+                        }
+                    }
+
+                    if (member["arguments"] is not { } arguments)
+                    {
+                        continue;
+                    }
+
+                    if (member["payload"] is not null)
+                    {
+                        problems.Add((path + "/arguments", $"{name} (hub {hubKey}) has both payload and arguments: payload is the short form of one argument, use one of them."));
+                    }
+
+                    if (arguments is not JsonArray argumentList)
+                    {
+                        problems.Add((path + "/arguments", $"The arguments of {name} (hub {hubKey}) are no list: write each as {{ name, payload }}, in their order on the wire."));
+                        continue;
+                    }
+
+                    if (argumentList.Count > MaxArguments)
+                    {
+                        problems.Add((path + "/arguments", $"{name} (hub {hubKey}) has {argumentList.Count} arguments: SignalR's typed handlers take at most {MaxArguments}; put some of them in a model."));
+                    }
+
+                    var names = new HashSet<string>(StringComparer.Ordinal);
+                    for (var a = 0; a < argumentList.Count; a++)
+                    {
+                        var argument = argumentList[a] as JsonObject;
+                        var argumentName = argument is null ? null : Text(argument["name"]);
+                        var argumentPath = $"{path}/arguments/{argumentName ?? "[" + a.ToString(CultureInfo.InvariantCulture) + "]"}";
+                        if (argumentName is null)
+                        {
+                            problems.Add((argumentPath, $"Argument {a + 1} of {name} (hub {hubKey}) has no name: write each argument as {{ name, payload }}."));
+                            continue;
+                        }
+
+                        if (!names.Add(argumentName))
+                        {
+                            problems.Add((argumentPath, $"{name} (hub {hubKey}) has two arguments named {argumentName}."));
+                        }
+
+                        if (argument!["payload"] is not { } argumentPayload)
+                        {
+                            problems.Add((argumentPath + "/payload", $"The argument {argumentName} of {name} (hub {hubKey}) has no payload."));
+                        }
+                        else if (Payload(argumentPayload) is null)
+                        {
+                            problems.Add((argumentPath + "/payload", $"The argument {argumentName} of {name} (hub {hubKey}) cannot be read: {valueForm}."));
+                        }
+                    }
+                }
+            }
+        }
+
+        return problems;
+    }
+
     private static List<SignalRHubMember> Members(
         OpenApiDocument openApiDoc,
         JsonNode? node,
@@ -141,11 +275,31 @@ public static class SignalRHubHelper
 
             members.Add(new SignalRHubMember(
                 name,
-                Resolve(openApiDoc, Payload(member["payload"])),
+                Arguments(openApiDoc, member),
                 withResult ? Resolve(openApiDoc, Payload(member["returns"])) : null));
         }
 
         return members;
+    }
+
+    // `arguments`, else the one `payload`, else nothing
+    private static List<SignalRHubArgument> Arguments(
+        OpenApiDocument openApiDoc,
+        JsonObject member)
+    {
+        if (member["arguments"] is JsonArray list)
+        {
+            return list
+                .OfType<JsonObject>()
+                .Select(a => (Name: Text(a["name"]), Payload: Resolve(openApiDoc, Payload(a["payload"]))))
+                .Where(a => a.Name is not null && a.Payload is not null)
+                .Select(a => new SignalRHubArgument(a.Name!, a.Payload!))
+                .ToList();
+        }
+
+        return Resolve(openApiDoc, Payload(member["payload"])) is { } payload
+            ? [new SignalRHubArgument("payload", payload)]
+            : [];
     }
 
     private static SignalRHubPayload? Payload(JsonNode? node)
@@ -194,7 +348,8 @@ public static class SignalRHubHelper
                 : null;
         }
 
-        return type is not null && IsPrimitive(type)
+        // An inline enum is no plain string: its values would be lost - it belongs in components/schemas
+        return type is not null && IsPrimitive(type) && schema["enum"] is null
             ? new SignalRHubPayload(null, type, Text(schema["format"]), null)
             : null;
     }

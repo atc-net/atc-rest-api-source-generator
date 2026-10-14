@@ -86,6 +86,7 @@ public static class OpenApiDocumentValidator
         // What the generated code would name and not find: a $ref to a component that is not there, a parameter
         // with no type, a schema with no type but null; and a document with nothing to generate from
         diagnostics.AddRange(DanglingReferenceValidator.Validate(document, sourceFilePath));
+        diagnostics.AddRange(SignalRHubValidator.Validate(document, sourceFilePath));
         diagnostics.AddRange(ValidateParameterSchemas(document, sourceFilePath));
         diagnostics.AddRange(ValidateNullOnlyTypes(document, sourceFilePath));
         diagnostics.AddRange(SchemaConstraintValidator.Validate(document, sourceFilePath));

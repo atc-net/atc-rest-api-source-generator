@@ -179,6 +179,14 @@ x-signalr-hubs:
       - name: log-written
         payload: '#/components/schemas/ItemLog'
       - name: Heartbeat
+      - name: ItemMoved
+        arguments:
+          - name: itemId
+            payload: { type: string, format: uuid }
+          - name: to
+            payload: '#/components/schemas/Item'
+          - name: clients
+            payload: integer
     methods:
       - name: Watch
         payload: string[]
@@ -187,3 +195,10 @@ x-signalr-hubs:
         returns: { type: array, items: { $ref: '#/components/schemas/ItemLog' } }
       - name: Count
         returns: { type: integer, format: int64 }
+      - name: MoveItem
+        arguments:
+          - name: itemId
+            payload: { type: string, format: uuid }
+          - name: cancellationToken
+            payload: boolean
+        returns: '#/components/schemas/Item'

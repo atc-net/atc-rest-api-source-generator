@@ -33,7 +33,7 @@ internal static class DanglingReferenceValidator
             {
                 foreach (var member in members)
                 {
-                    foreach (var (field, payload) in new[] { ("payload", member.Payload), ("returns", member.Returns) })
+                    foreach (var (field, payload) in member.Arguments.Select(a => (a.Name == "payload" && member.Arguments.Count == 1 ? "payload" : "arguments/" + a.Name, (SignalRHubPayload?)a.Payload)).Append(("returns", member.Returns)))
                     {
                         foreach (var schema in payload?.Schemas ?? [])
                         {

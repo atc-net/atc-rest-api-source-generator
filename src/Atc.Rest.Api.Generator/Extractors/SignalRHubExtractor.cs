@@ -123,7 +123,7 @@ public static class SignalRHubExtractor
         AppendMembers(
             sb,
             typedEvents,
-            e => $"Task {e.Member.Name}({Parameter(e.Member.Payload, models)});",
+            e => $"Task {e.Member.Name}({ParameterList(Arguments(e.Member, models))});",
             e => $"The <c>{e.Member.Name}</c> event.");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -145,7 +145,7 @@ public static class SignalRHubExtractor
         AppendMembers(
             sb,
             members.Methods,
-            m => $"{ReturnType(m.Member.Returns, models)} {(m.NameIsIdentifier ? m.Member.Name : m.Identifier)}({Parameter(m.Member.Payload, models)});",
+            m => $"{ReturnType(m.Member.Returns, models)} {(m.NameIsIdentifier ? m.Member.Name : m.Identifier)}({ParameterList(Arguments(m.Member, models))});",
             m => m.NameIsIdentifier ? $"The <c>{m.Member.Name}</c> method." : $"The <c>{m.Member.Name}</c> method (<c>[HubMethodName({CSharpLiteralHelper.ToStringLiteral(m.Member.Name)})]</c>).");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -165,17 +165,16 @@ public static class SignalRHubExtractor
             sb.AppendLine(4, "/// <summary>");
             sb.AppendLine(4, $"/// Sends the <c>{e.Member.Name}</c> event.");
             sb.AppendLine(4, "/// </summary>");
+            var arguments = Arguments(e.Member, models, "clients", "cancellationToken");
             sb.AppendLine(4, $"public static Task Send{e.Identifier}Async(");
             sb.AppendLine(8, "this IClientProxy clients,");
-            if (e.Member.Payload is not null)
+            foreach (var (type, argument) in arguments)
             {
-                sb.AppendLine(8, $"{Parameter(e.Member.Payload, models)},");
+                sb.AppendLine(8, $"{type} {argument},");
             }
 
             sb.AppendLine(8, "CancellationToken cancellationToken = default)");
-            sb.AppendLine(8, e.Member.Payload is null
-                ? $"=> clients.SendAsync(Events.{e.Identifier}, cancellationToken);"
-                : $"=> clients.SendAsync(Events.{e.Identifier}, payload, cancellationToken);");
+            sb.AppendLine(8, $"=> clients.SendAsync(Events.{e.Identifier}, {string.Concat(arguments.Select(a => a.Name + ", "))}cancellationToken);");
         }
 
         sb.Append('}');
@@ -201,9 +200,10 @@ public static class SignalRHubExtractor
         if (members.Events.Count > 0)
         {
             var first = members.Events[0];
-            sb.AppendLine(first.Member.Payload is null
-                ? $"/// using var subscription = hub.On{first.Identifier}(() => Show());"
-                : $"/// using var subscription = hub.On{first.Identifier}(payload => Show(payload));");
+            var names = string.Join(", ", Arguments(first.Member, models).Select(a => a.Name));
+            sb.AppendLine(first.Member.Arguments.Count == 1
+                ? $"/// using var subscription = hub.On{first.Identifier}({names} => Show({names}));"
+                : $"/// using var subscription = hub.On{first.Identifier}(({names}) => Show({names}));");
         }
 
         sb.AppendLine("/// await hub.StartAsync(cancellationToken);");
@@ -233,22 +233,22 @@ public static class SignalRHubExtractor
 
         foreach (var e in members.Events)
         {
-            var payload = e.Member.Payload is null ? null : CSharpType(e.Member.Payload, models);
+            var types = string.Join(", ", Arguments(e.Member, models).Select(a => a.Type));
             sb.AppendLine();
             sb.AppendLine(4, "/// <summary>");
             sb.AppendLine(4, $"/// Subscribes to the <c>{e.Member.Name}</c> event; dispose what is returned to unsubscribe.");
             sb.AppendLine(4, "/// </summary>");
-            sb.AppendLine(4, payload is null
+            sb.AppendLine(4, types.Length == 0
                 ? $"public IDisposable On{e.Identifier}(Action handler)"
-                : $"public IDisposable On{e.Identifier}(Action<{payload}> handler)");
+                : $"public IDisposable On{e.Identifier}(Action<{types}> handler)");
             sb.AppendLine(8, $"=> Connection.On(Events.{e.Identifier}, handler);");
             sb.AppendLine();
             sb.AppendLine(4, "/// <summary>");
             sb.AppendLine(4, $"/// Subscribes to the <c>{e.Member.Name}</c> event with an asynchronous handler; dispose what is returned to unsubscribe.");
             sb.AppendLine(4, "/// </summary>");
-            sb.AppendLine(4, payload is null
+            sb.AppendLine(4, types.Length == 0
                 ? $"public IDisposable On{e.Identifier}(Func<Task> handler)"
-                : $"public IDisposable On{e.Identifier}(Func<{payload}, Task> handler)");
+                : $"public IDisposable On{e.Identifier}(Func<{types}, Task> handler)");
             sb.AppendLine(8, $"=> Connection.On(Events.{e.Identifier}, handler);");
         }
 
@@ -260,13 +260,14 @@ public static class SignalRHubExtractor
             sb.AppendLine(4, $"/// Invokes the hub's <c>{m.Member.Name}</c> method and waits for it.");
             sb.AppendLine(4, "/// </summary>");
             sb.AppendLine(4, $"public {ReturnType(m.Member.Returns, models)} {m.Identifier}Async(");
-            if (m.Member.Payload is not null)
+            var parameters = Arguments(m.Member, models, "cancellationToken");
+            foreach (var (type, argument) in parameters)
             {
-                sb.AppendLine(8, $"{Parameter(m.Member.Payload, models)},");
+                sb.AppendLine(8, $"{type} {argument},");
             }
 
             sb.AppendLine(8, "CancellationToken cancellationToken = default)");
-            var arguments = m.Member.Payload is null ? string.Empty : "payload, ";
+            var arguments = string.Concat(parameters.Select(a => a.Name + ", "));
             sb.AppendLine(8, returns is null
                 ? $"=> Connection.InvokeAsync(Methods.{m.Identifier}, {arguments}cancellationToken);"
                 : $"=> Connection.InvokeAsync<{returns}>(Methods.{m.Identifier}, {arguments}cancellationToken);");
@@ -348,10 +349,39 @@ public static class SignalRHubExtractor
         }
     }
 
-    private static string Parameter(
-        SignalRHubPayload? payload,
-        Dictionary<string, string> models)
-        => payload is null ? string.Empty : $"{CSharpType(payload, models)} payload";
+    // A member's arguments as C# parameters, in their order on the wire: the specification's names in camel case (a
+    // keyword with @), numbered where a generated member takes the name itself (cancellationToken, clients) or two
+    // names give one
+    private static List<(string Type, string Name)> Arguments(
+        SignalRHubMember member,
+        Dictionary<string, string> models,
+        params string[] reserved)
+    {
+        var taken = new HashSet<string>(reserved, StringComparer.Ordinal);
+        var parameters = new List<(string Type, string Name)>();
+        foreach (var argument in member.Arguments)
+        {
+            var pascal = argument.Name.ToPascalCaseForDotNet();
+            var name = pascal.Length > 0 && (char.IsLetter(pascal[0]) || pascal[0] == '_')
+                ? char.ToLowerInvariant(pascal[0]) + pascal.Substring(1)
+                : "argument" + pascal;
+            var unique = name;
+            var number = 1;
+            while (!taken.Add(unique))
+            {
+                number++;
+                unique = name + number.ToString(CultureInfo.InvariantCulture);
+            }
+
+            parameters.Add((CSharpType(argument.Payload, models), CSharpKeywords.Contains(unique) ? "@" + unique : unique));
+        }
+
+        return parameters;
+    }
+
+    private static string ParameterList(
+        List<(string Type, string Name)> parameters)
+        => string.Join(", ", parameters.Select(p => $"{p.Type} {p.Name}"));
 
     private static string ReturnType(
         SignalRHubPayload? returns,
