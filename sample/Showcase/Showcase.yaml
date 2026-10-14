@@ -1047,8 +1047,9 @@ paths:
       tags:
         - notifications
       description: |
-        Server-Sent Events (SSE) endpoint for real-time notifications.
-        Alternative to WebSocket/SignalR for simple notification streaming.
+        The notifications as they happen, as one streamed JSON array (application/json): every client reads it
+        item by item, and the response ends when the client stops reading. For Server-Sent Events see the
+        /streams/prices operations; for pushing to many clients see the notifications hub (x-signalr-hubs).
       x-return-async-enumerable: true
       parameters:
         - name: topics
