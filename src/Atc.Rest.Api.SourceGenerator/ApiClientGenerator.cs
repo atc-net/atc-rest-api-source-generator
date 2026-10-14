@@ -1523,8 +1523,16 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
-        foreach (var schemaName in schemaNames.Where(BuiltInErrorContractNames.IsReserved))
+        foreach (var schemaName in schemaNames.Where(BuiltInErrorContractNames.IsReserved).ToList())
         {
+            // RFC 9457's shape is the built-in type itself: nothing is lost, so nothing to say (the recipe that keeps a
+            // server's NotFound(string? message) declares exactly that)
+            if (BuiltInErrorContractNames.IsRfc9457Shape(schemaName, openApiDoc.Components!.Schemas![schemaName]))
+            {
+                sharedSchemas.Remove(schemaName);
+                continue;
+            }
+
             context.ReportDiagnostic(
                 DiagnosticHelpers.ToRoslynDiagnostic(
                     GeneratorDiagnosticMessage.Warning(

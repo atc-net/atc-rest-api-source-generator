@@ -49,10 +49,15 @@ internal static class CompilationVerificationHarness
         string? markerDirectoryOverride = null,
         string? defaultMarkerContent = null,
         Func<string, string>? markerTransform = null,
-        IReadOnlyList<(string Path, string Content)>? extraFiles = null)
+        IReadOnlyList<(string Path, string Content)>? extraFiles = null,
+        Func<string, string>? yamlTransform = null)
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
+        if (yamlTransform is not null)
+        {
+            yamlContent = yamlTransform(yamlContent.Replace("\r\n", "\n", StringComparison.Ordinal));
+        }
 
         var markerPath = Path.Combine(
             Path.GetDirectoryName(yamlPath),

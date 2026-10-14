@@ -36,6 +36,47 @@ public static class BuiltInErrorContractNames
         => All.Contains(schemaName, StringComparer.Ordinal);
 
     /// <summary>
+    /// Whether a reserved schema is RFC 9457's shape: nothing but <c>type</c>, <c>title</c>, <c>detail</c>,
+    /// <c>instance</c> (strings) and <c>status</c> (an integer) - and <c>errors</c> on a <c>ValidationProblemDetails</c>.
+    /// The built-in type that takes its place holds all of it, so nothing of the schema is lost.
+    /// </summary>
+    /// <param name="schemaName">The schema name from the specification.</param>
+    /// <param name="schema">The schema.</param>
+    /// <returns><see langword="true"/> when the built-in type holds everything the schema declares.</returns>
+    public static bool IsRfc9457Shape(
+        string schemaName,
+        IOpenApiSchema? schema)
+    {
+        if (!IsReserved(schemaName) ||
+            schema is not { } actual ||
+            actual.AllOf is { Count: > 0 } ||
+            actual.OneOf is { Count: > 0 } ||
+            actual.AnyOf is { Count: > 0 })
+        {
+            return false;
+        }
+
+        foreach (var property in actual.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            var fits = property.Key switch
+            {
+                "type" or "title" or "detail" or "instance" => property.Value.IsOfType(JsonSchemaType.String),
+                "status" => property.Value.IsOfType(JsonSchemaType.Integer),
+                "errors" => string.Equals(schemaName, "ValidationProblemDetails", StringComparison.Ordinal) &&
+                            property.Value.IsOfType(JsonSchemaType.Object),
+                _ => false,
+            };
+
+            if (!fits)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// The reserved schemas that another schema of the document references (extends through <c>allOf</c>,
     /// holds as a property, …). Those are generated as models like any other schema - the models that use
     /// them need them - and files that also import <c>Microsoft.AspNetCore.Mvc</c> alias the name to the

@@ -36,11 +36,43 @@ public class ProblemDetailsDuplicationTests
         Assert.Equal(["InlineSchemas.Generated"], namespaces);
     }
 
-    [Fact]
-    public void SpecDefinedProblemDetails_ReportsSCH021()
+    // The scenario's ProblemDetails is RFC 9457's shape - what Upgrading to v3 recommends declaring so a server keeps
+    // NotFound(string? message). The built-in type is the same thing, so nothing is lost and nothing is reported.
+    [Theory]
+    [InlineData("      description: A problem\n")]
+    [InlineData("      additionalProperties: true\n")]
+    [InlineData("      required: [title, status]\n")]
+    public void ProblemDetailsWithOnlyTheRfc9457Fields_ReportsNoSCH021(
+        string addition)
     {
         // Arrange & Act
-        var (diagnostics, _) = RunGenerator();
+        var (diagnostics, generatedSources) = RunGenerator(yaml => yaml.Replace(
+            "    ProblemDetails:\n      type: object\n",
+            "    ProblemDetails:\n      type: object\n" + addition,
+            StringComparison.Ordinal));
+
+        // Assert
+        Assert.DoesNotContain(diagnostics, d => d.Id.Equals(ShadowedRuleId, StringComparison.Ordinal));
+        Assert.Equal(
+            ["InlineSchemas.Generated"],
+            generatedSources
+                .Where(s => s.HintName.EndsWith("ProblemDetails.g.cs", StringComparison.Ordinal))
+                .Select(s => GetNamespace(s.Source)),
+            StringComparer.Ordinal);
+    }
+
+    // A property the built-in type does not have (`code`), or an RFC field of another type, is dropped: say so.
+    [Theory]
+    [InlineData("        code:\n          type: string\n")]
+    [InlineData("        traceId:\n          type: string\n")]
+    public void ProblemDetailsWithAPropertyOfItsOwn_ReportsSCH021(
+        string property)
+    {
+        // Arrange & Act
+        var (diagnostics, _) = RunGenerator(yaml => yaml.Replace(
+            "        instance:\n          type: string\n",
+            "        instance:\n          type: string\n" + property,
+            StringComparison.Ordinal));
 
         var shadowed = diagnostics
             .Where(d => d.Id.Equals(ShadowedRuleId, StringComparison.Ordinal))
@@ -50,6 +82,19 @@ public class ProblemDetailsDuplicationTests
         var diagnostic = Assert.Single(shadowed);
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Contains("ProblemDetails", diagnostic.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProblemDetailsWithAStatusThatIsNoNumber_ReportsSCH021()
+    {
+        // Arrange & Act
+        var (diagnostics, _) = RunGenerator(yaml => yaml.Replace(
+            "        status:\n          type: integer\n",
+            "        status:\n          type: string\n",
+            StringComparison.Ordinal));
+
+        // Assert
+        Assert.Single(diagnostics, d => d.Id.Equals(ShadowedRuleId, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -123,14 +168,23 @@ public class ProblemDetailsDuplicationTests
         return symbol.ToDisplayString();
     }
 
-    private static (ImmutableArray<Diagnostic> Diagnostics, List<(string HintName, string Source)> GeneratedSources) RunGenerator()
+    private static (ImmutableArray<Diagnostic> Diagnostics, List<(string HintName, string Source)> GeneratedSources) RunGenerator(
+        Func<string, string>? yamlTransform = null)
         => CompilationVerificationHarness.RunGenerator(
             new ApiClientGenerator(),
             ScenarioName,
             YamlFileName,
             ".atc-rest-api-client",
             "Client-Operation",
-            useFullReferences: true);
+            useFullReferences: true,
+            yamlTransform: yamlTransform is null
+                ? null
+                : yaml =>
+                {
+                    var transformed = yamlTransform(yaml);
+                    Assert.False(string.Equals(yaml, transformed, StringComparison.Ordinal), "The transform changed nothing.");
+                    return transformed;
+                });
 
     private static string GetNamespace(string source)
     {
