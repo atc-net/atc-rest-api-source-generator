@@ -8,7 +8,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </summary>
 public sealed class ExtensibleEnumWireTests
 {
-    private const string Yaml = """
+    internal const string Yaml = """
         openapi: 3.1.0
         info:
           title: Fleet
