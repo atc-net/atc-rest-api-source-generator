@@ -5,8 +5,8 @@ namespace Atc.Rest.Api.Generator.IntegrationTests;
 /// reference every sample and test uses. A dependency left out of <c>analyzers/dotnet/cs</c> shows only here.
 /// </summary>
 /// <remarks>
-/// The consumers are strict: <c>ImplicitUsings</c> off, nullable on, warnings as errors. Clients only - server code
-/// needs Atc.Rest.MinimalApi 3.0, which is not on nuget.org yet.
+/// The consumers are strict: <c>ImplicitUsings</c> off, nullable on, warnings as errors. The clients, and the server on
+/// the released Atc.Rest.MinimalApi as well as on the plain host without it.
 /// </remarks>
 [Trait("Category", "Integration")]
 public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClassFixture<PackedGeneratorFixture>
@@ -48,6 +48,122 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
             """;
 
     /// <summary>
+    /// The pets API every consumer but the first is generated from: a list, and a create with a required name.
+    /// </summary>
+    private const string ContosoYaml = """
+        openapi: 3.0.3
+        info:
+          title: Contoso
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: listPets
+              responses:
+                '200':
+                  description: The pets
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Pet'
+            post:
+              operationId: createPet
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/NewPet'
+              responses:
+                '201':
+                  description: Created
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Pet'
+        components:
+          schemas:
+            Pet:
+              title: Pet
+              type: object
+              required: [id, name, kind]
+              properties:
+                id: { type: integer, format: int64 }
+                name: { type: string }
+                kind: { $ref: '#/components/schemas/PetKind' }
+            NewPet:
+              title: NewPet
+              type: object
+              required: [name, kind]
+              properties:
+                name: { type: string }
+                kind: { $ref: '#/components/schemas/PetKind' }
+            PetKind:
+              type: string
+              enum: [Cat, Dog]
+        """;
+
+    /// <summary>
+    /// A server app on the generated code: handlers for the two operations, the generated <c>AddContosoApi()</c> /
+    /// <c>MapContosoApi()</c>, and calls to itself on a random port - a list, a create, and a create without the
+    /// required name.
+    /// </summary>
+    private const string ServerProgramSource = """
+        using System;
+        using System.Linq;
+        using System.Net.Http;
+        using System.Text;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Contoso.Generated.Extensions;
+        using Contoso.Generated.Handlers;
+        using Contoso.Generated.Models;
+        using Contoso.Generated.Parameters;
+        using Contoso.Generated.Results;
+        using Microsoft.AspNetCore.Builder;
+        using Microsoft.Extensions.DependencyInjection;
+        using Microsoft.Extensions.Logging;
+
+        var builder = WebApplication.CreateSlimBuilder(args);
+        builder.Logging.ClearProviders();
+        builder.Services.AddScoped<IListPetsHandler, ListPetsHandler>();
+        builder.Services.AddScoped<ICreatePetHandler, CreatePetHandler>();
+        builder.Services.AddContosoApi();
+
+        var app = builder.Build();
+        app.Urls.Add("http://127.0.0.1:0");
+        app.MapContosoApi();
+        await app.StartAsync();
+
+        using var client = new HttpClient { BaseAddress = new Uri(app.Urls.First()) };
+        Console.WriteLine("listed: " + await client.GetStringAsync(new Uri("/pets", UriKind.Relative)));
+
+        using var created = await client.PostAsync(new Uri("/pets", UriKind.Relative), new StringContent("{\"name\":\"Rex\",\"kind\":\"Dog\"}", Encoding.UTF8, "application/json"));
+        Console.WriteLine($"created: {(int)created.StatusCode} {await created.Content.ReadAsStringAsync()}");
+
+        using var invalid = await client.PostAsync(new Uri("/pets", UriKind.Relative), new StringContent("{\"kind\":\"Dog\"}", Encoding.UTF8, "application/json"));
+        Console.WriteLine($"invalid: {(int)invalid.StatusCode} {invalid.Content.Headers.ContentType?.MediaType}");
+
+        await app.StopAsync();
+
+        internal sealed class ListPetsHandler : IListPetsHandler
+        {
+            public Task<ListPetsResult> ExecuteAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(ListPetsResult.Ok([new Pet(1, "Tom", PetKind.Cat)]));
+        }
+
+        internal sealed class CreatePetHandler : ICreatePetHandler
+        {
+            public Task<CreatePetResult> ExecuteAsync(
+                CreatePetParameters parameters,
+                CancellationToken cancellationToken = default)
+                => Task.FromResult(CreatePetResult.Created(new Pet(2, parameters.Request.Name, parameters.Request.Kind)));
+        }
+        """;
+
+    /// <summary>
     /// The trim- and Native AOT-ready Atc.Rest.Client the generated per-operation client needs.
     /// </summary>
     private const string AtcRestClientReference = """<PackageReference Include="Atc.Rest.Client" Version="2.6.0" />""";
@@ -67,6 +183,28 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         // The generator ran from the package: its files are there, and the consumer's own code used them
         var generated = Directory.GetFiles(Path.Combine(consumer, "obj"), "*.g.cs", SearchOption.AllDirectories);
         Assert.Contains(generated, f => f.Contains("Atc.Rest.Api.SourceGenerator", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A server from the packed generator in a strict consumer, on the released Atc.Rest.MinimalApi (its validation
+    /// filter and error handling) and on the plain host without it (the generated host wiring alone): it builds, starts,
+    /// answers the list and the create, and answers a create without the required name with a 400 problem.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task APackedGenerator_GeneratesAServerThatRuns_InAStrictConsumer(
+        bool withMinimalApi)
+    {
+        var server = package.NewDirectory(withMinimalApi ? "server-minimalapi" : "server-plain");
+        WriteServer(server, withMinimalApi);
+
+        var run = await PackedGeneratorFixture.RunDotnetAsync(server, "run", "-p:UseSharedCompilation=false");
+        Assert.True(run.ExitCode == 0, $"The server did not run:\n{run.Output}");
+
+        Assert.Contains("""listed: [{"id":1,"name":"Tom","kind":"Cat"}]""", run.Output, StringComparison.Ordinal);
+        Assert.Contains("""created: 201 {"id":2,"name":"Rex","kind":"Dog"}""", run.Output, StringComparison.Ordinal);
+        Assert.Contains("invalid: 400 application/problem+json", run.Output, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -178,6 +316,34 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         Assert.Contains("without the context: failed", run.Output, StringComparison.Ordinal);
     }
 
+    private void WriteServer(
+        string server,
+        bool withMinimalApi)
+    {
+        File.WriteAllText(Path.Combine(server, "Contoso.yaml"), ContosoYaml);
+        File.WriteAllText(Path.Combine(server, ".atc-rest-api-server"), "{}");
+        File.WriteAllText(Path.Combine(server, "Program.cs"), ServerProgramSource);
+        File.WriteAllText(
+            Path.Combine(server, "ContosoServer.csproj"),
+            $"""
+             <Project Sdk="Microsoft.NET.Sdk.Web">
+               <PropertyGroup>
+                 {StrictProperties}
+                 <OutputType>Exe</OutputType>
+               </PropertyGroup>
+               <ItemGroup>
+                 <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{package.Version}" />
+                 {(withMinimalApi ? """<PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.0" />""" : string.Empty)}
+               </ItemGroup>
+               <ItemGroup>
+                 <AdditionalFiles Include="Contoso.yaml" />
+                 <AdditionalFiles Include=".atc-rest-api-server" />
+               </ItemGroup>
+             </Project>
+             """);
+        package.WriteNuGetConfig(server);
+    }
+
     private void WriteConsumer(string consumer)
     {
         File.Copy(
@@ -228,62 +394,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         string marker,
         bool isAotCompatible)
     {
-        File.WriteAllText(
-            Path.Combine(library, "Contoso.yaml"),
-            """
-            openapi: 3.0.3
-            info:
-              title: Contoso
-              version: 1.0.0
-            paths:
-              /pets:
-                get:
-                  operationId: listPets
-                  responses:
-                    '200':
-                      description: The pets
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Pet'
-                post:
-                  operationId: createPet
-                  requestBody:
-                    required: true
-                    content:
-                      application/json:
-                        schema:
-                          $ref: '#/components/schemas/NewPet'
-                  responses:
-                    '201':
-                      description: Created
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/Pet'
-            components:
-              schemas:
-                Pet:
-                  title: Pet
-                  type: object
-                  required: [id, name, kind]
-                  properties:
-                    id: { type: integer, format: int64 }
-                    name: { type: string }
-                    kind: { $ref: '#/components/schemas/PetKind' }
-                NewPet:
-                  title: NewPet
-                  type: object
-                  required: [name, kind]
-                  properties:
-                    name: { type: string }
-                    kind: { $ref: '#/components/schemas/PetKind' }
-                PetKind:
-                  type: string
-                  enum: [Cat, Dog]
-            """);
+        File.WriteAllText(Path.Combine(library, "Contoso.yaml"), ContosoYaml);
         File.WriteAllText(Path.Combine(library, ".atc-rest-api-client"), marker);
 
         File.WriteAllText(
