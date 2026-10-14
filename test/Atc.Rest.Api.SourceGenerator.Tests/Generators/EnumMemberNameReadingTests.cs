@@ -309,6 +309,50 @@ public sealed class EnumMemberNameReadingTests
         Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
     }
 
+    // The key is for a rollout: once every peer is on v3 it should go. Each build says it is on (Info, so warnings as
+    // errors are not broken), so a project does not keep reading member names forever without knowing
+    [Theory]
+    [InlineData(".atc-rest-api-server", """{ "readEnumMemberNames": true }""", true)]
+    [InlineData(".atc-rest-api-client", """{ "generationMode": "TypedClient", "readEnumMemberNames": true }""", true)]
+    [InlineData(".atc-rest-api-client", """{ "generationMode": "EndpointPerOperation", "readEnumMemberNames": true }""", true)]
+    [InlineData(".atc-rest-api-server", """{ }""", false)]
+    [InlineData(".atc-rest-api-client", """{ "generationMode": "TypedClient" }""", false)]
+    public void TheKey_IsReportedAsGEN023_SoTheRolloutIsNotForgotten(
+        string markerFile,
+        string marker,
+        bool reported)
+    {
+        // Arrange
+        var compilation = CSharpCompilation.Create(
+            "Contoso.Host",
+            [],
+            CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi: true),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        IIncrementalGenerator generator = markerFile == ".atc-rest-api-server" ? new ApiServerGenerator() : new ApiClientGenerator();
+
+        // Act
+        CSharpGeneratorDriver
+            .Create(generator)
+            .AddAdditionalTexts(
+            [
+                new CompilationVerificationHarness.InMemoryAdditionalText("Cameras.yaml", Yaml),
+                new CompilationVerificationHarness.InMemoryAdditionalText(markerFile, marker),
+            ])
+            .RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics, CancellationToken.None);
+
+        // Assert
+        var info = diagnostics.Where(d => d.Id == "ATC_API_GEN023").ToList();
+        if (!reported)
+        {
+            Assert.Empty(info);
+            return;
+        }
+
+        var diagnostic = Assert.Single(info);
+        Assert.Equal(DiagnosticSeverity.Info, diagnostic.Severity);
+        Assert.Contains("readEnumMemberNames", diagnostic.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+    }
+
     private const string ServerYaml = """
         openapi: 3.1.0
         info:

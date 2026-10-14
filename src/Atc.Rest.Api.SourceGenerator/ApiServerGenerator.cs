@@ -473,6 +473,10 @@ public class ApiServerGenerator : IIncrementalGenerator
             config.ExcludeFromCodeCoverage,
             DeprecationDetector.HasDeprecatedMembers(openApiDoc),
             config.ReadEnumMemberNames ? $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}" : null);
+        if (config.ReadEnumMemberNames)
+        {
+            DiagnosticHelpers.ReportReadEnumMemberNamesOn(context, ".atc-rest-api-server");
+        }
 
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);

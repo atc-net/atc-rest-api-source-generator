@@ -107,6 +107,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN023: The marker sets readEnumMemberNames.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ReadEnumMemberNamesOn = new(
+        RuleIdentifiers.ReadEnumMemberNamesOn,
+        "readEnumMemberNames is on",
+        "readEnumMemberNames is on in '{0}': string enums are also read by their C# member names, as a peer built on 2.x wrote them. Remove it once no such peer is left - until then a peer that sends a member name instead of the specification's value is not told.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATC_API_AOT001: The Request Delegate Generator is on and does not see the generated endpoints.
     /// </summary>
     public static readonly DiagnosticDescriptor RequestDelegateGeneratorDoesNotSeeTheEndpoints = new(
@@ -646,6 +657,17 @@ internal static class DiagnosticHelpers
 
         return resolved;
     }
+
+    /// <summary>
+    /// Reports that the marker sets <c>readEnumMemberNames</c> (ATC_API_GEN023), so a rollout setting is not left on
+    /// unnoticed.
+    /// </summary>
+    /// <param name="context">The source-production context the diagnostic is reported to.</param>
+    /// <param name="markerFileName">The marker file's name.</param>
+    public static void ReportReadEnumMemberNamesOn(
+        SourceProductionContext context,
+        string markerFileName)
+        => context.ReportDiagnostic(Diagnostic.Create(ReadEnumMemberNamesOn, Location.None, markerFileName));
 
     /// <summary>
     /// Reports that the Request Delegate Generator is on and does not see the generated endpoints.

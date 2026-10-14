@@ -138,6 +138,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MarkerNamespaceRewritten = "ATC_API_GEN022";
 
+    /// <summary>
+    /// ATC_API_GEN023: The marker sets 'readEnumMemberNames': string enums are also read by their C# member names.
+    /// Information: the key is for a rollout next to peers built on 2.x, and should go once none is left.
+    /// </summary>
+    public const string ReadEnumMemberNamesOn = "ATC_API_GEN023";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>

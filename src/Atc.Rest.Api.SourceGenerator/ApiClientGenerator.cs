@@ -300,6 +300,10 @@ public class ApiClientGenerator : IIncrementalGenerator
             config.ExcludeFromCodeCoverage,
             DeprecationDetector.HasDeprecatedMembers(openApiDoc),
             config.ReadEnumMemberNames ? $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}" : null);
+        if (config.ReadEnumMemberNames)
+        {
+            DiagnosticHelpers.ReportReadEnumMemberNamesOn(context, ".atc-rest-api-client");
+        }
 
         // The custom error model's type name as the generated code refers to it (fully qualified when it collides).
         var customErrorTypeName = config.CustomErrorResponseModel?.Name;
