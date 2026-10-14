@@ -108,8 +108,9 @@
 
 <h3>Known limitations (documented)</h3>
 <ul class="tight">
-  <li><code>HttpClient.Timeout</code> (100 s) caps long per-operation retry timeouts; a long-lived stream needs a client
-    of its own (<i>Working with C# Client</i>).</li>
+  <li><code>HttpClient.Timeout</code> (100 s) caps a long per-operation retry timeout (<i>Working with Resilience</i>). A
+    long-lived stream is fine on the client's one <code>HttpClient</code>: every timeout ends at the response headers
+    (<i>Working with C# Client</i>).</li>
   <li>The build finds multi-part specs by the <code>{Base}_{Part}.yaml</code> convention only.</li>
   <li>Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407 in Node. Browsers behave
     differently; this is a platform limit, not a client one.</li>
