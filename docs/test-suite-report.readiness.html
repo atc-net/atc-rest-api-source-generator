@@ -88,6 +88,20 @@
     the stream formats on the wire, a resumed event stream and SignalR hubs; the Changes tab keeps the run history.</li>
   <li><b>Showcase.</b> Live streams in every format with a drop and a resume, a live price feed with a heartbeat, a
     replay buffer and fan-out, and the notifications hub generated from the specification in all three apps.</li>
+  <li><b>From a consumer's migration.</b>
+    <ul class="tight">
+      <li>A streamed response sends its status and headers before its first item, in every format.</li>
+      <li>The clients follow <code>Retry-After</code> on a 503 as on a 429; <code>x-retry-total-timeout-seconds</code>
+        bounds the attempts as a whole; <code>AddApiResilience()</code> takes the document's policy as its default.</li>
+      <li>Every EndpointPerOperation result has <code>Problem</code> and <code>ValidationProblem</code>; an optional
+        operation parameter is <code>= null</code>; the build reports <code>System.Enum</code> on an extensible enum
+        (<code>ATC_API_CLT003</code>).</li>
+      <li>A rule about the specification can be switched off where it does not fit (<code>x-atc-suppress</code>, an
+        <code>.editorconfig</code> section for the specification file, <code>suppressRules</code>);
+        <code>ATC_API_NAM005</code> accepts one casing used throughout the document.</li>
+      <li>Constants for the cache tags; the Location and header wrappers give the wrapped result's status and value;
+        a hub's payload models stay in the shared namespace.</li>
+    </ul></li>
 </ul>
 
 <h3>Fixed in the 5 October round</h3>
