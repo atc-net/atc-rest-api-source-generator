@@ -111,7 +111,7 @@ public static class OpenApiDocumentValidator
 
         if (strategy == ValidateSpecificationStrategy.None)
         {
-            return diagnostics; // Skip all validation
+            return SpecSuppressions.Apply(document, diagnostics); // Skip all validation
         }
 
         // Standard validation: Report Microsoft.OpenApi parsing errors + schema reference validation
@@ -142,7 +142,25 @@ public static class OpenApiDocumentValidator
             SpecVersionMigrationValidator.Validate(diagnostics, sourceFilePath, document, sourceText);
         }
 
-        return diagnostics;
+        return SpecSuppressions.Apply(document, diagnostics);
+    }
+
+    /// <summary>
+    /// Marks the diagnostics added since <paramref name="from"/> as found at <paramref name="scope"/>, where
+    /// <c>x-atc-suppress</c> can switch their rules off (see <see cref="SpecSuppressions"/>).
+    /// </summary>
+    private static void InScope(
+        List<DiagnosticMessage> diagnostics,
+        int from,
+        string scope)
+    {
+        for (var i = from; i < diagnostics.Count; i++)
+        {
+            if (diagnostics[i].Scope is null)
+            {
+                diagnostics[i] = diagnostics[i] with { Scope = scope };
+            }
+        }
     }
 
     /// <summary>
@@ -548,6 +566,8 @@ public static class OpenApiDocumentValidator
 
         foreach (var (path, httpMethod, operation) in allOperations)
         {
+            var operationStart = diagnostics.Count;
+
             // ATCAPI_NAM001: OperationId must start with lowercase letter (camelCase).
             // Only validate when the user explicitly declared an operationId — do NOT run this
             // check against synthetic names produced by GetOperationId(), because those start
@@ -617,6 +637,8 @@ public static class OpenApiDocumentValidator
                     }
                 }
             }
+
+            InScope(diagnostics, operationStart, SpecSuppressions.Operation(httpMethod, path));
         }
 
         // ATCAPI_NAM002: Model name must use PascalCase
@@ -644,10 +666,13 @@ public static class OpenApiDocumentValidator
             return diagnostics;
         }
 
+        var enumCasing = EnumValueCasing.OfDocument(document.Components.Schemas);
+
         foreach (var schemaEntry in document.Components.Schemas)
         {
             var schemaName = schemaEntry.Key;
             var schema = schemaEntry.Value;
+            var schemaStart = diagnostics.Count;
 
             // ATCAPI_NAM002: Model name must use PascalCase
             if (!string.IsNullOrWhiteSpace(schemaName) && !CasingHelper.IsPascalCase(schemaName))
@@ -691,28 +716,29 @@ public static class OpenApiDocumentValidator
                 }
             }
 
-            // ATCAPI_NAM005: Enum value must use PascalCase or UPPER_SNAKE_CASE
-            if (actualSchema.Enum is { Count: > 0 })
+            // ATCAPI_NAM005: Enum values are PascalCase, UPPER_SNAKE_CASE or one other casing throughout the document
+            if (actualSchema.Enum is { Count: > 0 } && enumCasing is { } casing)
             {
                 foreach (var enumValue in actualSchema.Enum)
                 {
                     var enumString = enumValue?.ToString();
                     if (!string.IsNullOrWhiteSpace(enumString) &&
-                        !CasingHelper.IsPascalCase(enumString) &&
-                        !CasingHelper.IsUpperSnakeCase(enumString))
+                        !EnumValueCasing.IsCSharpStyle(enumString!) &&
+                        !casing.Matches(enumString!))
                     {
-                        var suggestedPascal = CasingHelper.SuggestPascalCase(enumString!);
                         diagnostics.Add(DiagnosticBuilder.NamingConventionWarning(
                             RuleIdentifiers.EnumValueCasing,
                             "Enum value",
                             enumString!,
-                            "PascalCase or UPPER_SNAKE_CASE",
-                            suggestedPascal,
+                            $"PascalCase, UPPER_SNAKE_CASE or {casing.Name}, the casing of the document's other enum values",
+                            casing.Suggest(enumString!),
                             $"#/components/schemas/{schemaName}/enum",
                             sourceFilePath));
                     }
                 }
             }
+
+            InScope(diagnostics, schemaStart, SpecSuppressions.Schema(schemaName));
         }
 
         return diagnostics;
@@ -1084,6 +1110,7 @@ public static class OpenApiDocumentValidator
         {
             var schemaName = schemaEntry.Key;
             var schema = schemaEntry.Value;
+            var schemaStart = diagnostics.Count;
 
             // Get the actual schema (handle references)
             var actualSchema = schema;
@@ -1143,6 +1170,8 @@ public static class OpenApiDocumentValidator
                     DiagnosticSeverity.Warning,
                     sourceFilePath));
             }
+
+            InScope(diagnostics, schemaStart, SpecSuppressions.Schema(schemaName));
         }
 
         return diagnostics;
@@ -1967,6 +1996,7 @@ public static class OpenApiDocumentValidator
         {
             var pathKey = pathEntry.Key;
             var pathItem = pathEntry.Value;
+            var pathStart = diagnostics.Count;
 
             // Get global path parameters
             var globalPathParameters = pathItem.Parameters?
@@ -2003,6 +2033,7 @@ public static class OpenApiDocumentValidator
                     .ToLowerInvariant();
 
                 var operation = operationEntry.Value;
+                var operationStart = diagnostics.Count;
 
                 ValidateOperation(
                     diagnostics,
@@ -2014,7 +2045,10 @@ public static class OpenApiDocumentValidator
                     operation,
                     globalPathParameters,
                     pathParametersFromRoute);
+                InScope(diagnostics, operationStart, SpecSuppressions.Operation(httpMethod, pathKey));
             }
+
+            InScope(diagnostics, pathStart, SpecSuppressions.Path(pathKey));
         }
 
         return diagnostics;

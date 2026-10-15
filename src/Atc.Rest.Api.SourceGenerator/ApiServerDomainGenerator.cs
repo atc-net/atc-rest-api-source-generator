@@ -48,8 +48,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) =>
-                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+            .Combine(context.AnalyzerConfigOptionsProvider)
+
+            // With the rules' severities for this file: the compiler applies .editorconfig to C# files only
+            .Select(static (pair, cancellationToken) =>
+                new YamlFileInfo(
+                    pair.Left.Path,
+                    pair.Left.GetText(cancellationToken)?.ToString() ?? string.Empty,
+                    RuleSeverityOverrides.ReadSeverities(pair.Right.GetOptions(pair.Left).TryGetValue)))
             .Where(static file => OverlayFileHelper.IsCandidate(file))
             .Collect()
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
@@ -179,7 +185,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 else
                 {
                     // Single file mode
-                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory, overlays);
+                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory, overlays, baseFile.Value.RuleSeverities);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -391,9 +397,10 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         DomainCompilationSummary summary,
         ServerDomainConfig config,
         string markerDirectory,
-        IReadOnlyList<OverlayFile> overlays)
+        IReadOnlyList<OverlayFile> overlays,
+        string ruleSeverities)
     {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError, overlays, parametersMustBind: true);
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError, overlays, parametersMustBind: true, RuleSeverityOverrides.From(ruleSeverities, config.SuppressRules));
         if (openApiDoc is null)
         {
             return;

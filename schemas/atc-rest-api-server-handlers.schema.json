@@ -26,6 +26,16 @@
       "description": "OpenAPI specification validation strategy. Default: Strict. None = skip validation, Standard = Microsoft.OpenApi errors only, Strict = standard + custom ATC rules.",
       "default": "strict"
     },
+    "suppressRules": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Rules about the specification this project switches off (e.g. ATC_API_NAM005). Default: none. An error, which stands for code the generator cannot write, is not switched off."
+    },
     "includeDeprecated": {
       "type": "boolean",
       "description": "Include deprecated operations and schemas in generated code. Default: false. When false, operations and schemas marked as deprecated in the OpenAPI spec are excluded.",

@@ -19,6 +19,13 @@ public abstract class BaseConfig
     public ValidateSpecificationStrategy ValidateSpecificationStrategy { get; set; } = ValidateSpecificationStrategy.Strict;
 
     /// <summary>
+    /// Rules about the specification this project switches off (e.g. <c>ATC_API_NAM005</c>). Default: none.
+    /// An error, which stands for code the generator cannot write, is not switched off.
+    /// </summary>
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Deserialized from the marker file.")]
+    public List<string>? SuppressRules { get; set; }
+
+    /// <summary>
     /// Include deprecated operations and schemas in generated code. Default: false.
     /// When false, operations and schemas marked as deprecated in the OpenAPI spec are excluded.
     /// </summary>

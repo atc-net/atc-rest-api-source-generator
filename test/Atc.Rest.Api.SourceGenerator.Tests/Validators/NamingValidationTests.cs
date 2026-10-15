@@ -230,10 +230,10 @@ public class NamingValidationTests
     }
 
     [Fact]
-    public void Validate_EnumValueNotValidCasing_ReportsNAM005()
+    public void Validate_EnumValueOutOfTheDocumentsCasing_ReportsNAM005()
     {
-        // Arrange
-        var document = ParseYaml(CreateEnumSchemaYaml(enumValues: ["available", "pending"]));
+        // Arrange - three values in snake_case (two of them kebab-case as well), one only in kebab-case
+        var document = ParseYaml(CreateEnumSchemaYaml(enumValues: ["available", "pending", "in_progress", "on-hold"]));
         Assert.NotNull(document);
 
         // Act
@@ -244,10 +244,75 @@ public class NamingValidationTests
             TestFilePath);
 
         // Assert
-        var nam005 = diagnostics
-            .Where(d => d.RuleId == Generator.RuleIdentifiers.EnumValueCasing)
-            .ToList();
+        var nam005 = Assert.Single(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.EnumValueCasing);
+        Assert.Contains("on-hold", nam005.Message, StringComparison.Ordinal);
+        Assert.Contains("snake_case", nam005.Message, StringComparison.Ordinal);
+        Assert.Contains("Rename to 'on_hold'", nam005.Suggestions!, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// The values on the wire are a vocabulary shared by the server, the clients and maybe a hub: any one casing used
+    /// throughout the document is fine - v3 writes the value as the specification has it, and its extensible enums read
+    /// any casing.
+    /// </summary>
+    [Theory]
+    [InlineData("rtsp", "topLeft", "recordingPostMotion")]
+    [InlineData("in-progress", "done", "on-hold")]
+    [InlineData("in_progress", "done", "on_hold")]
+    public void Validate_EnumValuesInOneCasing_NoNAM005(
+        string first,
+        string second,
+        string third)
+    {
+        // Arrange
+        var document = ParseYaml(CreateEnumSchemaYaml(enumValues: [first, second, third]));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.EnumValueCasing);
+    }
+
+    [Fact]
+    public void Validate_EnumValuesOfTwoSchemasInTwoCasings_ReportsTheFewer()
+    {
+        // Arrange - the casing is the document's, not each schema's; PascalCase and UPPER_SNAKE_CASE are fine anywhere
+        var document = ParseYaml("""
+            openapi: 3.0.0
+            info:
+              title: Test
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Mode:
+                  type: string
+                  title: Mode
+                  enum: [fast_lane, slow_lane, Balanced]
+                Status:
+                  type: string
+                  title: Status
+                  enum: [in-progress, on-hold, DONE]
+            """);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var nam005 = diagnostics.Where(d => d.RuleId == Generator.RuleIdentifiers.EnumValueCasing).ToList();
         Assert.Equal(2, nam005.Count);
+        Assert.All(nam005, d => Assert.Equal("#/components/schemas/Status/enum", d.Context));
     }
 
     [Fact]

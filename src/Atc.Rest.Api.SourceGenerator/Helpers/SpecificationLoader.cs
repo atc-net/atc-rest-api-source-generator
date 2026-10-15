@@ -25,7 +25,8 @@ internal static class SpecificationLoader
         ValidateSpecificationStrategy strategy,
         Action<SourceProductionContext, string> reportParsingError,
         IReadOnlyList<OverlayFile>? overlays = null,
-        bool parametersMustBind = false)
+        bool parametersMustBind = false,
+        RuleSeverityOverrides? severities = null)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
@@ -49,7 +50,8 @@ internal static class SpecificationLoader
             reportParsingError(context, yamlPath);
             ReportAndContinue(
                 context,
-                [.. (openApiDiagnostic?.Errors ?? []).Select(e => new GeneratorDiagnosticMessage(RuleIdentifiers.OpenApiCoreError, e.Message, GeneratorDiagnosticSeverity.Error, yamlPath))]);
+                [.. (openApiDiagnostic?.Errors ?? []).Select(e => new GeneratorDiagnosticMessage(RuleIdentifiers.OpenApiCoreError, e.Message, GeneratorDiagnosticSeverity.Error, yamlPath))],
+                severities);
             return null;
         }
 
@@ -70,7 +72,7 @@ internal static class SpecificationLoader
 
         // A status range (2XX) is its first status for every generator, and a HEAD's responses have no content (the
         // validator has warned about both)
-        return ReportAndContinue(context, validationDiagnostics) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc)) : null;
+        return ReportAndContinue(context, validationDiagnostics, severities) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc)) : null;
     }
 
     /// <summary>
@@ -91,12 +93,14 @@ internal static class SpecificationLoader
         MultiPartConfiguration? mergeConfiguration,
         ValidateSpecificationStrategy strategy,
         IReadOnlyList<OverlayFile>? overlays = null,
-        bool parametersMustBind = false)
+        bool parametersMustBind = false,
+        IEnumerable<string>? suppressRules = null)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
 
-        var document = Merge(context, baseFile, partFiles, mergeConfiguration, overlays);
+        var severities = RuleSeverityOverrides.From(baseFile.RuleSeverities, suppressRules);
+        var document = Merge(context, baseFile, partFiles, mergeConfiguration, overlays, severities);
         if (document is null)
         {
             return null;
@@ -114,7 +118,7 @@ internal static class SpecificationLoader
             validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
         }
 
-        return ReportAndContinue(context, validationDiagnostics) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(document)) : null;
+        return ReportAndContinue(context, validationDiagnostics, severities) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(document)) : null;
     }
 
     /// <summary>
@@ -144,7 +148,8 @@ internal static class SpecificationLoader
         YamlFileInfo baseFile,
         IReadOnlyList<YamlFileInfo> partFiles,
         MultiPartConfiguration? mergeConfiguration,
-        IReadOnlyList<OverlayFile>? overlays)
+        IReadOnlyList<OverlayFile>? overlays,
+        RuleSeverityOverrides? severities = null)
     {
         var baseSpec = SpecificationService.ReadFromContent(baseFile.Content, baseFile.Path);
         var partSpecs = partFiles
@@ -154,7 +159,10 @@ internal static class SpecificationLoader
         var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfiguration ?? MultiPartConfiguration.Default);
         foreach (var diagnostic in mergeResult.Diagnostics)
         {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
+            if ((severities ?? RuleSeverityOverrides.None).Apply(diagnostic) is { } reported)
+            {
+                context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(reported));
+            }
         }
 
         if (!mergeResult.IsSuccess || mergeResult.Document is null)
@@ -182,13 +190,21 @@ internal static class SpecificationLoader
     /// <summary>
     /// Reports every diagnostic; generation goes on unless one is an error.
     /// </summary>
+    /// <remarks>
+    /// The project's severities (<see cref="RuleSeverityOverrides"/>) change what is reported, not whether generation
+    /// goes on: that is decided by the rules' own severities.
+    /// </remarks>
     private static bool ReportAndContinue(
         SourceProductionContext context,
-        IReadOnlyList<GeneratorDiagnosticMessage> diagnostics)
+        IReadOnlyList<GeneratorDiagnosticMessage> diagnostics,
+        RuleSeverityOverrides? severities = null)
     {
         foreach (var diagnostic in diagnostics)
         {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
+            if ((severities ?? RuleSeverityOverrides.None).Apply(diagnostic) is { } reported)
+            {
+                context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(reported));
+            }
         }
 
         return !DiagnosticHelpers.HasErrors(diagnostics);

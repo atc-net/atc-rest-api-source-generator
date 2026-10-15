@@ -37,8 +37,14 @@ public class ApiClientGenerator : IIncrementalGenerator
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) =>
-                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+            .Combine(context.AnalyzerConfigOptionsProvider)
+
+            // With the rules' severities for this file: the compiler applies .editorconfig to C# files only
+            .Select(static (pair, cancellationToken) =>
+                new YamlFileInfo(
+                    pair.Left.Path,
+                    pair.Left.GetText(cancellationToken)?.ToString() ?? string.Empty,
+                    RuleSeverityOverrides.ReadSeverities(pair.Right.GetOptions(pair.Left).TryGetValue)))
             .Where(static file => OverlayFileHelper.IsCandidate(file))
             .Collect()
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
@@ -174,7 +180,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             else
             {
                 // Single file mode
-                GenerateApiClient(productionContext, baseFile.Value.Path, baseFile.Value.Content, config, packages, overlays);
+                GenerateApiClient(productionContext, baseFile.Value.Path, baseFile.Value.Content, config, packages, overlays, baseFile.Value.RuleSeverities);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -194,7 +200,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientPackageReferences packages,
         IReadOnlyList<OverlayFile> overlays)
     {
-        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy, overlays);
+        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy, overlays, suppressRules: config.SuppressRules);
         if (openApiDoc is null)
         {
             return;
@@ -238,9 +244,10 @@ public class ApiClientGenerator : IIncrementalGenerator
         string yamlContent,
         ClientConfig config,
         ClientPackageReferences packages,
-        IReadOnlyList<OverlayFile> overlays)
+        IReadOnlyList<OverlayFile> overlays,
+        string ruleSeverities)
     {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportClientParsingError, overlays);
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportClientParsingError, overlays, severities: RuleSeverityOverrides.From(ruleSeverities, config.SuppressRules));
         if (openApiDoc is null)
         {
             return;
