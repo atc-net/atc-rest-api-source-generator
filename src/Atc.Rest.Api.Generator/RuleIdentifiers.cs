@@ -932,6 +932,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ClientNameIgnoredForPerArea = "ATC_API_CLT002";
 
+    /// <summary>
+    /// ATC_API_CLT003: A System.Enum method (Enum.TryParse, Enum.Parse, Enum.GetValues(typeof(...)), ...) called on a generated
+    /// extensible enum - it compiles, as the enum is a struct, and throws at run time.
+    /// </summary>
+    public const string SystemEnumOnExtensibleEnum = "ATC_API_CLT003";
+
     // ========== Spec Version Migration Rules (VER) ==========
 
     /// <summary>
