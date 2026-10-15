@@ -127,25 +127,34 @@ internal static class ProblemWithStatus
 }
 
 /// <summary>
-/// Writes the wrapped result with a <c>Location</c> header.
+/// Writes the wrapped result with a <c>Location</c> header. Its status code and its value are the wrapped
+/// result's, so a test reads them the same way with or without a location; <see cref="Result"/> is the
+/// wrapped result itself.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class LocationHttpResult : IResult
+internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
 {
-    private readonly IResult inner;
-    private readonly string location;
-
     public LocationHttpResult(
         IResult inner,
         string location)
     {
-        this.inner = inner;
-        this.location = location;
+        Result = inner;
+        Location = location;
     }
+
+    public IResult Result { get; }
+
+    public string Location { get; }
+
+    public int? StatusCode
+        => (Result as IStatusCodeHttpResult)?.StatusCode;
+
+    public object? Value
+        => (Result as IValueHttpResult)?.Value;
 
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
     {
-        httpContext.Response.Headers.Location = location;
-        return inner.ExecuteAsync(httpContext);
+        httpContext.Response.Headers.Location = Location;
+        return Result.ExecuteAsync(httpContext);
     }
 }

@@ -38,7 +38,7 @@ public sealed class ListItemsResult : IResult
     /// 200 OK - OK.
     /// </summary>
     public static ListItemsResult Ok(IAsyncEnumerable<Item> response)
-        => new(TypedResults.Ok(response));
+        => new(new AsyncEnumerableHooks.Generated.Streaming.JsonArrayResult<Item>(response));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -71,7 +71,7 @@ public sealed class ListItemPagesResult : IResult
     /// 200 OK - OK.
     /// </summary>
     public static ListItemPagesResult Ok(IAsyncEnumerable<ListItemPagesResponse> response)
-        => new(TypedResults.Ok(response));
+        => new(new AsyncEnumerableHooks.Generated.Streaming.JsonArrayResult<ListItemPagesResponse>(response));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -182,13 +182,13 @@ public sealed class StreamItemEventsResult : IResult
     /// 200 OK - OK.
     /// </summary>
     public static StreamItemEventsResult Ok(IAsyncEnumerable<Item> response)
-        => new(TypedResults.ServerSentEvents(response));
+        => new(new AsyncEnumerableHooks.Generated.Streaming.StartedStreamResult<Item>(response, static items => TypedResults.ServerSentEvents(items)));
 
     /// <summary>
     /// 200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets.
     /// </summary>
     public static StreamItemEventsResult Ok(IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<Item>> events)
-        => new(TypedResults.ServerSentEvents(events));
+        => new(new AsyncEnumerableHooks.Generated.Streaming.StartedStreamResult<global::System.Net.ServerSentEvents.SseItem<Item>>(events, static items => TypedResults.ServerSentEvents(items)));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

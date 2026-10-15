@@ -148,26 +148,35 @@ public static class ResultClassExtractor
         => $$"""
 
             /// <summary>
-            /// Writes the wrapped result with a <c>Location</c> header.
+            /// Writes the wrapped result with a <c>Location</c> header. Its status code and its value are the wrapped
+            /// result's, so a test reads them the same way with or without a location; <see cref="Result"/> is the
+            /// wrapped result itself.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class LocationHttpResult : IResult
+            internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
             {
-                private readonly IResult inner;
-                private readonly string location;
-
                 public LocationHttpResult(
                     IResult inner,
                     string location)
                 {
-                    this.inner = inner;
-                    this.location = location;
+                    Result = inner;
+                    Location = location;
                 }
+
+                public IResult Result { get; }
+
+                public string Location { get; }
+
+                public int? StatusCode
+                    => (Result as IStatusCodeHttpResult)?.StatusCode;
+
+                public object? Value
+                    => (Result as IValueHttpResult)?.Value;
 
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
                 {
-                    httpContext.Response.Headers.Location = location;
-                    return inner.ExecuteAsync(httpContext);
+                    httpContext.Response.Headers.Location = Location;
+                    return Result.ExecuteAsync(httpContext);
                 }
             }
             """;
@@ -1077,7 +1086,7 @@ public static class ResultClassExtractor
             }
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
             {
-                content = $"new(TypedResults.ServerSentEvents({paramName}))";
+                content = $"new(new {projectName}.Generated.Streaming.StartedStreamResult<{StreamItemType(parameterType)}>({paramName}, static items => TypedResults.ServerSentEvents(items)))";
             }
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonLines)
             {
@@ -1090,6 +1099,10 @@ public static class ResultClassExtractor
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.MultipartMixed)
             {
                 content = $"new(new {projectName}.Generated.Streaming.MultipartMixedResult<{contentType}>({paramName}))";
+            }
+            else if (isAsyncEnumerable)
+            {
+                content = $"new(new {projectName}.Generated.Streaming.JsonArrayResult<{StreamItemType(parameterType)}>({paramName}))";
             }
             else
             {
@@ -1150,7 +1163,7 @@ public static class ResultClassExtractor
                     },
                     AlwaysBreakDownParameters: false,
                     UseExpressionBody: true,
-                    Content: "new(TypedResults.ServerSentEvents(events))"));
+                    Content: $"new(new {projectName}.Generated.Streaming.StartedStreamResult<global::System.Net.ServerSentEvents.SseItem<{itemType}>>(events, static items => TypedResults.ServerSentEvents(items)))"));
             }
 
             // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
@@ -1495,6 +1508,17 @@ public static class ResultClassExtractor
                 Method(contentType, "response", $"new({JsonResultExpression("response", mediaTypeLiteral: null, status)})"),
             _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
         };
+    }
+
+    /// <summary>
+    /// The item type of a streamed factory's <c>IAsyncEnumerable&lt;T&gt;</c> parameter.
+    /// </summary>
+    private static string StreamItemType(string parameterType)
+    {
+        const string asyncEnumerableOf = "IAsyncEnumerable<";
+        return parameterType.StartsWith(asyncEnumerableOf, StringComparison.Ordinal)
+            ? parameterType.Substring(asyncEnumerableOf.Length, parameterType.Length - asyncEnumerableOf.Length - 1)
+            : parameterType;
     }
 
     /// <summary>

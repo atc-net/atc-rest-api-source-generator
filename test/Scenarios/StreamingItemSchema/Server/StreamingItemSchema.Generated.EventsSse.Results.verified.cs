@@ -38,13 +38,13 @@ public sealed class StreamEventsSseResult : IResult
     /// 200 OK - A stream of events.
     /// </summary>
     public static StreamEventsSseResult Ok(IAsyncEnumerable<Event> response)
-        => new(TypedResults.ServerSentEvents(response));
+        => new(new StreamingItemSchema.Generated.Streaming.StartedStreamResult<Event>(response, static items => TypedResults.ServerSentEvents(items)));
 
     /// <summary>
     /// 200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets.
     /// </summary>
     public static StreamEventsSseResult Ok(IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<Event>> events)
-        => new(TypedResults.ServerSentEvents(events));
+        => new(new StreamingItemSchema.Generated.Streaming.StartedStreamResult<global::System.Net.ServerSentEvents.SseItem<Event>>(events, static items => TypedResults.ServerSentEvents(items)));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

@@ -6,8 +6,8 @@ public class SequentialResultsExtractorTests
     [InlineData("application/jsonl", true)]
     [InlineData("application/json-seq", true)]
     [InlineData("multipart/mixed", true)]
-    [InlineData("text/event-stream", false)]
-    public void DocumentRequiresSequentialResults_StreamingMediaType_OnlyWriterBasedFramingsNeedTheHelper(
+    [InlineData("text/event-stream", true)]
+    public void DocumentRequiresSequentialResults_StreamingMediaType_EveryStreamNeedsTheHelper(
         string mediaType,
         bool expected)
     {
@@ -17,7 +17,7 @@ public class SequentialResultsExtractorTests
     }
 
     [Fact]
-    public void DocumentRequiresSequentialResults_LegacyJsonArrayStreaming_ReturnsFalse()
+    public void DocumentRequiresSequentialResults_LegacyJsonArrayStreaming_ReturnsTrue()
     {
         var document = OpenApiDocumentHelper.ParseYaml(
             """
@@ -48,7 +48,7 @@ public class SequentialResultsExtractorTests
                       type: string
             """);
 
-        Assert.False(SequentialResultsExtractor.DocumentRequiresSequentialResults(document));
+        Assert.True(SequentialResultsExtractor.DocumentRequiresSequentialResults(document));
     }
 
     [Fact]

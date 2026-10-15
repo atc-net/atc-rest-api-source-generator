@@ -145,27 +145,29 @@ public static class ResponseHeaderFactoryHelper
 
             /// <summary>
             /// Writes the wrapped result with the headers that have a value. Its status code and its value are the
-            /// wrapped result's, so a test reads them the same way with or without headers.
+            /// wrapped result's, so a test reads them the same way with or without headers; <see cref="Result"/> is the
+            /// wrapped result itself.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult
+            internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
             {
-                private readonly IResult inner;
                 private readonly (string Name, string? Value)[] headers;
 
                 public ResponseHeadersHttpResult(
                     IResult inner,
                     (string Name, string? Value)[] headers)
                 {
-                    this.inner = inner;
+                    Result = inner;
                     this.headers = headers;
                 }
 
+                public IResult Result { get; }
+
                 public int? StatusCode
-                    => (inner as IStatusCodeHttpResult)?.StatusCode;
+                    => (Result as IStatusCodeHttpResult)?.StatusCode;
 
                 public object? Value
-                    => (inner as IValueHttpResult)?.Value;
+                    => (Result as IValueHttpResult)?.Value;
 
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
                 {
@@ -177,7 +179,7 @@ public static class ResponseHeaderFactoryHelper
                         }
                     }
 
-                    return inner.ExecuteAsync(httpContext);
+                    return Result.ExecuteAsync(httpContext);
                 }
             }
             """;

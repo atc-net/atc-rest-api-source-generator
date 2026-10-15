@@ -143,6 +143,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     Describe("notfound", GetThingResult.NotFound("gone")),
                     Describe("notfound-with-header", GetThingResult.NotFound("gone", messageHeader: "why")),
                     Describe("head-with-header", ProbeThingResult.Ok(eTag: "\"v2\"")),
+                    Describe("created-with-location", CreateThingResult.Created(thing, location: "/things/1")),
+                    Describe("created-with-location-and-header", CreateThingResult.Created(thing, location: "/things/1", xRequestId: new Guid("11111111-2222-3333-4444-555555555555"))),
                 ];
 
                 static string Describe(string name, IResult result)
@@ -150,6 +152,14 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     var inner = (IResult)result.GetType().GetProperty("Result")!.GetValue(result)!;
                     var status = inner is IStatusCodeHttpResult withStatus ? withStatus.StatusCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
                     var value = inner is IValueHttpResult withValue ? withValue.Value : null;
+
+                    // A wrapper also gives what it wraps (INestedHttpResult), as the framework's Results<T1, T2> does
+                    var wraps = string.Empty;
+                    for (var nested = inner; nested is INestedHttpResult wrapper; nested = wrapper.Result)
+                    {
+                        wraps += " > " + wrapper.Result.GetType().Name.Split('`')[0];
+                    }
+
                     var text = value switch
                     {
                         null => "(none)",
@@ -157,7 +167,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                         Microsoft.AspNetCore.Mvc.ProblemDetails problem => "ProblemDetails " + problem.Detail,
                         _ => value.GetType().Name,
                     };
-                    return $"{name}: status={status ?? "(none)"} value={text}";
+                    return $"{name}: status={status ?? "(none)"} value={text}{wraps}";
                 }
             }
 
@@ -214,10 +224,12 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(
             [
                 "ok: status=200 value=Thing 1",
-                "ok-with-header: status=200 value=Thing 1",
+                "ok-with-header: status=200 value=Thing 1 > Ok",
                 "notfound: status=404 value=ProblemDetails gone",
-                "notfound-with-header: status=404 value=ProblemDetails gone",
-                "head-with-header: status=200 value=(none)",
+                "notfound-with-header: status=404 value=ProblemDetails gone > ProblemHttpResult",
+                "head-with-header: status=200 value=(none) > Ok",
+                "created-with-location: status=201 value=Thing 1 > Created",
+                "created-with-location-and-header: status=201 value=Thing 1 > LocationHttpResult > Created",
             ],
             seen);
 

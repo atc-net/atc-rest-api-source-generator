@@ -920,8 +920,8 @@ public class ResultClassExtractorTests
         var param = okMethod.Parameters[0];
         Assert.Equal("IAsyncEnumerable<Event>", param.TypeName);
 
-        // text/event-stream framing emits the first-party SSE writer, not TypedResults.Ok.
-        Assert.Contains("TypedResults.ServerSentEvents(response)", okMethod.Content, StringComparison.Ordinal);
+        // text/event-stream framing emits the first-party SSE writer, not TypedResults.Ok, started before the first item
+        Assert.Contains("StartedStreamResult<Event>(response, static items => TypedResults.ServerSentEvents(items))", okMethod.Content, StringComparison.Ordinal);
     }
 
     // ========== 202 Accepted Tests ==========
@@ -1197,10 +1197,10 @@ public class ResultClassExtractorTests
     {
         var source = ResultClassExtractor.LocationHttpResultSource();
 
-        Assert.Contains("internal sealed class LocationHttpResult : IResult", source, StringComparison.Ordinal);
+        Assert.Contains("internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult", source, StringComparison.Ordinal);
         Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", source, StringComparison.Ordinal);
-        Assert.Contains("httpContext.Response.Headers.Location = location;", source, StringComparison.Ordinal);
-        Assert.Contains("return inner.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.Headers.Location = Location;", source, StringComparison.Ordinal);
+        Assert.Contains("return Result.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
     }
 
     [Fact]
