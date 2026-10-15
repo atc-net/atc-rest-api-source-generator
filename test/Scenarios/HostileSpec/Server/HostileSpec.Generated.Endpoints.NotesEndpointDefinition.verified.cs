@@ -54,7 +54,9 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .RequireAuthorization(policy => policy.RequireRole("team\\lead", "say \"admin\""));
+            .RequireAuthorization(policy => policy
+                .RequireRole("team\\lead", "say \"admin\"")
+                .AddAuthenticationSchemes("Bearer"));
 
         notes
             .MapPost("/", CreateNote)

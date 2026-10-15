@@ -45,7 +45,9 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .RequireAuthorization(policy => policy.RequireRole("admin", "manager"))
+            .RequireAuthorization(policy => policy
+                .RequireRole("admin", "manager")
+                .AddAuthenticationSchemes("oauth2"))
             .RequireAuthorization(SecurityPolicies.Oauth2OrdersRead);
     }
 

@@ -485,6 +485,54 @@ public class OpenApiSecurityExtensionsTests
         Assert.True(result.AuthenticationRequired);
     }
 
+    /// <summary>
+    /// Roles on an operation whose security is a standard requirement: the roles are checked for a caller signed in by
+    /// any of the requirement's schemes, not only by the host's default scheme - an API key gets in as a token does.
+    /// </summary>
+    [Fact]
+    public void ExtractUnifiedSecurityConfiguration_RolesWithAStandardRequirement_KeepTheRequirementsSchemes()
+    {
+        var doc = ParseYaml("""
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            security:
+                              - bearer: []
+                              - apiKey: []
+                            x-authorize-roles: [viewer, operator]
+                            paths:
+                              /cameras:
+                                post:
+                                  operationId: createCamera
+                                  x-authorize-roles: [operator]
+                                  responses:
+                                    '201':
+                                      description: Created
+                            components:
+                              securitySchemes:
+                                bearer:
+                                  type: http
+                                  scheme: bearer
+                                apiKey:
+                                  type: apiKey
+                                  in: header
+                                  name: X-API-Key
+                            """);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractUnifiedSecurityConfiguration(
+            pathItem,
+            doc);
+
+        Assert.Equal(SecuritySource.Both, result.Source);
+        Assert.Equal(["operator"], result.Roles);
+        Assert.Equal(["Bearer", "apiKey"], result.Schemes);
+    }
+
     // ========== Authentication scheme name mapping ==========
     [Fact]
     public void ExtractUnifiedSecurityConfiguration_HttpBearer_MapsToAspNetBearerScheme()

@@ -44,7 +44,10 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .Produces<List<Product>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .RequireAuthorization(policy => policy
+                .AddAuthenticationSchemes("Bearer")
+                .RequireAuthenticatedUser());
 
         products
             .MapGet("{productId}", GetProductById)
@@ -58,7 +61,9 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(GetProductByIdParametersWire.Parameters, requireParameters: true)
-            .RequireAuthorization(policy => policy.RequireRole("manager", "admin"));
+            .RequireAuthorization(policy => policy
+                .RequireRole("manager", "admin")
+                .AddAuthenticationSchemes("Bearer"));
     }
 
     internal async Task<IResult> ListProducts(

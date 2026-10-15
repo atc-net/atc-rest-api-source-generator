@@ -298,7 +298,15 @@ public static class OpenApiSecurityExtensions
             {
                 config.AuthenticationRequired = atcSecurity.Value.AuthRequired;
                 config.Roles = atcSecurity.Value.Roles;
-                config.Schemes = atcSecurity.Value.Schemes;
+
+                // Without x-authentication-schemes, the requirement's schemes: the roles are checked for a caller signed
+                // in by any of them (an API key as well as a token), not only by the host's default scheme
+                config.Schemes = atcSecurity.Value.Schemes.Count > 0
+                    ? atcSecurity.Value.Schemes
+                    : standardRequirements!
+                        .Select(r => ResolveAuthenticationSchemeName(document, r.SchemeName))
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList();
                 config.Requirements = standardRequirements!;
 
                 // Extract scopes from standard requirements
