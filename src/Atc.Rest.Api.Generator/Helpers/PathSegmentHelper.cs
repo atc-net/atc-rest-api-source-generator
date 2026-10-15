@@ -368,9 +368,48 @@ public static class PathSegmentHelper
             }
         }
 
+        // A hub (x-signalr-hubs) is a user of its payload schemas too, and has no path segment: what a hub carries is
+        // shared, so adding an operation in one area does not move the hub's types to that area
+        sharedSchemas.UnionWith(GetSchemasUsedByHubs(openApiDoc));
+
         AddUnreferencedComponents(openApiDoc, schemaSegmentMap, webhookSchemas, sharedSchemas);
 
         return sharedSchemas;
+    }
+
+    /// <summary>
+    /// Gets the schema names the document's SignalR hubs carry (<c>x-signalr-hubs</c>), with every schema they reference.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>The payload schemas of the hubs and what they reference.</returns>
+    public static HashSet<string> GetSchemasUsedByHubs(
+        OpenApiDocument openApiDoc)
+    {
+        var schemaNames = new HashSet<string>(
+            SignalRHubHelper.PayloadSchemas(SignalRHubHelper.Parse(openApiDoc)),
+            StringComparer.Ordinal);
+        if (schemaNames.Count == 0 || openApiDoc?.Components?.Schemas is null)
+        {
+            return schemaNames;
+        }
+
+        var toProcess = new Queue<string>(schemaNames);
+        while (toProcess.Count > 0)
+        {
+            if (!openApiDoc.Components.Schemas.TryGetValue(toProcess.Dequeue(), out var schema))
+            {
+                continue;
+            }
+
+            var referenced = new HashSet<string>(StringComparer.Ordinal);
+            CollectSchemaNames(schema, referenced);
+            foreach (var name in referenced.Where(schemaNames.Add))
+            {
+                toProcess.Enqueue(name);
+            }
+        }
+
+        return schemaNames;
     }
 
     /// <summary>

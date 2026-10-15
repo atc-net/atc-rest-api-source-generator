@@ -1124,6 +1124,68 @@ components:
     }
 
     [Fact]
+    public void GetSharedSchemas_AHubsPayload_IsSharedAlsoWhenOneSegmentUsesIt()
+    {
+        // A hub is a user of its payload schemas: one operation in one area (the events stream) must not move the
+        // hub's types out of the shared namespace - nor what they reference
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            x-signalr-hubs:
+              live:
+                events:
+                  - name: Moved
+                    payload: '#/components/schemas/MovedEvent'
+            paths:
+              /events:
+                get:
+                  operationId: listEvents
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/MovedEvent'
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Thing'
+            components:
+              schemas:
+                MovedEvent:
+                  type: object
+                  properties:
+                    box:
+                      $ref: '#/components/schemas/Box'
+                Box:
+                  type: object
+                  properties:
+                    x:
+                      type: integer
+                Thing:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.Contains("MovedEvent", result);
+        Assert.Contains("Box", result);
+        Assert.DoesNotContain("Thing", result);
+    }
+
+    [Fact]
     public void GetSharedSchemas_ComponentNoOperationUses_IsShared()
     {
         // A component no operation or webhook uses still becomes a model (the old CLI generated it, and consumers
