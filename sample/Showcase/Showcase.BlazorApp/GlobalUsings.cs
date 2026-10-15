@@ -31,6 +31,7 @@ global using Showcase.Generated.Documents.Models;
 global using Showcase.Generated.Files.Client;
 global using Showcase.Generated.Files.Models;
 global using Showcase.Generated.Hubs;
+global using Showcase.Generated.Models;
 global using Showcase.Generated.Notifications.Client;
 global using Showcase.Generated.Notifications.Models;
 global using Showcase.Generated.Resilience;

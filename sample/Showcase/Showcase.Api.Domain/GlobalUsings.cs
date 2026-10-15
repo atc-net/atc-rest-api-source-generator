@@ -31,6 +31,7 @@ global using Showcase.Generated.Documents.Results;
 global using Showcase.Generated.Files.Handlers;
 global using Showcase.Generated.Files.Parameters;
 global using Showcase.Generated.Files.Results;
+global using Showcase.Generated.Models;
 global using Showcase.Generated.Notifications.Handlers;
 global using Showcase.Generated.Notifications.Models;
 global using Showcase.Generated.Notifications.Parameters;

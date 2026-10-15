@@ -11,6 +11,8 @@ export interface RetryPolicy {
   readonly useJitter: boolean;
   /** Per-attempt timeout in milliseconds, or undefined for no timeout. */
   readonly timeoutMs?: number;
+  /** Timeout in milliseconds over all attempts and the waits between them, or undefined for none. */
+  readonly totalTimeoutMs?: number;
   /** Whether to handle 429 Too Many Requests with Retry-After header. */
   readonly handle429: boolean;
 }
