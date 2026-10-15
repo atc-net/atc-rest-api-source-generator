@@ -100,6 +100,11 @@ public static class ResiliencePoliciesExtractor
             parts.Add($"timeout: {config.TimeoutSeconds.Value}s");
         }
 
+        if (config.TotalTimeoutSeconds.HasValue)
+        {
+            parts.Add($"total timeout: {config.TotalTimeoutSeconds.Value}s");
+        }
+
         return "Policy: " + string.Join(", ", parts);
     }
 }

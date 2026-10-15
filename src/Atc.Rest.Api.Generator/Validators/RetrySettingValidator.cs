@@ -19,6 +19,7 @@ internal static class RetrySettingValidator
         "x-retry-backoff",
         "x-retry-use-jitter",
         "x-retry-timeout-seconds",
+        "x-retry-total-timeout-seconds",
         "x-retry-circuit-breaker",
         "x-retry-cb-failure-ratio",
         "x-retry-cb-sampling-duration-seconds",

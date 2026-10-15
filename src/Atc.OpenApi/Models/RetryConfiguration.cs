@@ -41,6 +41,11 @@ public record RetryConfiguration
     public double? TimeoutSeconds { get; init; }
 
     /// <summary>
+    /// Gets the timeout in seconds over all attempts and the waits between them, or null if not specified.
+    /// </summary>
+    public double? TotalTimeoutSeconds { get; init; }
+
+    /// <summary>
     /// Gets a value indicating whether circuit breaker is enabled.
     /// </summary>
     public bool CircuitBreakerEnabled { get; init; }

@@ -209,6 +209,13 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(8, "if (retry)");
         builder.AppendLine(8, "{");
 
+        if (config.TotalTimeoutSeconds is { } totalTimeout)
+        {
+            // Added first, so it is outside the retry: one deadline over every attempt and the waits between them
+            builder.AppendLine(12, $"pipeline.AddTimeout(TimeSpan.FromSeconds({totalTimeout.ToString(CultureInfo.InvariantCulture)}));");
+            builder.AppendLine();
+        }
+
         // A 429 or 503 asking for a longer wait than the per-attempt timeout (30 s without one) goes back to the caller.
         var cap = policyTimeout is not null
             ? "timeout"

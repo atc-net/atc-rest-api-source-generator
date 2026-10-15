@@ -193,6 +193,17 @@ public sealed class TypeScriptClientRetryGateTests
               responses:
                 '204':
                   description: No Content
+          /total/{mode}:
+            x-retry-policy: total
+            x-retry-max-attempts: 5
+            x-retry-total-timeout-seconds: 1.5
+            parameters:
+              - $ref: '#/components/parameters/Mode'
+            get:
+              operationId: getTotal
+              responses:
+                '204':
+                  description: No Content
         components:
           parameters:
             Mode:
@@ -292,6 +303,7 @@ public sealed class TypeScriptClientRetryGateTests
         import { OptinClient } from './generated/client/OptinClient';
         import { OwnClient } from './generated/client/OwnClient';
         import { WideClient } from './generated/client/WideClient';
+        import { TotalClient } from './generated/client/TotalClient';
 
         // fetch rejects an aborted request with the signal's reason (an AbortError, or the TimeoutError it was aborted with)
         const abortedBy = (signal: AbortSignal) => signal.reason;
@@ -317,6 +329,7 @@ public sealed class TypeScriptClientRetryGateTests
         import { OptinClient } from './generated/client/OptinClient';
         import { OwnClient } from './generated/client/OwnClient';
         import { WideClient } from './generated/client/WideClient';
+        import { TotalClient } from './generated/client/TotalClient';
 
         // axios rejects an aborted request with its CanceledError, whatever the signal was aborted with
         const abortedBy = (_signal: AbortSignal) => new axios.CanceledError();
@@ -430,6 +443,7 @@ public sealed class TypeScriptClientRetryGateTests
           const optin = new OptinClient(api);
           const own = new OwnClient(api);
           const wide = new WideClient(api);
+          const total = new TotalClient(api);
 
           // standard = 2 retries (3 attempts); own / wide = 4 retries (5 attempts).
           await attempt('getItem 503', 3, () => items.getItem('503'));
@@ -461,6 +475,10 @@ public sealed class TypeScriptClientRetryGateTests
           await attempt('postOwn 503', 5, () => own.postOwn('503'));
           await attempt('getWide 503', 5, () => wide.getWide('503'));
           await attempt('postWide 503', 1, () => wide.postWide('503'));
+          // x-retry-total-timeout-seconds bounds the attempts and the waits between them: five retries are allowed, each
+          // attempt times out after a second, and the total of 1.5 s ends the call in the second attempt
+          await attempt('getTotal slow (total timeout 1.5 s)', 2, () => total.getTotal('slow'), 2200, 'TimeoutError');
+          await attempt('getTotal 503', 6, () => total.getTotal('503'));
 
           // Hand-written requests follow the same method rule; retryPolicy: false switches retry off.
           await attempt('request POST 503', 1, () => api.request('POST', '/items/503'));

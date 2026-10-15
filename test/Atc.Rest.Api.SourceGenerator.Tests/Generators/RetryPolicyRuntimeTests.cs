@@ -115,6 +115,17 @@ public class RetryPolicyRuntimeTests
               responses:
                 '204':
                   description: No Content
+          /total/{mode}:
+            x-retry-policy: total
+            x-retry-max-attempts: 5
+            x-retry-total-timeout-seconds: 1.5
+            parameters:
+              - $ref: '#/components/parameters/Mode'
+            get:
+              operationId: getTotal
+              responses:
+                '204':
+                  description: No Content
         components:
           parameters:
             Mode:
@@ -171,6 +182,11 @@ public class RetryPolicyRuntimeTests
         ("postOwn", "Own", "503", 5, null),
         ("getWide", "Wide", "503", 5, null),
         ("postWide", "Wide", "503", 1, null),
+
+        // x-retry-total-timeout-seconds bounds the attempts and the waits between them: five retries are allowed,
+        // each attempt times out after a second, and the total of 1.5 s ends the call in the second attempt
+        ("getTotal", "Total", "slow", 2, "TimeoutRejectedException"),
+        ("getTotal", "Total", "503", 6, null),
 
         // The body is read inside the pipeline: a body that stalls after the headers runs into the policy's timeout
         // (not HttpClient.Timeout), and a body the connection breaks off is retried like any failed attempt

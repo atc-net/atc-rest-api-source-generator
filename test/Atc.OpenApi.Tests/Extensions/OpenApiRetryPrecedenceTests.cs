@@ -17,6 +17,7 @@ public class OpenApiRetryPrecedenceTests
             { "x-retry-backoff", "linear", "constant", "linear", nameof(RetryConfiguration.BackoffType), nameof(RetryBackoffType.Exponential) },
             { "x-retry-use-jitter", "false", "true", "false", nameof(RetryConfiguration.UseJitter), "True" },
             { "x-retry-timeout-seconds", "5", "6", "7", nameof(RetryConfiguration.TimeoutSeconds), string.Empty },
+            { "x-retry-total-timeout-seconds", "50", "60", "70", nameof(RetryConfiguration.TotalTimeoutSeconds), string.Empty },
             { "x-retry-circuit-breaker", "true", "false", "true", nameof(RetryConfiguration.CircuitBreakerEnabled), "False" },
             { "x-retry-cb-failure-ratio", "0.1", "0.2", "0.3", nameof(RetryConfiguration.CircuitBreakerFailureRatio), "0.5" },
             { "x-retry-cb-sampling-duration-seconds", "10", "20", "40", nameof(RetryConfiguration.CircuitBreakerSamplingDurationSeconds), "30" },

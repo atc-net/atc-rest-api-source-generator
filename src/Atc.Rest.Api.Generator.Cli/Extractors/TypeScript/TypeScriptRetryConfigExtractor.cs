@@ -38,6 +38,8 @@ public static class TypeScriptRetryConfigExtractor
         sb.AppendLine("  readonly useJitter: boolean;");
         sb.AppendLine("  /** Per-attempt timeout in milliseconds, or undefined for no timeout. */");
         sb.AppendLine("  readonly timeoutMs?: number;");
+        sb.AppendLine("  /** Timeout in milliseconds over all attempts and the waits between them, or undefined for none. */");
+        sb.AppendLine("  readonly totalTimeoutMs?: number;");
         sb.AppendLine("  /** Whether to handle 429 Too Many Requests with Retry-After header. */");
         sb.AppendLine("  readonly handle429: boolean;");
         sb.AppendLine("}");
@@ -79,6 +81,11 @@ public static class TypeScriptRetryConfigExtractor
                 if (config.TimeoutSeconds.HasValue)
                 {
                     sb.Append("    timeoutMs: ").Append(FormatDouble(config.TimeoutSeconds.Value * 1000)).AppendLine(",");
+                }
+
+                if (config.TotalTimeoutSeconds.HasValue)
+                {
+                    sb.Append("    totalTimeoutMs: ").Append(FormatDouble(config.TotalTimeoutSeconds.Value * 1000)).AppendLine(",");
                 }
 
                 sb.Append("    handle429: ").Append(config.Handle429 ? "true" : "false").AppendLine(",");

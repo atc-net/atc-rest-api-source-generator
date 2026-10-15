@@ -61,6 +61,13 @@ public static class OpenApiRetryExtensions
             => ExtractDoubleValue(extensions, RetryExtensionNameConstants.TimeoutSeconds);
 
         /// <summary>
+        /// Extracts the x-retry-total-timeout-seconds value from extensions.
+        /// </summary>
+        /// <returns>The timeout over all attempts in seconds, or null if not specified.</returns>
+        public double? ExtractRetryTotalTimeoutSeconds()
+            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.TotalTimeoutSeconds);
+
+        /// <summary>
         /// Extracts the x-retry-circuit-breaker value from extensions.
         /// </summary>
         /// <returns>True if circuit breaker enabled, false if disabled, null if not specified.</returns>
@@ -167,6 +174,10 @@ public static class OpenApiRetryExtensions
                              ?? pathItem.Extensions.ExtractRetryTimeoutSeconds()
                              ?? document.Extensions.ExtractRetryTimeoutSeconds();
 
+        var totalTimeoutSeconds = operation.Extensions.ExtractRetryTotalTimeoutSeconds()
+                                  ?? pathItem.Extensions.ExtractRetryTotalTimeoutSeconds()
+                                  ?? document.Extensions.ExtractRetryTotalTimeoutSeconds();
+
         var circuitBreaker = operation.Extensions.ExtractRetryCircuitBreaker()
                              ?? pathItem.Extensions.ExtractRetryCircuitBreaker()
                              ?? document.Extensions.ExtractRetryCircuitBreaker()
@@ -208,6 +219,7 @@ public static class OpenApiRetryExtensions
             BackoffType = backoffType,
             UseJitter = useJitter,
             TimeoutSeconds = timeoutSeconds,
+            TotalTimeoutSeconds = totalTimeoutSeconds,
             CircuitBreakerEnabled = circuitBreaker,
             CircuitBreakerFailureRatio = circuitBreakerFailureRatio,
             CircuitBreakerSamplingDurationSeconds = circuitBreakerSamplingDuration,
@@ -456,6 +468,9 @@ public static class OpenApiRetryExtensions
             TimeoutSeconds = operationExtensions.ExtractRetryTimeoutSeconds()
                              ?? pathExtensions.ExtractRetryTimeoutSeconds()
                              ?? documentExtensions.ExtractRetryTimeoutSeconds(),
+            TotalTimeoutSeconds = operationExtensions.ExtractRetryTotalTimeoutSeconds()
+                                  ?? pathExtensions.ExtractRetryTotalTimeoutSeconds()
+                                  ?? documentExtensions.ExtractRetryTotalTimeoutSeconds(),
             CircuitBreakerEnabled = operationExtensions.ExtractRetryCircuitBreaker()
                                     ?? pathExtensions.ExtractRetryCircuitBreaker()
                                     ?? documentExtensions.ExtractRetryCircuitBreaker()

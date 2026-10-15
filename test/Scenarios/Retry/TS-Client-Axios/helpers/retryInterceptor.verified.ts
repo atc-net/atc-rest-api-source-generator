@@ -121,6 +121,42 @@ export async function retryWithBackoff<T = Response>(
   signal?: AbortSignal,
   read: (response: Response) => Promise<T> = (response) => Promise.resolve(response as unknown as T),
 ): Promise<T> {
+  if (policy.totalTimeoutMs === undefined) {
+    return attemptWithBackoff(fetchFn, policy, signal, read);
+  }
+
+  // The policy's total timeout: one deadline over every attempt and the waits between them
+  const total = new AbortController();
+  let totalFired = false;
+  const onCallerAbort = () => total.abort(signal?.reason);
+  if (signal?.aborted) {
+    total.abort(signal.reason);
+  } else {
+    signal?.addEventListener('abort', onCallerAbort, { once: true });
+  }
+
+  const timer = setTimeout(() => {
+    totalFired = true;
+    total.abort(new DOMException('Total timeout', 'TimeoutError'));
+  }, policy.totalTimeoutMs);
+
+  try {
+    return await attemptWithBackoff(fetchFn, policy, total.signal, read);
+  } catch (error) {
+    // Fails with the total timeout's TimeoutError, whatever the transport rejected with (Axios: its CanceledError)
+    throw totalFired ? total.signal.reason : error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onCallerAbort);
+  }
+}
+
+async function attemptWithBackoff<T>(
+  fetchFn: (signal: AbortSignal) => Promise<Response>,
+  policy: RetryPolicy,
+  signal: AbortSignal | undefined,
+  read: (response: Response) => Promise<T>,
+): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= policy.maxAttempts; attempt++) {
