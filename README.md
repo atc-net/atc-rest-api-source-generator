@@ -20,12 +20,15 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🚨 **ProblemDetails Errors**     | Every error is RFC 9457 `application/problem+json` - server, C# and TS clients agree |
 |            | 🔎 **HTTP `QUERY` (OAS 3.2)**    | `query:` operations - a read with a request body, for criteria too big for a URL |
 |            | 🩹 **OpenAPI Overlays**          | Patch a specification you do not own - names, `required`, formats, removed paths - with an [OpenAPI Overlay](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Overlays) (1.0 to 1.2, full RFC 9535 JSONPath), applied by the build and the CLI |
-|            | 📡 **SignalR Hubs**              | `x-signalr-hubs`: the hub's events and methods once in the spec - a typed hub contract on the server, typed hub clients in C# and TypeScript |
+| **Server Push** | 📣 **Push to Clients**     | Tell a client that something changed - four ways, each declared in the spec and typed end to end. Which one to use: [Working with Server Push](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Server-Push) |
+|            | 📡 **SignalR Hubs**              | `x-signalr-hubs`: a hub's events and methods once in the spec → a typed hub contract on the server, typed hub clients in C# and TypeScript (React hooks included); scale out with Azure SignalR Service, no generated code changes |
+|            | 🌊 **Event Streams**             | Server-Sent Events over plain HTTP - a live feed with headers at once, a heartbeat the clients read past and a resume with `Last-Event-ID`; JSON Lines, JSON Text Sequence, JSON array and multipart too |
+|            | 🪝 **Webhooks**                  | OpenAPI 3.1 `webhooks` → the receiving endpoints, handler interfaces and typed results |
+|            | 🔁 **Polling, Done Cheaply**     | `ETag` + `If-None-Match` → `304 Not Modified`: a client asks often, and nothing changed costs no body |
 | **Server** | 📝 **Handler Scaffolds**         | Auto-generates handler stubs for unimplemented operations                        |
 |            | 🔐 **Security**                  | JWT, OAuth2 scopes, API Key, role-based auth - all from OpenAPI                  |
 |            | ⏱️ **Rate Limiting**             | Server-side rate limiting from `x-ratelimit-*` extensions                        |
 |            | 💾 **Caching**                   | Output caching and HybridCache support from `x-cache-*` extensions               |
-|            | 🪝 **Webhooks**                  | OpenAPI 3.1 `webhooks` → the receiving endpoints, handler interfaces and typed results (sending them is your code) |
 | **Client** | 🔌 **Type-Safe Client**          | Strongly-typed HTTP client with full IntelliSense                                |
 |            | 🔄 **Resilience**                | Per-operation retry/circuit breaker from `x-retry-*`; POST/PATCH never resent unasked |
 |            | 🔗 **URL Encoding**              | Automatic RFC 3986 compliant encoding - no more broken URLs                      |
