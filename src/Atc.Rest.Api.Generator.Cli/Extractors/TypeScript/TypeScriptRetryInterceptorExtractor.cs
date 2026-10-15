@@ -3,7 +3,7 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// <summary>
 /// Generates retryInterceptor.ts containing the retry-with-backoff utility function.
 /// Supports exponential, linear, and constant backoff strategies with jitter,
-/// Retry-After header handling for 429 responses, and AbortSignal cancellation.
+/// Retry-After header handling for 429 and 503 responses, and AbortSignal cancellation.
 /// </summary>
 public static class TypeScriptRetryInterceptorExtractor
 {
@@ -23,7 +23,7 @@ public static class TypeScriptRetryInterceptorExtractor
 
         sb.AppendLine("import type { RequestRetry, RetryPolicy } from './retryConfig';");
         sb.AppendLine();
-        sb.AppendLine("/** The longest Retry-After a 429 may ask for when the policy has no timeout; longer goes back to the caller. */");
+        sb.AppendLine("/** The longest Retry-After a 429 or 503 may ask for when the policy has no timeout; longer goes back to the caller. */");
         sb.AppendLine("const MAX_RETRY_AFTER_MS = 30000;");
         sb.AppendLine();
 
@@ -195,11 +195,11 @@ public static class TypeScriptRetryInterceptorExtractor
         sb.AppendLine("        return await read(response);");
         sb.AppendLine("      }");
         sb.AppendLine();
-        sb.AppendLine("      // Handle 429 with Retry-After header");
+        sb.AppendLine("      // A 429 or 503 may say how long to wait (Retry-After, RFC 9110 10.2.3); another status's Retry-After is not read");
         sb.AppendLine("      let delay: number;");
-        sb.AppendLine("      if (response.status === 429 && policy.handle429) {");
+        sb.AppendLine("      if (response.status === 429 || response.status === 503) {");
         sb.AppendLine("        const retryAfterMs = parseRetryAfter(response.headers.get('Retry-After'));");
-        sb.AppendLine("        // A 429 asking for a longer wait than the policy allows goes back to the caller.");
+        sb.AppendLine("        // Asking for a longer wait than the policy allows goes back to the caller.");
         sb.AppendLine("        if (retryAfterMs !== undefined && retryAfterMs > (policy.timeoutMs ?? MAX_RETRY_AFTER_MS)) {");
         sb.AppendLine("          return await read(response);");
         sb.AppendLine("        }");

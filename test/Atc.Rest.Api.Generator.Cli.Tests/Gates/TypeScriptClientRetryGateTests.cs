@@ -10,7 +10,7 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Gates;
 /// <list type="bullet">
 ///   <item><description>GET/PUT/DELETE retry with the document policy; POST/PATCH are sent once unless the operation opts in;</description></item>
 ///   <item><description>path- and operation-level <c>x-retry-enabled: false</c> and <c>x-retry-policy</c> are honored;</description></item>
-///   <item><description>a 429 whose Retry-After is longer than the policy timeout goes back to the caller;</description></item>
+///   <item><description>a 429 or 503 whose Retry-After is longer than the policy timeout goes back to the caller (another 5xx's Retry-After is not read);</description></item>
 ///   <item><description>"no retry" keeps the policy's timeout, and an operation timeout next to it replaces it;</description></item>
 ///   <item><description>a timeout rejects with a <c>TimeoutError</c> with both transports, the caller's abort with the transport's own error;</description></item>
 ///   <item><description>a hand-written <c>request('POST', ...)</c> is not retried, and <c>retryPolicy: false</c> switches retry off.</description></item>
@@ -248,8 +248,9 @@ public sealed class TypeScriptClientRetryGateTests
         }
         """;
 
-    // The mocked wire, shared by both transports: answers by the last path segment (a status code, "429-short"
-    // with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds unless aborted). An aborted
+    // The mocked wire, shared by both transports: answers by the last path segment (a status code, "429-short" /
+    // "503-short" with Retry-After: 0, "429-long" / "503-long" / "500-long" with Retry-After: 120, "slow" after two
+    // seconds unless aborted). An aborted
     // "slow" rejects as the transport does (abortedBy): fetch with the signal's reason, axios with its CanceledError.
     private const string Wire = """
         let calls = 0;
@@ -261,6 +262,9 @@ public sealed class TypeScriptClientRetryGateTests
             case '503': return Promise.resolve({ status: 503, headers: {} });
             case '429-short': return Promise.resolve({ status: 429, headers: { 'retry-after': '0' } });
             case '429-long': return Promise.resolve({ status: 429, headers: { 'retry-after': '120' } });
+            case '503-short': return Promise.resolve({ status: 503, headers: { 'retry-after': '0' } });
+            case '503-long': return Promise.resolve({ status: 503, headers: { 'retry-after': '120' } });
+            case '500-long': return Promise.resolve({ status: 500, headers: { 'retry-after': '120' } });
             case 'slow':
               return new Promise((resolve, reject) => {
                 const timer = setTimeout(() => resolve({ status: 204, headers: {} }), 2000);
@@ -431,6 +435,11 @@ public sealed class TypeScriptClientRetryGateTests
           await attempt('getItem 503', 3, () => items.getItem('503'));
           await attempt('getItem 429-short', 3, () => items.getItem('429-short'));
           await attempt('getItem 429-long', 1, () => items.getItem('429-long'));
+          // A 503 is answered with Retry-After as a 429 is (RFC 9110, 10.2.3); another 5xx's Retry-After means nothing
+          await attempt('getItem 503-short', 3, () => items.getItem('503-short'));
+          await attempt('getItem 503-long', 1, () => items.getItem('503-long'));
+          await attempt('getItem 500-long', 3, () => items.getItem('500-long'));
+          await attempt('postOptin 503-long', 1, () => optin.postOptin('503-long'));
           await attempt('putItem 503', 3, () => items.putItem('503'));
           await attempt('putItem 429-short', 3, () => items.putItem('429-short'));
           await attempt('deleteItem 503', 3, () => items.deleteItem('503'));
