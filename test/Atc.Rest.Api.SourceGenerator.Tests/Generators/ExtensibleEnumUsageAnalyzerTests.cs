@@ -71,7 +71,8 @@ public class ExtensibleEnumUsageAnalyzerTests
     [Theory]
     [InlineData("EndpointPerOperation")]
     [InlineData("TypedClient")]
-    public async Task SystemEnumOnAnExtensibleEnum_IsReportedAsCLT003(string generationMode)
+    public async Task SystemEnumOnAnExtensibleEnum_IsReportedAsCLT003(
+        string generationMode)
     {
         // Arrange
         var sources = ErrorResponseBodyRuntimeTests.Generate(
@@ -90,8 +91,8 @@ public class ExtensibleEnumUsageAnalyzerTests
         var compilation = CSharpCompilation.Create(
             "ErrorBodies",
             [
-                .. sources.Select(s => CSharpSyntaxTree.ParseText(s.Source, path: s.HintName)),
-                CSharpSyntaxTree.ParseText(usings + Environment.NewLine + Usage, path: "Usage.cs"),
+                .. sources.Select(s => CSharpSyntaxTree.ParseText(s.Source, path: s.HintName, cancellationToken: TestContext.Current.CancellationToken)),
+                CSharpSyntaxTree.ParseText(usings + Environment.NewLine + Usage, path: "Usage.cs", cancellationToken: TestContext.Current.CancellationToken),
             ],
             CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi: false),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
