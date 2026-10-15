@@ -333,7 +333,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
                </PropertyGroup>
                <ItemGroup>
                  <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{package.Version}" />
-                 {(withMinimalApi ? """<PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.0" />""" : string.Empty)}
+                 {(withMinimalApi ? """<PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.1" />""" : string.Empty)}
                </ItemGroup>
                <ItemGroup>
                  <AdditionalFiles Include="Contoso.yaml" />

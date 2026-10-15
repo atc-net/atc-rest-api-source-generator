@@ -1,8 +1,9 @@
 <h2>Atc REST 3.0 readiness</h2>
 <p>State of <code>feature/error-body-3.0</code> (generator), 14 October 2026.</p>
 <ul class="tight">
-  <li><code>Atc.Rest.MinimalApi</code> 3.0.0 is released on nuget.org. The tests and the samples have referenced the
-    package since 12 October; the temporary project references are gone.</li>
+  <li><code>Atc.Rest.MinimalApi</code> 3.0.0 is released on nuget.org, and 3.0.1 (dependency updates) since 16 October.
+    The tests and the samples have referenced the package since 12 October and use 3.0.1; the temporary project
+    references are gone. 3.0.0 stays the minimum (<code>ATC_API_DEP013</code>).</li>
   <li><code>Atc.Rest.Client</code> is released up to 2.6.0, with every library issue this branch raised. 2.6.0 is the
     minimum for the EndpointPerOperation client and the TypedClient's Result style (<code>ATC_API_DEP011</code>).</li>
   <li>The generator 3.0 is <b>not released</b>. The branch and the wiki are committed locally and not pushed yet.</li>
@@ -22,7 +23,8 @@
 <tbody>
 <tr><td>1</td><td><b>Release Atc.Rest.MinimalApi 3.0.0?</b></td>
   <td><span class="v pass">released</span> 3.0.0 is on nuget.org. The report run on the released package showed no cell
-    different from the run on the branch it was built from, and every test project and sample now uses it.</td></tr>
+    different from the run on the branch it was built from. 3.0.1 (dependency updates) followed, and every test project
+    and sample now uses it.</td></tr>
 <tr><td>2</td><td><b>The validation 400 against a declared 400 body.</b> The ValidationFilter always answers an invalid
   request with a <code>ValidationProblemDetails</code>, even where the specification declares its own 400 body.</td>
   <td><span class="v pass">done</span>
@@ -145,7 +147,7 @@
 <h3>Release sequence once we agree</h3>
 <ol class="tight">
   <li>Push the generator branch and the wiki.</li>
-  <li>Review with the coworkers. (<code>Atc.Rest.MinimalApi</code> 3.0.0 and <code>Atc.Rest.Client</code> 2.6.0: done,
+  <li>Review with the coworkers. (<code>Atc.Rest.MinimalApi</code> 3.0.1 and <code>Atc.Rest.Client</code> 2.6.0: done,
     released and in use.)</li>
   <li>Merge the generator branch and release 3.0.</li>
 </ol>
