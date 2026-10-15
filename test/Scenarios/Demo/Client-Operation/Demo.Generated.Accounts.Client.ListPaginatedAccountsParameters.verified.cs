@@ -24,7 +24,7 @@ namespace Demo.Generated.Accounts.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPaginatedAccountsParameters(
-    string? QueryString,
-    string? Continuation,
     [property: Range(1, 100), DefaultValue(10)] int? PageSize = 10,
-    [property: Range(0, long.MaxValue), DefaultValue(0)] int? PageIndex = 0);
+    [property: Range(0, long.MaxValue), DefaultValue(0)] int? PageIndex = 0,
+    string? QueryString = null,
+    string? Continuation = null);

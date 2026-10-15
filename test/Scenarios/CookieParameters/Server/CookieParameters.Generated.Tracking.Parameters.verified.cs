@@ -25,10 +25,10 @@ namespace CookieParameters.Generated.Tracking.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TrackEventParameters(
     [property: FromRoute(Name = "eventId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "eventId")] string EventId,
+    [property: FromHeader(Name = "x-cookie-consent"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "consent")] bool Consent,
 #nullable disable annotations
-    string UserId,
+    string UserId = null)
 #nullable restore annotations
-    [property: FromHeader(Name = "x-cookie-consent"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "consent")] bool Consent)
 {
     [FromHeader(Name = "x-cookie-userId")]
     public string? UserId { get; init; } = UserId;

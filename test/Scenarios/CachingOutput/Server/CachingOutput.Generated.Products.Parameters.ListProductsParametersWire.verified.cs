@@ -25,8 +25,8 @@ namespace CachingOutput.Generated.Products.Parameters;
 public static class ListProductsParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Text("query", "category"),
         WireParameter.Parsable<int>("query", "page"),
         WireParameter.Parsable<int>("query", "limit"),
+        WireParameter.Text("query", "category"),
     ];
 }

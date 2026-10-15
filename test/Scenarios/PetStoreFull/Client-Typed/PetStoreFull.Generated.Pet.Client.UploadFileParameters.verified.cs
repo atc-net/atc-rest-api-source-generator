@@ -25,5 +25,5 @@ namespace PetStoreFull.Generated.Pet.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UploadFileParameters(
     [property: Required] long PetId,
-    string? AdditionalMetadata,
-    [property: Required] IFileContent File);
+    [property: Required] IFileContent File,
+    string? AdditionalMetadata = null);

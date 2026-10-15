@@ -25,9 +25,9 @@ namespace Demo.Generated.Accounts.Parameters;
 public static class ListPaginatedAccountsParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Text("query", "queryString"),
-        WireParameter.Text("query", "continuation"),
         WireParameter.Parsable<int>("query", "pageSize"),
         WireParameter.Parsable<int>("query", "pageIndex"),
+        WireParameter.Text("query", "queryString"),
+        WireParameter.Text("query", "continuation"),
     ];
 }

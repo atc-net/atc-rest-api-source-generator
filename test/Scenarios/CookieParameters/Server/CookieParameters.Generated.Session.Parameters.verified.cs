@@ -27,7 +27,7 @@ namespace CookieParameters.Generated.Session.Parameters;
 public sealed record GetSessionParameters(
     [property: FromHeader(Name = "x-cookie-sessionId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "sessionId")] string SessionId,
 #nullable disable annotations
-    string Preferences)
+    string Preferences = null)
 #nullable restore annotations
 {
     [FromHeader(Name = "x-cookie-preferences")]

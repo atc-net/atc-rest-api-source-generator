@@ -27,8 +27,8 @@ namespace HostileNames.Generated.Movies.Parameters;
 public sealed record GetMovieParameters(
     [property: FromRoute(Name = "id"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] int Id,
 #nullable disable annotations
-    string IdQuery,
-    string IdHeader)
+    string IdQuery = null,
+    string IdHeader = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "id")]

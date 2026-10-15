@@ -734,8 +734,8 @@ public static class OperationParameterExtractor
         // Build record documentation
         var recordDoc = new CodeDocumentationTags(summary);
 
-        // Sort parameters: required (no default value) first, then optional (with default value)
-        // This is required by C# record syntax: optional parameters must appear after required ones
+        // Sort parameters: required (no default value) first, then optional (null or the schema's default), each in the
+        // specification's order. C# needs optional parameters after the required ones.
         var sortedParameters = parameters
             .OrderBy(p => p.DefaultValue is not null)
             .ToList();
@@ -944,10 +944,11 @@ public static class OperationParameterExtractor
             return schemaDefault;
         }
 
-        // Nullable types without schema defaults don't need property initializers
+        // An optional parameter is null unless the caller names it, as an optional model property is: a record built
+        // with only the parameters the caller sends. A required one stays positional.
         if (isNullableType)
         {
-            return null;
+            return isRequired ? null : "null";
         }
 
         // For records, required parameters should NOT have default values

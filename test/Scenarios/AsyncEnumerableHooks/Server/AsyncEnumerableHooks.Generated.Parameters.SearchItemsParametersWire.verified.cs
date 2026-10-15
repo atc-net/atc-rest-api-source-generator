@@ -25,7 +25,7 @@ namespace AsyncEnumerableHooks.Generated.Parameters;
 public static class SearchItemsParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Parsable<DateTimeOffset>("query", "createdAfter"),
         WireParameter.Parsable<DateTimeOffset>("query", "createdBefore").Required(),
+        WireParameter.Parsable<DateTimeOffset>("query", "createdAfter"),
     ];
 }

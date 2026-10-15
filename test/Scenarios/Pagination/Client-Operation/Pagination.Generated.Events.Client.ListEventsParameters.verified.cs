@@ -25,5 +25,5 @@ namespace Pagination.Generated.Events.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListEventsParameters(
-    string? PageToken,
-    int? PageSize);
+    string? PageToken = null,
+    int? PageSize = null);

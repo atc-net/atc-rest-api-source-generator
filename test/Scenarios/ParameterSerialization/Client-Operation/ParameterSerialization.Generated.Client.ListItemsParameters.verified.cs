@@ -24,12 +24,12 @@ namespace ParameterSerialization.Generated.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
-    List<string>? Tags,
-    string? Q,
-    List<string>? Legacy,
-    List<string>? Ids,
-    Uri? Callback,
-    string? Anything,
-    ItemFilter? Filter,
-    Paging? Paging,
-    string? Session);
+    List<string>? Tags = null,
+    string? Q = null,
+    List<string>? Legacy = null,
+    List<string>? Ids = null,
+    Uri? Callback = null,
+    string? Anything = null,
+    ItemFilter? Filter = null,
+    Paging? Paging = null,
+    string? Session = null);

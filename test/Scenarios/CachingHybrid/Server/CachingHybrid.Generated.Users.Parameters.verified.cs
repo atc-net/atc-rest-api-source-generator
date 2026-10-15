@@ -26,8 +26,8 @@ namespace CachingHybrid.Generated.Users.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListUsersParameters(
 #nullable disable annotations
-    string Search,
-    string Role,
+    string Search = null,
+    string Role = null,
 #nullable restore annotations
     [property: FromQuery(Name = "limit"), DefaultValue(50)] int? Limit = 50)
 {

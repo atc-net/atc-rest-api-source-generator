@@ -25,4 +25,4 @@ namespace Pagination.Generated.Metrics.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListMetricsParameters(
-    int? Cursor);
+    int? Cursor = null);

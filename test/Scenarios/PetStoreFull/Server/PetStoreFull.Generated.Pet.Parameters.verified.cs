@@ -72,8 +72,8 @@ public sealed record GetPetByIdParameters(
 public sealed record UpdatePetWithFormParameters(
     [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
 #nullable disable annotations
-    string Name,
-    string Status)
+    string Name = null,
+    string Status = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "name")]
@@ -90,10 +90,10 @@ public sealed record UpdatePetWithFormParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeletePetParameters(
+    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
 #nullable disable annotations
-    string ApiKey,
+    string ApiKey = null)
 #nullable restore annotations
-    [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId)
 {
     [FromHeader(Name = "api_key")]
     public string? ApiKey { get; init; } = ApiKey;
@@ -107,10 +107,10 @@ public sealed record DeletePetParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UploadFileParameters(
     [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
+    [property: FromBody, Required] Stream File,
 #nullable disable annotations
-    string AdditionalMetadata,
+    string AdditionalMetadata = null)
 #nullable restore annotations
-    [property: FromBody, Required] Stream File)
 {
     [FromQuery(Name = "additionalMetadata")]
     public string? AdditionalMetadata { get; init; } = AdditionalMetadata;

@@ -24,4 +24,4 @@ namespace AsyncEnumerableHooks.Generated;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemPagesParameters(
-    int? PageSize);
+    int? PageSize = null);

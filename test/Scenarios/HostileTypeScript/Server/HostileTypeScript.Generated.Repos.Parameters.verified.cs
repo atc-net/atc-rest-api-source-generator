@@ -26,8 +26,8 @@ namespace HostileTypeScript.Generated.Repos.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReposListParameters(
 #nullable disable annotations
-    string Class,
-    string Default)
+    string Class = null,
+    string Default = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "class")]

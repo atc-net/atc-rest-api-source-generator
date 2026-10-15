@@ -28,8 +28,8 @@ namespace Pagination.Generated.Orgs.Parameters;
 public sealed record ListOrgDevicesParameters(
     [property: FromRoute(Name = "orgId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "orgId")] string OrgId,
 #nullable disable annotations
-    string Continuation,
-    string Tenant)
+    string Continuation = null,
+    string Tenant = null)
 #nullable restore annotations
 {
     [FromHeader(Name = "x-continuation")]

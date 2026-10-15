@@ -25,5 +25,5 @@ namespace PetStoreFull.Generated.Pet.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetWithFormParameters(
     [property: Required] long PetId,
-    string? Name,
-    string? Status);
+    string? Name = null,
+    string? Status = null);

@@ -24,8 +24,8 @@ namespace HostileSpec.Generated;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListNotesParameters(
-    string? OddNameHere,
-    NoteKind? Kind,
     [property: DefaultValue("say \"hi\" \\ bye")] string? Filter = "say \"hi\" \\ bye",
+    string? OddNameHere = null,
     [property: DefaultValue(0.25)] double? Discount = 0.25,
-    [property: DefaultValue(2.5f)] float? Factor = 2.5f);
+    [property: DefaultValue(2.5f)] float? Factor = 2.5f,
+    NoteKind? Kind = null);

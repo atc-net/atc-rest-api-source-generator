@@ -25,4 +25,4 @@ namespace HeaderParameters.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemByIdParameters(
     [property: Required] string ItemId,
-    string? RequestId);
+    string? RequestId = null);

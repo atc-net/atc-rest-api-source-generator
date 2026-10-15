@@ -27,9 +27,9 @@ namespace Deprecations.Generated.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPetsParameters(
 #nullable disable annotations
-    string Tag,
+    string Tag = null,
 #nullable restore annotations
-    [property: FromQuery(Name = "limit")] int? Limit)
+    [property: FromQuery(Name = "limit")] int? Limit = null)
 {
     [FromQuery(Name = "tag")]
     public string? Tag { get; init; } = Tag;

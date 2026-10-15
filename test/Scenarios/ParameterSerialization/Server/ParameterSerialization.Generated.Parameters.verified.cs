@@ -26,15 +26,15 @@ namespace ParameterSerialization.Generated.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
 #nullable disable annotations
-    ParsableList<string> Tags,
-    string Q,
-    ParsableList<string> Legacy,
-    ParsableList<string> Ids,
-    Uri Callback,
-    string Anything,
-    ItemFilter Filter,
-    Paging Paging,
-    string Session)
+    ParsableList<string> Tags = null,
+    string Q = null,
+    ParsableList<string> Legacy = null,
+    ParsableList<string> Ids = null,
+    Uri Callback = null,
+    string Anything = null,
+    ItemFilter Filter = null,
+    Paging Paging = null,
+    string Session = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "tags")]
@@ -73,7 +73,7 @@ public sealed record ListItemsParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsByQueryStringParameters(
 #nullable disable annotations
-    string RawFilter)
+    string RawFilter = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "\u001fquerystring")]

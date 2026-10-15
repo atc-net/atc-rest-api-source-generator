@@ -24,5 +24,5 @@ namespace HostileSchemas.Generated;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListTicketsParameters(
-    Status? Status,
+    Status? Status = null,
     [property: Range(0, 100, MinimumIsExclusive = true, MaximumIsExclusive = true), DefaultValue(20)] int? Limit = 20);

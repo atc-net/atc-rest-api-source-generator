@@ -26,4 +26,4 @@ namespace Pagination.Generated.Metrics.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListMetricsParameters(
-    [property: FromQuery(Name = "cursor")] int? Cursor);
+    [property: FromQuery(Name = "cursor")] int? Cursor = null);

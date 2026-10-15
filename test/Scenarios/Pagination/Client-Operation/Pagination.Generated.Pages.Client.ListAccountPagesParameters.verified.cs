@@ -25,4 +25,4 @@ namespace Pagination.Generated.Pages.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListAccountPagesParameters(
-    string? Continuation);
+    string? Continuation = null);

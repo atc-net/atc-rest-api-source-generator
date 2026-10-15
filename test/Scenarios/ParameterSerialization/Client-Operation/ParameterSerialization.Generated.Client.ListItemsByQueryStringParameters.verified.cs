@@ -24,4 +24,4 @@ namespace ParameterSerialization.Generated.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsByQueryStringParameters(
-    string? RawFilter);
+    string? RawFilter = null);

@@ -25,5 +25,5 @@ namespace HostileNames.Generated.Movies.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetMovieParameters(
     [property: Required] int Id,
-    string? IdQuery,
-    string? IdHeader);
+    string? IdQuery = null,
+    string? IdHeader = null);

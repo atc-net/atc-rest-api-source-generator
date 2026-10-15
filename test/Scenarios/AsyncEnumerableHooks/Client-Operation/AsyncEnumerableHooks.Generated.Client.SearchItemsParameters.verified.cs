@@ -24,5 +24,5 @@ namespace AsyncEnumerableHooks.Generated.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SearchItemsParameters(
-    DateTimeOffset? CreatedAfter,
-    [property: Required] DateTimeOffset CreatedBefore);
+    [property: Required] DateTimeOffset CreatedBefore,
+    DateTimeOffset? CreatedAfter = null);

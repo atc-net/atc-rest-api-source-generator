@@ -26,7 +26,7 @@ namespace Pagination.Generated.Archive.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListArchivedAccountsParameters(
 #nullable disable annotations
-    string Continuation)
+    string Continuation = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "continuation")]

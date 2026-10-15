@@ -26,4 +26,4 @@ namespace ModelsAndProperties.Generated.Persons.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPersonsParameters(
-    [property: FromQuery(Name = "gender")] GenderType? Gender);
+    [property: FromQuery(Name = "gender")] GenderType? Gender = null);

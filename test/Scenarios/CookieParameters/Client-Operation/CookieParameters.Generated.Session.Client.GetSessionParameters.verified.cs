@@ -25,4 +25,4 @@ namespace CookieParameters.Generated.Session.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetSessionParameters(
     [property: Required] string SessionId,
-    string? Preferences);
+    string? Preferences = null);

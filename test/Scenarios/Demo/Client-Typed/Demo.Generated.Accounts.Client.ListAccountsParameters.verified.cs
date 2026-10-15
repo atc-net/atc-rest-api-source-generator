@@ -24,4 +24,4 @@ namespace Demo.Generated.Accounts.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListAccountsParameters(
-    [property: Range(long.MinValue, 100)] int? Limit);
+    [property: Range(long.MinValue, 100)] int? Limit = null);

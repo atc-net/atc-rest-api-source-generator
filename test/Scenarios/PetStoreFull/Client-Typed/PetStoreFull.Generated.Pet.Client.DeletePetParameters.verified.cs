@@ -24,5 +24,5 @@ namespace PetStoreFull.Generated.Pet.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeletePetParameters(
-    string? ApiKey,
-    [property: Required] long PetId);
+    [property: Required] long PetId,
+    string? ApiKey = null);

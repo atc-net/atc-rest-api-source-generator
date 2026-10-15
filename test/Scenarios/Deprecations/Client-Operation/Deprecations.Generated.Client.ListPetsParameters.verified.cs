@@ -25,8 +25,8 @@ namespace Deprecations.Generated.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPetsParameters(
-    string? Tag,
-    int? Limit)
+    string? Tag = null,
+    int? Limit = null)
 {
     [Obsolete("Deprecated in the OpenAPI specification.")]
     public string? Tag { get; init; } = Tag;

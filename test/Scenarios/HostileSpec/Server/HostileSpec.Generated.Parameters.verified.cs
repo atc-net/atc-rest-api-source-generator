@@ -26,21 +26,19 @@ namespace HostileSpec.Generated.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListNotesParameters(
 #nullable disable annotations
-    string OddNameHere,
-#nullable restore annotations
-    [property: FromQuery(Name = "kind")] NoteKind? Kind,
-#nullable disable annotations
     string Filter = "say \"hi\" \\ bye",
+    string OddNameHere = null,
 #nullable restore annotations
     [property: FromQuery(Name = "discount"), DefaultValue(0.25)] double? Discount = 0.25,
-    [property: FromQuery(Name = "factor"), DefaultValue(2.5f)] float? Factor = 2.5f)
+    [property: FromQuery(Name = "factor"), DefaultValue(2.5f)] float? Factor = 2.5f,
+    [property: FromQuery(Name = "kind")] NoteKind? Kind = null)
 {
-    [FromQuery(Name = "odd \"name\" \\ here")]
-    public string? OddNameHere { get; init; } = OddNameHere;
-
     [FromQuery(Name = "filter")]
     [DefaultValue("say \"hi\" \\ bye")]
     public string? Filter { get; init; } = Filter ?? "say \"hi\" \\ bye";
+
+    [FromQuery(Name = "odd \"name\" \\ here")]
+    public string? OddNameHere { get; init; } = OddNameHere;
 }
 
 /// <summary>

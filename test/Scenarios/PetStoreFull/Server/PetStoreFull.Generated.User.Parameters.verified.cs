@@ -44,8 +44,8 @@ public sealed record CreateUsersWithListInputParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record LoginUserParameters(
 #nullable disable annotations
-    string Username,
-    string Password)
+    string Username = null,
+    string Password = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "username")]

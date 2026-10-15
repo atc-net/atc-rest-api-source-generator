@@ -24,5 +24,5 @@ namespace PetStoreFull.Generated.User.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record LoginUserParameters(
-    string? Username,
-    string? Password);
+    string? Username = null,
+    string? Password = null);

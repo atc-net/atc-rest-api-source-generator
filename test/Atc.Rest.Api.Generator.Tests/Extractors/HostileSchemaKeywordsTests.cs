@@ -126,10 +126,10 @@ public sealed class HostileSchemaKeywordsTests
             ExtensibleEnumsRegistry(),
             includeBindingAttributes: false);
 
-        // An optional parameter without a default: nullable, with no initializer
+        // An optional parameter without a default: nullable, null unless the caller names it
         var parameter = Assert.Single(Assert.Single(records!).Parameters!, p => string.Equals(p.Name, "SortBy", StringComparison.Ordinal));
         Assert.True(parameter.IsNullableType);
-        Assert.Null(parameter.DefaultValue);
+        Assert.Equal("null", parameter.DefaultValue);
         Assert.DoesNotContain(parameter.Attributes ?? [], a => string.Equals(a.Name, "DefaultValue", StringComparison.Ordinal));
     }
 

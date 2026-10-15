@@ -24,4 +24,4 @@ namespace Pagination.Generated.Tags.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListTagsParameters(
-    string? Continuation);
+    string? Continuation = null);

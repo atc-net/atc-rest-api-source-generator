@@ -24,5 +24,5 @@ namespace HostileTypeScript.Generated.Repos.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReposListParameters(
-    string? Class,
-    string? Default);
+    string? Class = null,
+    string? Default = null);

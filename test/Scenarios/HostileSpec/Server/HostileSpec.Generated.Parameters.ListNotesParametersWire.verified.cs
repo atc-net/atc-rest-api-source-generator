@@ -25,10 +25,10 @@ namespace HostileSpec.Generated.Parameters;
 public static class ListNotesParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Text("query", "odd \"name\" \\ here"),
-        WireParameter.EnumValue<NoteKind>("query", "kind"),
         WireParameter.Text("query", "filter"),
+        WireParameter.Text("query", "odd \"name\" \\ here"),
         WireParameter.Parsable<double>("query", "discount"),
         WireParameter.Parsable<float>("query", "factor"),
+        WireParameter.EnumValue<NoteKind>("query", "kind"),
     ];
 }

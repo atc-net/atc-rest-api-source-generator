@@ -26,7 +26,7 @@ namespace AsyncEnumerableHooks.Generated.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
 #nullable disable annotations
-    string Filter)
+    string Filter = null)
 #nullable restore annotations
 {
     [FromQuery(Name = "filter")]
@@ -40,7 +40,7 @@ public sealed record ListItemsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemPagesParameters(
-    [property: FromQuery(Name = "pageSize")] int? PageSize);
+    [property: FromQuery(Name = "pageSize")] int? PageSize = null);
 
 /// <summary>
 /// Parameters for operation request.
@@ -50,8 +50,8 @@ public sealed record ListItemPagesParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemLogsParameters(
     [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] Guid ItemId,
-    [property: FromQuery(Name = "logLevel")] GetItemLogsParametersLogLevel? LogLevel,
-    [property: FromQuery(Name = "from")] DateTimeOffset? From);
+    [property: FromQuery(Name = "logLevel")] GetItemLogsParametersLogLevel? LogLevel = null,
+    [property: FromQuery(Name = "from")] DateTimeOffset? From = null);
 
 /// <summary>
 /// Parameters for operation request.
@@ -60,5 +60,5 @@ public sealed record GetItemLogsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SearchItemsParameters(
-    [property: FromQuery(Name = "createdAfter")] DateTimeOffset? CreatedAfter,
-    [property: FromQuery(Name = "createdBefore"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "createdBefore")] DateTimeOffset CreatedBefore);
+    [property: FromQuery(Name = "createdBefore"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "createdBefore")] DateTimeOffset CreatedBefore,
+    [property: FromQuery(Name = "createdAfter")] DateTimeOffset? CreatedAfter = null);

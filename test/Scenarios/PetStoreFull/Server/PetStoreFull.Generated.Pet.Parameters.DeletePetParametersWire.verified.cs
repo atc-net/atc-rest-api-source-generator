@@ -25,7 +25,7 @@ namespace PetStoreFull.Generated.Pet.Parameters;
 public static class DeletePetParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
-        WireParameter.Text("header", "api_key"),
         WireParameter.Parsable<long>("path", "petId"),
+        WireParameter.Text("header", "api_key"),
     ];
 }

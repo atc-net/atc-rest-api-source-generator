@@ -24,6 +24,6 @@ namespace HeaderParameters.Generated.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
-    string? Continuation,
     [property: Required] string CorrelationId,
-    int? Limit);
+    string? Continuation = null,
+    int? Limit = null);

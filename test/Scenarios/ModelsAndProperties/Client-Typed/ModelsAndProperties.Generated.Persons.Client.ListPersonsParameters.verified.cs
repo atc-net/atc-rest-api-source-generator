@@ -25,4 +25,4 @@ namespace ModelsAndProperties.Generated.Persons.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPersonsParameters(
-    GenderType? Gender);
+    GenderType? Gender = null);

@@ -25,5 +25,5 @@ namespace AsyncEnumerableHooks.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemLogsParameters(
     [property: Required] Guid ItemId,
-    GetItemLogsParametersLogLevel? LogLevel,
-    DateTimeOffset? From);
+    GetItemLogsParametersLogLevel? LogLevel = null,
+    DateTimeOffset? From = null);

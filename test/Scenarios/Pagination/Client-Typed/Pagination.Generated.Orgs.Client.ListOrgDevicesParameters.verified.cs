@@ -26,5 +26,5 @@ namespace Pagination.Generated.Orgs.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListOrgDevicesParameters(
     [property: Required] string OrgId,
-    string? Continuation,
-    string? Tenant);
+    string? Continuation = null,
+    string? Tenant = null);

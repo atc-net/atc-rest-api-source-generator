@@ -24,4 +24,4 @@ namespace Pagination.Generated.Archive.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListArchivedAccountsParameters(
-    string? Continuation);
+    string? Continuation = null);

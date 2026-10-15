@@ -24,8 +24,8 @@ namespace Demo.Generated.Users.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListUsersParameters(
-    string? Search,
-    string? Country,
-    ListUsersParametersRole? Role,
-    bool? IsActive,
+    string? Search = null,
+    string? Country = null,
+    ListUsersParametersRole? Role = null,
+    bool? IsActive = null,
     [property: Range(1, 100), DefaultValue(25)] int? Limit = 25);
