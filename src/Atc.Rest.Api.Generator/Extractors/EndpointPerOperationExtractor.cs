@@ -1591,6 +1591,20 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        // The reason for any refusal, whatever its status
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The problem a refusal was answered with, for any status that is not a success: the body's ProblemDetails (a");
+        sb.AppendLine(4, "/// ValidationProblemDetails when it has field errors), or one made from a text body or the status alone. Null for a");
+        sb.AppendLine(4, "/// success, and for an error answered with a declared model of another kind.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "ProblemDetails? Problem { get; }");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The problem when it is a ValidationProblemDetails (the field errors of a refused request), else null.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "ValidationProblemDetails? ValidationProblem { get; }");
+        sb.AppendLine();
+
         // The headers the responses declare
         foreach (var property in ResponseHeaderFactoryHelper.ClientInterfaceProperties(declaredHeaders))
         {
@@ -1950,6 +1964,24 @@ public static class EndpointPerOperationExtractor
 
             sb.AppendLine();
         }
+
+        // The reason for any refusal, whatever its status: what the per-status accessors read, for every status
+        sb.AppendLine(4, "public ProblemDetails? Problem");
+        sb.AppendLine(8, "=> IsSuccess");
+        sb.AppendLine(12, "? null");
+        sb.AppendLine(12, ": ContentObject switch");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "ProblemDetails problem => problem,");
+        sb.AppendLine(16, "string message => ProblemDetailsFactory.Create(StatusCode, message),");
+        sb.AppendLine(16, "null => ProblemDetailsFactory.ValidationErrorsFromContent(Content) is { Count: > 0 }");
+        sb.AppendLine(20, "? ProblemDetailsFactory.ValidationFromContent(StatusCode, Content)");
+        sb.AppendLine(20, ": ProblemDetailsFactory.FromContent(StatusCode, Content),");
+        sb.AppendLine(16, "_ => null,");
+        sb.AppendLine(12, "};");
+        sb.AppendLine();
+        sb.AppendLine(4, "public ValidationProblemDetails? ValidationProblem");
+        sb.AppendLine(8, "=> Problem as ValidationProblemDetails;");
+        sb.AppendLine();
 
         // The headers the responses declare
         foreach (var line in ResponseHeaderFactoryHelper.ClientProperties(declaredHeaders))

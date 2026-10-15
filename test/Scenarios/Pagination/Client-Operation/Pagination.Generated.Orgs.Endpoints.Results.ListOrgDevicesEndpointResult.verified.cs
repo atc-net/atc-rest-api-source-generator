@@ -149,4 +149,20 @@ public partial class ListOrgDevicesEndpointResult : EndpointResponse, IListOrgDe
         => IsDefaultError && ContentObject is Problem result
             ? result
             : throw InvalidContentAccessException<Problem>(StatusCode, "DefaultErrorContent");
+
+    public ProblemDetails? Problem
+        => IsSuccess
+            ? null
+            : ContentObject switch
+            {
+                ProblemDetails problem => problem,
+                string message => ProblemDetailsFactory.Create(StatusCode, message),
+                null => ProblemDetailsFactory.ValidationErrorsFromContent(Content) is { Count: > 0 }
+                    ? ProblemDetailsFactory.ValidationFromContent(StatusCode, Content)
+                    : ProblemDetailsFactory.FromContent(StatusCode, Content),
+                _ => null,
+            };
+
+    public ValidationProblemDetails? ValidationProblem
+        => Problem as ValidationProblemDetails;
 }

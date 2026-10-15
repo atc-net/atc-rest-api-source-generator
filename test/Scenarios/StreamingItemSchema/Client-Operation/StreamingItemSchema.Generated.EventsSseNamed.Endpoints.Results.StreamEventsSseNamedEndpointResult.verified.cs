@@ -150,6 +150,22 @@ public partial class StreamEventsSseNamedEndpointResult : StreamingEndpointRespo
             ? result
             : throw InvalidContentAccessException(StatusCode, "DefaultErrorContent");
 
+    public ProblemDetails? Problem
+        => IsSuccess
+            ? null
+            : ErrorObject switch
+            {
+                ProblemDetails problem => problem,
+                string message => ProblemDetailsFactory.Create(StatusCode, message),
+                null => ProblemDetailsFactory.ValidationErrorsFromContent(ErrorText) is { Count: > 0 }
+                    ? ProblemDetailsFactory.ValidationFromContent(StatusCode, ErrorText)
+                    : ProblemDetailsFactory.FromContent(StatusCode, ErrorText),
+                _ => null,
+            };
+
+    public ValidationProblemDetails? ValidationProblem
+        => Problem as ValidationProblemDetails;
+
     /// <summary>
     /// The <c>X-Stream-Id</c> response header; null when it is absent or is not a value of this type.
     /// </summary>

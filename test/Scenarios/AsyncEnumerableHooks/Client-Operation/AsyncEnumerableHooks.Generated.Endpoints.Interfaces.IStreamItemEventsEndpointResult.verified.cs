@@ -35,6 +35,18 @@ public interface IStreamItemEventsEndpointResult : IStreamingEndpointResponse<It
     ProblemDetails GatewayTimeoutContent { get; }
 
     /// <summary>
+    /// The problem a refusal was answered with, for any status that is not a success: the body's ProblemDetails (a
+    /// ValidationProblemDetails when it has field errors), or one made from a text body or the status alone. Null for a
+    /// success, and for an error answered with a declared model of another kind.
+    /// </summary>
+    ProblemDetails? Problem { get; }
+
+    /// <summary>
+    /// The problem when it is a ValidationProblemDetails (the field errors of a refused request), else null.
+    /// </summary>
+    ValidationProblemDetails? ValidationProblem { get; }
+
+    /// <summary>
     /// The id of the last server-sent event read so far - what to send as Last-Event-ID to continue the stream
     /// after it. Null when no event has had an id; empty when the server has reset it.
     /// </summary>

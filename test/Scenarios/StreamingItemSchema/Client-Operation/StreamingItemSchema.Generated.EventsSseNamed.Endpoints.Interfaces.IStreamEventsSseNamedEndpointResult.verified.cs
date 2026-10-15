@@ -47,6 +47,18 @@ public interface IStreamEventsSseNamedEndpointResult : IStreamingEndpointRespons
 
     StreamError DefaultErrorContent { get; }
 
+    /// <summary>
+    /// The problem a refusal was answered with, for any status that is not a success: the body's ProblemDetails (a
+    /// ValidationProblemDetails when it has field errors), or one made from a text body or the status alone. Null for a
+    /// success, and for an error answered with a declared model of another kind.
+    /// </summary>
+    ProblemDetails? Problem { get; }
+
+    /// <summary>
+    /// The problem when it is a ValidationProblemDetails (the field errors of a refused request), else null.
+    /// </summary>
+    ValidationProblemDetails? ValidationProblem { get; }
+
     global::System.Guid? XStreamIdHeader { get; }
 
     int? RetryAfterHeader { get; }

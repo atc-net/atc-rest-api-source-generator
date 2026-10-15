@@ -134,4 +134,20 @@ public partial class GetOrderTrackingEndpointResult : EndpointResponse, IGetOrde
                     : IsGatewayTimeout
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    public ProblemDetails? Problem
+        => IsSuccess
+            ? null
+            : ContentObject switch
+            {
+                ProblemDetails problem => problem,
+                string message => ProblemDetailsFactory.Create(StatusCode, message),
+                null => ProblemDetailsFactory.ValidationErrorsFromContent(Content) is { Count: > 0 }
+                    ? ProblemDetailsFactory.ValidationFromContent(StatusCode, Content)
+                    : ProblemDetailsFactory.FromContent(StatusCode, Content),
+                _ => null,
+            };
+
+    public ValidationProblemDetails? ValidationProblem
+        => Problem as ValidationProblemDetails;
 }

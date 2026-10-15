@@ -754,8 +754,8 @@ public class EndpointPerOperationExtractorTests
         Assert.Contains("string UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
         Assert.Contains("string InternalServerErrorContent", operationFile.ResultClassContent, StringComparison.Ordinal);
 
-        // ValidationProblemDetails should NOT be present
-        Assert.DoesNotContain("ValidationProblemDetails", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // No status reads a ValidationProblemDetails (Problem / ValidationProblem make one of any refusal's text)
+        Assert.DoesNotMatch(new System.Text.RegularExpressions.Regex(@"ValidationProblemDetails \w+Content", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)), operationFile.ResultClassContent);
     }
 
     [Fact]
@@ -811,10 +811,9 @@ public class EndpointPerOperationExtractorTests
         Assert.Contains("ApiError UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
         Assert.Contains("ApiError InternalServerErrorContent", operationFile.ResultClassContent, StringComparison.Ordinal);
 
-        // ProblemDetails/ValidationProblemDetails types should NOT be present (the lenient reader of the custom
-        // model lives on ProblemDetailsFactory, so that name is allowed)
-        var withoutFactory = operationFile.ResultClassContent!.Replace("ProblemDetailsFactory.", string.Empty, StringComparison.Ordinal);
-        Assert.DoesNotContain("ProblemDetails", withoutFactory, StringComparison.Ordinal);
+        // No status reads a ProblemDetails/ValidationProblemDetails (the lenient reader of the custom model lives on
+        // ProblemDetailsFactory; Problem / ValidationProblem are on every result)
+        Assert.DoesNotMatch(new System.Text.RegularExpressions.Regex(@"ProblemDetails \w+Content", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)), operationFile.ResultClassContent!);
         Assert.Contains("ProblemDetailsFactory.ModelFromContent<ApiError>(Content)", operationFile.ResultClassContent, StringComparison.Ordinal);
     }
 

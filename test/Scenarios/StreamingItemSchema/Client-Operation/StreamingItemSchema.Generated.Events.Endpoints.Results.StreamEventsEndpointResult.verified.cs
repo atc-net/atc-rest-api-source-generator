@@ -98,4 +98,20 @@ public partial class StreamEventsEndpointResult : StreamingEndpointResponse<Even
                     : IsGatewayTimeout
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, ErrorText)
                         : throw InvalidContentAccessException(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    public ProblemDetails? Problem
+        => IsSuccess
+            ? null
+            : ErrorObject switch
+            {
+                ProblemDetails problem => problem,
+                string message => ProblemDetailsFactory.Create(StatusCode, message),
+                null => ProblemDetailsFactory.ValidationErrorsFromContent(ErrorText) is { Count: > 0 }
+                    ? ProblemDetailsFactory.ValidationFromContent(StatusCode, ErrorText)
+                    : ProblemDetailsFactory.FromContent(StatusCode, ErrorText),
+                _ => null,
+            };
+
+    public ValidationProblemDetails? ValidationProblem
+        => Problem as ValidationProblemDetails;
 }
