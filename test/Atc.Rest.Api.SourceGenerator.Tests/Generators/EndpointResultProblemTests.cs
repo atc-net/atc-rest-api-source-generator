@@ -4,6 +4,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// Every EndpointPerOperation result has the server's reason for a refusal, whatever the status: <c>Problem</c> (the
 /// <c>ProblemDetails</c> of any status that is not a success) and <c>ValidationProblem</c> (when it carries field
 /// errors) - code that shows "why" needs no <c>switch</c> over <c>ContentObject</c> and no list of declared statuses.
+/// Every result shares them through the generated <c>IEndpointResult</c>, so one helper reads any operation's.
 /// </summary>
 public class EndpointResultProblemTests
 {
@@ -107,6 +108,7 @@ public class EndpointResultProblemTests
                     Of("undeclared 409, a problem", Raw(HttpStatusCode.Conflict, "{\"title\":\"Conflict\",\"detail\":\"The name is taken.\"}")),
                     Of("undeclared 503, text", Raw(HttpStatusCode.ServiceUnavailable, "Down for maintenance")),
                     Of("undeclared 502, empty", Raw(HttpStatusCode.BadGateway, string.Empty)),
+                    $"a streamed result shares it: {typeof(IEndpointResult).IsAssignableFrom(typeof(ListEventsEndpointResult))}",
                     ];
             }
 
@@ -118,8 +120,11 @@ public class EndpointResultProblemTests
                     contentObject: null,
                     headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)));
 
-            private static string Of(string name, IGetThingEndpointResult result)
-                => Text(name, result.Problem, result.ValidationProblem);
+            // One helper for every operation, over the base type, as a client's shared "why" helper is
+            private static string Of(string name, EndpointResponse response)
+                => response is IEndpointResult result
+                    ? Text(name, result.Problem, result.ValidationProblem)
+                    : $"{name}: no IEndpointResult";
 
                 private static string Text(string name, ProblemDetails? problem, ValidationProblemDetails? validation)
                 => $"{name}: {(problem is null ? "no problem" : $"{problem.Status} {problem.Title ?? "-"} / {problem.Detail ?? "-"}")}" +
@@ -156,6 +161,7 @@ public class EndpointResultProblemTests
                 "undeclared 409, a problem: 409 Conflict / The name is taken.",
                 "undeclared 503, text: 503 ServiceUnavailable / Down for maintenance",
                 "undeclared 502, empty: 502 BadGateway / -",
+                "a streamed result shares it: True",
             ],
             described);
     }

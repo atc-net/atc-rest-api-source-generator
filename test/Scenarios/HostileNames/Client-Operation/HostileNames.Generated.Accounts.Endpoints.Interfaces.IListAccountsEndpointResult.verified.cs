@@ -23,7 +23,7 @@ namespace HostileNames.Generated.Accounts.Endpoints.Interfaces;
 /// Operation: ListAccounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public interface IListAccountsEndpointResult : IEndpointResponse
+public interface IListAccountsEndpointResult : IEndpointResponse, IEndpointResult
 {
     bool IsOk { get; }
 
@@ -36,16 +36,4 @@ public interface IListAccountsEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
-
-    /// <summary>
-    /// The problem a refusal was answered with, for any status that is not a success: the body's ProblemDetails (a
-    /// ValidationProblemDetails when it has field errors), or one made from a text body or the status alone. Null for a
-    /// success, and for an error answered with a declared model of another kind.
-    /// </summary>
-    ProblemDetails? Problem { get; }
-
-    /// <summary>
-    /// The problem when it is a ValidationProblemDetails (the field errors of a refused request), else null.
-    /// </summary>
-    ValidationProblemDetails? ValidationProblem { get; }
 }

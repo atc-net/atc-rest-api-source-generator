@@ -1553,8 +1553,8 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine(streamedItemType is null
-            ? $"public interface I{operationName}EndpointResult : IEndpointResponse"
-            : $"public interface I{operationName}EndpointResult : IStreamingEndpointResponse<{streamedItemType}>");
+            ? $"public interface I{operationName}EndpointResult : IEndpointResponse, IEndpointResult"
+            : $"public interface I{operationName}EndpointResult : IStreamingEndpointResponse<{streamedItemType}>, IEndpointResult");
         sb.AppendLine("{");
 
         foreach (var response in responses)
@@ -1591,19 +1591,7 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
-        // The reason for any refusal, whatever its status
-        sb.AppendLine(4, "/// <summary>");
-        sb.AppendLine(4, "/// The problem a refusal was answered with, for any status that is not a success: the body's ProblemDetails (a");
-        sb.AppendLine(4, "/// ValidationProblemDetails when it has field errors), or one made from a text body or the status alone. Null for a");
-        sb.AppendLine(4, "/// success, and for an error answered with a declared model of another kind.");
-        sb.AppendLine(4, "/// </summary>");
-        sb.AppendLine(4, "ProblemDetails? Problem { get; }");
-        sb.AppendLine();
-        sb.AppendLine(4, "/// <summary>");
-        sb.AppendLine(4, "/// The problem when it is a ValidationProblemDetails (the field errors of a refused request), else null.");
-        sb.AppendLine(4, "/// </summary>");
-        sb.AppendLine(4, "ValidationProblemDetails? ValidationProblem { get; }");
-        sb.AppendLine();
+        // Problem / ValidationProblem: from IEndpointResult, which every result interface shares
 
         // The headers the responses declare
         foreach (var property in ResponseHeaderFactoryHelper.ClientInterfaceProperties(declaredHeaders))
