@@ -87,6 +87,13 @@ public static class OpenApiCacheExtensions
         /// <returns>The key prefix, or null if not specified.</returns>
         public string? ExtractCacheKeyPrefix()
             => ExtractStringValue(extensions, CacheExtensionNameConstants.KeyPrefix);
+
+        /// <summary>
+        /// Extracts the x-cache-shared value from extensions (Output Caching only).
+        /// </summary>
+        /// <returns>True when the answer is the same for every caller, false if not, null if not specified.</returns>
+        public bool? ExtractCacheShared()
+            => ExtractBoolValue(extensions, CacheExtensionNameConstants.Shared);
     }
 
     /// <summary>
@@ -174,6 +181,12 @@ public static class OpenApiCacheExtensions
                         ?? pathItem.Extensions.ExtractCacheKeyPrefix()
                         ?? document.Extensions.ExtractCacheKeyPrefix();
 
+        // Output Caching specific: the same answer for every caller
+        var shared = operation.Extensions.ExtractCacheShared()
+                     ?? pathItem.Extensions.ExtractCacheShared()
+                     ?? document.Extensions.ExtractCacheShared()
+                     ?? false;
+
         return new CacheConfiguration
         {
             Enabled = true,
@@ -187,6 +200,7 @@ public static class OpenApiCacheExtensions
             Mode = cacheMode,
             SlidingExpirationSeconds = slidingExpirationSeconds,
             KeyPrefix = keyPrefix,
+            Shared = shared,
         };
     }
 

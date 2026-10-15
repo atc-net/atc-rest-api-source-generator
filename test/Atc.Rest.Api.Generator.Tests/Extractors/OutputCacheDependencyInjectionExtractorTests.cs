@@ -75,6 +75,74 @@ public class OutputCacheDependencyInjectionExtractorTests
         Assert.Contains("return services;", result, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// <c>x-cache-shared: true</c>: the answer is the same for every caller, so the policy is built without the default
+    /// policy (which skips every authenticated request) and with the generated shared policy, which stores only a GET or
+    /// HEAD 200 without a cookie.
+    /// </summary>
+    [Fact]
+    public void Extract_ASharedPolicy_IsBuiltWithoutTheDefaultPolicy()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: listDevices
+                                  x-cache-policy: devices
+                                  x-cache-expiration-seconds: 5
+                                  x-cache-shared: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /settings:
+                                get:
+                                  operationId: getSettings
+                                  x-cache-policy: settings
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var result = OutputCacheDependencyInjectionExtractor.Extract(OpenApiDocumentHelper.ParseYaml(yaml), "TestApi");
+
+        Assert.NotNull(result);
+        var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Contains(
+            "            options.AddPolicy(\n                OutputCachePolicies.Devices,\n                policy =>\n                {\n                    policy.AddPolicy<SharedOutputCachePolicy>();\n                    policy.Expire(TimeSpan.FromSeconds(5));\n                },\n                excludeDefaultPolicy: true);",
+            normalized,
+            StringComparison.Ordinal);
+        Assert.Contains("options.AddPolicy(OutputCachePolicies.Settings, policy =>", normalized, StringComparison.Ordinal);
+        Assert.Contains("public sealed class SharedOutputCachePolicy : IOutputCachePolicy", normalized, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_NoSharedPolicy_HasNoSharedOutputCachePolicy()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /settings:
+                                get:
+                                  operationId: getSettings
+                                  x-cache-policy: settings
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var result = OutputCacheDependencyInjectionExtractor.Extract(OpenApiDocumentHelper.ParseYaml(yaml), "TestApi");
+
+        Assert.NotNull(result);
+        Assert.DoesNotContain("SharedOutputCachePolicy", result, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_PolicyOnDeprecatedOperation_OnlyIncludedWhenRequested()
     {

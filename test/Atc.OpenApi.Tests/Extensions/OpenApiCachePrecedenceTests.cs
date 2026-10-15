@@ -19,6 +19,7 @@ public class OpenApiCachePrecedenceTests
             { "x-cache-mode", "in-memory", "distributed", "in-memory", nameof(CacheConfiguration.Mode), nameof(CacheMode.Hybrid) },
             { "x-cache-sliding-expiration-seconds", "10", "20", "30", nameof(CacheConfiguration.SlidingExpirationSeconds), string.Empty },
             { "x-cache-key-prefix", "doc", "path", "op", nameof(CacheConfiguration.KeyPrefix), string.Empty },
+            { "x-cache-shared", "true", "false", "true", nameof(CacheConfiguration.Shared), "False" },
         };
 
     [Theory]
@@ -71,6 +72,7 @@ public class OpenApiCachePrecedenceTests
             {
                 nameof(CacheConfiguration.Type) => value == "hybrid" ? nameof(CacheType.Hybrid) : nameof(CacheType.Output),
                 nameof(CacheConfiguration.Mode) => value == "in-memory" ? nameof(CacheMode.InMemory) : nameof(CacheMode.Distributed),
+                nameof(CacheConfiguration.Shared) => value == "true" ? "True" : "False",
                 _ => value.Trim('[', ']'),
             };
     }

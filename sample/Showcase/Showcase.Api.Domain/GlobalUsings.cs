@@ -15,6 +15,7 @@ global using System.Threading.Tasks;
 
 global using FluentValidation;
 
+global using Microsoft.AspNetCore.OutputCaching;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 
@@ -24,6 +25,7 @@ global using Showcase.Generated.Accounts.Handlers;
 global using Showcase.Generated.Accounts.Models;
 global using Showcase.Generated.Accounts.Parameters;
 global using Showcase.Generated.Accounts.Results;
+global using Showcase.Generated.Caching;
 global using Showcase.Generated.Documents.Handlers;
 global using Showcase.Generated.Documents.Models;
 global using Showcase.Generated.Documents.Parameters;

@@ -96,4 +96,13 @@ public static class CacheExtensionNameConstants
     /// Example: x-cache-key-prefix: "myapi"
     /// </summary>
     public const string KeyPrefix = "x-cache-key-prefix";
+
+    /// <summary>
+    /// Extension tag saying that an output-cached answer is the same for every caller (Output Caching only), so it is
+    /// cached also for an authenticated caller - ASP.NET Core's default policy never caches such a request.
+    /// Type: boolean
+    /// Default: false
+    /// Example: x-cache-shared: true
+    /// </summary>
+    public const string Shared = "x-cache-shared";
 }

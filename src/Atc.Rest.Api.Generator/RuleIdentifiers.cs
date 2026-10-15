@@ -425,6 +425,14 @@ public static class RuleIdentifiers
     /// </summary>
     public const string OutputCacheOnNonCacheableMethod = "ATC_API_CACHE001";
 
+    /// <summary>
+    /// ATC_API_CACHE002: Output caching is configured on an operation that requires an authenticated caller. The
+    /// output-cache middleware's default policy never caches a request with an <c>Authorization</c> header or an
+    /// authenticated user, so nothing is cached - unless the answer is the same for every caller and the specification
+    /// says so with <c>x-cache-shared: true</c>.
+    /// </summary>
+    public const string OutputCacheOnAuthenticatedOperation = "ATC_API_CACHE002";
+
     // ========== Server Rules (SRV) ==========
 
     /// <summary>

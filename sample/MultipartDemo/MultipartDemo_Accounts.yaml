@@ -14,6 +14,7 @@ paths:
     x-cache-type: output
     x-cache-policy: accounts
     x-cache-expiration-seconds: 60
+    x-cache-shared: true
     x-cache-vary-by-query:
       - limit
     x-cache-tags:

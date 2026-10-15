@@ -13,6 +13,56 @@ public class OutputCacheValidationTests
 {
     private const string TestFilePath = "test.yaml";
 
+    /// <summary>
+    /// ATC_API_CACHE002: the output cache's default policy never caches a request with an <c>Authorization</c> header or
+    /// an authenticated user, so <c>x-cache-type: output</c> on an operation that requires a caller caches nothing -
+    /// unless the answer is the same for every caller and says so (<c>x-cache-shared: true</c>).
+    /// </summary>
+    [Theory]
+    [InlineData("security:\n  - bearer: []", "", true)]
+    [InlineData("security:\n  - bearer: []", "x-cache-shared: true", false)]
+    [InlineData("security:\n  - bearer: []", "security: []", false)]
+    [InlineData("x-authorize-roles: [reader]", "x-authorize-roles: [reader]", true)]
+    [InlineData("", "", false)]
+    [InlineData("security:\n  - bearer: []", "x-cache-type: hybrid", false)]
+    public void OutputCacheOnAnOperationThatRequiresACaller_IsReportedAsCACHE002(
+        string documentSecurity,
+        string operationExtension,
+        bool expected)
+    {
+        var yaml = $$"""
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            {{documentSecurity}}
+            paths:
+              /devices:
+                get:
+                  operationId: listDevices
+                  x-cache-policy: devices
+                  x-cache-expiration-seconds: 5
+                  {{operationExtension}}
+                  responses:
+                    '200':
+                      description: OK
+                    '401':
+                      description: Unauthorized
+            components:
+              securitySchemes:
+                bearer:
+                  type: http
+                  scheme: bearer
+            """;
+
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict, doc, [], TestFilePath);
+
+        Assert.Equal(expected, diagnostics.Any(d => d.RuleId == RuleIdentifiers.OutputCacheOnAuthenticatedOperation));
+    }
+
     [Fact]
     public void Warns_WhenOutputCacheIsConfiguredOnQueryOperation()
     {

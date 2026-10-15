@@ -2168,6 +2168,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_CACHE001: Output caching configured on a method the middleware never caches
         ValidateOutputCacheMethod(diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId);
 
+        // ATC_API_CACHE002: Output caching configured on an operation whose callers are authenticated
+        ValidateOutputCacheAuthentication(diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId);
+
         // ATC_API_OPR027: GET with an array query parameter that can outgrow the request line
         ValidateLargeArrayQueryParameters(diagnostics, sourceFilePath, pathItem, httpMethodUpper, operation, operationId);
 
@@ -4469,6 +4472,56 @@ public static class OpenApiDocumentValidator
                      "The middleware also keys cache entries on the URL only, so it cannot distinguish two " +
                      "requests that differ by request body. Use 'x-cache-type: hybrid' and cache inside the " +
                      "handler instead, or override the output-cache base policy to opt this method in.",
+            Severity: DiagnosticSeverity.Warning,
+            FilePath: sourceFilePath));
+    }
+
+    /// <summary>
+    /// Emits ATC_API_CACHE002 when output caching is configured on a GET or HEAD operation that requires an
+    /// authenticated caller and does not say that its answer is the same for every caller (<c>x-cache-shared</c>).
+    /// </summary>
+    /// <remarks>
+    /// The output-cache middleware's default policy, which a named policy starts from, never caches a request that
+    /// carries an <c>Authorization</c> header or has an authenticated user: an answer may be the caller's own. On such an
+    /// operation the generated <c>.CacheOutput(...)</c> therefore caches nothing, with no word at build or run time.
+    /// Another verb is ATC_API_CACHE001's.
+    /// </remarks>
+    private static void ValidateOutputCacheAuthentication(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document,
+        IOpenApiPathItem pathItem,
+        string httpMethodUpper,
+        OpenApiOperation operation,
+        string operationId)
+    {
+        if (httpMethodUpper is not ("GET" or "HEAD"))
+        {
+            return;
+        }
+
+        var cacheConfiguration = operation.ExtractCacheConfiguration(pathItem, document);
+        if (cacheConfiguration is null ||
+            !cacheConfiguration.Enabled ||
+            cacheConfiguration.Type != CacheType.Output ||
+            cacheConfiguration.Shared)
+        {
+            return;
+        }
+
+        var security = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
+        if (!security.AuthenticationRequired || security.AllowAnonymous)
+        {
+            return;
+        }
+
+        diagnostics.Add(new DiagnosticMessage(
+            RuleId: RuleIdentifiers.OutputCacheOnAuthenticatedOperation,
+            Message: $"Output caching is configured on operation '{operationId}', which requires an authenticated " +
+                     "caller. ASP.NET Core's output-cache default policy never caches a request with an " +
+                     "Authorization header or an authenticated user, so nothing is cached. If the answer is the " +
+                     "same for every caller, add 'x-cache-shared: true'; if it is the caller's own, use " +
+                     "'x-cache-type: hybrid' and cache inside the handler, or remove the output cache.",
             Severity: DiagnosticSeverity.Warning,
             FilePath: sourceFilePath));
     }

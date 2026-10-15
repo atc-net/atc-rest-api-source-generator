@@ -115,6 +115,10 @@ paths:
     x-cache-type: output
     x-cache-policy: accounts
     x-cache-expiration-seconds: 60
+    # The account list is the same for every caller, and every caller is signed in (the root security): without
+    # x-cache-shared the output cache's default policy never caches an authenticated request - see ATC_API_CACHE002.
+    # The handlers that change an account evict the cached lists by their tag.
+    x-cache-shared: true
     x-cache-vary-by-query:
       - limit
     x-cache-tags:

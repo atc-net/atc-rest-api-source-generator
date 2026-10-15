@@ -158,6 +158,12 @@ internal static class CachePolicyCollector
                         ?? pathExtensions.ExtractCacheKeyPrefix()
                         ?? documentExtensions.ExtractCacheKeyPrefix();
 
+        // Output cache: the same answer for every caller
+        var shared = operationExtensions.ExtractCacheShared()
+                     ?? pathExtensions.ExtractCacheShared()
+                     ?? documentExtensions.ExtractCacheShared()
+                     ?? false;
+
         return new CacheConfiguration
         {
             Enabled = true,
@@ -171,6 +177,7 @@ internal static class CachePolicyCollector
             Mode = OpenApiCacheExtensions.ParseCacheMode(modeString),
             SlidingExpirationSeconds = slidingExpirationSeconds,
             KeyPrefix = keyPrefix,
+            Shared = shared,
         };
     }
 }
