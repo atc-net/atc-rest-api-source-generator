@@ -292,6 +292,7 @@ public class RetryPolicyRuntimeTests
         sb.AppendLine("            c.Timeout = TimeSpan.FromSeconds(10);");
         sb.AppendLine("        }");
         sb.AppendLine();
+
         // The document-level policy is the default; the class is called by name with Microsoft's
         // Microsoft.Extensions.DependencyInjection imported too (no CS0104)
         sb.AppendLine("        services");
