@@ -4,7 +4,8 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// Every EndpointPerOperation result has the server's reason for a refusal, whatever the status: <c>Problem</c> (the
 /// <c>ProblemDetails</c> of any status that is not a success) and <c>ValidationProblem</c> (when it carries field
 /// errors) - code that shows "why" needs no <c>switch</c> over <c>ContentObject</c> and no list of declared statuses.
-/// Every result shares them through the generated <c>IEndpointResult</c>, so one helper reads any operation's.
+/// Every result shares them through the generated <c>IEndpointResult</c>, so one helper reads any operation's. A problem
+/// made from the status alone has the status's reason phrase as its title (RFC 9457, 4.2.1).
 /// </summary>
 public class EndpointResultProblemTests
 {
@@ -108,6 +109,8 @@ public class EndpointResultProblemTests
                     Of("undeclared 409, a problem", Raw(HttpStatusCode.Conflict, "{\"title\":\"Conflict\",\"detail\":\"The name is taken.\"}")),
                     Of("undeclared 503, text", Raw(HttpStatusCode.ServiceUnavailable, "Down for maintenance")),
                     Of("undeclared 502, empty", Raw(HttpStatusCode.BadGateway, string.Empty)),
+                    Of("undeclared 418, empty", Raw((HttpStatusCode)418, string.Empty)),
+                    Of("undeclared 499, empty", Raw((HttpStatusCode)499, string.Empty)),
                     $"a streamed result shares it: {typeof(IEndpointResult).IsAssignableFrom(typeof(ListEventsEndpointResult))}",
                     ];
             }
@@ -156,11 +159,13 @@ public class EndpointResultProblemTests
         Assert.Equal(
             [
                 "ok: no problem",
-                "declared 404: 404 NotFound / No such thing.",
+                "declared 404: 404 Not Found / No such thing.",
                 "400 with field errors: 400 Invalid / - / errors name",
                 "undeclared 409, a problem: 409 Conflict / The name is taken.",
-                "undeclared 503, text: 503 ServiceUnavailable / Down for maintenance",
-                "undeclared 502, empty: 502 BadGateway / -",
+                "undeclared 503, text: 503 Service Unavailable / Down for maintenance",
+                "undeclared 502, empty: 502 Bad Gateway / -",
+                "undeclared 418, empty: 418 I'm a teapot / -",
+                "undeclared 499, empty: 499 Client Error / -",
                 "a streamed result shares it: True",
             ],
             described);

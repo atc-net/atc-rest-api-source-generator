@@ -79,14 +79,14 @@ public sealed class ProblemDetailsFactoryAotTests
     [InlineData("""{"title":"\u00e6"}""", "|æ|404||")]
     [InlineData("""{"title":"a","title":"b"}""", "|b|404||")]
     [InlineData("""{"title":"T","traceId":"abc","n":1.50,"o":{"a":[1, 2]},"errors":{"x":["y"]}}""", """|T|404|||errors={"x":["y"]};n=1.50;o={"a":[1, 2]};traceId="abc" """)]
-    [InlineData("""{"title":5}""", """https://httpstatuses.io/404|NotFound|404|{"title":5}|""")]
-    [InlineData("""{"status":404.5}""", """https://httpstatuses.io/404|NotFound|404|{"status":404.5}|""")]
-    [InlineData("""{"status":"abc"}""", """https://httpstatuses.io/404|NotFound|404|{"status":"abc"}|""")]
-    [InlineData("""{"title":"T"} x""", """https://httpstatuses.io/404|NotFound|404|{"title":"T"} x|""")]
-    [InlineData("""{/*c*/"title":"T"}""", """https://httpstatuses.io/404|NotFound|404|{/*c*/"title":"T"}|""")]
-    [InlineData("""{"title":""", """https://httpstatuses.io/404|NotFound|404|{"title":|""")]
-    [InlineData("""[1]""", "https://httpstatuses.io/404|NotFound|404|[1]|")]
-    [InlineData("\"not found\"", "https://httpstatuses.io/404|NotFound|404|not found|")]
+    [InlineData("""{"title":5}""", """https://httpstatuses.io/404|Not Found|404|{"title":5}|""")]
+    [InlineData("""{"status":404.5}""", """https://httpstatuses.io/404|Not Found|404|{"status":404.5}|""")]
+    [InlineData("""{"status":"abc"}""", """https://httpstatuses.io/404|Not Found|404|{"status":"abc"}|""")]
+    [InlineData("""{"title":"T"} x""", """https://httpstatuses.io/404|Not Found|404|{"title":"T"} x|""")]
+    [InlineData("""{/*c*/"title":"T"}""", """https://httpstatuses.io/404|Not Found|404|{/*c*/"title":"T"}|""")]
+    [InlineData("""{"title":""", """https://httpstatuses.io/404|Not Found|404|{"title":|""")]
+    [InlineData("""[1]""", "https://httpstatuses.io/404|Not Found|404|[1]|")]
+    [InlineData("\"not found\"", "https://httpstatuses.io/404|Not Found|404|not found|")]
     public void FromContent_ReadsAProblemBody_OrMakesTheBodyTheDetail(
         string body,
         string expected)
@@ -97,9 +97,9 @@ public sealed class ProblemDetailsFactoryAotTests
     [InlineData("""{"Errors":{"a":["x"]}}""", "||400|||!a=[x]")]
     [InlineData("""{"errors":null}""", "||400||")]
     [InlineData("""{"errors":{"a":null,"b":[null]}}""", "||400|||!a=null;b=[null]")]
-    [InlineData("""{"errors":{"a":"x"}}""", """https://httpstatuses.io/400|BadRequest|400|{"errors":{"a":"x"}}|""")]
-    [InlineData("""{"errors":{"a":[1]}}""", """https://httpstatuses.io/400|BadRequest|400|{"errors":{"a":[1]}}|""")]
-    [InlineData("""{"errors":["a"]}""", """https://httpstatuses.io/400|BadRequest|400|{"errors":["a"]}|""")]
+    [InlineData("""{"errors":{"a":"x"}}""", """https://httpstatuses.io/400|Bad Request|400|{"errors":{"a":"x"}}|""")]
+    [InlineData("""{"errors":{"a":[1]}}""", """https://httpstatuses.io/400|Bad Request|400|{"errors":{"a":[1]}}|""")]
+    [InlineData("""{"errors":["a"]}""", """https://httpstatuses.io/400|Bad Request|400|{"errors":["a"]}|""")]
     public void ValidationFromContent_ReadsTheFieldErrors_OrMakesTheBodyTheDetail(
         string body,
         string expected)
