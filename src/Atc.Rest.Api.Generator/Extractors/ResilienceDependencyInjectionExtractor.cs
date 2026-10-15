@@ -197,15 +197,12 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(8, "if (retry)");
         builder.AppendLine(8, "{");
 
-        if (config.Handle429)
-        {
-            // A 429 asking for a longer wait than the per-attempt timeout (30 s without one) goes back to the caller.
-            var cap = policyTimeout is not null
-                ? "timeout"
-                : "TimeSpan.FromSeconds(timeoutSeconds ?? ApiResilienceRequest.MaxRetryAfterSeconds)";
-            builder.AppendLine(12, $"var maxRetryAfter = {cap};");
-            builder.AppendLine();
-        }
+        // A 429 or 503 asking for a longer wait than the per-attempt timeout (30 s without one) goes back to the caller.
+        var cap = policyTimeout is not null
+            ? "timeout"
+            : "TimeSpan.FromSeconds(timeoutSeconds ?? ApiResilienceRequest.MaxRetryAfterSeconds)";
+        builder.AppendLine(12, $"var maxRetryAfter = {cap};");
+        builder.AppendLine();
 
         builder.AppendLine(12, "pipeline.AddRetry(new HttpRetryStrategyOptions");
         builder.AppendLine(12, "{");
@@ -214,21 +211,17 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(16, $"BackoffType = DelayBackoffType.{config.BackoffType},");
         builder.AppendLine(16, $"UseJitter = {(config.UseJitter ? "true" : "false")},");
 
+        // The wait a 429 or 503 asks for (Retry-After) replaces the back-off; without one the back-off applies
+        builder.AppendLine(16, "DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),");
+        builder.AppendLine(16, "ShouldHandle = new PredicateBuilder<HttpResponseMessage>()");
+        builder.AppendLine(20, ".HandleResult(response => (response.StatusCode >= HttpStatusCode.InternalServerError ||");
+        builder.AppendLine(47, config.Handle429 ? "response.StatusCode == HttpStatusCode.RequestTimeout ||" : "response.StatusCode == HttpStatusCode.RequestTimeout) &&");
         if (config.Handle429)
         {
-            builder.AppendLine(16, "DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),");
-            builder.AppendLine(16, "ShouldHandle = new PredicateBuilder<HttpResponseMessage>()");
-            builder.AppendLine(20, ".HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||");
-            builder.AppendLine(46, "response.StatusCode == HttpStatusCode.RequestTimeout ||");
-            builder.AppendLine(46, "(response.StatusCode == HttpStatusCode.TooManyRequests &&");
-            builder.AppendLine(47, "!(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))");
+            builder.AppendLine(47, "response.StatusCode == HttpStatusCode.TooManyRequests) &&");
         }
-        else
-        {
-            builder.AppendLine(16, "ShouldHandle = new PredicateBuilder<HttpResponseMessage>()");
-            builder.AppendLine(20, ".HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||");
-            builder.AppendLine(46, "response.StatusCode == HttpStatusCode.RequestTimeout)");
-        }
+
+        builder.AppendLine(46, "!(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter))");
 
         builder.AppendLine(20, ".Handle<HttpRequestException>()");
         builder.AppendLine(20, ".Handle<TimeoutRejectedException>(),");
@@ -278,7 +271,7 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine("public static class ApiResilienceRequest");
         builder.AppendLine("{");
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// The longest Retry-After a 429 may ask for when the policy has no timeout; longer goes back to the caller.");
+        builder.AppendLine(4, "/// The longest Retry-After a 429 or 503 may ask for when the policy has no timeout; longer goes back to the caller.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "public const double MaxRetryAfterSeconds = 30;");
         builder.AppendLine();
@@ -329,13 +322,13 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(8, "=> request?.Options.Set(PipelineKey, BuildPipelineKey(policyName ?? string.Empty, retry: false, timeoutSeconds));");
         builder.AppendLine();
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Gets the delay a 429 response asks for in its Retry-After header, or null.");
+        builder.AppendLine(4, "/// Gets the delay a 429 or 503 response asks for in its Retry-After header (RFC 9110, 10.2.3), or null.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"response\">The response.</param>");
-        builder.AppendLine(4, "/// <returns>The requested delay, or null when the response is not a 429 or has no usable Retry-After.</returns>");
+        builder.AppendLine(4, "/// <returns>The requested delay, or null when the response is not a 429 or 503 or has no usable Retry-After.</returns>");
         builder.AppendLine(4, "public static TimeSpan? GetRetryAfter(HttpResponseMessage? response)");
         builder.AppendLine(4, "{");
-        builder.AppendLine(8, "if (response?.StatusCode != HttpStatusCode.TooManyRequests)");
+        builder.AppendLine(8, "if (response?.StatusCode is not (HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable))");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "return null;");
         builder.AppendLine(8, "}");

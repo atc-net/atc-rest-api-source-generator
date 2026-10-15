@@ -6,7 +6,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </summary>
 /// <remarks>
 /// Covers the method rule (POST/PATCH are not retried unless the operation opts in), path- and
-/// operation-level <c>x-retry-enabled</c> / <c>x-retry-policy</c>, the Retry-After cap (a 429 asking for
+/// operation-level <c>x-retry-enabled</c> / <c>x-retry-policy</c>, the Retry-After cap (a 429 or 503 asking for
 /// longer than the policy timeout goes back to the caller), that "no retry" keeps the timeout, and that the
 /// timeout and the retry cover the body: a body that stalls after the headers times out, and one the connection
 /// breaks off is retried.
@@ -148,6 +148,13 @@ public class RetryPolicyRuntimeTests
         ("getItem", "Items", "503", 3, null),
         ("getItem", "Items", "429-short", 3, null),
         ("getItem", "Items", "429-long", 1, null),
+
+        // A 503 is answered with Retry-After as a 429 is (RFC 9110, 10.2.3): followed when it fits the attempt's timeout,
+        // back to the caller when longer. A Retry-After on another 5xx means nothing, so that one is retried on the policy delay.
+        ("getItem", "Items", "503-short", 3, null),
+        ("getItem", "Items", "503-long", 1, null),
+        ("getItem", "Items", "500-long", 3, null),
+        ("postOptin", "Optin", "503-long", 1, null),
         ("putItem", "Items", "503", 3, null),
         ("putItem", "Items", "429-short", 3, null),
         ("deleteItem", "Items", "503", 3, null),
@@ -315,7 +322,7 @@ public class RetryPolicyRuntimeTests
 
     /// <summary>
     /// A stub server that counts requests per case and answers by the last path segment, "{mode}~{case}" (a status
-    /// code, "429-short" with Retry-After: 0, "429-long" with Retry-After: 120, "slow" after two seconds, "stall"
+    /// code, "429-short" / "503-short" with Retry-After: 0, "429-long" / "503-long" / "500-long" with Retry-After: 120, "slow" after two seconds, "stall"
     /// headers and part of the body and then nothing, "reset" headers and part of the body and then a connection reset).
     /// </summary>
     private sealed class CountingServer : IAsyncDisposable
@@ -358,6 +365,18 @@ public class RetryPolicyRuntimeTests
                         break;
                     case "429-long":
                         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                        context.Response.Headers.RetryAfter = "120";
+                        break;
+                    case "503-short":
+                        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                        context.Response.Headers.RetryAfter = "0";
+                        break;
+                    case "503-long":
+                        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                        context.Response.Headers.RetryAfter = "120";
+                        break;
+                    case "500-long":
+                        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                         context.Response.Headers.RetryAfter = "120";
                         break;
                     case "slow":

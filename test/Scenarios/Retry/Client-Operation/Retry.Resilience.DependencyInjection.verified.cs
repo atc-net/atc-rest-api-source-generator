@@ -123,10 +123,10 @@ public static class ResilienceServiceCollectionExtensions
                 UseJitter = true,
                 DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                    .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
-                                              response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
-                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
+                    .HandleResult(response => (response.StatusCode >= HttpStatusCode.InternalServerError ||
+                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
+                                               response.StatusCode == HttpStatusCode.TooManyRequests) &&
+                                              !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
@@ -162,10 +162,10 @@ public static class ResilienceServiceCollectionExtensions
                 UseJitter = false,
                 DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                    .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
-                                              response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
-                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
+                    .HandleResult(response => (response.StatusCode >= HttpStatusCode.InternalServerError ||
+                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
+                                               response.StatusCode == HttpStatusCode.TooManyRequests) &&
+                                              !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
@@ -193,10 +193,10 @@ public static class ResilienceServiceCollectionExtensions
                 UseJitter = true,
                 DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                    .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
-                                              response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
-                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
+                    .HandleResult(response => (response.StatusCode >= HttpStatusCode.InternalServerError ||
+                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
+                                               response.StatusCode == HttpStatusCode.TooManyRequests) &&
+                                              !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
@@ -224,10 +224,10 @@ public static class ResilienceServiceCollectionExtensions
                 UseJitter = true,
                 DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                    .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
-                                              response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
-                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
+                    .HandleResult(response => (response.StatusCode >= HttpStatusCode.InternalServerError ||
+                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
+                                               response.StatusCode == HttpStatusCode.TooManyRequests) &&
+                                              !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
@@ -255,10 +255,10 @@ public static class ResilienceServiceCollectionExtensions
                 UseJitter = true,
                 DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                    .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
-                                              response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
-                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
+                    .HandleResult(response => (response.StatusCode >= HttpStatusCode.InternalServerError ||
+                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
+                                               response.StatusCode == HttpStatusCode.TooManyRequests) &&
+                                              !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
@@ -277,7 +277,7 @@ public static class ResilienceServiceCollectionExtensions
 public static class ApiResilienceRequest
 {
     /// <summary>
-    /// The longest Retry-After a 429 may ask for when the policy has no timeout; longer goes back to the caller.
+    /// The longest Retry-After a 429 or 503 may ask for when the policy has no timeout; longer goes back to the caller.
     /// </summary>
     public const double MaxRetryAfterSeconds = 30;
 
@@ -328,13 +328,13 @@ public static class ApiResilienceRequest
         => request?.Options.Set(PipelineKey, BuildPipelineKey(policyName ?? string.Empty, retry: false, timeoutSeconds));
 
     /// <summary>
-    /// Gets the delay a 429 response asks for in its Retry-After header, or null.
+    /// Gets the delay a 429 or 503 response asks for in its Retry-After header (RFC 9110, 10.2.3), or null.
     /// </summary>
     /// <param name="response">The response.</param>
-    /// <returns>The requested delay, or null when the response is not a 429 or has no usable Retry-After.</returns>
+    /// <returns>The requested delay, or null when the response is not a 429 or 503 or has no usable Retry-After.</returns>
     public static TimeSpan? GetRetryAfter(HttpResponseMessage? response)
     {
-        if (response?.StatusCode != HttpStatusCode.TooManyRequests)
+        if (response?.StatusCode is not (HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable))
         {
             return null;
         }
