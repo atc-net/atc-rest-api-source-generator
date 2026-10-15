@@ -44,7 +44,7 @@
     <!-- Atc.Rest.MinimalApi is present in the test host, but the harness hides it from a scenario unless
          that scenario's Server marker sets a MinimalApi mode to "Enabled" - otherwise every "Auto"
          scenario would silently switch to the package-backed output. -->
-    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.1" />
+    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.0" />
     <!-- Referenced so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES), enabling real C#
          compilation and runs of generated client output (CompilationVerificationTests, the error-body matrix).
          2.6.0: streamed responses read by the library (StreamFraming) and its default registrations, on the trim- and Native AOT-ready (URL-encoded form fields, a body with its own media type, repeated

@@ -118,8 +118,9 @@ test.describe('Exception mapping on the wire', () => {
   });
 
   // A DataAnnotations ValidationException with a message only (code 8): a 400 validation problem whose message is the
-  // error of the object itself, under the empty key (as ASP.NET Core keys an object-level error)
-  test('a ValidationException with a message only is a 400 validation problem, the message under the empty key', async ({ request }) => {
+  // error of the object itself, under the empty key (as ASP.NET Core keys an object-level error), and - since
+  // Atc.Rest.MinimalApi 3.1 - also the problem's detail, as for a FluentValidation one
+  test('a ValidationException with a message only is a 400 validation problem, the message under the empty key and as detail', async ({ request }) => {
     const response = await request.get(`${apiBaseUrl}/testing/exception/8`, { headers: { Authorization: 'Bearer demo' } });
 
     expect(response.status()).toBe(400);
@@ -127,6 +128,7 @@ test.describe('Exception mapping on the wire', () => {
     const problem = await response.json();
     expect(problem.status).toBe(400);
     expect(problem.errors).toEqual({ '': ['Validation Exception (code 8) - This maps to 400 Bad Request'] });
+    expect(problem.detail).toBe('Validation Exception (code 8) - This maps to 400 Bad Request');
   });
 
   // BadRequest("…"): a refusal that is no field error is a 400 ProblemDetails with the message as detail, as

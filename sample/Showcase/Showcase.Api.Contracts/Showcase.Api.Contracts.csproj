@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.1" />
+    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.0" />
   </ItemGroup>
 
   <ItemGroup>
