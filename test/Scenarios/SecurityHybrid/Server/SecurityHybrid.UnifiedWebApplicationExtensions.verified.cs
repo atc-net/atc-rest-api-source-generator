@@ -43,9 +43,12 @@ public static class UnifiedWebApplicationExtensions
         var options = new ApiMiddlewareOptions();
         configure?.Invoke(options);
 
+        // A host that orders its own pipeline has its own error handler, status code pages and authentication
+        var hostOwnsPipeline = options.HostOwnsPipeline;
+
         // An unhandled exception as a ProblemDetails 500 (needs AddProblemDetails; not in Development, where the
         // developer exception page shows it)
-        if (options.UseExceptionHandler &&
+        if (!hostOwnsPipeline && options.UseExceptionHandler &&
             !global::Microsoft.Extensions.Hosting.HostEnvironmentEnvExtensions.IsDevelopment(app.Environment) &&
             app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)
         {
@@ -53,14 +56,14 @@ public static class UnifiedWebApplicationExtensions
         }
 
         // ProblemDetails body for error responses that have none (needs AddProblemDetails)
-        if (options.UseStatusCodePages &&
+        if (!hostOwnsPipeline && options.UseStatusCodePages &&
             app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)
         {
             app.UseStatusCodePages();
         }
 
         // Authentication and authorization middleware
-        if (options.UseAuthentication)
+        if (!hostOwnsPipeline && options.UseAuthentication)
         {
             app.UseAuthentication();
             if (options.UseAuthorization)
@@ -68,7 +71,7 @@ public static class UnifiedWebApplicationExtensions
                 app.UseAuthorization();
             }
         }
-        else if (options.UseAuthorization)
+        else if (!hostOwnsPipeline && options.UseAuthorization)
         {
             app.UseAuthorization();
         }

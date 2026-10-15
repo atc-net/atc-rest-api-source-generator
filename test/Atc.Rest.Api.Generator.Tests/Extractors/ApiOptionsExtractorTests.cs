@@ -132,6 +132,19 @@ public class ApiOptionsExtractorTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
+    public void ExtractMiddlewareOptions_HostOwnsPipeline_IsOffByDefault(
+        bool useGlobalErrorHandler)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(PlainYaml);
+
+        var result = ApiOptionsExtractor.ExtractMiddlewareOptions(document, "TestApi", useGlobalErrorHandler);
+
+        Assert.Contains("public bool HostOwnsPipeline { get; set; }", result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
     public void ExtractMiddlewareOptions_UseGlobalErrorHandler_OnlyWithTheGlobalErrorHandler(
         bool useGlobalErrorHandler)
     {

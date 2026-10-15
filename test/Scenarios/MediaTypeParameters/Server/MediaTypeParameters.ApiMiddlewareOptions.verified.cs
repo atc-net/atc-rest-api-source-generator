@@ -21,6 +21,14 @@ namespace MediaTypeParameters.Generated;
 public class ApiMiddlewareOptions
 {
     /// <summary>
+    /// The host orders its own pipeline: it adds the error handler, status code pages, authentication and
+    /// authorization itself, before calling this method. When true, the method adds none of them (whatever their
+    /// own switches say), nor any middleware of that kind a later version adds - only what the specification
+    /// alone knows (the rate limiter, the output cache) and the endpoints. Default: false.
+    /// </summary>
+    public bool HostOwnsPipeline { get; set; }
+
+    /// <summary>
     /// Enable rate limiter middleware. Auto-detected from x-ratelimit-* extensions.
     /// </summary>
     public bool UseRateLimiter { get; set; } = false;

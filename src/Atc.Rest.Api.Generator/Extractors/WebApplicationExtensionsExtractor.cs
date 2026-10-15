@@ -183,14 +183,32 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(8, "var options = new ApiMiddlewareOptions();");
         builder.AppendLine(8, "configure?.Invoke(options);");
 
-        if (!useGlobalErrorHandler)
+        // A host that orders its own pipeline leaves every middleware it has a counterpart of to itself - also one a
+        // later version adds
+        builder.AppendLine();
+        builder.AppendLine(8, "// A host that orders its own pipeline has its own error handler, status code pages and authentication");
+        builder.AppendLine(8, "var hostOwnsPipeline = options.HostOwnsPipeline;");
+
+        if (useGlobalErrorHandler)
+        {
+            // Atc.Rest.MinimalApi's error handler, outermost: a middleware only catches what is thrown after it, so it
+            // also turns an exception from authentication (an unreachable token authority) or the limiter into a problem
+            builder.AppendLine();
+            builder.AppendLine(8, "// Global error handling middleware, first: it converts what anything after it throws (authentication, the");
+            builder.AppendLine(8, "// rate limiter, the endpoints) to a ProblemDetails");
+            builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseGlobalErrorHandler)");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, "app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
+            builder.AppendLine(8, "}");
+        }
+        else
         {
             // Without Atc.Rest.MinimalApi's error handler: the framework's, outermost, so it sees what anything below
             // throws. Development keeps its developer exception page.
             builder.AppendLine();
             builder.AppendLine(8, "// An unhandled exception as a ProblemDetails 500 (needs AddProblemDetails; not in Development, where the");
             builder.AppendLine(8, "// developer exception page shows it)");
-            builder.AppendLine(8, "if (options.UseExceptionHandler &&");
+            builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseExceptionHandler &&");
             builder.AppendLine(8, "    !global::Microsoft.Extensions.Hosting.HostEnvironmentEnvExtensions.IsDevelopment(app.Environment) &&");
             builder.AppendLine(8, "    app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)");
             builder.AppendLine(8, "{");
@@ -203,7 +221,7 @@ public static class WebApplicationExtensionsExtractor
         // UseStatusCodePages() writes text/plain.
         builder.AppendLine();
         builder.AppendLine(8, "// ProblemDetails body for error responses that have none (needs AddProblemDetails)");
-        builder.AppendLine(8, "if (options.UseStatusCodePages &&");
+        builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseStatusCodePages &&");
         builder.AppendLine(8, "    app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "app.UseStatusCodePages();");
@@ -235,17 +253,6 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine(12, "app.UseWhen(");
             builder.AppendLine(16, "context => context.Features.Get<global::Microsoft.AspNetCore.OutputCaching.IOutputCacheFeature>() is null,");
             builder.AppendLine(16, "branch => branch.UseOutputCache());");
-            builder.AppendLine(8, "}");
-        }
-
-        // Global error handler (with Atc.Rest.MinimalApi)
-        if (useGlobalErrorHandler)
-        {
-            builder.AppendLine();
-            builder.AppendLine(8, "// Global error handling middleware (converts exceptions to ProblemDetails); off when the host adds its own");
-            builder.AppendLine(8, "if (options.UseGlobalErrorHandler)");
-            builder.AppendLine(8, "{");
-            builder.AppendLine(12, "app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
             builder.AppendLine(8, "}");
         }
 
@@ -287,7 +294,7 @@ public static class WebApplicationExtensionsExtractor
 
         builder.AppendLine();
         builder.AppendLine(8, "// Authentication and authorization middleware");
-        builder.AppendLine(8, "if (options.UseAuthentication)");
+        builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseAuthentication)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "app.UseAuthentication();");
         builder.AppendLine(12, "if (options.UseAuthorization)");
@@ -295,7 +302,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(16, "app.UseAuthorization();");
         builder.AppendLine(12, "}");
         builder.AppendLine(8, "}");
-        builder.AppendLine(8, "else if (options.UseAuthorization)");
+        builder.AppendLine(8, "else if (!hostOwnsPipeline && options.UseAuthorization)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "app.UseAuthorization();");
         builder.AppendLine(8, "}");

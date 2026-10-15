@@ -44,15 +44,25 @@ public static class UnifiedWebApplicationExtensions
         var options = new ApiMiddlewareOptions();
         configure?.Invoke(options);
 
+        // A host that orders its own pipeline has its own error handler, status code pages and authentication
+        var hostOwnsPipeline = options.HostOwnsPipeline;
+
+        // Global error handling middleware, first: it converts what anything after it throws (authentication, the
+        // rate limiter, the endpoints) to a ProblemDetails
+        if (!hostOwnsPipeline && options.UseGlobalErrorHandler)
+        {
+            app.UseGlobalErrorHandler(options.ConfigureErrorHandling);
+        }
+
         // ProblemDetails body for error responses that have none (needs AddProblemDetails)
-        if (options.UseStatusCodePages &&
+        if (!hostOwnsPipeline && options.UseStatusCodePages &&
             app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)
         {
             app.UseStatusCodePages();
         }
 
         // Authentication and authorization middleware
-        if (options.UseAuthentication)
+        if (!hostOwnsPipeline && options.UseAuthentication)
         {
             app.UseAuthentication();
             if (options.UseAuthorization)
@@ -60,15 +70,9 @@ public static class UnifiedWebApplicationExtensions
                 app.UseAuthorization();
             }
         }
-        else if (options.UseAuthorization)
+        else if (!hostOwnsPipeline && options.UseAuthorization)
         {
             app.UseAuthorization();
-        }
-
-        // Global error handling middleware (converts exceptions to ProblemDetails); off when the host adds its own
-        if (options.UseGlobalErrorHandler)
-        {
-            app.UseGlobalErrorHandler(options.ConfigureErrorHandling);
         }
 
         // Map all API endpoints

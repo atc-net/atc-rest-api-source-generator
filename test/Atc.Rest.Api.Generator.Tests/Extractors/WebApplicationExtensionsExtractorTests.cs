@@ -145,6 +145,57 @@ public class WebApplicationExtensionsExtractorTests
     }
 
     /// <summary>
+    /// A middleware catches only what is thrown after it: the error handler comes first, so an exception from
+    /// authentication (an unreachable token authority) or the rate limiter is a ProblemDetails too.
+    /// </summary>
+    [Theory]
+    [InlineData(true, "app.UseGlobalErrorHandler(")]
+    [InlineData(false, "app.UseExceptionHandler();")]
+    public void ExtractUnified_TheErrorHandlerIsTheFirstMiddleware(
+        bool useGlobalErrorHandler,
+        string errorHandler)
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(SecuredAndLimitedYaml.Replace("{partition}", "user", StringComparison.Ordinal));
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig(), useGlobalErrorHandler);
+
+        // Assert
+        var handler = result.IndexOf(errorHandler, StringComparison.Ordinal);
+        Assert.True(handler >= 0, result);
+        foreach (var middleware in new[] { "app.UseStatusCodePages();", "app.UseAuthentication();", "app.UseRateLimiter();", "app.MapEndpoints();" })
+        {
+            var index = result.IndexOf(middleware, StringComparison.Ordinal);
+            Assert.True(index > handler, $"{middleware} before {errorHandler}:\n{result}");
+        }
+    }
+
+    /// <summary>
+    /// A host that orders its own pipeline says so once: the middleware it has a counterpart of is left to it - also
+    /// what a later version adds - and only what the specification alone knows (the rate limiter, the output cache) and
+    /// the endpoints stay.
+    /// </summary>
+    [Fact]
+    public void ExtractUnified_HostOwnsPipeline_LeavesTheHostsMiddlewareToTheHost()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(SecuredAndLimitedYaml.Replace("{partition}", "user", StringComparison.Ordinal));
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
+
+        // Assert
+        var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Contains("var hostOwnsPipeline = options.HostOwnsPipeline;", normalized, StringComparison.Ordinal);
+        Assert.Contains("if (!hostOwnsPipeline && options.UseGlobalErrorHandler)", normalized, StringComparison.Ordinal);
+        Assert.Contains("if (!hostOwnsPipeline && options.UseStatusCodePages &&", normalized, StringComparison.Ordinal);
+        Assert.Contains("if (!hostOwnsPipeline && options.UseAuthentication)", normalized, StringComparison.Ordinal);
+        Assert.Contains("else if (!hostOwnsPipeline && options.UseAuthorization)", normalized, StringComparison.Ordinal);
+        Assert.Contains("if (options.UseRateLimiter)", normalized, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A host that orders its own pipeline already has an error handler: it turns the generated one off.
     /// </summary>
     [Fact]
@@ -159,7 +210,7 @@ public class WebApplicationExtensionsExtractorTests
         // Assert
         var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
         Assert.Contains(
-            "        if (options.UseGlobalErrorHandler)\n        {\n            app.UseGlobalErrorHandler(options.ConfigureErrorHandling);\n        }\n",
+            "        if (!hostOwnsPipeline && options.UseGlobalErrorHandler)\n        {\n            app.UseGlobalErrorHandler(options.ConfigureErrorHandling);\n        }\n",
             normalized,
             StringComparison.Ordinal);
     }

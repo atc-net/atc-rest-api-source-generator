@@ -192,6 +192,16 @@ public static class ApiOptionsExtractor
         builder.AppendLine("public class ApiMiddlewareOptions");
         builder.AppendLine("{");
 
+        // HostOwnsPipeline - one switch for a host with a pipeline of its own
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// The host orders its own pipeline: it adds the error handler, status code pages, authentication and");
+        builder.AppendLine(4, "/// authorization itself, before calling this method. When true, the method adds none of them (whatever their");
+        builder.AppendLine(4, "/// own switches say), nor any middleware of that kind a later version adds - only what the specification");
+        builder.AppendLine(4, "/// alone knows (the rate limiter, the output cache) and the endpoints. Default: false.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "public bool HostOwnsPipeline { get; set; }");
+        builder.AppendLine();
+
         // UseRateLimiter - auto-detected
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, "/// Enable rate limiter middleware. Auto-detected from x-ratelimit-* extensions.");
@@ -238,7 +248,7 @@ public static class ApiOptionsExtractor
         {
             // ConfigureErrorHandling - with Atc.Rest.MinimalApi's global error handler
             builder.AppendLine(4, "/// <summary>");
-            builder.AppendLine(4, "/// Add Atc.Rest.MinimalApi's global error handler (<c>UseGlobalErrorHandler()</c>), which answers an");
+            builder.AppendLine(4, "/// Add Atc.Rest.MinimalApi's global error handler (<c>UseGlobalErrorHandler()</c>) first, which answers an");
             builder.AppendLine(4, "/// exception with a ProblemDetails. Turn off when the host adds it itself, at the start of its own pipeline.");
             builder.AppendLine(4, "/// Default: true.");
             builder.AppendLine(4, "/// </summary>");
