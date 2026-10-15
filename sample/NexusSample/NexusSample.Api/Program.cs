@@ -3,8 +3,9 @@ var builder = WebApplication.CreateSlimBuilder(args);
 // Configure OpenAPI document generation
 builder.Services.AddOpenApi();
 
-// RFC 9457 ProblemDetails for every error
-builder.Services.AddProblemDetails();
+// The generated API services: RFC 9457 ProblemDetails for every error, the enum converter, ... The name comes from
+// the marker's namespace, Contoso.Data.Nexus.Api.Contracts: a trailing Contracts / Api says nothing about the API
+builder.Services.AddNexusApi();
 
 // ============================================
 // AUTHENTICATION - JWT Bearer (Demo Mode)
@@ -22,18 +23,6 @@ builder.Services.AddApiHealthChecks();
 
 var app = builder.Build();
 
-// Outside Development an unhandled exception is a 500 ProblemDetails, not an empty 500 (Development keeps the developer exception page)
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler();
-}
-
-// A ProblemDetails body for error responses that have none (first in the pipeline)
-app.UseStatusCodePages();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -45,8 +34,10 @@ app
     .MapGet("/", () => Results.Redirect("/scalar/v1"))
     .ExcludeFromDescription();
 
-// Map Nexus endpoints using generated extension method
-app.MapEndpoints();
+// The generated middleware and every endpoint: the exception handler (outside Development), status code pages, and
+// authentication + authorization - the specification declares its access with x-authorize-roles only, no security
+// scheme, and that counts as a secured API
+app.MapNexusApi();
 
 // Map health check endpoints (/health, /health/live, /health/ready)
 app.MapHealthCheckEndpoints();

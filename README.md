@@ -144,7 +144,7 @@ public class GetPetByIdHandler : IGetPetByIdHandler
 
 ### 6. Wire Up Program.cs
 
-With `Atc.Rest.MinimalApi` referenced, the generator emits `Add{Project}Api()` and `Map{Project}Api()` (here for a project named `PetStore`):
+The generator emits `Add{Project}Api()` and `Map{Project}Api()` (here for a project named `PetStore`). `{Project}` is the API's name: the namespace's last segment that names it - a trailing `Contracts`, `Api` or `Server` is skipped, so `Contoso.PetStore.Api.Contracts` gives `AddPetStoreApi()` - or the server marker's `apiName`:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -161,7 +161,7 @@ app.MapPetStoreApi();                          // status-code pages, auth, globa
 app.Run();
 ```
 
-> 💡 Without `Atc.Rest.MinimalApi` there is no `Add{Project}Api()` / `Map{Project}Api()`: call `app.MapEndpoints()` to map every endpoint, and add `builder.Services.AddProblemDetails()`, `app.UseExceptionHandler()` (outside Development) and `app.UseStatusCodePages()` yourself so every error is RFC 9457 ProblemDetails. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
+> 💡 Without `Atc.Rest.MinimalApi` the pair is generated too: `Map{Project}Api()` adds the framework's `UseExceptionHandler()` (outside Development) where the package's global error handler would stand. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler). A host that orders its own pipeline turns off what it already has (`app.MapPetStoreApi(o => o.UseGlobalErrorHandler = false)`) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
 
 ## 📋 Requirements
 
