@@ -338,12 +338,12 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi and the project references a version older than 3.0.0.
+    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi and the project references a version older than 3.1.0.
     /// </summary>
     public static readonly DiagnosticDescriptor MinimalApiTooOld = new(
         RuleIdentifiers.MinimalApiTooOld,
         "Atc.Rest.MinimalApi Version Too Old",
-        "The generated server builds on Atc.Rest.MinimalApi {0} or later (its validation keys, a handler's ValidationException with its field errors, its problem bodies), and the project references {1}. Update the Atc.Rest.MinimalApi package reference, or turn useMinimalApiPackage, useValidationFilter and useGlobalErrorHandler off in the marker.",
+        "The generated server builds on Atc.Rest.MinimalApi {0} or later (its validation keys, a handler's ValidationException with its field errors, its problem bodies, the validation of a form endpoint's request), and the project references {1}. Update the Atc.Rest.MinimalApi package reference, or turn useMinimalApiPackage, useValidationFilter and useGlobalErrorHandler off in the marker.",
         RuleIdentifiers.Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);

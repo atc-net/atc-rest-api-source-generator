@@ -204,7 +204,7 @@ public static class RuleIdentifiers
 
     /// <summary>
     /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi (its endpoint interface, ValidationFilter or error
-    /// handler) and the project references a version older than 3.0.0.
+    /// handler) and the project references a version older than 3.1.0.
     /// </summary>
     public const string MinimalApiTooOld = "ATC_API_DEP013";
 

@@ -477,7 +477,7 @@ using Microsoft.AspNetCore.Builder;
         // Add internal endpoint methods for each operation
         foreach (var (path, httpMethod, operation, pathParameters) in operations)
         {
-            var endpointMethod = GenerateEndpointMethod(path, httpMethod, operation, pathParameters, systemTypeResolver);
+            var endpointMethod = GenerateEndpointMethod(path, httpMethod, operation, pathParameters, systemTypeResolver, useValidationFilter);
             if (endpointMethod is not null)
             {
                 methods.Add(endpointMethod);
@@ -1613,7 +1613,8 @@ using Microsoft.AspNetCore.Builder;
         string httpMethod,
         OpenApiOperation operation,
         IList<IOpenApiParameter>? pathParameters,
-        SystemTypeConflictResolver systemTypeResolver)
+        SystemTypeConflictResolver systemTypeResolver,
+        bool useValidationFilter = false)
     {
         var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
@@ -1662,7 +1663,10 @@ using Microsoft.AspNetCore.Builder;
                 // A field sent as an application/json part (an object, a map or a composition) is no form binding's: the
                 // wire-form-binding step reads it as JSON and keeps it on the request (WireBindingExtensions.FormJson)
                 var hasJsonParts = properties.Any(p => FormBodyHelper.IsMultipartJsonPart(operation, p.Key, p.Value));
-                if (hasJsonParts)
+
+                // The HttpContext: a JSON part is read from it, and the request is validated with its services (the
+                // validators, the ValidationFilterOptions, the JSON naming policy)
+                if (hasJsonParts || useValidationFilter)
                 {
                     methodParameters.Add(new ParameterBaseParameters(
                         Attributes: null,
@@ -1935,14 +1939,30 @@ using Microsoft.AspNetCore.Builder;
 
             // Use block body since we need to construct objects
             // Note: Content should NOT include braces - the code generator adds them
-            content = $"""
-                       var request = new {requestTypeName}({requestArgs});
-                       var parameters = new {parameterClassName}({constructorArgs});
-                       return (await handler.ExecuteAsync(
-                               parameters,
-                               cancellationToken))
-                           .Result;
-                       """;
+            // With the ValidationFilter: a form binds no [AsParameters] record the filter could validate, so the endpoint
+            // validates the one it builds - the same keys and validators as a JSON body of the same model
+            content = useValidationFilter
+                ? $$"""
+                   var request = new {{requestTypeName}}({{requestArgs}});
+                   var parameters = new {{parameterClassName}}({{constructorArgs}});
+                   if (await RequestValidation.ValidateAsync(parameters, httpContext) is { } invalid)
+                   {
+                       return invalid;
+                   }
+
+                   return (await handler.ExecuteAsync(
+                           parameters,
+                           cancellationToken))
+                       .Result;
+                   """
+                : $"""
+                   var request = new {requestTypeName}({requestArgs});
+                   var parameters = new {parameterClassName}({constructorArgs});
+                   return (await handler.ExecuteAsync(
+                           parameters,
+                           cancellationToken))
+                       .Result;
+                   """;
 
             return new MethodParameters(
                 DocumentationTags: null,

@@ -52,7 +52,7 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// The minimum Atc.Rest.MinimalApi a generated server that builds on it needs (the generator's ATC_API_DEP013).
     /// </summary>
-    public static readonly Version MinimalApiMin = new(3, 0, 0);
+    public static readonly Version MinimalApiMin = new(3, 1, 0);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.AspNetCore.SignalR.Client.
