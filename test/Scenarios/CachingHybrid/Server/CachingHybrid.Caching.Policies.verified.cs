@@ -39,3 +39,30 @@ public static class CachePolicies
     /// </summary>
     public const string Users = "users";
 }
+
+/// <summary>
+/// HybridCache tag constants (x-cache-tags): what HybridCache.RemoveByTagAsync removes by.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class CacheTags
+{
+    /// <summary>
+    /// The cache tag "sessions".
+    /// </summary>
+    public const string Sessions = "sessions";
+
+    /// <summary>
+    /// The cache tag "settings".
+    /// </summary>
+    public const string Settings = "settings";
+
+    /// <summary>
+    /// The cache tag "user-detail".
+    /// </summary>
+    public const string UserDetail = "user-detail";
+
+    /// <summary>
+    /// The cache tag "users".
+    /// </summary>
+    public const string Users = "users";
+}

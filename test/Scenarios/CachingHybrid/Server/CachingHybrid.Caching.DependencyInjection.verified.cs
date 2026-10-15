@@ -88,10 +88,10 @@ public static class HybridCachingServiceCollectionExtensions
     public static string[] GetCacheTags(string policyName)
         => policyName switch
         {
-            CachePolicies.Sessions => ["sessions"],
-            CachePolicies.Settings => ["settings"],
-            CachePolicies.UserDetail => ["user-detail", "users"],
-            CachePolicies.Users => ["users"],
+            CachePolicies.Sessions => [CacheTags.Sessions],
+            CachePolicies.Settings => [CacheTags.Settings],
+            CachePolicies.UserDetail => [CacheTags.UserDetail, CacheTags.Users],
+            CachePolicies.Users => [CacheTags.Users],
             _ => [],
         };
 

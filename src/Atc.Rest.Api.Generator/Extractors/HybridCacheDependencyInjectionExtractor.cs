@@ -138,6 +138,7 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine(8, "};");
 
         // Generate GetCacheTags method
+        var tagConstants = CacheTagConstants.Assign(policies.Values);
         builder.AppendLine();
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, "/// Gets the cache tags for a specific cache policy.");
@@ -156,7 +157,7 @@ public static class HybridCacheDependencyInjectionExtractor
 
             if (config.Tags.Count > 0)
             {
-                var tagsString = string.Join(", ", config.Tags.Select(t => $"\"{t}\""));
+                var tagsString = string.Join(", ", config.Tags.Select(t => $"CacheTags.{tagConstants[t]}"));
                 builder.AppendLine(12, $"CachePolicies.{constantName} => [{tagsString}],");
             }
             else

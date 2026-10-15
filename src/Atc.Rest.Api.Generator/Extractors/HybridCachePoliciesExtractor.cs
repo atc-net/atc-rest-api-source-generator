@@ -56,14 +56,18 @@ public static class HybridCachePoliciesExtractor
     private static string GenerateFileContent(
         string projectName,
         Dictionary<string, CacheConfiguration> policies)
-        => PolicyConstantsClassBuilder.Build(
-            projectName,
-            "Caching",
-            "CachePolicies",
-            "HybridCache policy name constants generated from OpenAPI extensions.",
-            policies
-                .OrderBy(p => p.Key, StringComparer.Ordinal)
-                .Select(p => new PolicyConstant(GenerateConstantName(p.Key), p.Key, GeneratePolicyDescription(p.Value))));
+        => CacheTagConstants.AppendClass(
+            PolicyConstantsClassBuilder.Build(
+                projectName,
+                "Caching",
+                "CachePolicies",
+                "HybridCache policy name constants generated from OpenAPI extensions.",
+                policies
+                    .OrderBy(p => p.Key, StringComparer.Ordinal)
+                    .Select(p => new PolicyConstant(GenerateConstantName(p.Key), p.Key, GeneratePolicyDescription(p.Value)))),
+            "CacheTags",
+            "HybridCache tag constants (x-cache-tags): what HybridCache.RemoveByTagAsync removes by.",
+            CacheTagConstants.Assign(policies.Values));
 
     /// <summary>
     /// Generates a description for the policy based on configuration.

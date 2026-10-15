@@ -56,14 +56,18 @@ public static class OutputCachePoliciesExtractor
     private static string GenerateFileContent(
         string projectName,
         Dictionary<string, CacheConfiguration> policies)
-        => PolicyConstantsClassBuilder.Build(
-            projectName,
-            "Caching",
-            "OutputCachePolicies",
-            "Output Cache policy name constants generated from OpenAPI extensions.",
-            policies
-                .OrderBy(p => p.Key, StringComparer.Ordinal)
-                .Select(p => new PolicyConstant(GenerateConstantName(p.Key), p.Key, GeneratePolicyDescription(p.Value))));
+        => CacheTagConstants.AppendClass(
+            PolicyConstantsClassBuilder.Build(
+                projectName,
+                "Caching",
+                "OutputCachePolicies",
+                "Output Cache policy name constants generated from OpenAPI extensions.",
+                policies
+                    .OrderBy(p => p.Key, StringComparer.Ordinal)
+                    .Select(p => new PolicyConstant(GenerateConstantName(p.Key), p.Key, GeneratePolicyDescription(p.Value)))),
+            "OutputCacheTags",
+            "Output Cache tag constants (x-cache-tags): what IOutputCacheStore.EvictByTagAsync evicts by.",
+            CacheTagConstants.Assign(policies.Values));
 
     /// <summary>
     /// Generates a description for the policy based on configuration.

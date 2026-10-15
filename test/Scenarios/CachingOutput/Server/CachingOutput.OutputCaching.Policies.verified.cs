@@ -34,3 +34,25 @@ public static class OutputCachePolicies
     /// </summary>
     public const string Products = "products";
 }
+
+/// <summary>
+/// Output Cache tag constants (x-cache-tags): what IOutputCacheStore.EvictByTagAsync evicts by.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class OutputCacheTags
+{
+    /// <summary>
+    /// The cache tag "categories".
+    /// </summary>
+    public const string Categories = "categories";
+
+    /// <summary>
+    /// The cache tag "product-detail".
+    /// </summary>
+    public const string ProductDetail = "product-detail";
+
+    /// <summary>
+    /// The cache tag "products".
+    /// </summary>
+    public const string Products = "products";
+}

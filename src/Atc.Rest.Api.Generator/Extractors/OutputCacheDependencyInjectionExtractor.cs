@@ -103,6 +103,7 @@ public static class OutputCacheDependencyInjectionExtractor
         var sortedPolicies = policies
             .OrderBy(p => p.Key, StringComparer.Ordinal)
             .ToList();
+        var tagConstants = CacheTagConstants.Assign(policies.Values);
 
         var isFirst = true;
 
@@ -119,7 +120,7 @@ public static class OutputCacheDependencyInjectionExtractor
             var config = policyKvp.Value;
             var constantName = OutputCachePoliciesExtractor.GenerateConstantName(policyName);
 
-            GeneratePolicyConfiguration(builder, constantName, config);
+            GeneratePolicyConfiguration(builder, constantName, config, tagConstants);
         }
 
         builder.AppendLine(8, "});");
@@ -135,7 +136,8 @@ public static class OutputCacheDependencyInjectionExtractor
     private static void GeneratePolicyConfiguration(
         StringBuilder builder,
         string constantName,
-        CacheConfiguration config)
+        CacheConfiguration config,
+        IReadOnlyDictionary<string, string> tagConstants)
     {
         builder.AppendLine(12, $"options.AddPolicy(OutputCachePolicies.{constantName}, policy =>");
         builder.AppendLine(12, "{");
@@ -164,7 +166,7 @@ public static class OutputCacheDependencyInjectionExtractor
         // Add Tags
         if (config.Tags.Count > 0)
         {
-            var tags = string.Join(", ", config.Tags.Select(t => $"\"{t}\""));
+            var tags = string.Join(", ", config.Tags.Select(t => $"OutputCacheTags.{tagConstants[t]}"));
             builder.AppendLine(16, $"policy.Tag({tags});");
         }
 

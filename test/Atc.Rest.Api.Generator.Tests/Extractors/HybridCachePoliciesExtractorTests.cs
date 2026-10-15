@@ -58,6 +58,14 @@ public class HybridCachePoliciesExtractorTests
         Assert.Contains("/// Policy: 600s expiration, mode: Hybrid", result, StringComparison.Ordinal);
         Assert.Contains("/// Policy: 300s expiration, mode: Distributed, sliding: 60s, tags: [user-detail, users], key prefix: user", result, StringComparison.Ordinal);
 
+        // The tags have constants of their own (what HybridCache.RemoveByTagAsync takes)
+        Assert.Contains("public static class CacheTags", result, StringComparison.Ordinal);
+        Assert.Contains("public const string Users = \"users\";", result, StringComparison.Ordinal);
+
+        var dependencyInjection = HybridCacheDependencyInjectionExtractor.Extract(document, "TestApi");
+        Assert.NotNull(dependencyInjection);
+        Assert.Contains("CachePolicies.UserDetail => [CacheTags.UserDetail, CacheTags.Users],", dependencyInjection, StringComparison.Ordinal);
+
         var accountsIndex = result.IndexOf("Accounts =", StringComparison.Ordinal);
         var userDetailIndex = result.IndexOf("UserDetail =", StringComparison.Ordinal);
         Assert.True(accountsIndex < userDetailIndex, "Constants must be sorted by policy name");

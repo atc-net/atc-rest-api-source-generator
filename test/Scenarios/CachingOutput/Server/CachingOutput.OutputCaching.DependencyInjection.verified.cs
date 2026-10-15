@@ -36,21 +36,21 @@ public static class OutputCachingServiceCollectionExtensions
             {
                 policy.Expire(TimeSpan.FromSeconds(3600));
                 policy.SetVaryByHeader("Accept-Language");
-                policy.Tag("categories");
+                policy.Tag(OutputCacheTags.Categories);
             });
 
             options.AddPolicy(OutputCachePolicies.ProductDetail, policy =>
             {
                 policy.Expire(TimeSpan.FromSeconds(300));
                 policy.SetVaryByRouteValue("productId");
-                policy.Tag("product-detail", "products");
+                policy.Tag(OutputCacheTags.ProductDetail, OutputCacheTags.Products);
             });
 
             options.AddPolicy(OutputCachePolicies.Products, policy =>
             {
                 policy.Expire(TimeSpan.FromSeconds(60));
                 policy.SetVaryByQuery("page", "limit", "category");
-                policy.Tag("products");
+                policy.Tag(OutputCacheTags.Products);
             });
         });
 

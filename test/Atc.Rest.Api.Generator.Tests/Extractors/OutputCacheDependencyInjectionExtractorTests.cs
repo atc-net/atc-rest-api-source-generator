@@ -59,7 +59,7 @@ public class OutputCacheDependencyInjectionExtractorTests
         Assert.Contains("policy.Expire(TimeSpan.FromSeconds(600));", result, StringComparison.Ordinal);
         Assert.Contains("policy.SetVaryByQuery(\"page\", \"size\");", result, StringComparison.Ordinal);
         Assert.Contains("policy.SetVaryByHeader(\"Accept-Language\");", result, StringComparison.Ordinal);
-        Assert.Contains("policy.Tag(\"catalog\");", result, StringComparison.Ordinal);
+        Assert.Contains("policy.Tag(OutputCacheTags.Catalog);", result, StringComparison.Ordinal);
 
         Assert.Contains("options.AddPolicy(OutputCachePolicies.OrderDetail, policy =>", result, StringComparison.Ordinal);
         Assert.Contains("policy.Expire(TimeSpan.FromSeconds(30));", result, StringComparison.Ordinal);
