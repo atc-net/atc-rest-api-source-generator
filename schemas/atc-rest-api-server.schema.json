@@ -364,6 +364,13 @@
       "type": "boolean",
       "description": "Whether a string enum is also read by its C# member name. Default: false - only the specification's value (rtsp) is read. When true, a JSON body may also carry the member name (Rtsp), in another casing when only one member matches; the value is still what is written. For a rollout: a client built on 2.x wrote the member name for a value that is no member name (2.x wrote Rtsp for rtsp).",
       "default": false
+    },
+    "apiName": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The API's name in the generated host methods: Add{ApiName}Api(), Map{ApiName}Api(), Map{ApiName}Webhooks(), Add{ApiName}OpenIdConnectAuthentication(). Default: null - the namespace's last segment that names the API (a trailing Contracts, Api or Server is skipped: Contoso.IoT.Nexus.Api.Contracts gives AddNexusApi())."
     }
   },
   "additionalProperties": false

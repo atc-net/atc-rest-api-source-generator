@@ -75,7 +75,7 @@ public static class WebhookEndpointExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "IEndpointRouteBuilder",
-            Name: $"Map{CasingHelper.GetLastNameSegment(projectName)}Webhooks",
+            Name: $"Map{CasingHelper.GetApiName(projectName, config.ApiName)}Webhooks",
             Parameters: methodParams,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: false,

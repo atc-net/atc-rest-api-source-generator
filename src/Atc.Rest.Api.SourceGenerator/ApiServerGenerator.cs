@@ -742,9 +742,6 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
         GenerateCombinedEndpointMapping(generatedContext, projectName, effectiveSegments);
 
-        // Generate DI registration (not segmented - registers all handlers)
-        GenerateDependencyInjection(generatedContext, openApiDoc, projectName, effectiveSegments, config.IncludeDeprecated);
-
         // Generate versioning DI registration (only if versioning is enabled)
         if (config.VersioningStrategy != VersioningStrategyType.None)
         {
@@ -763,7 +760,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate OpenID Connect authentication extension (only if OpenID Connect is configured)
         if (openApiDoc.HasOpenIdConnectSecurity())
         {
-            GenerateOpenIdConnectAuthentication(generatedContext, openApiDoc, projectName);
+            GenerateOpenIdConnectAuthentication(generatedContext, openApiDoc, projectName, config.ApiName);
         }
 
         // Generate rate limiting policies and DI extensions (only if rate limiting is configured)
@@ -803,7 +800,6 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateWebhookParameterClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookResultClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookEndpoints(generatedContext, openApiDoc, projectName, config);
-            GenerateWebhookDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
         // Generate health check endpoints (if configured in marker file)
@@ -829,7 +825,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate WebApplication extensions (GlobalErrorHandler middleware setup)
         if (useGlobalErrorHandler)
         {
-            GenerateWebApplicationExtensions(generatedContext, projectName, useGlobalErrorHandler);
+            GenerateWebApplicationExtensions(generatedContext, projectName, useGlobalErrorHandler, config.ApiName);
         }
 
         var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
@@ -1473,41 +1469,14 @@ public class ApiServerGenerator : IIncrementalGenerator
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
 
-    private static void GenerateDependencyInjection(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        List<string> pathSegments,
-        bool includeDeprecated)
-    {
-        // Use ServerDependencyInjectionExtractor to extract class parameters with path segments
-        var classParameters = ServerDependencyInjectionExtractor.Extract(openApiDoc, projectName, pathSegments, includeDeprecated);
-
-        if (classParameters is null)
-        {
-            return;
-        }
-
-        // Use GenerateContentForClass to generate the code
-        var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var contentGenerator = new GenerateContentForClass(
-            codeDocGenerator,
-            classParameters);
-
-        var generatedContent = contentGenerator.Generate();
-
-        context.AddGeneratedSource(
-            $"{projectName}.DependencyInjection.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-    }
-
     private static void GenerateWebApplicationExtensions(
         GeneratedSourceContext context,
         string projectName,
-        bool useGlobalErrorHandler)
+        bool useGlobalErrorHandler,
+        string? apiName)
     {
         // Use WebApplicationExtensionsExtractor to generate middleware setup helpers
-        var classParameters = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler);
+        var classParameters = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler, apiName);
 
         if (classParameters is null)
         {
@@ -1909,7 +1878,8 @@ public class ApiServerGenerator : IIncrementalGenerator
     private static void GenerateOpenIdConnectAuthentication(
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
-        string projectName)
+        string projectName,
+        string? apiName)
     {
         // Extract OpenID Connect configuration
         var oidcConfig = OpenIdConnectConfigExtractor.Extract(openApiDoc);
@@ -1920,7 +1890,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Generate OpenID Connect DI extension
-        var generatedContent = OpenIdConnectDependencyInjectionExtractor.Extract(oidcConfig, projectName);
+        var generatedContent = OpenIdConnectDependencyInjectionExtractor.Extract(oidcConfig, projectName, apiName);
 
         if (generatedContent is null)
         {
@@ -2092,25 +2062,6 @@ public class ApiServerGenerator : IIncrementalGenerator
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
             context.AddGeneratedSource(
                 $"Webhooks.Endpoints.{generatedType.TypeName}.g.cs",
-                SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-    }
-
-    /// <summary>
-    /// Generates webhook DI registration from OpenAPI webhooks.
-    /// </summary>
-    private static void GenerateWebhookDependencyInjection(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        bool includeDeprecated)
-    {
-        var generatedType = CodeGenerationService.GenerateWebhookDependencyInjection(openApiDoc, projectName, includeDeprecated);
-        if (generatedType is not null)
-        {
-            var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddGeneratedSource(
-                $"Webhooks.{generatedType.TypeName}.g.cs",
                 SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
         }
     }

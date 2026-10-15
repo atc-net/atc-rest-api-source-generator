@@ -238,22 +238,6 @@ public class WebhookExtractorTests
         Assert.DoesNotContain("MapMethods(", content, StringComparison.Ordinal);
     }
 
-    // ========== WebhookDependencyInjectionExtractor ==========
-    [Fact]
-    public void WebhookDependencyInjectionExtractor_Extract_ProducesDIClass()
-    {
-        // Arrange
-        var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
-
-        // Act
-        var result = WebhookDependencyInjectionExtractor.Extract(document, "TestApi");
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotNull(result.Methods);
-        Assert.True(result.Methods.Count > 0);
-    }
-
     // ========== No Webhooks ==========
     [Fact]
     public void AllWebhookExtractors_NoWebhooks_ReturnNull()
@@ -282,6 +266,5 @@ public class WebhookExtractorTests
         Assert.Null(WebhookResultExtractor.Extract(document, "TestApi"));
         Assert.Null(WebhookParameterExtractor.Extract(document, "TestApi", resolver));
         Assert.Null(WebhookEndpointExtractor.Extract(document, "TestApi", config));
-        Assert.Null(WebhookDependencyInjectionExtractor.Extract(document, "TestApi"));
     }
 }

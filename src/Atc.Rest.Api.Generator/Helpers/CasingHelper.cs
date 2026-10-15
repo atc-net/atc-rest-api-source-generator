@@ -476,40 +476,49 @@ public static class CasingHelper
     }
 
     /// <summary>
-    /// Gets the last segment of a dot-separated name with a trailing "Api" suffix stripped
-    /// (case-insensitive). Useful for generating method names that already append "Api"
-    /// (e.g. <c>Map{Segment}Api</c>) to avoid duplicated suffixes such as <c>MapApiApi</c>.
+    /// The name of the API in the server's generated host methods (<c>Add{Name}Api()</c>, <c>Map{Name}Api()</c>,
+    /// <c>Map{Name}Webhooks()</c>, ...): the server marker's <c>apiName</c> when it has one, else the namespace's
+    /// last segment that names the API - a trailing <c>Contracts</c>, <c>Api</c> or <c>Server</c> says nothing about
+    /// it and is skipped. A trailing "Api" is taken off the name, as the method appends its own.
     /// </summary>
-    /// <param name="name">The dot-separated name (e.g., "Company.Product.Api").</param>
+    /// <param name="name">The root namespace (e.g. "Contoso.IoT.Nexus.Api.Contracts").</param>
+    /// <param name="apiName">The server marker's <c>apiName</c>, or null.</param>
     /// <returns>
-    /// The last segment with any trailing "Api" removed
-    /// (e.g., <c>""</c> from <c>"Company.Product.Api"</c>, <c>"Web"</c> from <c>"Company.Product.WebApi"</c>),
-    /// or "Assembly" if the name is null or empty.
+    /// The API's name (e.g. "Nexus" from "Contoso.IoT.Nexus.Api.Contracts", "Web" from "Company.Product.WebApi"), or
+    /// "Assembly" when there is no name at all.
     /// </returns>
-    /// <remarks>
-    /// Examples:
-    /// - "MyCompany.Product.Api" → "" (segment "Api" stripped entirely)
-    /// - "MyCompany.Product.WebApi" → "Web"
-    /// - "MyCompany.PowerController.HostAgent" → "HostAgent"
-    /// - "MyProject" → "MyProject"
-    /// - "" → "Assembly"
-    /// </remarks>
-    public static string GetLastNameSegmentWithoutApiSuffix(string? name)
+    public static string GetApiName(
+        string? name,
+        string? apiName = null)
     {
+        if (!string.IsNullOrWhiteSpace(apiName))
+        {
+            return WithoutApiSuffix(apiName!.Trim().ToPascalCaseForDotNet());
+        }
+
         if (string.IsNullOrEmpty(name))
         {
             return "Assembly";
         }
 
-        var segment = GetLastNameSegment(name);
-
-        if (segment.Length >= 3 &&
-            segment.EndsWith("Api", StringComparison.OrdinalIgnoreCase))
+        var segments = name!.Split('.');
+        var last = segments.Length - 1;
+        while (last > 0 && IsNotTheApisName(segments[last]))
         {
-            return segment.Substring(0, segment.Length - 3);
+            last--;
         }
 
-        return segment;
+        return WithoutApiSuffix(segments[last]);
+
+        static bool IsNotTheApisName(string segment)
+            => segment.Equals("Contracts", StringComparison.OrdinalIgnoreCase) ||
+               segment.Equals("Api", StringComparison.OrdinalIgnoreCase) ||
+               segment.Equals("Server", StringComparison.OrdinalIgnoreCase);
+
+        static string WithoutApiSuffix(string segment)
+            => segment.Length > 3 && segment.EndsWith("Api", StringComparison.OrdinalIgnoreCase)
+                ? segment.Substring(0, segment.Length - 3)
+                : segment;
     }
 
     /// <summary>

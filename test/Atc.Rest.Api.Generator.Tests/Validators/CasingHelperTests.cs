@@ -294,25 +294,32 @@ public class CasingHelperTests
         Assert.Equal(expected, result);
     }
 
-    // ========== GetLastNameSegmentWithoutApiSuffix Tests ==========
+    // ========== GetApiName Tests ==========
     [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "")] // segment "Api" stripped to empty
-    [InlineData("MyCompany.Product.Api", "")] // segment "Api" stripped to empty
-    [InlineData("MyCompany.Product.WebApi", "Web")] // trailing "Api" stripped from segment
-    [InlineData("MyCompany.Product.api", "")] // case-insensitive match
-    [InlineData("MyCompany.Product.WEBAPI", "WEB")] // case-insensitive match preserves prefix casing
-    [InlineData("MyCompany.PowerController.HostAgent", "HostAgent")] // unchanged when no Api suffix
-    [InlineData("MyProject", "MyProject")] // unchanged single segment
-    [InlineData("Showcase", "Showcase")] // unchanged sample-style project name
-    [InlineData("Ap", "Ap")] // shorter than "Api" - unchanged
-    [InlineData("", "Assembly")]
-    [InlineData(null, "Assembly")]
-    public void GetLastNameSegmentWithoutApiSuffix_ReturnsExpectedResult(
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", null, "Nexus")] // a trailing Contracts and Api say nothing about the API
+    [InlineData("Contoso.IoT.Nexus.Contracts", null, "Nexus")]
+    [InlineData("Contoso.IoT.Nexus.Server", null, "Nexus")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", null, "Monta")]
+    [InlineData("MyCompany.Product.api", null, "Product")] // case-insensitive
+    [InlineData("MyCompany.Product.WebApi", null, "Web")] // trailing "Api" stripped from the segment
+    [InlineData("MyCompany.PowerController.HostAgent", null, "HostAgent")]
+    [InlineData("Showcase", null, "Showcase")]
+    [InlineData("Contracts", null, "Contracts")] // the only segment stays
+    [InlineData("Api", null, "Api")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "Fleet", "Fleet")] // the marker names it
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "fleet", "Fleet")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "FleetApi", "Fleet")] // no AddFleetApiApi()
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "fleet-manager", "FleetManager")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "  ", "Nexus")]
+    [InlineData("", null, "Assembly")]
+    [InlineData(null, null, "Assembly")]
+    public void GetApiName_ReturnsExpectedResult(
         string? value,
+        string? apiName,
         string expected)
     {
         // Act
-        var result = CasingHelper.GetLastNameSegmentWithoutApiSuffix(value);
+        var result = CasingHelper.GetApiName(value, apiName);
 
         // Assert
         Assert.Equal(expected, result);

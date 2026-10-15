@@ -60,11 +60,6 @@ public static class CodeGenerationService
         NamespaceConstants.MicrosoftAspNetCoreRouting,
     ];
 
-    private static readonly string[] DependencyInjectionUsings =
-    [
-        NamespaceConstants.MicrosoftExtensionsDependencyInjection,
-    ];
-
     /// <summary>
     /// Gets a group name from a path by extracting the first significant segment.
     /// </summary>
@@ -720,50 +715,6 @@ public static class CodeGenerationService
             RequiredUsings: usings,
             GroupName: "Webhooks",
             SubFolder: "Webhooks\\Endpoints");
-    }
-
-    /// <summary>
-    /// Generates webhook dependency injection registration from OpenAPI webhooks.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing webhook definitions.</param>
-    /// <param name="projectName">The project name for namespace generation.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated webhooks.</param>
-    /// <returns>Generated webhook DI registration type, or null if no webhooks.</returns>
-    public static GeneratedType? GenerateWebhookDependencyInjection(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        bool includeDeprecated = false)
-    {
-        if (!openApiDoc.HasWebhooks())
-        {
-            return null;
-        }
-
-        var classParams = WebhookDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
-
-        if (classParams is null)
-        {
-            return null;
-        }
-
-        var @namespace = $"{projectName}.Generated.DependencyInjection";
-        var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var content = GenerateClassContentOnly(codeDocGenerator, classParams);
-
-        var usings = new List<string>(DependencyInjectionUsings)
-        {
-            NamespaceConstants.SystemCodeDomCompiler,
-            NamespaceBuilder.ForWebhookHandlers(projectName),
-        };
-
-        return new GeneratedType(
-            TypeName: classParams.ClassTypeName,
-            Category: "WebhookDependencyInjection",
-            Namespace: @namespace,
-            Content: content,
-            RequiredUsings: usings,
-            GroupName: "Webhooks",
-            SubFolder: "Extensions");
     }
 
     /// <summary>

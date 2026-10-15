@@ -103,4 +103,44 @@ public class ApiOptionsExtractorTests
         Assert.Contains("public bool UseAuthentication { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseAuthorization { get; set; } = true;", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ExtractMiddlewareOptions_AtcSecurityExtensionsWithoutASecurityScheme_AuthenticationFlagsAreOn()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+                                                        openapi: 3.0.0
+                                                        info:
+                                                          title: Test
+                                                          version: 1.0.0
+                                                        x-authorize-roles: [reader]
+                                                        paths:
+                                                          /pets:
+                                                            x-authorize-roles: [reader]
+                                                            get:
+                                                              operationId: listPets
+                                                              responses:
+                                                                '200':
+                                                                  description: OK
+                                                        """);
+
+        var result = ApiOptionsExtractor.ExtractMiddlewareOptions(document, "TestApi");
+
+        Assert.Contains("public bool UseAuthentication { get; set; } = true;", result, StringComparison.Ordinal);
+        Assert.Contains("public bool UseAuthorization { get; set; } = true;", result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ExtractMiddlewareOptions_UseGlobalErrorHandler_OnlyWithTheGlobalErrorHandler(
+        bool useGlobalErrorHandler)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(PlainYaml);
+
+        var result = ApiOptionsExtractor.ExtractMiddlewareOptions(document, "TestApi", useGlobalErrorHandler);
+
+        Assert.Equal(
+            useGlobalErrorHandler,
+            result.Contains("public bool UseGlobalErrorHandler { get; set; } = true;", StringComparison.Ordinal));
+    }
 }

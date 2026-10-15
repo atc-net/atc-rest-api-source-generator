@@ -47,7 +47,9 @@ public static class ApiOptionsExtractor
         }
 
         var hasRateLimiting = openApiDoc.HasRateLimiting();
-        var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
+
+        // A security scheme, or access declared with Atc's extensions alone (x-authorize-roles, x-authentication-required)
+        var hasSecurity = openApiDoc.RequiresAuthentication();
 
         return GenerateApiMiddlewareOptionsContent(projectName, hasRateLimiting, hasSecurity, openApiDoc.HasOutputCaching(), useGlobalErrorHandler);
     }
@@ -209,14 +211,16 @@ public static class ApiOptionsExtractor
 
         // UseAuthentication - auto-detected
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable authentication middleware. Auto-detected from security schemes.");
+        builder.AppendLine(4, "/// Enable authentication middleware. Auto-detected from security schemes and x-authorize-roles /");
+        builder.AppendLine(4, "/// x-authentication-required.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, $"public bool UseAuthentication {{ get; set; }} = {BoolToString(hasSecurity)};");
         builder.AppendLine();
 
         // UseAuthorization - auto-detected
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable authorization middleware. Auto-detected from security schemes.");
+        builder.AppendLine(4, "/// Enable authorization middleware. Auto-detected from security schemes and x-authorize-roles /");
+        builder.AppendLine(4, "/// x-authentication-required.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, $"public bool UseAuthorization {{ get; set; }} = {BoolToString(hasSecurity)};");
         builder.AppendLine();
@@ -233,6 +237,13 @@ public static class ApiOptionsExtractor
         if (useGlobalErrorHandler)
         {
             // ConfigureErrorHandling - with Atc.Rest.MinimalApi's global error handler
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Add Atc.Rest.MinimalApi's global error handler (<c>UseGlobalErrorHandler()</c>), which answers an");
+            builder.AppendLine(4, "/// exception with a ProblemDetails. Turn off when the host adds it itself, at the start of its own pipeline.");
+            builder.AppendLine(4, "/// Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseGlobalErrorHandler { get; set; } = true;");
+            builder.AppendLine();
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Configure global error handling options.");
             builder.AppendLine(4, "/// </summary>");

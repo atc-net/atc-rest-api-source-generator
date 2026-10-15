@@ -32,6 +32,7 @@ public static class UnifiedWebApplicationExtensions
     /// <remarks>
     /// This method configures:
     /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
+    /// - Authentication and authorization middleware (auto-detected)
     /// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)
     /// - All API endpoints
     /// </remarks>
@@ -56,6 +57,20 @@ public static class UnifiedWebApplicationExtensions
             app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)
         {
             app.UseStatusCodePages();
+        }
+
+        // Authentication and authorization middleware
+        if (options.UseAuthentication)
+        {
+            app.UseAuthentication();
+            if (options.UseAuthorization)
+            {
+                app.UseAuthorization();
+            }
+        }
+        else if (options.UseAuthorization)
+        {
+            app.UseAuthorization();
         }
 
         // Map all API endpoints

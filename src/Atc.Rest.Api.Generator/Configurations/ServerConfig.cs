@@ -116,4 +116,12 @@ public class ServerConfig : BaseConfig
     /// the member name for a value that is no member name (2.x wrote <c>Rtsp</c> for <c>rtsp</c>).
     /// </summary>
     public bool ReadEnumMemberNames { get; set; }
+
+    /// <summary>
+    /// The API's name in the generated host methods: <c>Add{ApiName}Api()</c>, <c>Map{ApiName}Api()</c>,
+    /// <c>Map{ApiName}Webhooks()</c>, <c>Add{ApiName}OpenIdConnectAuthentication()</c>. Default: null - the namespace's last segment
+    /// that names the API (a trailing <c>Contracts</c>, <c>Api</c> or <c>Server</c> is skipped:
+    /// <c>Contoso.IoT.Nexus.Api.Contracts</c> gives <c>AddNexusApi()</c>).
+    /// </summary>
+    public string? ApiName { get; set; }
 }

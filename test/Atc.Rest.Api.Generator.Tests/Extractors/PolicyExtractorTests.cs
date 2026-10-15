@@ -938,7 +938,7 @@ public class PolicyExtractorTests
         Assert.Single(result.Methods);
 
         var method = result.Methods[0];
-        Assert.Equal("MapTestApiWebhooks", method.Name);
+        Assert.Equal("MapTestWebhooks", method.Name);
         Assert.NotNull(method.Content);
         Assert.Contains("/webhooks", method.Content, StringComparison.Ordinal);
         Assert.Contains("MapPost", method.Content, StringComparison.Ordinal);

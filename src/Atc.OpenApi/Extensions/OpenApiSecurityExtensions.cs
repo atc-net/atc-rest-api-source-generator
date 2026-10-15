@@ -366,6 +366,44 @@ public static class OpenApiSecurityExtensions
             => document.Components?.SecuritySchemes?.Count > 0;
 
         /// <summary>
+        /// Checks if the API authenticates its callers: the document declares a security scheme, or an operation
+        /// requires an authenticated caller through Atc's own extensions (<c>x-authentication-required</c>,
+        /// <c>x-authorize-roles</c>, <c>x-authentication-schemes</c>) - a specification may declare its access with
+        /// those alone. The root's <c>x-authorize-roles</c> only lists the roles there are, so on its own it is not one.
+        /// </summary>
+        /// <returns>True if the host's pipeline needs authentication and authorization.</returns>
+        public bool RequiresAuthentication()
+        {
+            if (document.HasSecuritySchemes())
+            {
+                return true;
+            }
+
+            if (document.Paths is null)
+            {
+                return false;
+            }
+
+            foreach (var path in document.Paths.Values)
+            {
+                if (path?.Operations is null)
+                {
+                    continue;
+                }
+
+                foreach (var operation in path.Operations.Values)
+                {
+                    if (operation?.ExtractSecurityConfiguration(path, document) is { AuthRequired: true })
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Checks if the document has document-level security requirements.
         /// </summary>
         /// <returns>True if document-level security is defined.</returns>

@@ -27,12 +27,14 @@ public class ApiMiddlewareOptions
     public bool UseRateLimiter { get; set; } = false;
 
     /// <summary>
-    /// Enable authentication middleware. Auto-detected from security schemes.
+    /// Enable authentication middleware. Auto-detected from security schemes and x-authorize-roles /
+    /// x-authentication-required.
     /// </summary>
     public bool UseAuthentication { get; set; } = true;
 
     /// <summary>
-    /// Enable authorization middleware. Auto-detected from security schemes.
+    /// Enable authorization middleware. Auto-detected from security schemes and x-authorize-roles /
+    /// x-authentication-required.
     /// </summary>
     public bool UseAuthorization { get; set; } = true;
 
@@ -42,6 +44,13 @@ public class ApiMiddlewareOptions
     /// without it, status code pages would write plain text. Default: true.
     /// </summary>
     public bool UseStatusCodePages { get; set; } = true;
+
+    /// <summary>
+    /// Add Atc.Rest.MinimalApi's global error handler (<c>UseGlobalErrorHandler()</c>), which answers an
+    /// exception with a ProblemDetails. Turn off when the host adds it itself, at the start of its own pipeline.
+    /// Default: true.
+    /// </summary>
+    public bool UseGlobalErrorHandler { get; set; } = true;
 
     /// <summary>
     /// Configure global error handling options.

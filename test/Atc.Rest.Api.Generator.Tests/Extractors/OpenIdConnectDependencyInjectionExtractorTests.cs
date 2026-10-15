@@ -52,7 +52,7 @@ public class OpenIdConnectDependencyInjectionExtractorTests
         var result = OpenIdConnectDependencyInjectionExtractor.Extract(config, "TestApi");
 
         Assert.NotNull(result);
-        Assert.Contains("public static IServiceCollection AddTestApiOpenIdConnectAuthentication(", result, StringComparison.Ordinal);
+        Assert.Contains("public static IServiceCollection AddTestOpenIdConnectAuthentication(", result, StringComparison.Ordinal);
         Assert.Contains("?? throw new InvalidOperationException(\"Authentication:OpenIdConnect:Authority is required\");", result, StringComparison.Ordinal);
         Assert.Contains("options.Scope.Add(\"openid\");", result, StringComparison.Ordinal);
         Assert.Contains("options.Scope.Add(\"profile\");", result, StringComparison.Ordinal);

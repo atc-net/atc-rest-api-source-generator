@@ -33,7 +33,7 @@ public static class UnifiedServiceCollectionExtractor
         var hasXml = XmlBodyReachability.Collect(openApiDoc).Count > 0;
         var hasEnums = EnumWireConverterExtractor.HasEnums(openApiDoc);
 
-        return GenerateFileContent(projectName, pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, openApiDoc.HasOutputCaching());
+        return GenerateFileContent(projectName, CasingHelper.GetApiName(projectName, config.ApiName), pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, openApiDoc.HasOutputCaching());
     }
 
     /// <summary>
@@ -41,6 +41,7 @@ public static class UnifiedServiceCollectionExtractor
     /// </summary>
     private static string GenerateFileContent(
         string projectName,
+        string apiName,
         List<string>? pathSegments,
         bool hasRateLimiting,
         bool hasValidation,
@@ -130,7 +131,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}Api method
-        GenerateAddApiMethod(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, hasOutputCaching);
+        GenerateAddApiMethod(builder, projectName, apiName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, hasOutputCaching);
 
         builder.AppendLine("}");
 
@@ -143,6 +144,7 @@ public static class UnifiedServiceCollectionExtractor
     private static void GenerateAddApiMethod(
         StringBuilder builder,
         string projectName,
+        string apiName,
         bool hasRateLimiting,
         bool hasValidation,
         bool hasVersioning,
@@ -186,7 +188,7 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static IServiceCollection Add{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}Api(");
+        builder.AppendLine(4, $"public static IServiceCollection Add{apiName}Api(");
         builder.AppendLine(8, "this IServiceCollection services,");
         builder.AppendLine(8, "Action<ApiServiceOptions>? configure = null)");
         builder.AppendLine(4, "{");
@@ -262,7 +264,7 @@ public static class UnifiedServiceCollectionExtractor
             builder.AppendLine(8, "// Register API versioning");
             builder.AppendLine(8, "if (options.UseVersioning)");
             builder.AppendLine(8, "{");
-            builder.AppendLine(12, $"services.Add{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}ApiVersioning();");
+            builder.AppendLine(12, $"services.Add{apiName}ApiVersioning();");
             builder.AppendLine(8, "}");
         }
 

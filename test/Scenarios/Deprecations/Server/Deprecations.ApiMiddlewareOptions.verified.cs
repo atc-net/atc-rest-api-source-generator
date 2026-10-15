@@ -27,12 +27,14 @@ public class ApiMiddlewareOptions
     public bool UseRateLimiter { get; set; } = false;
 
     /// <summary>
-    /// Enable authentication middleware. Auto-detected from security schemes.
+    /// Enable authentication middleware. Auto-detected from security schemes and x-authorize-roles /
+    /// x-authentication-required.
     /// </summary>
     public bool UseAuthentication { get; set; } = false;
 
     /// <summary>
-    /// Enable authorization middleware. Auto-detected from security schemes.
+    /// Enable authorization middleware. Auto-detected from security schemes and x-authorize-roles /
+    /// x-authentication-required.
     /// </summary>
     public bool UseAuthorization { get; set; } = false;
 

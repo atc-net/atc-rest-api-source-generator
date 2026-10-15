@@ -20,6 +20,75 @@ public class OpenApiSecurityExtensionsTests
         Assert.True(doc.HasSecuritySchemes());
     }
 
+    // ========== RequiresAuthentication Tests ==========
+    [Theory]
+    [InlineData("", false)]
+    [InlineData("x-authorize-roles: [reader]", false)]
+    [InlineData("x-authentication-required: true", true)]
+    public void RequiresAuthentication_FromTheDocumentLevel(
+        string documentExtension,
+        bool expected)
+    {
+        var doc = ParseYaml($$"""
+                              openapi: 3.0.0
+                              info:
+                                title: Test
+                                version: 1.0.0
+                              {{documentExtension}}
+                              paths:
+                                /items:
+                                  get:
+                                    operationId: listItems
+                                    responses:
+                                      '200':
+                                        description: OK
+                              """);
+
+        Assert.NotNull(doc);
+        Assert.Equal(expected, doc.RequiresAuthentication());
+    }
+
+    [Theory]
+    [InlineData("x-authorize-roles: [reader]", "", true)]
+    [InlineData("x-authentication-schemes: [Bearer]", "", true)]
+    [InlineData("", "x-authorize-roles: [reader]", true)]
+    [InlineData("", "x-authentication-required: true", true)]
+    [InlineData("", "x-authentication-required: false", false)]
+    public void RequiresAuthentication_FromAtcExtensionsOnAPathOrOperation(
+        string pathExtension,
+        string operationExtension,
+        bool expected)
+    {
+        var doc = ParseYaml($$"""
+                              openapi: 3.0.0
+                              info:
+                                title: Test
+                                version: 1.0.0
+                              x-authorize-roles: [reader]
+                              paths:
+                                /items:
+                                  {{pathExtension}}
+                                  get:
+                                    operationId: listItems
+                                    {{operationExtension}}
+                                    responses:
+                                      '200':
+                                        description: OK
+                              """);
+
+        Assert.NotNull(doc);
+        Assert.Equal(expected, doc.RequiresAuthentication());
+    }
+
+    [Fact]
+    public void RequiresAuthentication_WithASecurityScheme_ReturnsTrue()
+    {
+        var doc = ParseYaml(YamlWithJwtBearer);
+
+        Assert.NotNull(doc);
+        Assert.True(doc.RequiresAuthentication());
+    }
+
     // ========== HasDocumentSecurity Tests ==========
     [Fact]
     public void HasDocumentSecurity_NoSecurity_ReturnsFalse()

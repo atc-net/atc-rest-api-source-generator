@@ -11,10 +11,12 @@ public static class WebApplicationExtensionsExtractor
     /// </summary>
     /// <param name="projectName">The name of the project (used for namespace and method naming).</param>
     /// <param name="useGlobalErrorHandler">Whether to include GlobalErrorHandler middleware setup.</param>
+    /// <param name="apiName">The server marker's <c>apiName</c>, or null (see <see cref="CasingHelper.GetApiName"/>).</param>
     /// <returns>ClassParameters for the WebApplication extensions class, or null if no middleware is needed.</returns>
     public static ClassParameters? Extract(
         string projectName,
-        bool useGlobalErrorHandler)
+        bool useGlobalErrorHandler,
+        string? apiName = null)
     {
         if (!useGlobalErrorHandler)
         {
@@ -24,7 +26,7 @@ public static class WebApplicationExtensionsExtractor
         var methods = new List<MethodParameters>();
 
         // Generate Use{ProjectName}Api method
-        var useApiMethod = GenerateUseApiMethod(projectName, useGlobalErrorHandler);
+        var useApiMethod = GenerateUseApiMethod(projectName, CasingHelper.GetApiName(projectName, apiName), useGlobalErrorHandler);
         methods.Add(useApiMethod);
 
         var headerContent = GenerateHeaderContent(projectName, includeEndpointUsings: false);
@@ -69,14 +71,16 @@ public static class WebApplicationExtensionsExtractor
 
         // Auto-detect features from OpenAPI spec
         var hasRateLimiting = openApiDoc.HasRateLimiting();
-        var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
+
+        // A security scheme, or access declared with Atc's extensions alone (x-authorize-roles, x-authentication-required)
+        var hasSecurity = openApiDoc.RequiresAuthentication();
 
         // A limiter partitioned by user reads HttpContext.User: authentication has to run before it
         var limiterNeedsUser = hasRateLimiting && hasSecurity &&
                                RateLimitPoliciesExtractor.CollectPolicies(openApiDoc, config?.IncludeDeprecated ?? false)
                                    .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User);
 
-        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, openApiDoc.HasOutputCaching(), useGlobalErrorHandler);
+        return GenerateUnifiedFileContent(projectName, CasingHelper.GetApiName(projectName, config?.ApiName), hasRateLimiting, hasSecurity, limiterNeedsUser, openApiDoc.HasOutputCaching(), useGlobalErrorHandler);
     }
 
     /// <summary>
@@ -84,6 +88,7 @@ public static class WebApplicationExtensionsExtractor
     /// </summary>
     private static string GenerateUnifiedFileContent(
         string projectName,
+        string apiName,
         bool hasRateLimiting,
         bool hasSecurity,
         bool limiterNeedsUser,
@@ -121,7 +126,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine("{");
 
         // Generate Map{ProjectName}Api method
-        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity, limiterNeedsUser, hasOutputCaching, useGlobalErrorHandler);
+        GenerateMapApiMethod(builder, projectName, apiName, hasRateLimiting, hasSecurity, limiterNeedsUser, hasOutputCaching, useGlobalErrorHandler);
 
         builder.AppendLine("}");
 
@@ -134,6 +139,7 @@ public static class WebApplicationExtensionsExtractor
     private static void GenerateMapApiMethod(
         StringBuilder builder,
         string projectName,
+        string apiName,
         bool hasRateLimiting,
         bool hasSecurity,
         bool limiterNeedsUser,
@@ -170,7 +176,7 @@ public static class WebApplicationExtensionsExtractor
             : "/// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)");
         builder.AppendLine(4, "/// - All API endpoints");
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static WebApplication Map{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}Api(");
+        builder.AppendLine(4, $"public static WebApplication Map{apiName}Api(");
         builder.AppendLine(8, "this WebApplication app,");
         builder.AppendLine(8, "Action<ApiMiddlewareOptions>? configure = null)");
         builder.AppendLine(4, "{");
@@ -236,8 +242,11 @@ public static class WebApplicationExtensionsExtractor
         if (useGlobalErrorHandler)
         {
             builder.AppendLine();
-            builder.AppendLine(8, "// Global error handling middleware (converts exceptions to ProblemDetails)");
-            builder.AppendLine(8, "app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
+            builder.AppendLine(8, "// Global error handling middleware (converts exceptions to ProblemDetails); off when the host adds its own");
+            builder.AppendLine(8, "if (options.UseGlobalErrorHandler)");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, "app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
+            builder.AppendLine(8, "}");
         }
 
         // Map endpoints (always)
@@ -317,6 +326,7 @@ public static class WebApplicationExtensionsExtractor
 
     private static MethodParameters GenerateUseApiMethod(
         string projectName,
+        string apiName,
         bool useGlobalErrorHandler)
     {
         var methodParams = new List<ParameterBaseParameters>
@@ -362,7 +372,7 @@ public static class WebApplicationExtensionsExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "WebApplication",
-            Name: $"Use{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}Api",
+            Name: $"Use{apiName}Api",
             Parameters: methodParams,
             AlwaysBreakDownParameters: true,
             UseExpressionBody: false,

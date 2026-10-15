@@ -65,8 +65,11 @@ public static class UnifiedWebApplicationExtensions
             app.UseAuthorization();
         }
 
-        // Global error handling middleware (converts exceptions to ProblemDetails)
-        app.UseGlobalErrorHandler(options.ConfigureErrorHandling);
+        // Global error handling middleware (converts exceptions to ProblemDetails); off when the host adds its own
+        if (options.UseGlobalErrorHandler)
+        {
+            app.UseGlobalErrorHandler(options.ConfigureErrorHandling);
+        }
 
         // Map all API endpoints
         app.MapEndpoints();

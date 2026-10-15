@@ -695,7 +695,7 @@ public class CodeGenerationServiceTests
         Assert.Equal("Webhooks", endpoints.GroupName);
         Assert.Equal(@"Webhooks\Endpoints", endpoints.SubFolder);
         Assert.Contains("public static class WebhookEndpointExtensions", endpoints.Content, StringComparison.Ordinal);
-        Assert.Contains("MapTestApiWebhooks(", endpoints.Content, StringComparison.Ordinal);
+        Assert.Contains("MapTestWebhooks(", endpoints.Content, StringComparison.Ordinal);
         Assert.Contains("endpoints.MapGroup(\"/hooks\")", endpoints.Content, StringComparison.Ordinal);
         Assert.Contains("MapPost(", endpoints.Content, StringComparison.Ordinal);
         Assert.Contains("IOnNewPetWebhookHandler", endpoints.Content, StringComparison.Ordinal);
@@ -713,47 +713,5 @@ public class CodeGenerationServiceTests
         var document = OpenApiDocumentHelper.ParseYaml(NoWebhookYaml);
 
         Assert.Null(CodeGenerationService.GenerateWebhookEndpoints(document, ProjectName, new ServerConfig()));
-    }
-
-    // ========== GenerateWebhookDependencyInjection ==========
-    [Fact]
-    public void GenerateWebhookDependencyInjection_Webhooks_ProducesTheAddWebhookHandlersExtension()
-    {
-        var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
-
-        var registration = CodeGenerationService.GenerateWebhookDependencyInjection(document, ProjectName);
-
-        Assert.NotNull(registration);
-        Assert.Equal("WebhookServiceCollectionExtensions", registration.TypeName);
-        Assert.Equal("WebhookDependencyInjection", registration.Category);
-        Assert.Equal("TestApi.Generated.DependencyInjection", registration.Namespace);
-        Assert.Equal("Webhooks", registration.GroupName);
-        Assert.Equal("Extensions", registration.SubFolder);
-        Assert.Contains("public static class WebhookServiceCollectionExtensions", registration.Content, StringComparison.Ordinal);
-        Assert.Contains("AddTestApiWebhookHandlers(", registration.Content, StringComparison.Ordinal);
-        Assert.Contains("// services.AddScoped<IOnNewPetWebhookHandler, YourImplementation>();", registration.Content, StringComparison.Ordinal);
-        Assert.DoesNotContain("IOnPetRetiredWebhookHandler", registration.Content, StringComparison.Ordinal);
-        Assert.Contains("return services;", registration.Content, StringComparison.Ordinal);
-        Assert.Contains(NamespaceConstants.MicrosoftExtensionsDependencyInjection, registration.RequiredUsings, StringComparer.Ordinal);
-        Assert.Contains("TestApi.Generated.Webhooks.Handlers", registration.RequiredUsings, StringComparer.Ordinal);
-    }
-
-    [Fact]
-    public void GenerateWebhookDependencyInjection_IncludeDeprecated_RegistersTheDeprecatedHandlerToo()
-    {
-        var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
-
-        var registration = CodeGenerationService.GenerateWebhookDependencyInjection(document, ProjectName, includeDeprecated: true);
-
-        Assert.NotNull(registration);
-        Assert.Contains("IOnPetRetiredWebhookHandler", registration.Content, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GenerateWebhookDependencyInjection_NoWebhooks_ReturnsNull()
-    {
-        var document = OpenApiDocumentHelper.ParseYaml(NoWebhookYaml);
-
-        Assert.Null(CodeGenerationService.GenerateWebhookDependencyInjection(document, ProjectName));
     }
 }

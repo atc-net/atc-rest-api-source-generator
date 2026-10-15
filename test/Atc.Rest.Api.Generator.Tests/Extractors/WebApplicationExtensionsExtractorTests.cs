@@ -54,4 +54,113 @@ public class WebApplicationExtensionsExtractorTests
         Assert.True(authentication >= 0 && rateLimiter >= 0, result);
         Assert.Equal(authenticationFirst, authentication < rateLimiter);
     }
+
+    /// <summary>
+    /// A specification may declare its access with Atc's extensions alone, without a security scheme: it still needs
+    /// authentication in the pipeline, and before a limiter that partitions by user.
+    /// </summary>
+    [Theory]
+    [InlineData("x-authorize-roles: [reader]")]
+    [InlineData("x-authentication-required: true")]
+    public void ExtractUnified_AtcSecurityExtensionsWithoutASecurityScheme_AuthenticationRunsBeforeAUserPartitionedLimiter(
+        string securityExtension)
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.0
+            info:
+              title: Test
+              version: 1.0.0
+            x-authorize-roles: [reader]
+            paths:
+              /orders:
+                {{securityExtension}}
+                x-ratelimit-policy: orders
+                x-ratelimit-permit-limit: 10
+                x-ratelimit-partition: user
+                get:
+                  operationId: listOrders
+                  responses:
+                    '200':
+                      description: OK
+            """);
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
+
+        // Assert
+        var authentication = result.IndexOf("app.UseAuthentication();", StringComparison.Ordinal);
+        var rateLimiter = result.IndexOf("app.UseRateLimiter();", StringComparison.Ordinal);
+        Assert.Contains("app.UseAuthorization();", result, StringComparison.Ordinal);
+        Assert.True(authentication >= 0 && rateLimiter >= 0, result);
+        Assert.True(authentication < rateLimiter, result);
+    }
+
+    [Fact]
+    public void ExtractUnified_NoSecurityAtAll_HasNoAuthentication()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /orders:
+                get:
+                  operationId: listOrders
+                  responses:
+                    '200':
+                      description: OK
+            """);
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
+
+        // Assert
+        Assert.DoesNotContain("app.UseAuthentication();", result, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The method is named after the API, not after a trailing <c>Contracts</c> / <c>Api</c> segment - or as the
+    /// marker's <c>apiName</c> says.
+    /// </summary>
+    [Theory]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", null, "MapNexusApi(")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "Fleet", "MapFleetApi(")]
+    [InlineData("Showcase", null, "MapShowcaseApi(")]
+    public void ExtractUnified_TheMethodIsNamedAfterTheApi(
+        string projectName,
+        string? apiName,
+        string expected)
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(SecuredAndLimitedYaml.Replace("{partition}", "ip", StringComparison.Ordinal));
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, projectName, new ServerConfig { ApiName = apiName });
+
+        // Assert
+        Assert.Contains($"public static WebApplication {expected}", result, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A host that orders its own pipeline already has an error handler: it turns the generated one off.
+    /// </summary>
+    [Fact]
+    public void ExtractUnified_TheGlobalErrorHandler_IsBehindItsOption()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(SecuredAndLimitedYaml.Replace("{partition}", "ip", StringComparison.Ordinal));
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
+
+        // Assert
+        var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Contains(
+            "        if (options.UseGlobalErrorHandler)\n        {\n            app.UseGlobalErrorHandler(options.ConfigureErrorHandling);\n        }\n",
+            normalized,
+            StringComparison.Ordinal);
+    }
 }
