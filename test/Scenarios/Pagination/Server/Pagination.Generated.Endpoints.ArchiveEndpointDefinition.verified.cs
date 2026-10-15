@@ -50,8 +50,8 @@ public sealed class ArchiveEndpointDefinition : IEndpointDefinition
         [FromServices] IListArchivedAccountsHandler handler,
         [AsParameters] ListArchivedAccountsParameters parameters,
         CancellationToken cancellationToken)
-        => ListArchivedAccountsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

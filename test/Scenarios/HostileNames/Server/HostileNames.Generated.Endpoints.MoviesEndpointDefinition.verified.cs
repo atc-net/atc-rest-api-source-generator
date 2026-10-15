@@ -51,8 +51,8 @@ public sealed class MoviesEndpointDefinition : IEndpointDefinition
         [FromServices] IGetMovieHandler handler,
         [AsParameters] GetMovieParameters parameters,
         CancellationToken cancellationToken)
-        => GetMovieResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

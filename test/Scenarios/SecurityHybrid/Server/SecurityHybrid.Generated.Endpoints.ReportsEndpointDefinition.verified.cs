@@ -52,7 +52,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListReports(
         [FromServices] IListReportsHandler handler,
         CancellationToken cancellationToken)
-        => ListReportsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

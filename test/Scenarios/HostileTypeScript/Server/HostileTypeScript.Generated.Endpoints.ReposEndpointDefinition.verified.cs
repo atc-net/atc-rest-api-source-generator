@@ -62,17 +62,17 @@ public sealed class ReposEndpointDefinition : IEndpointDefinition
         [FromServices] IReposListHandler handler,
         [AsParameters] ReposListParameters parameters,
         CancellationToken cancellationToken)
-        => ReposListResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> ReposGet(
         [FromServices] IReposGetHandler handler,
         [AsParameters] ReposGetParameters parameters,
         CancellationToken cancellationToken)
-        => ReposGetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

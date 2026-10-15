@@ -57,16 +57,16 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListShapes(
         [FromServices] IListShapesHandler handler,
         CancellationToken cancellationToken)
-        => ListShapesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateShape(
         [FromServices] ICreateShapeHandler handler,
         [AsParameters] CreateShapeParameters parameters,
         CancellationToken cancellationToken)
-        => CreateShapeResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

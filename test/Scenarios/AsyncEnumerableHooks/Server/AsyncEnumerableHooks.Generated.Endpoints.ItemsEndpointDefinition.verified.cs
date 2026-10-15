@@ -89,42 +89,42 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
         [FromServices] IListItemsHandler handler,
         [AsParameters] ListItemsParameters parameters,
         CancellationToken cancellationToken)
-        => ListItemsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> ListItemPages(
         [FromServices] IListItemPagesHandler handler,
         [AsParameters] ListItemPagesParameters parameters,
         CancellationToken cancellationToken)
-        => ListItemPagesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetItemLogs(
         [FromServices] IGetItemLogsHandler handler,
         [AsParameters] GetItemLogsParameters parameters,
         CancellationToken cancellationToken)
-        => GetItemLogsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> SearchItems(
         [FromServices] ISearchItemsHandler handler,
         [AsParameters] SearchItemsParameters parameters,
         CancellationToken cancellationToken)
-        => SearchItemsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> StreamItemEvents(
         [FromServices] IStreamItemEventsHandler handler,
         CancellationToken cancellationToken)
-        => StreamItemEventsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

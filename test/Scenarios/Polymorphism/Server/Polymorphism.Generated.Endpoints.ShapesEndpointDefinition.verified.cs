@@ -46,7 +46,7 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListShapes(
         [FromServices] IListShapesHandler handler,
         CancellationToken cancellationToken)
-        => ListShapesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

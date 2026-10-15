@@ -68,16 +68,16 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListUsers(
         [FromServices] IListUsersHandler handler,
         CancellationToken cancellationToken)
-        => ListUsersResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetUserById(
         [FromServices] IGetUserByIdHandler handler,
         [AsParameters] GetUserByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetUserByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

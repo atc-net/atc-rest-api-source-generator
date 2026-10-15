@@ -54,7 +54,7 @@ public sealed class WhoamiEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetCurrentUser(
         [FromServices] IGetCurrentUserHandler handler,
         CancellationToken cancellationToken)
-        => GetCurrentUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

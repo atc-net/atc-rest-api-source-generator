@@ -47,7 +47,7 @@ public sealed class ColorsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetColors(
         [FromServices] IGetColorsHandler handler,
         CancellationToken cancellationToken)
-        => GetColorsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

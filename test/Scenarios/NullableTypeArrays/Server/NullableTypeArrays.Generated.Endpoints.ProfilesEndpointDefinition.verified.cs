@@ -68,25 +68,25 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListProfiles(
         [FromServices] IListProfilesHandler handler,
         CancellationToken cancellationToken)
-        => ListProfilesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateProfile(
         [FromServices] ICreateProfileHandler handler,
         [AsParameters] CreateProfileParameters parameters,
         CancellationToken cancellationToken)
-        => CreateProfileResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetProfileById(
         [FromServices] IGetProfileByIdHandler handler,
         [AsParameters] GetProfileByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetProfileByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

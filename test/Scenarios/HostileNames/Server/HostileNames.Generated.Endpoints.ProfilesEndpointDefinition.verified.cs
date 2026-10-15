@@ -58,9 +58,9 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
     {
         var request = new user_profile(UserName: userName ?? string.Empty, DisplayName: displayName);
         var parameters = new CreateProfileParameters(request);
-        return CreateProfileResult.ToIResult(
-            await handler.ExecuteAsync(
+        return (await handler.ExecuteAsync(
                 parameters,
-                cancellationToken));
+                cancellationToken))
+            .Result;
     }
 }

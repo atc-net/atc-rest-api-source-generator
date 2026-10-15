@@ -48,7 +48,7 @@ public sealed class PublicEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetHealth(
         [FromServices] IGetHealthHandler handler,
         CancellationToken cancellationToken)
-        => GetHealthResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

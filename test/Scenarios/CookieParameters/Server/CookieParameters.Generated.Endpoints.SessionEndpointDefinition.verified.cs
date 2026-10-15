@@ -51,8 +51,8 @@ public sealed class SessionEndpointDefinition : IEndpointDefinition
         [FromServices] IGetSessionHandler handler,
         [AsParameters] GetSessionParameters parameters,
         CancellationToken cancellationToken)
-        => GetSessionResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

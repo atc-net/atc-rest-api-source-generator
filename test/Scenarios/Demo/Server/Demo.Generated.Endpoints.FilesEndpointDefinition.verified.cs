@@ -101,10 +101,10 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         [FromServices] IGetFileByIdHandler handler,
         [AsParameters] GetFileByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetFileByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFile(
         [FromServices] IUploadFormDataFileHandler handler,
@@ -115,10 +115,10 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
     {
         var request = new FileAsFormDataRequest(ItemName: itemName ?? string.Empty, File: file, Items: items ?? new List<string>());
         var parameters = new UploadFormDataFileParameters(request);
-        return UploadFormDataFileResult.ToIResult(
-            await handler.ExecuteAsync(
+        return (await handler.ExecuteAsync(
                 parameters,
-                cancellationToken));
+                cancellationToken))
+            .Result;
     }
 
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFiles(
@@ -128,27 +128,27 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
     {
         var request = new FilesAsFormDataRequest(Files: files?.GetFiles("files").ToList() ?? new List<IFormFile>());
         var parameters = new UploadFormDataFilesParameters(request);
-        return UploadFormDataFilesResult.ToIResult(
-            await handler.ExecuteAsync(
+        return (await handler.ExecuteAsync(
                 parameters,
-                cancellationToken));
+                cancellationToken))
+            .Result;
     }
 
     internal async System.Threading.Tasks.Task<IResult> UploadSingleFileAsFormData(
         [FromServices] IUploadSingleFileAsFormDataHandler handler,
         [AsParameters] UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken)
-        => UploadSingleFileAsFormDataResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> UploadMultiFilesAsFormData(
         [FromServices] IUploadMultiFilesAsFormDataHandler handler,
         [AsParameters] UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken)
-        => UploadMultiFilesAsFormDataResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

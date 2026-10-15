@@ -58,16 +58,16 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListItems(
         [FromServices] IListItemsHandler handler,
         CancellationToken cancellationToken)
-        => ListItemsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetItemById(
         [FromServices] IGetItemByIdHandler handler,
         [AsParameters] GetItemByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetItemByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

@@ -46,7 +46,7 @@ public sealed class EventsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListEvents(
         [FromServices] IListEventsHandler handler,
         CancellationToken cancellationToken)
-        => ListEventsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

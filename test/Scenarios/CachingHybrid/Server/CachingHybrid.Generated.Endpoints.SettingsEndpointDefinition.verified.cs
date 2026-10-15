@@ -46,7 +46,7 @@ public sealed class SettingsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetSettings(
         [FromServices] IGetSettingsHandler handler,
         CancellationToken cancellationToken)
-        => GetSettingsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

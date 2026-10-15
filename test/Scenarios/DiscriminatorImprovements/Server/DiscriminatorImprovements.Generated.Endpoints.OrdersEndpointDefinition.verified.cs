@@ -61,17 +61,17 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateOrderHandler handler,
         [AsParameters] CreateOrderParameters parameters,
         CancellationToken cancellationToken)
-        => CreateOrderResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetOrderById(
         [FromServices] IGetOrderByIdHandler handler,
         [AsParameters] GetOrderByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetOrderByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

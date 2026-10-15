@@ -47,7 +47,7 @@ public sealed class ArraysEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetArrayTypes(
         [FromServices] IGetArrayTypesHandler handler,
         CancellationToken cancellationToken)
-        => GetArrayTypesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

@@ -68,25 +68,25 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListPayments(
         [FromServices] IListPaymentsHandler handler,
         CancellationToken cancellationToken)
-        => ListPaymentsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreatePayment(
         [FromServices] ICreatePaymentHandler handler,
         [AsParameters] CreatePaymentParameters parameters,
         CancellationToken cancellationToken)
-        => CreatePaymentResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetPaymentById(
         [FromServices] IGetPaymentByIdHandler handler,
         [AsParameters] GetPaymentByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetPaymentByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

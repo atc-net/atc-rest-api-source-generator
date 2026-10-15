@@ -46,7 +46,7 @@ public sealed class ReposEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ReposGet(
         [FromServices] IReposGetHandler handler,
         CancellationToken cancellationToken)
-        => ReposGetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

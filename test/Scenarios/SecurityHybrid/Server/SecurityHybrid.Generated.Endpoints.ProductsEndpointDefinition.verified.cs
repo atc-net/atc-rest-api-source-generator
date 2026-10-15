@@ -64,16 +64,16 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListProducts(
         [FromServices] IListProductsHandler handler,
         CancellationToken cancellationToken)
-        => ListProductsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetProductById(
         [FromServices] IGetProductByIdHandler handler,
         [AsParameters] GetProductByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetProductByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

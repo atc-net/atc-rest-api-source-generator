@@ -71,24 +71,24 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
         [FromServices] IListNotesHandler handler,
         [AsParameters] ListNotesParameters parameters,
         CancellationToken cancellationToken)
-        => ListNotesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeleteNotes(
         [FromServices] IDeleteNotesHandler handler,
         CancellationToken cancellationToken)
-        => DeleteNotesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateNote(
         [FromServices] ICreateNoteHandler handler,
         [AsParameters] CreateNoteParameters parameters,
         CancellationToken cancellationToken)
-        => CreateNoteResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

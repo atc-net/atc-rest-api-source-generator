@@ -46,7 +46,7 @@ public sealed class TreeEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetTree(
         [FromServices] IGetTreeHandler handler,
         CancellationToken cancellationToken)
-        => GetTreeResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

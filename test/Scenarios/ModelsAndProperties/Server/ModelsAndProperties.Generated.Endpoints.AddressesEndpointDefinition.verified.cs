@@ -57,16 +57,16 @@ public sealed class AddressesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListAddresses(
         [FromServices] IListAddressesHandler handler,
         CancellationToken cancellationToken)
-        => ListAddressesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateAddress(
         [FromServices] ICreateAddressHandler handler,
         [AsParameters] CreateAddressParameters parameters,
         CancellationToken cancellationToken)
-        => CreateAddressResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

@@ -45,7 +45,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetTextReport(
         [FromServices] IGetTextReportHandler handler,
         CancellationToken cancellationToken)
-        => GetTextReportResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

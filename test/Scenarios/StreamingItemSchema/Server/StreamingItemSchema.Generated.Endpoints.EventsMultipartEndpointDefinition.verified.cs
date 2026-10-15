@@ -46,7 +46,7 @@ public sealed class EventsMultipartEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> StreamEventsMultipart(
         [FromServices] IStreamEventsMultipartHandler handler,
         CancellationToken cancellationToken)
-        => StreamEventsMultipartResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

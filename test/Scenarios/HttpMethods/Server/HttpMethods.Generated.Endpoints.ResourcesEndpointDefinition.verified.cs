@@ -88,44 +88,44 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListResources(
         [FromServices] IListResourcesHandler handler,
         CancellationToken cancellationToken)
-        => ListResourcesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> QueryResources(
         [FromServices] IQueryResourcesHandler handler,
         [AsParameters] QueryResourcesParameters parameters,
         CancellationToken cancellationToken)
-        => QueryResourcesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> ProbeResources(
         [FromServices] IProbeResourcesHandler handler,
         CancellationToken cancellationToken)
-        => ProbeResourcesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DescribeResources(
         [FromServices] IDescribeResourcesHandler handler,
         CancellationToken cancellationToken)
-        => DescribeResourcesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> TraceResources(
         [FromServices] ITraceResourcesHandler handler,
         CancellationToken cancellationToken)
-        => TraceResourcesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> LinkResource(
         [FromServices] ILinkResourceHandler handler,
         CancellationToken cancellationToken)
-        => LinkResourceResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

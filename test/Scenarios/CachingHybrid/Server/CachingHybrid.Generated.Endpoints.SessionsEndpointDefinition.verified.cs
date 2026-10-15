@@ -46,7 +46,7 @@ public sealed class SessionsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListSessions(
         [FromServices] IListSessionsHandler handler,
         CancellationToken cancellationToken)
-        => ListSessionsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

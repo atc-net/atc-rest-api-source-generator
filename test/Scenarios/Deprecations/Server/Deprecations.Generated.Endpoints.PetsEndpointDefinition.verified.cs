@@ -80,26 +80,26 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
         [FromServices] IListPetsHandler handler,
         [AsParameters] ListPetsParameters parameters,
         CancellationToken cancellationToken)
-        => ListPetsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreatePet(
         [FromServices] ICreatePetHandler handler,
         [AsParameters] CreatePetParameters parameters,
         CancellationToken cancellationToken)
-        => CreatePetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> ListLegacyPets(
         [FromServices] IListLegacyPetsHandler handler,
         CancellationToken cancellationToken)
-        => ListLegacyPetsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> UpdatePetPhoto(
         [FromServices] IUpdatePetPhotoHandler handler,
@@ -110,9 +110,9 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
     {
         var request = new PetPhoto(File: file, Caption: caption);
         var parameters = new UpdatePetPhotoParameters(petId, request);
-        return UpdatePetPhotoResult.ToIResult(
-            await handler.ExecuteAsync(
+        return (await handler.ExecuteAsync(
                 parameters,
-                cancellationToken));
+                cancellationToken))
+            .Result;
     }
 }

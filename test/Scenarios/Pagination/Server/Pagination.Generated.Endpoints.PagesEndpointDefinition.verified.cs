@@ -51,8 +51,8 @@ public sealed class PagesEndpointDefinition : IEndpointDefinition
         [FromServices] IListAccountPagesHandler handler,
         [AsParameters] ListAccountPagesParameters parameters,
         CancellationToken cancellationToken)
-        => ListAccountPagesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

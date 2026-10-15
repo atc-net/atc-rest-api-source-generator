@@ -47,7 +47,7 @@ public sealed class DictionariesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetDictionaryTypes(
         [FromServices] IGetDictionaryTypesHandler handler,
         CancellationToken cancellationToken)
-        => GetDictionaryTypesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

@@ -51,8 +51,8 @@ public sealed class PersonsEndpointDefinition : IEndpointDefinition
         [FromServices] IListPersonsHandler handler,
         [AsParameters] ListPersonsParameters parameters,
         CancellationToken cancellationToken)
-        => ListPersonsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

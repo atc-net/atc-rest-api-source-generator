@@ -68,14 +68,14 @@ public sealed class MeEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetCurrentUser(
         [FromServices] IGetCurrentUserHandler handler,
         CancellationToken cancellationToken)
-        => GetCurrentUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetCurrentUserProfile(
         [FromServices] IGetCurrentUserProfileHandler handler,
         CancellationToken cancellationToken)
-        => GetCurrentUserProfileResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

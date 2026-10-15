@@ -105,34 +105,34 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListResources(
         [FromServices] IListResourcesHandler handler,
         CancellationToken cancellationToken)
-        => ListResourcesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateResource(
         [FromServices] ICreateResourceHandler handler,
         [AsParameters] CreateResourceParameters parameters,
         CancellationToken cancellationToken)
-        => CreateResourceResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetResourceById(
         [FromServices] IGetResourceByIdHandler handler,
         [AsParameters] GetResourceByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetResourceByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeleteResource(
         [FromServices] IDeleteResourceHandler handler,
         [AsParameters] DeleteResourceParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteResourceResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

@@ -94,44 +94,44 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
         [FromServices] IListTasksHandler handler,
         [AsParameters] ListTasksParameters parameters,
         CancellationToken cancellationToken)
-        => ListTasksResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> CreateTask(
         [FromServices] ICreateTaskHandler handler,
         [AsParameters] CreateTaskParameters parameters,
         CancellationToken cancellationToken)
-        => CreateTaskResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> GetTaskById(
         [FromServices] IGetTaskByIdHandler handler,
         [AsParameters] GetTaskByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetTaskByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> DeleteTaskById(
         [FromServices] IDeleteTaskByIdHandler handler,
         [AsParameters] DeleteTaskByIdParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteTaskByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> UpdateTaskById(
         [FromServices] IUpdateTaskByIdHandler handler,
         [AsParameters] UpdateTaskByIdParameters parameters,
         CancellationToken cancellationToken)
-        => UpdateTaskByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

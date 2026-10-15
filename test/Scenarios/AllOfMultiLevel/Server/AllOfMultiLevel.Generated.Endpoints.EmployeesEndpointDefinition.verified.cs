@@ -47,7 +47,7 @@ public sealed class EmployeesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListEmployees(
         [FromServices] IListEmployeesHandler handler,
         CancellationToken cancellationToken)
-        => ListEmployeesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

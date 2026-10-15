@@ -50,8 +50,8 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateFileHandler handler,
         [AsParameters] CreateFileParameters parameters,
         CancellationToken cancellationToken)
-        => CreateFileResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

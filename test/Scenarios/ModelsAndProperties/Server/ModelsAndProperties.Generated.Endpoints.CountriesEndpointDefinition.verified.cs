@@ -46,7 +46,7 @@ public sealed class CountriesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListCountries(
         [FromServices] IListCountriesHandler handler,
         CancellationToken cancellationToken)
-        => ListCountriesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

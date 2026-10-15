@@ -94,44 +94,44 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
         [FromServices] IListUsersHandler handler,
         [AsParameters] ListUsersParameters parameters,
         CancellationToken cancellationToken)
-        => ListUsersResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> CreateUser(
         [FromServices] ICreateUserHandler handler,
         [AsParameters] CreateUserParameters parameters,
         CancellationToken cancellationToken)
-        => CreateUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> GetUserById(
         [FromServices] IGetUserByIdHandler handler,
         [AsParameters] GetUserByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetUserByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> UpdateUserById(
         [FromServices] IUpdateUserByIdHandler handler,
         [AsParameters] UpdateUserByIdParameters parameters,
         CancellationToken cancellationToken)
-        => UpdateUserByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> DeleteUserById(
         [FromServices] IDeleteUserByIdHandler handler,
         [AsParameters] DeleteUserByIdParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteUserByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

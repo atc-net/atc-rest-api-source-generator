@@ -112,60 +112,60 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
         [FromServices] IListAccountsHandler handler,
         [AsParameters] ListAccountsParameters parameters,
         CancellationToken cancellationToken)
-        => ListAccountsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> CreateAccount(
         [FromServices] ICreateAccountHandler handler,
         [AsParameters] CreateAccountParameters parameters,
         CancellationToken cancellationToken)
-        => CreateAccountResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> GetAccountById(
         [FromServices] IGetAccountByIdHandler handler,
         [AsParameters] GetAccountByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetAccountByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> DeleteAccountById(
         [FromServices] IDeleteAccountByIdHandler handler,
         [AsParameters] DeleteAccountByIdParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteAccountByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> UpdateAccountById(
         [FromServices] IUpdateAccountByIdHandler handler,
         [AsParameters] UpdateAccountByIdParameters parameters,
         CancellationToken cancellationToken)
-        => UpdateAccountByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> ListPaginatedAccounts(
         [FromServices] IListPaginatedAccountsHandler handler,
         [AsParameters] ListPaginatedAccountsParameters parameters,
         CancellationToken cancellationToken)
-        => ListPaginatedAccountsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> ListAsyncEnumerableAccounts(
         [FromServices] IListAsyncEnumerableAccountsHandler handler,
         CancellationToken cancellationToken)
-        => ListAsyncEnumerableAccountsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

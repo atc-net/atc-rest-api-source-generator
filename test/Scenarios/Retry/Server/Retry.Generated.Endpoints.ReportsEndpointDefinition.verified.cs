@@ -50,8 +50,8 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
         [FromServices] IGenerateReportHandler handler,
         [AsParameters] GenerateReportParameters parameters,
         CancellationToken cancellationToken)
-        => GenerateReportResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

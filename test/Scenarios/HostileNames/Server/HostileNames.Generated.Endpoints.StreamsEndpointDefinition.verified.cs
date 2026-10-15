@@ -57,16 +57,16 @@ public sealed class StreamsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListStreams(
         [FromServices] IListStreamsHandler handler,
         CancellationToken cancellationToken)
-        => ListStreamsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateStream(
         [FromServices] ICreateStreamHandler handler,
         [AsParameters] CreateStreamParameters parameters,
         CancellationToken cancellationToken)
-        => CreateStreamResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

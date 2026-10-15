@@ -46,7 +46,7 @@ public sealed class ThingsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> Op1stThing(
         [FromServices] IOp1stThingHandler handler,
         CancellationToken cancellationToken)
-        => Op1stThingResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

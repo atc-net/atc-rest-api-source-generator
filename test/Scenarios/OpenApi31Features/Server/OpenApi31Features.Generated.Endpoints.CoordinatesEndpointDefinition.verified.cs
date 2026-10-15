@@ -55,14 +55,14 @@ public sealed class CoordinatesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetCoordinates(
         [FromServices] IGetCoordinatesHandler handler,
         CancellationToken cancellationToken)
-        => GetCoordinatesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> ListCoordinates(
         [FromServices] IListCoordinatesHandler handler,
         CancellationToken cancellationToken)
-        => ListCoordinatesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

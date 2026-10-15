@@ -174,71 +174,71 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
         [FromServices] IUpdatePetHandler handler,
         [AsParameters] UpdatePetParameters parameters,
         CancellationToken cancellationToken)
-        => UpdatePetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> AddPet(
         [FromServices] IAddPetHandler handler,
         [AsParameters] AddPetParameters parameters,
         CancellationToken cancellationToken)
-        => AddPetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> FindPetsByStatus(
         [FromServices] IFindPetsByStatusHandler handler,
         [AsParameters] FindPetsByStatusParameters parameters,
         CancellationToken cancellationToken)
-        => FindPetsByStatusResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> FindPetsByTags(
         [FromServices] IFindPetsByTagsHandler handler,
         [AsParameters] FindPetsByTagsParameters parameters,
         CancellationToken cancellationToken)
-        => FindPetsByTagsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetPetById(
         [FromServices] IGetPetByIdHandler handler,
         [AsParameters] GetPetByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetPetByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> UpdatePetWithForm(
         [FromServices] IUpdatePetWithFormHandler handler,
         [AsParameters] UpdatePetWithFormParameters parameters,
         CancellationToken cancellationToken)
-        => UpdatePetWithFormResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeletePet(
         [FromServices] IDeletePetHandler handler,
         [AsParameters] DeletePetParameters parameters,
         CancellationToken cancellationToken)
-        => DeletePetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> UploadFile(
         [FromServices] IUploadFileHandler handler,
         [AsParameters] UploadFileParameters parameters,
         CancellationToken cancellationToken)
-        => UploadFileResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

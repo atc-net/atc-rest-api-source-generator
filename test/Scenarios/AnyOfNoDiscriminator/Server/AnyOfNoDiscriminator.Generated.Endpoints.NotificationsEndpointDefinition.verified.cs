@@ -46,7 +46,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListNotifications(
         [FromServices] IListNotificationsHandler handler,
         CancellationToken cancellationToken)
-        => ListNotificationsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

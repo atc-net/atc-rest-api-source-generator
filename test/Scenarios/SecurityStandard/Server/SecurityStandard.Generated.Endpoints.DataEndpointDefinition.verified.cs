@@ -54,7 +54,7 @@ public sealed class DataEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetData(
         [FromServices] IGetDataHandler handler,
         CancellationToken cancellationToken)
-        => GetDataResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

@@ -47,7 +47,7 @@ public sealed class EnumsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetEnumTypes(
         [FromServices] IGetEnumTypesHandler handler,
         CancellationToken cancellationToken)
-        => GetEnumTypesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

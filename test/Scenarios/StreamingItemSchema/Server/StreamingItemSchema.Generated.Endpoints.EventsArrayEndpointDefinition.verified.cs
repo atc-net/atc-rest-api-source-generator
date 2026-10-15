@@ -46,7 +46,7 @@ public sealed class EventsArrayEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> StreamEventsArray(
         [FromServices] IStreamEventsArrayHandler handler,
         CancellationToken cancellationToken)
-        => StreamEventsArrayResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

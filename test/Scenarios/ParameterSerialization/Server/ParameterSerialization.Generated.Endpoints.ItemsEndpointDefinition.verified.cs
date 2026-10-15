@@ -60,17 +60,17 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
         [FromServices] IListItemsHandler handler,
         [AsParameters] ListItemsParameters parameters,
         CancellationToken cancellationToken)
-        => ListItemsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> ListItemsByQueryString(
         [FromServices] IListItemsByQueryStringHandler handler,
         [AsParameters] ListItemsByQueryStringParameters parameters,
         CancellationToken cancellationToken)
-        => ListItemsByQueryStringResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

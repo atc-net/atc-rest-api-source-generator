@@ -53,8 +53,8 @@ public sealed class ExportsEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateExportHandler handler,
         [AsParameters] CreateExportParameters parameters,
         CancellationToken cancellationToken)
-        => CreateExportResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

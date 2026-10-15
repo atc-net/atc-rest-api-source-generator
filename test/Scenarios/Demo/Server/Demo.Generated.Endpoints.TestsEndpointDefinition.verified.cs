@@ -80,35 +80,35 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateTestItemWithModelHandler handler,
         [AsParameters] CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken)
-        => CreateTestItemWithModelResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> CreateTestItemWithLocationHeader(
         [FromServices] ICreateTestItemWithLocationHeaderHandler handler,
         [AsParameters] CreateTestItemWithLocationHeaderParameters parameters,
         CancellationToken cancellationToken)
-        => CreateTestItemWithLocationHeaderResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> CreateTestItemWithLocationInBody(
         [FromServices] ICreateTestItemWithLocationInBodyHandler handler,
         [AsParameters] CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken)
-        => CreateTestItemWithLocationInBodyResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async System.Threading.Tasks.Task<IResult> CreateTestItemEmpty(
         [FromServices] ICreateTestItemEmptyHandler handler,
         [AsParameters] CreateTestItemEmptyParameters parameters,
         CancellationToken cancellationToken)
-        => CreateTestItemEmptyResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

@@ -50,8 +50,8 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         [FromServices] IDownloadFileHandler handler,
         [AsParameters] DownloadFileParameters parameters,
         CancellationToken cancellationToken)
-        => DownloadFileResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

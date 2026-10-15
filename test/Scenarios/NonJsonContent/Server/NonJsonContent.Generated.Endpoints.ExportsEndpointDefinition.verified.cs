@@ -45,7 +45,7 @@ public sealed class ExportsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ExportCsv(
         [FromServices] IExportCsvHandler handler,
         CancellationToken cancellationToken)
-        => ExportCsvResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

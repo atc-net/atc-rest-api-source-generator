@@ -1617,7 +1617,6 @@ using Microsoft.AspNetCore.Builder;
     {
         var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
-        var resultClassName = $"{methodName}Result";
 
         // Determine if operation has parameters (operation-level OR path-level)
         var hasOperationParams = operation.Parameters is not null && operation.Parameters.Count > 0;
@@ -1939,10 +1938,10 @@ using Microsoft.AspNetCore.Builder;
             content = $"""
                        var request = new {requestTypeName}({requestArgs});
                        var parameters = new {parameterClassName}({constructorArgs});
-                       return {resultClassName}.ToIResult(
-                           await handler.ExecuteAsync(
+                       return (await handler.ExecuteAsync(
                                parameters,
-                               cancellationToken));
+                               cancellationToken))
+                           .Result;
                        """;
 
             return new MethodParameters(
@@ -1958,21 +1957,23 @@ using Microsoft.AspNetCore.Builder;
                 Content: content);
         }
 
+        // The handler's result is not named (its Result is what ToIResult returns): an operation named like an MVC result
+        // (signIn, redirect, file, ...) has a result whose name Microsoft.AspNetCore.Mvc, imported by this file, also has
         if (hasParameters || hasRequestBody)
         {
             content = $"""
-                       {resultClassName}.ToIResult(
-                                   await handler.ExecuteAsync(
-                                       parameters,
-                                       cancellationToken))
+                       (await handler.ExecuteAsync(
+                               parameters,
+                               cancellationToken))
+                           .Result
                        """;
         }
         else
         {
             content = $"""
-                       {resultClassName}.ToIResult(
-                                   await handler.ExecuteAsync(
-                                       cancellationToken))
+                       (await handler.ExecuteAsync(
+                               cancellationToken))
+                           .Result
                        """;
         }
 

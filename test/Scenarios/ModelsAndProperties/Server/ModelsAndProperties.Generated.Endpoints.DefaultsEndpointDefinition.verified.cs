@@ -47,7 +47,7 @@ public sealed class DefaultsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetDefaults(
         [FromServices] IGetDefaultsHandler handler,
         CancellationToken cancellationToken)
-        => GetDefaultsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

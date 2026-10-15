@@ -60,17 +60,17 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
         [FromServices] IListAccountsHandler handler,
         [AsParameters] ListAccountsParameters parameters,
         CancellationToken cancellationToken)
-        => ListAccountsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateAccount(
         [FromServices] ICreateAccountHandler handler,
         [AsParameters] CreateAccountParameters parameters,
         CancellationToken cancellationToken)
-        => CreateAccountResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

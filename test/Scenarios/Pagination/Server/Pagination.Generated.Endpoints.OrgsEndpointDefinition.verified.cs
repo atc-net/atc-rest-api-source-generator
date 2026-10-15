@@ -51,8 +51,8 @@ public sealed class OrgsEndpointDefinition : IEndpointDefinition
         [FromServices] IListOrgDevicesHandler handler,
         [AsParameters] ListOrgDevicesParameters parameters,
         CancellationToken cancellationToken)
-        => ListOrgDevicesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

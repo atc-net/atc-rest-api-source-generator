@@ -47,7 +47,7 @@ public sealed class DogsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListDogs(
         [FromServices] IListDogsHandler handler,
         CancellationToken cancellationToken)
-        => ListDogsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

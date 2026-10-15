@@ -53,8 +53,8 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
         [FromServices] ISendNotificationHandler handler,
         [AsParameters] SendNotificationParameters parameters,
         CancellationToken cancellationToken)
-        => SendNotificationResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

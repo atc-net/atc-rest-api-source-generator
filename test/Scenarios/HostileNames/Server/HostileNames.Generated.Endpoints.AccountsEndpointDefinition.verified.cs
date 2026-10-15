@@ -47,7 +47,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListAccounts(
         [FromServices] IListAccountsHandler handler,
         CancellationToken cancellationToken)
-        => ListAccountsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

@@ -47,7 +47,7 @@ public sealed class CatsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListCats(
         [FromServices] IListCatsHandler handler,
         CancellationToken cancellationToken)
-        => ListCatsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

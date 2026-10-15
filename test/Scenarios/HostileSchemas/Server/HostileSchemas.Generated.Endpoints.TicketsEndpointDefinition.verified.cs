@@ -59,17 +59,17 @@ public sealed class TicketsEndpointDefinition : IEndpointDefinition
         [FromServices] IListTicketsHandler handler,
         [AsParameters] ListTicketsParameters parameters,
         CancellationToken cancellationToken)
-        => ListTicketsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateTicket(
         [FromServices] ICreateTicketHandler handler,
         [AsParameters] CreateTicketParameters parameters,
         CancellationToken cancellationToken)
-        => CreateTicketResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

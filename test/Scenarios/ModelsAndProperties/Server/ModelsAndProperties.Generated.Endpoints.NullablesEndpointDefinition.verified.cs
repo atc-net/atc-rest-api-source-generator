@@ -47,7 +47,7 @@ public sealed class NullablesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetNullables(
         [FromServices] IGetNullablesHandler handler,
         CancellationToken cancellationToken)
-        => GetNullablesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

@@ -69,25 +69,25 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListPets(
         [FromServices] IListPetsHandler handler,
         CancellationToken cancellationToken)
-        => ListPetsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreatePet(
         [FromServices] ICreatePetHandler handler,
         [AsParameters] CreatePetParameters parameters,
         CancellationToken cancellationToken)
-        => CreatePetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetPetById(
         [FromServices] IGetPetByIdHandler handler,
         [AsParameters] GetPetByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetPetByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

@@ -53,8 +53,8 @@ public sealed class WebhooksEndpointDefinition : IEndpointDefinition
         [FromServices] IReceiveWebhookHandler handler,
         [AsParameters] ReceiveWebhookParameters parameters,
         CancellationToken cancellationToken)
-        => ReceiveWebhookResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

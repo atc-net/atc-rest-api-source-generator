@@ -51,8 +51,8 @@ public sealed class ExternalEndpointDefinition : IEndpointDefinition
         [FromServices] IProcessPaymentHandler handler,
         [AsParameters] ProcessPaymentParameters parameters,
         CancellationToken cancellationToken)
-        => ProcessPaymentResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

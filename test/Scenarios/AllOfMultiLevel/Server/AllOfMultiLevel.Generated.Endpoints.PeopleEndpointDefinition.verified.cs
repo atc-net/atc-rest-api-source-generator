@@ -57,16 +57,16 @@ public sealed class PeopleEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListPeople(
         [FromServices] IListPeopleHandler handler,
         CancellationToken cancellationToken)
-        => ListPeopleResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreatePerson(
         [FromServices] ICreatePersonHandler handler,
         [AsParameters] CreatePersonParameters parameters,
         CancellationToken cancellationToken)
-        => CreatePersonResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

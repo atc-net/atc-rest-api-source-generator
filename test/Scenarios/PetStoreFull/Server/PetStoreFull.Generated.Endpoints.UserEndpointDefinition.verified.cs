@@ -108,60 +108,60 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateUserHandler handler,
         [AsParameters] CreateUserParameters parameters,
         CancellationToken cancellationToken)
-        => CreateUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateUsersWithListInput(
         [FromServices] ICreateUsersWithListInputHandler handler,
         [AsParameters] CreateUsersWithListInputParameters parameters,
         CancellationToken cancellationToken)
-        => CreateUsersWithListInputResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> LoginUser(
         [FromServices] ILoginUserHandler handler,
         [AsParameters] LoginUserParameters parameters,
         CancellationToken cancellationToken)
-        => LoginUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> LogoutUser(
         [FromServices] ILogoutUserHandler handler,
         CancellationToken cancellationToken)
-        => LogoutUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetUserByName(
         [FromServices] IGetUserByNameHandler handler,
         [AsParameters] GetUserByNameParameters parameters,
         CancellationToken cancellationToken)
-        => GetUserByNameResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> UpdateUser(
         [FromServices] IUpdateUserHandler handler,
         [AsParameters] UpdateUserParameters parameters,
         CancellationToken cancellationToken)
-        => UpdateUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeleteUser(
         [FromServices] IDeleteUserHandler handler,
         [AsParameters] DeleteUserParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

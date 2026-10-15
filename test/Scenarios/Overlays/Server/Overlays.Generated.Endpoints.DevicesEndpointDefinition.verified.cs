@@ -60,16 +60,16 @@ public sealed class DevicesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListDevices(
         [FromServices] IListDevicesHandler handler,
         CancellationToken cancellationToken)
-        => ListDevicesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetDevice(
         [FromServices] IGetDeviceHandler handler,
         [AsParameters] GetDeviceParameters parameters,
         CancellationToken cancellationToken)
-        => GetDeviceResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

@@ -50,8 +50,8 @@ public sealed class TrackingEndpointDefinition : IEndpointDefinition
         [FromServices] ITrackEventHandler handler,
         [AsParameters] TrackEventParameters parameters,
         CancellationToken cancellationToken)
-        => TrackEventResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

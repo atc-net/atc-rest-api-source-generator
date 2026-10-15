@@ -51,7 +51,7 @@ public sealed class ApiKeysEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListApiKeys(
         [FromServices] IListApiKeysHandler handler,
         CancellationToken cancellationToken)
-        => ListApiKeysResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

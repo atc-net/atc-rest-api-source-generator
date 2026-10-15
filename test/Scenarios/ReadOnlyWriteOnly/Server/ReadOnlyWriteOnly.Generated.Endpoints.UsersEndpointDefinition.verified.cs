@@ -61,17 +61,17 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateUserHandler handler,
         [AsParameters] CreateUserParameters parameters,
         CancellationToken cancellationToken)
-        => CreateUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetUserById(
         [FromServices] IGetUserByIdHandler handler,
         [AsParameters] GetUserByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetUserByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

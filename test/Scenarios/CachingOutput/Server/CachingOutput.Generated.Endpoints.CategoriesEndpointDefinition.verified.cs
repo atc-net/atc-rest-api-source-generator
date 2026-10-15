@@ -50,7 +50,7 @@ public sealed class CategoriesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListCategories(
         [FromServices] IListCategoriesHandler handler,
         CancellationToken cancellationToken)
-        => ListCategoriesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

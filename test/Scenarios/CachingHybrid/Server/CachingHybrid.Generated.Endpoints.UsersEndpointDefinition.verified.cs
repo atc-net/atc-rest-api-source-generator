@@ -94,44 +94,44 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
         [FromServices] IListUsersHandler handler,
         [AsParameters] ListUsersParameters parameters,
         CancellationToken cancellationToken)
-        => ListUsersResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateUser(
         [FromServices] ICreateUserHandler handler,
         [AsParameters] CreateUserParameters parameters,
         CancellationToken cancellationToken)
-        => CreateUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetUserById(
         [FromServices] IGetUserByIdHandler handler,
         [AsParameters] GetUserByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetUserByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> UpdateUser(
         [FromServices] IUpdateUserHandler handler,
         [AsParameters] UpdateUserParameters parameters,
         CancellationToken cancellationToken)
-        => UpdateUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeleteUser(
         [FromServices] IDeleteUserHandler handler,
         [AsParameters] DeleteUserParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteUserResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

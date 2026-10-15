@@ -47,7 +47,7 @@ public sealed class PrimitivesEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetPrimitiveTypes(
         [FromServices] IGetPrimitiveTypesHandler handler,
         CancellationToken cancellationToken)
-        => GetPrimitiveTypesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

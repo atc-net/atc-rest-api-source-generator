@@ -69,16 +69,16 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetAdminSettings(
         [FromServices] IGetAdminSettingsHandler handler,
         CancellationToken cancellationToken)
-        => GetAdminSettingsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> UpdateAdminSettings(
         [FromServices] IUpdateAdminSettingsHandler handler,
         [AsParameters] UpdateAdminSettingsParameters parameters,
         CancellationToken cancellationToken)
-        => UpdateAdminSettingsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

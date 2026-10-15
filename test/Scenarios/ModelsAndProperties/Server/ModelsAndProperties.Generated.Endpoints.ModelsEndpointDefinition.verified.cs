@@ -69,25 +69,25 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListModels(
         [FromServices] IListModelsHandler handler,
         CancellationToken cancellationToken)
-        => ListModelsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateModel(
         [FromServices] ICreateModelHandler handler,
         [AsParameters] CreateModelParameters parameters,
         CancellationToken cancellationToken)
-        => CreateModelResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetModelById(
         [FromServices] IGetModelByIdHandler handler,
         [AsParameters] GetModelByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetModelByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

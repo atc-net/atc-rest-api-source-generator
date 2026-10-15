@@ -94,44 +94,44 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
         [FromServices] IListPetsHandler handler,
         [AsParameters] ListPetsParameters parameters,
         CancellationToken cancellationToken)
-        => ListPetsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreatePet(
         [FromServices] ICreatePetHandler handler,
         [AsParameters] CreatePetParameters parameters,
         CancellationToken cancellationToken)
-        => CreatePetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetPetById(
         [FromServices] IGetPetByIdHandler handler,
         [AsParameters] GetPetByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetPetByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> UpdatePet(
         [FromServices] IUpdatePetHandler handler,
         [AsParameters] UpdatePetParameters parameters,
         CancellationToken cancellationToken)
-        => UpdatePetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeletePet(
         [FromServices] IDeletePetHandler handler,
         [AsParameters] DeletePetParameters parameters,
         CancellationToken cancellationToken)
-        => DeletePetResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

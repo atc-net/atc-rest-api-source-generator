@@ -50,8 +50,8 @@ public sealed class TagsEndpointDefinition : IEndpointDefinition
         [FromServices] IListTagsHandler handler,
         [AsParameters] ListTagsParameters parameters,
         CancellationToken cancellationToken)
-        => ListTagsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

@@ -51,8 +51,8 @@ public sealed class DocumentsEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateDocumentHandler handler,
         [AsParameters] CreateDocumentParameters parameters,
         CancellationToken cancellationToken)
-        => CreateDocumentResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

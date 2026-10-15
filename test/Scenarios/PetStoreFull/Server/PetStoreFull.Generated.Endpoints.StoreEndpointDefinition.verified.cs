@@ -82,34 +82,34 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetInventory(
         [FromServices] IGetInventoryHandler handler,
         CancellationToken cancellationToken)
-        => GetInventoryResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> PlaceOrder(
         [FromServices] IPlaceOrderHandler handler,
         [AsParameters] PlaceOrderParameters parameters,
         CancellationToken cancellationToken)
-        => PlaceOrderResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetOrderById(
         [FromServices] IGetOrderByIdHandler handler,
         [AsParameters] GetOrderByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetOrderByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeleteOrder(
         [FromServices] IDeleteOrderHandler handler,
         [AsParameters] DeleteOrderParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteOrderResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

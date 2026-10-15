@@ -47,7 +47,7 @@ public sealed class StringFormatsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetStringFormats(
         [FromServices] IGetStringFormatsHandler handler,
         CancellationToken cancellationToken)
-        => GetStringFormatsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

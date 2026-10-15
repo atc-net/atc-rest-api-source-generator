@@ -61,17 +61,17 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
         [FromServices] ICreateSubscriptionHandler handler,
         [AsParameters] CreateSubscriptionParameters parameters,
         CancellationToken cancellationToken)
-        => CreateSubscriptionResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeleteSubscription(
         [FromServices] IDeleteSubscriptionHandler handler,
         [AsParameters] DeleteSubscriptionParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteSubscriptionResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

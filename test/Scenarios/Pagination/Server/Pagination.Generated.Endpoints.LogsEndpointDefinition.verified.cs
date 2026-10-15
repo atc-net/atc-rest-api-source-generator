@@ -51,8 +51,8 @@ public sealed class LogsEndpointDefinition : IEndpointDefinition
         [FromServices] IListLogsHandler handler,
         [AsParameters] ListLogsParameters parameters,
         CancellationToken cancellationToken)
-        => ListLogsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

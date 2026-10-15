@@ -51,8 +51,8 @@ public sealed class MetricsEndpointDefinition : IEndpointDefinition
         [FromServices] IListMetricsHandler handler,
         [AsParameters] ListMetricsParameters parameters,
         CancellationToken cancellationToken)
-        => ListMetricsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

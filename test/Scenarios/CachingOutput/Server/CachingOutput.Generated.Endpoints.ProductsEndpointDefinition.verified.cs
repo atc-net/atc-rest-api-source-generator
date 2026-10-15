@@ -87,35 +87,35 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
         [FromServices] IListProductsHandler handler,
         [AsParameters] ListProductsParameters parameters,
         CancellationToken cancellationToken)
-        => ListProductsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateProduct(
         [FromServices] ICreateProductHandler handler,
         [AsParameters] CreateProductParameters parameters,
         CancellationToken cancellationToken)
-        => CreateProductResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetProductById(
         [FromServices] IGetProductByIdHandler handler,
         [AsParameters] GetProductByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetProductByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> DeleteProduct(
         [FromServices] IDeleteProductHandler handler,
         [AsParameters] DeleteProductParameters parameters,
         CancellationToken cancellationToken)
-        => DeleteProductResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

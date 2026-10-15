@@ -46,7 +46,7 @@ public sealed class EventsSseEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> StreamEventsSse(
         [FromServices] IStreamEventsSseHandler handler,
         CancellationToken cancellationToken)
-        => StreamEventsSseResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

@@ -58,16 +58,16 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListOrders(
         [FromServices] IListOrdersHandler handler,
         CancellationToken cancellationToken)
-        => ListOrdersResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetOrder(
         [FromServices] IGetOrderHandler handler,
         [AsParameters] GetOrderParameters parameters,
         CancellationToken cancellationToken)
-        => GetOrderResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

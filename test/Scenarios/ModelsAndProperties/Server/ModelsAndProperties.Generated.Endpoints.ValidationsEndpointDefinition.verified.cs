@@ -47,7 +47,7 @@ public sealed class ValidationsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetValidations(
         [FromServices] IGetValidationsHandler handler,
         CancellationToken cancellationToken)
-        => GetValidationsResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }

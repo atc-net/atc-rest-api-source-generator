@@ -68,25 +68,25 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListOwners(
         [FromServices] IListOwnersHandler handler,
         CancellationToken cancellationToken)
-        => ListOwnersResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> CreateOwner(
         [FromServices] ICreateOwnerHandler handler,
         [AsParameters] CreateOwnerParameters parameters,
         CancellationToken cancellationToken)
-        => CreateOwnerResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 
     internal async Task<IResult> GetOwnerById(
         [FromServices] IGetOwnerByIdHandler handler,
         [AsParameters] GetOwnerByIdParameters parameters,
         CancellationToken cancellationToken)
-        => GetOwnerByIdResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

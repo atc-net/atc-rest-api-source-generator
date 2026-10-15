@@ -46,7 +46,7 @@ public sealed class DeepEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetDeepChain(
         [FromServices] IGetDeepChainHandler handler,
         CancellationToken cancellationToken)
-        => GetDeepChainResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        cancellationToken));
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
 }
