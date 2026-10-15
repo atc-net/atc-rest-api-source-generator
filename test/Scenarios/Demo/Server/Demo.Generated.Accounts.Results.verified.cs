@@ -21,7 +21,7 @@ namespace Demo.Generated.Accounts.Results;
 /// List all accounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAccountsResult : IResult
+public sealed class ListAccountsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListAccountsResult : IResult
 /// Create account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateAccountResult : IResult
+public sealed class CreateAccountResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -104,7 +104,7 @@ public sealed class CreateAccountResult : IResult
 /// Get a specific account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetAccountByIdResult : IResult
+public sealed class GetAccountByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -146,7 +146,7 @@ public sealed class GetAccountByIdResult : IResult
 /// Delete a specific account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteAccountByIdResult : IResult
+public sealed class DeleteAccountByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -185,7 +185,7 @@ public sealed class DeleteAccountByIdResult : IResult
 /// Update a specific account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateAccountByIdResult : IResult
+public sealed class UpdateAccountByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -227,7 +227,7 @@ public sealed class UpdateAccountByIdResult : IResult
 /// List all accounts paginated.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPaginatedAccountsResult : IResult
+public sealed class ListPaginatedAccountsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -263,7 +263,7 @@ public sealed class ListPaginatedAccountsResult : IResult
 /// List all accounts async-enumerable.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAsyncEnumerableAccountsResult : IResult
+public sealed class ListAsyncEnumerableAccountsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

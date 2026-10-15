@@ -21,7 +21,7 @@ namespace Overlays.Generated.Results;
 /// List devices.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListDevicesResult : IResult
+public sealed class ListDevicesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -66,7 +66,7 @@ public sealed class ListDevicesResult : IResult
 /// Get a device.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetDeviceResult : IResult
+public sealed class GetDeviceResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

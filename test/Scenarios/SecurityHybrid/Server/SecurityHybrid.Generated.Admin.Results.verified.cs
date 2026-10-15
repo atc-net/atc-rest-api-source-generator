@@ -21,7 +21,7 @@ namespace SecurityHybrid.Generated.Admin.Results;
 /// Get admin settings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetAdminSettingsResult : IResult
+public sealed class GetAdminSettingsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -57,7 +57,7 @@ public sealed class GetAdminSettingsResult : IResult
 /// Update admin settings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateAdminSettingsResult : IResult
+public sealed class UpdateAdminSettingsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

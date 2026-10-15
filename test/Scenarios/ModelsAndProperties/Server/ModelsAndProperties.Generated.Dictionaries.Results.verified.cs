@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Dictionaries.Results;
 /// Get dictionary types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetDictionaryTypesResult : IResult
+public sealed class GetDictionaryTypesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

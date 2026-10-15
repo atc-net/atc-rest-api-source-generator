@@ -21,7 +21,7 @@ namespace SecurityHybrid.Generated.Products.Results;
 /// List products.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProductsResult : IResult
+public sealed class ListProductsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListProductsResult : IResult
 /// Get product by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetProductByIdResult : IResult
+public sealed class GetProductByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

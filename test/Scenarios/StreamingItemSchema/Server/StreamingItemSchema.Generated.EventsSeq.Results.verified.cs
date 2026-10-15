@@ -21,7 +21,7 @@ namespace StreamingItemSchema.Generated.EventsSeq.Results;
 /// Stream events as a JSON text sequence.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamEventsSeqResult : IResult
+public sealed class StreamEventsSeqResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

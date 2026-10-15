@@ -22,7 +22,7 @@ namespace Pagination.Generated.Orgs.Results;
 /// Devices of an org, token in a header.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrgDevicesResult : IResult
+public sealed class ListOrgDevicesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

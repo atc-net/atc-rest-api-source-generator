@@ -21,7 +21,7 @@ namespace ModelsAndProperties.Generated.Addresses.Results;
 /// List addresses.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAddressesResult : IResult
+public sealed class ListAddressesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListAddressesResult : IResult
 /// Create address.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateAddressResult : IResult
+public sealed class CreateAddressResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

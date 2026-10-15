@@ -21,7 +21,7 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Results;
 /// List all shapes.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListShapesResult : IResult
+public sealed class ListShapesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListShapesResult : IResult
 /// Create a shape.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateShapeResult : IResult
+public sealed class CreateShapeResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

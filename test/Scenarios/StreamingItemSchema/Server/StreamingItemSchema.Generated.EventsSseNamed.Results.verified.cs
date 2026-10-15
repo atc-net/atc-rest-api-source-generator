@@ -22,7 +22,7 @@ namespace StreamingItemSchema.Generated.EventsSseNamed.Results;
 /// Stream events as named server-sent events, with typed errors and headers.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamEventsSseNamedResult : IResult
+public sealed class StreamEventsSseNamedResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

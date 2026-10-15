@@ -21,7 +21,7 @@ namespace RateLimit.Generated.Orders.Results;
 /// List orders (orders-standard policy).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersResult : IResult
+public sealed class ListOrdersResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListOrdersResult : IResult
 /// Create order (orders-standard policy).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreateOrderResult : IResult
 /// Get order (inherits orders-standard).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -140,7 +140,7 @@ public sealed class GetOrderByIdResult : IResult
 /// Delete order (strict policy override).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderResult : IResult
+public sealed class DeleteOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

@@ -21,7 +21,7 @@ namespace Callbacks30.Generated.Results;
 /// Create a webhook subscription.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateSubscriptionResult : IResult
+public sealed class CreateSubscriptionResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -59,7 +59,7 @@ public sealed class CreateSubscriptionResult : IResult
 /// Delete a subscription.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteSubscriptionResult : IResult
+public sealed class DeleteSubscriptionResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

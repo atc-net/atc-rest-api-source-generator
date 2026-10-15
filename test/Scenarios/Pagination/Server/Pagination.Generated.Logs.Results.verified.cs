@@ -22,7 +22,7 @@ namespace Pagination.Generated.Logs.Results;
 /// Not paginated, the token parameter is required.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListLogsResult : IResult
+public sealed class ListLogsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

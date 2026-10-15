@@ -21,7 +21,7 @@ namespace RateLimit.Generated.Webhooks.Results;
 /// Receive webhook (rate limiting disabled).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ReceiveWebhookResult : IResult
+public sealed class ReceiveWebhookResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

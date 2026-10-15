@@ -21,7 +21,7 @@ namespace SecurityAtcExt.Generated.Reports.Results;
 /// List reports (admin OR manager).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListReportsResult : IResult
+public sealed class ListReportsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

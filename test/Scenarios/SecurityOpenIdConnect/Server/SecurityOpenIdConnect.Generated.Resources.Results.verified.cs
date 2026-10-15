@@ -21,7 +21,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Results;
 /// List user resources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListResourcesResult : IResult
+public sealed class ListResourcesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -66,7 +66,7 @@ public sealed class ListResourcesResult : IResult
 /// Create a new resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateResourceResult : IResult
+public sealed class CreateResourceResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -123,7 +123,7 @@ public sealed class CreateResourceResult : IResult
 /// Get resource by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetResourceByIdResult : IResult
+public sealed class GetResourceByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -171,7 +171,7 @@ public sealed class GetResourceByIdResult : IResult
 /// Delete a resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteResourceResult : IResult
+public sealed class DeleteResourceResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

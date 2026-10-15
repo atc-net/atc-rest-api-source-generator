@@ -21,7 +21,7 @@ namespace PetStoreSimple.Generated.Results;
 /// List all pets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult
+public sealed class ListPetsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -70,7 +70,7 @@ public sealed class ListPetsResult : IResult
 /// Create a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetsResult : IResult
+public sealed class CreatePetsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -111,7 +111,7 @@ public sealed class CreatePetsResult : IResult
 /// Info for a specific pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ShowPetByIdResult : IResult
+public sealed class ShowPetByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

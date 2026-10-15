@@ -21,7 +21,7 @@ namespace AsyncEnumerableHooks.Generated.Results;
 /// Stream all items (async-enumerable).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult
+public sealed class ListItemsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -54,7 +54,7 @@ public sealed class ListItemsResult : IResult
 /// Stream paginated items (async-enumerable with PaginationResult).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemPagesResult : IResult
+public sealed class ListItemPagesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListItemPagesResult : IResult
 /// Get logs for an item with filters (path + query, no streaming).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetItemLogsResult : IResult
+public sealed class GetItemLogsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -126,7 +126,7 @@ public sealed class GetItemLogsResult : IResult
 /// Search items by date-time range (date-time query params).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class SearchItemsResult : IResult
+public sealed class SearchItemsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -165,7 +165,7 @@ public sealed class SearchItemsResult : IResult
 /// Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamItemEventsResult : IResult
+public sealed class StreamItemEventsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

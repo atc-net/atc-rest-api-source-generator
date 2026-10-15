@@ -21,7 +21,7 @@ namespace Retry.Generated.External.Results;
 /// Process payment (circuit breaker enabled).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ProcessPaymentResult : IResult
+public sealed class ProcessPaymentResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

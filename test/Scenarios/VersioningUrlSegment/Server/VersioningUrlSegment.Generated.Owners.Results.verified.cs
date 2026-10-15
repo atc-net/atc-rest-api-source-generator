@@ -21,7 +21,7 @@ namespace VersioningUrlSegment.Generated.Owners.Results;
 /// List all owners.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOwnersResult : IResult
+public sealed class ListOwnersResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListOwnersResult : IResult
 /// Create a new owner.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOwnerResult : IResult
+public sealed class CreateOwnerResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -111,7 +111,7 @@ public sealed class CreateOwnerResult : IResult
 /// Get an owner by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOwnerByIdResult : IResult
+public sealed class GetOwnerByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

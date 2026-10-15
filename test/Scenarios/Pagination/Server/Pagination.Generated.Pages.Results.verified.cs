@@ -22,7 +22,7 @@ namespace Pagination.Generated.Pages.Results;
 /// A named page model over the generic base.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAccountPagesResult : IResult
+public sealed class ListAccountPagesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

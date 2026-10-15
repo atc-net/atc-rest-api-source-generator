@@ -576,6 +576,7 @@ public static class ResultClassExtractor
                 Content: "innerResult"),
         };
 
+        // INestedHttpResult: one test helper unwraps any operation's result through Result, without reflection
         return new ClassParameters(
             HeaderContent: null, // Header added separately per file
             Namespace: namespaceValue,
@@ -589,7 +590,7 @@ public static class ResultClassExtractor
             GenericTypeName: null,
             InheritedClassTypeName: null,
             InheritedGenericClassTypeName: null,
-            InheritedInterfaceTypeName: "IResult",
+            InheritedInterfaceTypeName: "IResult, INestedHttpResult",
             Constructors: new List<ConstructorParameters> { constructor },
             Properties: properties,
             Methods: methods,

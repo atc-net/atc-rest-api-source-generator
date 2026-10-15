@@ -20,7 +20,7 @@ namespace NonJsonContent.Generated.Files.Results;
 /// Download a binary file.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DownloadFileResult : IResult
+public sealed class DownloadFileResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

@@ -21,7 +21,7 @@ namespace ModelsAndProperties.Generated.Animals.Results;
 /// List animals.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAnimalsResult : IResult
+public sealed class ListAnimalsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

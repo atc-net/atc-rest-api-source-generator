@@ -21,7 +21,7 @@ namespace PetStoreFull.Generated.Pet.Results;
 /// Update an existing pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetResult : IResult
+public sealed class UpdatePetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -90,7 +90,7 @@ public sealed class UpdatePetResult : IResult
 /// Add a new pet to the store.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class AddPetResult : IResult
+public sealed class AddPetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -153,7 +153,7 @@ public sealed class AddPetResult : IResult
 /// Finds Pets by status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class FindPetsByStatusResult : IResult
+public sealed class FindPetsByStatusResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -213,7 +213,7 @@ public sealed class FindPetsByStatusResult : IResult
 /// Finds Pets by tags.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class FindPetsByTagsResult : IResult
+public sealed class FindPetsByTagsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -273,7 +273,7 @@ public sealed class FindPetsByTagsResult : IResult
 /// Find pet by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetByIdResult : IResult
+public sealed class GetPetByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -336,7 +336,7 @@ public sealed class GetPetByIdResult : IResult
 /// Updates a pet in the store with form data.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetWithFormResult : IResult
+public sealed class UpdatePetWithFormResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -393,7 +393,7 @@ public sealed class UpdatePetWithFormResult : IResult
 /// Deletes a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeletePetResult : IResult
+public sealed class DeletePetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -447,7 +447,7 @@ public sealed class DeletePetResult : IResult
 /// Uploads an image.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadFileResult : IResult
+public sealed class UploadFileResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

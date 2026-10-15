@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Dogs.Results;
 /// List dogs.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListDogsResult : IResult
+public sealed class ListDogsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

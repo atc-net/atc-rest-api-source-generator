@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Models.Results;
 /// List all models.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListModelsResult : IResult
+public sealed class ListModelsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -61,7 +61,7 @@ public sealed class ListModelsResult : IResult
 /// Create a new model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateModelResult : IResult
+public sealed class CreateModelResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -112,7 +112,7 @@ public sealed class CreateModelResult : IResult
 /// Get a specific model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetModelByIdResult : IResult
+public sealed class GetModelByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

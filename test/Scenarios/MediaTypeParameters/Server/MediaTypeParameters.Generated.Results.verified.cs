@@ -21,7 +21,7 @@ namespace MediaTypeParameters.Generated.Results;
 /// A JSON response declared with a charset parameter.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult
+public sealed class ListPetsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListPetsResult : IResult
 /// A JSON request body declared in another case, and a response declared under a wildcard.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult
+public sealed class CreatePetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreatePetResult : IResult
 /// A response declared under application/* (springdoc's default).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetResult : IResult
+public sealed class GetPetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -147,7 +147,7 @@ public sealed class GetPetResult : IResult
 /// A wildcard with a binary schema stays a file.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPhotoResult : IResult
+public sealed class GetPhotoResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

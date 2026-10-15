@@ -58,6 +58,42 @@ public class ResultClassExtractorTests
     }
 
     [Fact]
+    public void Extract_ResultClass_IsANestedHttpResultOfTheResultItWraps()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /login:
+                                post:
+                                  operationId: loginUser
+                                  responses:
+                                    '200':
+                                      description: successful operation
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert - one test helper unwraps any operation's result through INestedHttpResult.Result, no reflection
+        Assert.NotNull(resultClasses);
+        var resultClass = Assert.Single(resultClasses);
+        Assert.Equal("IResult, INestedHttpResult", resultClass.InheritedInterfaceTypeName);
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "Result", TypeName: "IResult" });
+    }
+
+    [Fact]
     public void Extract_WithComplexTypeResponse_UsesResponseParameterName()
     {
         // Arrange

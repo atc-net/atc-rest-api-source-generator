@@ -21,7 +21,7 @@ namespace ModelsAndProperties.Generated.Countries.Results;
 /// List countries.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListCountriesResult : IResult
+public sealed class ListCountriesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

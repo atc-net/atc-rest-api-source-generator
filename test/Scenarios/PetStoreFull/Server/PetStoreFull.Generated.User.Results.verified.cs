@@ -21,7 +21,7 @@ namespace PetStoreFull.Generated.User.Results;
 /// Create user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult
+public sealed class CreateUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -65,7 +65,7 @@ public sealed class CreateUserResult : IResult
 /// Creates list of users with given input array.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUsersWithListInputResult : IResult
+public sealed class CreateUsersWithListInputResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -109,7 +109,7 @@ public sealed class CreateUsersWithListInputResult : IResult
 /// Logs user into the system.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LoginUserResult : IResult
+public sealed class LoginUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -169,7 +169,7 @@ public sealed class LoginUserResult : IResult
 /// Logs out current logged in user session.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LogoutUserResult : IResult
+public sealed class LogoutUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -210,7 +210,7 @@ public sealed class LogoutUserResult : IResult
 /// Get user by user name.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByNameResult : IResult
+public sealed class GetUserByNameResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -273,7 +273,7 @@ public sealed class GetUserByNameResult : IResult
 /// Update user resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateUserResult : IResult
+public sealed class UpdateUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -333,7 +333,7 @@ public sealed class UpdateUserResult : IResult
 /// Delete user resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteUserResult : IResult
+public sealed class DeleteUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

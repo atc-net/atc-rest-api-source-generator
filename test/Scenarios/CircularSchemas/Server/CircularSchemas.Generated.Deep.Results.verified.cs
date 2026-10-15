@@ -21,7 +21,7 @@ namespace CircularSchemas.Generated.Deep.Results;
 /// Get deeply nested structure.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetDeepChainResult : IResult
+public sealed class GetDeepChainResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

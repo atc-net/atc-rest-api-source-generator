@@ -21,7 +21,7 @@ namespace ParameterSerialization.Generated.Results;
 /// List items.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult
+public sealed class ListItemsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListItemsResult : IResult
 /// Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsByQueryStringResult : IResult
+public sealed class ListItemsByQueryStringResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

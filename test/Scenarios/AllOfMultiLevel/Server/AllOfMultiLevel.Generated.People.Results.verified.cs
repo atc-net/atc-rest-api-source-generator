@@ -21,7 +21,7 @@ namespace AllOfMultiLevel.Generated.People.Results;
 /// List people.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPeopleResult : IResult
+public sealed class ListPeopleResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListPeopleResult : IResult
 /// Create a person.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePersonResult : IResult
+public sealed class CreatePersonResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

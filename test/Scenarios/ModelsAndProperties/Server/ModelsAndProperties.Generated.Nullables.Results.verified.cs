@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Nullables.Results;
 /// Get nullable types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetNullablesResult : IResult
+public sealed class GetNullablesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

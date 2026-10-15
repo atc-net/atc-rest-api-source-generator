@@ -21,7 +21,7 @@ namespace Demo.Generated.Tasks.Results;
 /// List all tasks.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListTasksResult : IResult
+public sealed class ListTasksResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListTasksResult : IResult
 /// Create task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTaskResult : IResult
+public sealed class CreateTaskResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -104,7 +104,7 @@ public sealed class CreateTaskResult : IResult
 /// Get a specific task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetTaskByIdResult : IResult
+public sealed class GetTaskByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -146,7 +146,7 @@ public sealed class GetTaskByIdResult : IResult
 /// Delete a specific task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteTaskByIdResult : IResult
+public sealed class DeleteTaskByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -185,7 +185,7 @@ public sealed class DeleteTaskByIdResult : IResult
 /// Update a specific task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateTaskByIdResult : IResult
+public sealed class UpdateTaskByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

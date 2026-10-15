@@ -22,7 +22,7 @@ namespace Pagination.Generated.Metrics.Results;
 /// Not paginated, the cursor is an integer.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListMetricsResult : IResult
+public sealed class ListMetricsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

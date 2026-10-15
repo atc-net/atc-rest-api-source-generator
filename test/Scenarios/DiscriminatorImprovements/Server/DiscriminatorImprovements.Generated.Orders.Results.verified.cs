@@ -21,7 +21,7 @@ namespace DiscriminatorImprovements.Generated.Orders.Results;
 /// Create an order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -72,7 +72,7 @@ public sealed class CreateOrderResult : IResult
 /// Get an order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

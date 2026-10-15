@@ -21,7 +21,7 @@ namespace OverlaysMultiPart.Generated.Results;
 /// List orders.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersResult : IResult
+public sealed class ListOrdersResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListOrdersResult : IResult
 /// Get an order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderResult : IResult
+public sealed class GetOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

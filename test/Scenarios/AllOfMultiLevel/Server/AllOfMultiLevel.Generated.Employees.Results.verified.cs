@@ -22,7 +22,7 @@ namespace AllOfMultiLevel.Generated.Employees.Results;
 /// List employees.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListEmployeesResult : IResult
+public sealed class ListEmployeesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

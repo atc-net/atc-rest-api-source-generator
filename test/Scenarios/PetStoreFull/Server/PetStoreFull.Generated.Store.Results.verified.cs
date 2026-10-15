@@ -21,7 +21,7 @@ namespace PetStoreFull.Generated.Store.Results;
 /// Returns pet inventories by status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetInventoryResult : IResult
+public sealed class GetInventoryResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -62,7 +62,7 @@ public sealed class GetInventoryResult : IResult
 /// Place an order for a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class PlaceOrderResult : IResult
+public sealed class PlaceOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -125,7 +125,7 @@ public sealed class PlaceOrderResult : IResult
 /// Find purchase order by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -188,7 +188,7 @@ public sealed class GetOrderByIdResult : IResult
 /// Delete purchase order by identifier.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderResult : IResult
+public sealed class DeleteOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

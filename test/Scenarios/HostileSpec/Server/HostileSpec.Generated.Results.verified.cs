@@ -21,7 +21,7 @@ namespace HostileSpec.Generated.Results;
 /// List notes from C:\temp\notes "fast" */ export const injected = 1; /*.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListNotesResult : IResult
+public sealed class ListNotesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListNotesResult : IResult
 /// Delete all notes.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteNotesResult : IResult
+public sealed class DeleteNotesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -106,7 +106,7 @@ public sealed class DeleteNotesResult : IResult
 /// on two lines.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateNoteResult : IResult
+public sealed class CreateNoteResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

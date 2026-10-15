@@ -21,7 +21,7 @@ namespace HostileNames.Generated.Things.Results;
 /// An operationId that starts with a digit.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class Op1stThingResult : IResult
+public sealed class Op1stThingResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

@@ -22,7 +22,7 @@ namespace HostileNames.Generated.Keys.Results;
 /// Lists API keys - an acronym-cased schema name and a dotted one.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListApiKeysResult : IResult
+public sealed class ListApiKeysResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

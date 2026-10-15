@@ -21,7 +21,7 @@ namespace Polymorphism.Generated.Payments.Results;
 /// List all payments.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPaymentsResult : IResult
+public sealed class ListPaymentsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListPaymentsResult : IResult
 /// Create a payment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePaymentResult : IResult
+public sealed class CreatePaymentResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -111,7 +111,7 @@ public sealed class CreatePaymentResult : IResult
 /// Get a specific payment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPaymentByIdResult : IResult
+public sealed class GetPaymentByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

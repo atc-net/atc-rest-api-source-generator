@@ -18,7 +18,7 @@ namespace OpenApi32Features.Generated.Webhooks.Results;
 /// Result type for the newPet webhook handler.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class OnNewPetWebhookResult : IResult
+public sealed class OnNewPetWebhookResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -26,6 +26,11 @@ public sealed class OnNewPetWebhookResult : IResult
     {
         this.innerResult = innerResult;
     }
+
+    /// <summary>
+    /// The result this one writes (a test reads its status and value through <c>INestedHttpResult</c>).
+    /// </summary>
+    public IResult Result => innerResult;
 
     /// <summary>
     /// 200 - Webhook acknowledged

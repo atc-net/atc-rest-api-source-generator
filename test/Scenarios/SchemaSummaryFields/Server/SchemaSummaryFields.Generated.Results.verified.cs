@@ -21,7 +21,7 @@ namespace SchemaSummaryFields.Generated.Results;
 /// List all pets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult
+public sealed class ListPetsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -66,7 +66,7 @@ public sealed class ListPetsResult : IResult
 /// Create a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult
+public sealed class CreatePetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -117,7 +117,7 @@ public sealed class CreatePetResult : IResult
 /// Get a pet by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetByIdResult : IResult
+public sealed class GetPetByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

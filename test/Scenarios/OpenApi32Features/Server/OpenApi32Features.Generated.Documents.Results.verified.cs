@@ -22,7 +22,7 @@ namespace OpenApi32Features.Generated.Documents.Results;
 /// Create a document with base64 content.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateDocumentResult : IResult
+public sealed class CreateDocumentResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

@@ -21,7 +21,7 @@ namespace HostileSchemas.Generated.Results;
 /// Lists tickets - every hostile schema in one model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListTicketsResult : IResult
+public sealed class ListTicketsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListTicketsResult : IResult
 /// Result for operation: createTicket.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTicketResult : IResult
+public sealed class CreateTicketResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

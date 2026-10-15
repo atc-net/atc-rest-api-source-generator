@@ -21,7 +21,7 @@ namespace NonJsonContent.Generated.Items.Results;
 /// List items as JSON.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult
+public sealed class ListItemsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListItemsResult : IResult
 /// Get an item as JSON, or its PDF sheet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetItemSheetResult : IResult
+public sealed class GetItemSheetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

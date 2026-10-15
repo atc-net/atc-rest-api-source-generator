@@ -21,7 +21,7 @@ namespace Demo.Generated.Files.Results;
 /// Get File By Id.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetFileByIdResult : IResult
+public sealed class GetFileByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -72,7 +72,7 @@ public sealed class GetFileByIdResult : IResult
 /// Upload a file as FormData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadFormDataFileResult : IResult
+public sealed class UploadFormDataFileResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -118,7 +118,7 @@ public sealed class UploadFormDataFileResult : IResult
 /// Upload files as FormData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadFormDataFilesResult : IResult
+public sealed class UploadFormDataFilesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -164,7 +164,7 @@ public sealed class UploadFormDataFilesResult : IResult
 /// Upload a file as OctetStream.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadSingleFileAsFormDataResult : IResult
+public sealed class UploadSingleFileAsFormDataResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -197,7 +197,7 @@ public sealed class UploadSingleFileAsFormDataResult : IResult
 /// Upload multi files as form data.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadMultiFilesAsFormDataResult : IResult
+public sealed class UploadMultiFilesAsFormDataResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

@@ -21,7 +21,7 @@ namespace ReadOnlyWriteOnly.Generated.Results;
 /// Create a new user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult
+public sealed class CreateUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -59,7 +59,7 @@ public sealed class CreateUserResult : IResult
 /// Get user by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByIdResult : IResult
+public sealed class GetUserByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

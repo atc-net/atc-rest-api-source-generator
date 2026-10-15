@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Defaults.Results;
 /// Get default values model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetDefaultsResult : IResult
+public sealed class GetDefaultsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

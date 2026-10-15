@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Persons.Results;
 /// List persons.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPersonsResult : IResult
+public sealed class ListPersonsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Validations.Results;
 /// Get validation constraints model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetValidationsResult : IResult
+public sealed class GetValidationsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

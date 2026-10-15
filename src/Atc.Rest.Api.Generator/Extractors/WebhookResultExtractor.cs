@@ -78,7 +78,7 @@ public static class WebhookResultExtractor
         sb.AppendLine($"/// Result type for the {webhookName} webhook handler.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        sb.AppendLine($"public sealed class {className} : IResult");
+        sb.AppendLine($"public sealed class {className} : IResult, INestedHttpResult");
         sb.AppendLine("{");
         sb.AppendLine(4, "private readonly IResult innerResult;");
         sb.AppendLine();
@@ -86,6 +86,11 @@ public static class WebhookResultExtractor
         sb.AppendLine(4, "{");
         sb.AppendLine(8, "this.innerResult = innerResult;");
         sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The result this one writes (a test reads its status and value through <c>INestedHttpResult</c>).");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public IResult Result => innerResult;");
 
         // Generate factory methods based on responses defined in the webhook
         if (operation.Responses is not null)

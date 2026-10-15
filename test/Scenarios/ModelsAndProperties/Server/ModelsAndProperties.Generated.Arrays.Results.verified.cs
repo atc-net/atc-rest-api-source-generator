@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Arrays.Results;
 /// Get array types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetArrayTypesResult : IResult
+public sealed class GetArrayTypesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

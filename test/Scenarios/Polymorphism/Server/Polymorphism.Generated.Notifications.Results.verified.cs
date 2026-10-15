@@ -21,7 +21,7 @@ namespace Polymorphism.Generated.Notifications.Results;
 /// Send a notification.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class SendNotificationResult : IResult
+public sealed class SendNotificationResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -67,7 +67,7 @@ public sealed class SendNotificationResult : IResult
 /// List all notifications.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListNotificationsResult : IResult
+public sealed class ListNotificationsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

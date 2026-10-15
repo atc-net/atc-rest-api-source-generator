@@ -22,7 +22,7 @@ namespace HostileNames.Generated.Accounts.Results;
 /// Lists the accounts under a date-versioned path (as Twilio does).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAccountsResult : IResult
+public sealed class ListAccountsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

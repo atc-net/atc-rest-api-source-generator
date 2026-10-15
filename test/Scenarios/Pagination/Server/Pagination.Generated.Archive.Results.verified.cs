@@ -21,7 +21,7 @@ namespace Pagination.Generated.Archive.Results;
 /// Archived accounts, nullable items array.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListArchivedAccountsResult : IResult
+public sealed class ListArchivedAccountsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

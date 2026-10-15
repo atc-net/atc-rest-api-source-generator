@@ -21,7 +21,7 @@ namespace Demo.Generated.Users.Results;
 /// List all users.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListUsersResult : IResult
+public sealed class ListUsersResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListUsersResult : IResult
 /// Create user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult
+public sealed class CreateUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -117,7 +117,7 @@ public sealed class CreateUserResult : IResult
 /// Get a specific user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByIdResult : IResult
+public sealed class GetUserByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -159,7 +159,7 @@ public sealed class GetUserByIdResult : IResult
 /// Update a specific user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateUserByIdResult : IResult
+public sealed class UpdateUserByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -220,7 +220,7 @@ public sealed class UpdateUserByIdResult : IResult
 /// Delete a specific user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteUserByIdResult : IResult
+public sealed class DeleteUserByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

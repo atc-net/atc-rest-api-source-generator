@@ -21,7 +21,7 @@ namespace Demo.Generated.Tests.Results;
 /// Create and return the created model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithModelResult : IResult
+public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -72,7 +72,7 @@ public sealed class CreateTestItemWithModelResult : IResult
 /// Create and return location header.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithLocationHeaderResult : IResult
+public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -118,7 +118,7 @@ public sealed class CreateTestItemWithLocationHeaderResult : IResult
 /// Create and return location in body.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithLocationInBodyResult : IResult
+public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -169,7 +169,7 @@ public sealed class CreateTestItemWithLocationInBodyResult : IResult
 /// Create with empty response.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemEmptyResult : IResult
+public sealed class CreateTestItemEmptyResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

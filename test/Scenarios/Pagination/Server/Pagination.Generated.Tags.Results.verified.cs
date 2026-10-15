@@ -21,7 +21,7 @@ namespace Pagination.Generated.Tags.Results;
 /// Tags, primitive items.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListTagsResult : IResult
+public sealed class ListTagsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

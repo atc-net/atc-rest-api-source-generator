@@ -22,7 +22,7 @@ namespace Pagination.Generated.Events.Results;
 /// Events, a hyphenated query token.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListEventsResult : IResult
+public sealed class ListEventsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

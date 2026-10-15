@@ -21,7 +21,7 @@ namespace CookieParameters.Generated.Session.Results;
 /// Get current session.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetSessionResult : IResult
+public sealed class GetSessionResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

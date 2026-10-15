@@ -21,7 +21,7 @@ namespace CachingHybrid.Generated.Users.Results;
 /// List users with HybridCache.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListUsersResult : IResult
+public sealed class ListUsersResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListUsersResult : IResult
 /// Create user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult
+public sealed class CreateUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreateUserResult : IResult
 /// Get user by ID with HybridCache and sliding expiration.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByIdResult : IResult
+public sealed class GetUserByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -140,7 +140,7 @@ public sealed class GetUserByIdResult : IResult
 /// Update user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateUserResult : IResult
+public sealed class UpdateUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -182,7 +182,7 @@ public sealed class UpdateUserResult : IResult
 /// Delete user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteUserResult : IResult
+public sealed class DeleteUserResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

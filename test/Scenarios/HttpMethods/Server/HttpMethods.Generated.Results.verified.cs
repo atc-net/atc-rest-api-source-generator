@@ -21,7 +21,7 @@ namespace HttpMethods.Generated.Results;
 /// List resources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListResourcesResult : IResult
+public sealed class ListResourcesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListResourcesResult : IResult
 /// Query resources with a body.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class QueryResourcesResult : IResult
+public sealed class QueryResourcesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -99,7 +99,7 @@ public sealed class QueryResourcesResult : IResult
 /// Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ProbeResourcesResult : IResult
+public sealed class ProbeResourcesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -132,7 +132,7 @@ public sealed class ProbeResourcesResult : IResult
 /// What the collection allows.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DescribeResourcesResult : IResult
+public sealed class DescribeResourcesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -165,7 +165,7 @@ public sealed class DescribeResourcesResult : IResult
 /// The request as the server received it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class TraceResourcesResult : IResult
+public sealed class TraceResourcesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -210,7 +210,7 @@ public sealed class TraceResourcesResult : IResult
 /// Link a resource (custom verb).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LinkResourceResult : IResult
+public sealed class LinkResourceResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

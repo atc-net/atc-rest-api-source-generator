@@ -22,7 +22,7 @@ namespace HostileNames.Generated.Profiles.Results;
 /// Creates a profile from a URL-encoded form whose model is snake_case-named.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateProfileResult : IResult
+public sealed class CreateProfileResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

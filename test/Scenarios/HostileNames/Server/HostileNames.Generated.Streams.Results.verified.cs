@@ -22,7 +22,7 @@ namespace HostileNames.Generated.Streams.Results;
 /// Lists schemas whose names are types the generated code uses, a namespace segment and a keyword.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListStreamsResult : IResult
+public sealed class ListStreamsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -61,7 +61,7 @@ public sealed class ListStreamsResult : IResult
 /// Result for operation: createStream.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateStreamResult : IResult
+public sealed class CreateStreamResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

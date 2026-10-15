@@ -20,7 +20,7 @@ namespace CookieParameters.Generated.Tracking.Results;
 /// Track an event with user context.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class TrackEventResult : IResult
+public sealed class TrackEventResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

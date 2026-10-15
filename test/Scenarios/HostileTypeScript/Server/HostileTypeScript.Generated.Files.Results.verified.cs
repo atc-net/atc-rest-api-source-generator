@@ -21,7 +21,7 @@ namespace HostileTypeScript.Generated.Files.Results;
 /// Creates a file - the model is named like the browser's File.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateFileResult : IResult
+public sealed class CreateFileResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

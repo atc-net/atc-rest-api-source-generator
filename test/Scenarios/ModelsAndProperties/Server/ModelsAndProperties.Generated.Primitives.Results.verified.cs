@@ -22,7 +22,7 @@ namespace ModelsAndProperties.Generated.Primitives.Results;
 /// Get primitive types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPrimitiveTypesResult : IResult
+public sealed class GetPrimitiveTypesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

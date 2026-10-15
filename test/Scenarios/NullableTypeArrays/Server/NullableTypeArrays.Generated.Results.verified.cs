@@ -21,7 +21,7 @@ namespace NullableTypeArrays.Generated.Results;
 /// List profiles.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProfilesResult : IResult
+public sealed class ListProfilesResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListProfilesResult : IResult
 /// Create a profile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateProfileResult : IResult
+public sealed class CreateProfileResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreateProfileResult : IResult
 /// Get a profile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetProfileByIdResult : IResult
+public sealed class GetProfileByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

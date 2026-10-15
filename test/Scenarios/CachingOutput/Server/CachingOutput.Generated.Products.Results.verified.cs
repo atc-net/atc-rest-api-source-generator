@@ -21,7 +21,7 @@ namespace CachingOutput.Generated.Products.Results;
 /// List products with output caching.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProductsResult : IResult
+public sealed class ListProductsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListProductsResult : IResult
 /// Create product (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateProductResult : IResult
+public sealed class CreateProductResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreateProductResult : IResult
 /// Get product by ID with output caching.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetProductByIdResult : IResult
+public sealed class GetProductByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -140,7 +140,7 @@ public sealed class GetProductByIdResult : IResult
 /// Delete product (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteProductResult : IResult
+public sealed class DeleteProductResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

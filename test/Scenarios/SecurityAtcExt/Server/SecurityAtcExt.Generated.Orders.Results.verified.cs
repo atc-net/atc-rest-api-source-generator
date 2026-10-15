@@ -21,7 +21,7 @@ namespace SecurityAtcExt.Generated.Orders.Results;
 /// List orders (requires auth).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersResult : IResult
+public sealed class ListOrdersResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListOrdersResult : IResult
 /// Create order (requires auth).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreateOrderResult : IResult
 /// Get order (manager role inherited).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -140,7 +140,7 @@ public sealed class GetOrderByIdResult : IResult
 /// Delete order (override to admin only).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderResult : IResult
+public sealed class DeleteOrderResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -179,7 +179,7 @@ public sealed class DeleteOrderResult : IResult
 /// Get tracking (public override).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderTrackingResult : IResult
+public sealed class GetOrderTrackingResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

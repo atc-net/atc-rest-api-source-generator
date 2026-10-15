@@ -20,7 +20,7 @@ namespace NonJsonContent.Generated.Exports.Results;
 /// Export data as CSV.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ExportCsvResult : IResult
+public sealed class ExportCsvResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

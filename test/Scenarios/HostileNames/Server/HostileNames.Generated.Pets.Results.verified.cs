@@ -22,7 +22,7 @@ namespace HostileNames.Generated.Pets.Results;
 /// Lists pets - the schema is named in lowercase.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult
+public sealed class ListPetsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -61,7 +61,7 @@ public sealed class ListPetsResult : IResult
 /// Creates a pet from a snake_case-named model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult
+public sealed class CreatePetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

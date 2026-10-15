@@ -21,7 +21,7 @@ namespace MultipleServers.Generated.Items.Results;
 /// List items.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult
+public sealed class ListItemsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -60,7 +60,7 @@ public sealed class ListItemsResult : IResult
 /// Get item by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetItemByIdResult : IResult
+public sealed class GetItemByIdResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 

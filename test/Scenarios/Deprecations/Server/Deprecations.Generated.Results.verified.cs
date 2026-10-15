@@ -22,7 +22,7 @@ namespace Deprecations.Generated.Results;
 /// Result for operation: listPets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult
+public sealed class ListPetsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -61,7 +61,7 @@ public sealed class ListPetsResult : IResult
 /// Result for operation: createPet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult
+public sealed class CreatePetResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -94,7 +94,7 @@ public sealed class CreatePetResult : IResult
 /// Result for operation: listLegacyPets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListLegacyPetsResult : IResult
+public sealed class ListLegacyPetsResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
@@ -133,7 +133,7 @@ public sealed class ListLegacyPetsResult : IResult
 /// Result for operation: updatePetPhoto.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetPhotoResult : IResult
+public sealed class UpdatePetPhotoResult : IResult, INestedHttpResult
 {
     private readonly IResult innerResult;
 
