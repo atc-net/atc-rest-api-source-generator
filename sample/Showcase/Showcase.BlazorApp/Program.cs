@@ -17,14 +17,15 @@ const string demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vL
 #pragma warning restore S6418 // Secrets should not be hard-coded
 
 // Register HttpClient factory with named client for the API
-// Resilience is configured via generated AddApiResilience() extension
+// Resilience is configured via generated AddApiResilience() extension: the specification's document-level policy
+// (x-retry-policy: standard) is the default, and each operation runs its own
 builder.Services
     .AddHttpClient("Showcase-ApiClient", client =>
     {
         client.BaseAddress = new Uri(apiBaseAddress);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", demoToken);
     })
-    .AddApiResilience(ResiliencePolicies.Standard);
+    .AddApiResilience();
 
 // Register all generated endpoints (includes IHttpMessageFactory registration)
 builder.Services.AddShowcaseEndpoints();

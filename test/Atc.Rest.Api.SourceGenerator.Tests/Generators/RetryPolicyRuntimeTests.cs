@@ -276,9 +276,12 @@ public class RetryPolicyRuntimeTests
         sb.AppendLine("            c.Timeout = TimeSpan.FromSeconds(10);");
         sb.AppendLine("        }");
         sb.AppendLine();
+        // The document-level policy is the default; the class is called by name with Microsoft's
+        // Microsoft.Extensions.DependencyInjection imported too (no CS0104)
         sb.AppendLine("        services");
         sb.AppendLine("            .AddHttpClient(\"retries\", Configure)");
-        sb.AppendLine("            .AddApiResilience(ResiliencePolicies.Standard);");
+        sb.AppendLine("            .AddApiResilience();");
+        sb.AppendLine("        ApiResilienceHttpClientBuilderExtensions.AddApiResilience(services.AddHttpClient(\"by-class-name\"));");
         if (isOperationMode)
         {
             sb.AppendLine("        services.AddHttpClient(Constants.HttpClientName, Configure).AddApiResilience(ResiliencePolicies.Standard);");

@@ -415,7 +415,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     ? "typed"
                     : (string)assembly.GetTypes().Single(t => t.Name == "Constants").GetField("HttpClientName")!.GetValue(null)!;
                 var builder = services.AddHttpClient(httpClientName, c => c.BaseAddress = new Uri(baseAddress)).AddHttpMessageHandler<ProbeStampHandler>();
-                ErrorBodies.Generated.Resilience.ResilienceServiceCollectionExtensions.AddApiResilience(builder, ResiliencePolicies.Standard);
+                ErrorBodies.Generated.Resilience.ApiResilienceHttpClientBuilderExtensions.AddApiResilience(builder, ResiliencePolicies.Standard);
                 if (!typed)
                 {
                     foreach (var register in assembly.GetTypes().SelectMany(t => t.GetMethods()).Where(m => m.IsStatic && m.Name.StartsWith("AddErrorBodies", StringComparison.Ordinal) && m.Name.EndsWith("Endpoints", StringComparison.Ordinal)))

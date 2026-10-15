@@ -39,6 +39,61 @@ public class DependencyInjectionExtractorTests
     }
 
     [Fact]
+    public void ResilienceDI_DocumentPolicy_IsTheDefault()
+    {
+        // The class has a name of its own (Microsoft.Extensions.DependencyInjection has a ResilienceServiceCollectionExtensions,
+        // so calling ours by class name was CS0104), and the document-level policy needs no naming
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            x-retry-policy: fast-retry
+                            paths:
+                              /health:
+                                x-retry-policy: slow
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var result = ResilienceDependencyInjectionExtractor.Extract(OpenApiDocumentHelper.ParseYaml(yaml), "TestApi");
+
+        Assert.NotNull(result);
+        Assert.Contains("public static class ApiResilienceHttpClientBuilderExtensions", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("ResilienceServiceCollectionExtensions", result, StringComparison.Ordinal);
+        Assert.Contains("string policyName = ResiliencePolicies.FastRetry)", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ResilienceDI_WithoutDocumentPolicy_TheDefaultIsNamed()
+    {
+        // Only a path declares a policy: there is no client default to fall back on, so the caller names one
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                x-retry-policy: slow
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var result = ResilienceDependencyInjectionExtractor.Extract(OpenApiDocumentHelper.ParseYaml(yaml), "TestApi");
+
+        Assert.NotNull(result);
+        Assert.Contains("        string policyName)", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("string policyName =", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ResilienceDI_ReadsAMarkedBodyInsideThePipeline()
     {
         // HttpClient reads a body after the pipeline has returned, where the policy's timeout no longer applies: a

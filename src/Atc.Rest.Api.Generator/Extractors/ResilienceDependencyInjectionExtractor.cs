@@ -30,8 +30,14 @@ public static class ResilienceDependencyInjectionExtractor
             return null;
         }
 
+        // The document-level policy is the client default; a document without one names no default
+        var documentPolicy = openApiDoc.Extensions.ExtractRetryPolicy();
+        var defaultPolicyConstant = documentPolicy is not null && policies.ContainsKey(documentPolicy)
+            ? ResiliencePoliciesExtractor.GenerateConstantName(documentPolicy)
+            : null;
+
         // Generate the complete file content
-        return GenerateFileContent(projectName, policies);
+        return GenerateFileContent(projectName, policies, defaultPolicyConstant);
     }
 
     /// <summary>
@@ -41,7 +47,8 @@ public static class ResilienceDependencyInjectionExtractor
     /// </summary>
     private static string GenerateFileContent(
         string projectName,
-        Dictionary<string, RetryConfiguration> policies)
+        Dictionary<string, RetryConfiguration> policies,
+        string? defaultPolicyConstant)
     {
         var sortedPolicies = policies
             .OrderBy(p => p.Key, StringComparer.Ordinal)
@@ -66,7 +73,7 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine($"namespace {projectName}.Generated.Resilience;");
         builder.AppendLine();
 
-        AppendServiceCollectionExtensions(builder, sortedPolicies);
+        AppendServiceCollectionExtensions(builder, sortedPolicies, defaultPolicyConstant);
         builder.AppendLine();
         AppendRequestHelper(builder);
         builder.AppendLine();
@@ -77,13 +84,14 @@ public static class ResilienceDependencyInjectionExtractor
 
     private static void AppendServiceCollectionExtensions(
         StringBuilder builder,
-        List<KeyValuePair<string, RetryConfiguration>> sortedPolicies)
+        List<KeyValuePair<string, RetryConfiguration>> sortedPolicies,
+        string? defaultPolicyConstant)
     {
         builder.AppendLine("/// <summary>");
         builder.AppendLine("/// Extension methods for configuring API resilience policies.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        builder.AppendLine("public static class ResilienceServiceCollectionExtensions");
+        builder.AppendLine("public static class ApiResilienceHttpClientBuilderExtensions");
         builder.AppendLine("{");
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, "/// Adds the API resilience handler to the HTTP client builder. Each request runs the policy its");
@@ -94,11 +102,15 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(4, "/// <see cref=\"ApiResilienceRequest.BufferResponse\"/>), so the timeout and the retry cover the body too.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"builder\">The HTTP client builder.</param>");
-        builder.AppendLine(4, "/// <param name=\"policyName\">The default resilience policy (see <see cref=\"ResiliencePolicies\"/>).</param>");
+        builder.AppendLine(4, defaultPolicyConstant is null
+            ? "/// <param name=\"policyName\">The default resilience policy (see <see cref=\"ResiliencePolicies\"/>).</param>"
+            : $"/// <param name=\"policyName\">The default resilience policy (see <see cref=\"ResiliencePolicies\"/>): the document's, <see cref=\"ResiliencePolicies.{defaultPolicyConstant}\"/>, unless named.</param>");
         builder.AppendLine(4, "/// <returns>The HTTP client builder for method chaining.</returns>");
         builder.AppendLine(4, "public static IHttpClientBuilder AddApiResilience(");
         builder.AppendLine(8, "this IHttpClientBuilder builder,");
-        builder.AppendLine(8, "string policyName)");
+        builder.AppendLine(8, defaultPolicyConstant is null
+            ? "string policyName)"
+            : $"string policyName = ResiliencePolicies.{defaultPolicyConstant})");
         builder.AppendLine(4, "{");
         builder.AppendLine(8, "builder");
         builder.AppendLine(12, ".AddResilienceHandler(\"ApiResilience\", static (pipeline, context) => ConfigurePipeline(pipeline, context.InstanceName))");
@@ -263,7 +275,7 @@ public static class ResilienceDependencyInjectionExtractor
     private static void AppendRequestHelper(StringBuilder builder)
     {
         builder.AppendLine("/// <summary>");
-        builder.AppendLine("/// Tells the API resilience handler (<see cref=\"ResilienceServiceCollectionExtensions.AddApiResilience\"/>)");
+        builder.AppendLine("/// Tells the API resilience handler (<see cref=\"ApiResilienceHttpClientBuilderExtensions.AddApiResilience\"/>)");
         builder.AppendLine("/// how to run one request. The generated clients set it for operations with their own <c>x-retry-*</c>");
         builder.AppendLine("/// settings; hand-written requests may use it too.");
         builder.AppendLine("/// </summary>");

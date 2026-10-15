@@ -23,7 +23,7 @@ namespace Retry.Generated.Resilience;
 /// Extension methods for configuring API resilience policies.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public static class ResilienceServiceCollectionExtensions
+public static class ApiResilienceHttpClientBuilderExtensions
 {
     /// <summary>
     /// Adds the API resilience handler to the HTTP client builder. Each request runs the policy its
@@ -34,11 +34,11 @@ public static class ResilienceServiceCollectionExtensions
     /// <see cref="ApiResilienceRequest.BufferResponse"/>), so the timeout and the retry cover the body too.
     /// </summary>
     /// <param name="builder">The HTTP client builder.</param>
-    /// <param name="policyName">The default resilience policy (see <see cref="ResiliencePolicies"/>).</param>
+    /// <param name="policyName">The default resilience policy (see <see cref="ResiliencePolicies"/>): the document's, <see cref="ResiliencePolicies.Standard"/>, unless named.</param>
     /// <returns>The HTTP client builder for method chaining.</returns>
     public static IHttpClientBuilder AddApiResilience(
         this IHttpClientBuilder builder,
-        string policyName)
+        string policyName = ResiliencePolicies.Standard)
     {
         builder
             .AddResilienceHandler("ApiResilience", static (pipeline, context) => ConfigurePipeline(pipeline, context.InstanceName))
@@ -269,7 +269,7 @@ public static class ResilienceServiceCollectionExtensions
 }
 
 /// <summary>
-/// Tells the API resilience handler (<see cref="ResilienceServiceCollectionExtensions.AddApiResilience"/>)
+/// Tells the API resilience handler (<see cref="ApiResilienceHttpClientBuilderExtensions.AddApiResilience"/>)
 /// how to run one request. The generated clients set it for operations with their own <c>x-retry-*</c>
 /// settings; hand-written requests may use it too.
 /// </summary>
