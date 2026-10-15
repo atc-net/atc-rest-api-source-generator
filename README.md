@@ -161,7 +161,7 @@ app.MapPetStoreApi();                          // status-code pages, auth, globa
 app.Run();
 ```
 
-> 💡 Without `Atc.Rest.MinimalApi` the pair is generated too: `Map{Project}Api()` adds the framework's `UseExceptionHandler()` (outside Development) where the package's global error handler would stand. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler). A host that orders its own pipeline turns off what it already has (`app.MapPetStoreApi(o => o.UseGlobalErrorHandler = false)`) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
+> 💡 Without `Atc.Rest.MinimalApi` the pair is generated too: `Map{Project}Api()` adds the framework's `UseExceptionHandler()` (outside Development) where the package's global error handler would stand. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler). A host that orders its own pipeline leaves its middleware to itself (`app.MapPetStoreApi(o => o.HostOwnsPipeline = true)`) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
 
 ## 📋 Requirements
 
