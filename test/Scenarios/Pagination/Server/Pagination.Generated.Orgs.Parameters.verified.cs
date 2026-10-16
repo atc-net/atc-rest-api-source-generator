@@ -27,6 +27,7 @@ namespace Pagination.Generated.Orgs.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListOrgDevicesParameters(
     [property: FromRoute(Name = "orgId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "orgId")] string OrgId,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string Continuation = null,
     string Tenant = null)

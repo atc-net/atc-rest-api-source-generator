@@ -26,6 +26,7 @@ namespace CookieParameters.Generated.Tracking.Parameters;
 public sealed record TrackEventParameters(
     [property: FromRoute(Name = "eventId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "eventId")] string EventId,
     [property: FromHeader(Name = "x-cookie-consent"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "consent")] bool Consent,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string UserId = null)
 #nullable restore annotations

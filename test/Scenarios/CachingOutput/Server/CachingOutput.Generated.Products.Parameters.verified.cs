@@ -27,6 +27,7 @@ namespace CachingOutput.Generated.Products.Parameters;
 public sealed record ListProductsParameters(
     [property: FromQuery(Name = "page"), DefaultValue(1)] int? Page = 1,
     [property: FromQuery(Name = "limit"), DefaultValue(20)] int? Limit = 20,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string Category = null)
 #nullable restore annotations

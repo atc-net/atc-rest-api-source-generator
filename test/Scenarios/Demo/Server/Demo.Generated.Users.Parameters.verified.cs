@@ -25,6 +25,7 @@ namespace Demo.Generated.Users.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListUsersParameters(
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string Search = null,
     string Country = null,

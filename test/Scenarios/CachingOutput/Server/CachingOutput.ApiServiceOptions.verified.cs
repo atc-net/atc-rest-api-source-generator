@@ -25,24 +25,10 @@ namespace CachingOutput.Generated;
 public class ApiServiceOptions
 {
     /// <summary>
-    /// Enable rate limiting policies. Auto-detected from x-ratelimit-* extensions.
-    /// </summary>
-    public bool UseRateLimiting { get; set; } = false;
-
-    /// <summary>
-    /// Register the output cache policies (<c>AddApiOutputCaching()</c>). Auto-detected from x-cache-type: output.
+    /// Register the output cache policies (<c>AddApiOutputCaching()</c>).
+    /// Generated because the specification declares x-cache-type: output. Default: true.
     /// </summary>
     public bool UseOutputCaching { get; set; } = true;
-
-    /// <summary>
-    /// Enable API versioning. Auto-detected from versioningStrategy config.
-    /// </summary>
-    public bool UseVersioning { get; set; } = false;
-
-    /// <summary>
-    /// Enable security policies. Auto-detected from security schemes.
-    /// </summary>
-    public bool UseSecurity { get; set; } = false;
 
     /// <summary>
     /// Register RFC 9457 ProblemDetails (<c>AddProblemDetails()</c>), so errors raised outside the handlers

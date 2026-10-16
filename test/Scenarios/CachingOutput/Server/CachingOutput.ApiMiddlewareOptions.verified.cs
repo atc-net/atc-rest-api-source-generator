@@ -29,27 +29,11 @@ public class ApiMiddlewareOptions
     public bool HostOwnsPipeline { get; set; }
 
     /// <summary>
-    /// Enable rate limiter middleware. Auto-detected from x-ratelimit-* extensions.
-    /// </summary>
-    public bool UseRateLimiter { get; set; } = false;
-
-    /// <summary>
-    /// Enable the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated
-    /// caller's answer is never cached). Auto-detected from x-cache-type: output.
+    /// Add the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated
+    /// caller's answer is never cached).
+    /// Generated because the specification declares x-cache-type: output. Default: true.
     /// </summary>
     public bool UseOutputCache { get; set; } = true;
-
-    /// <summary>
-    /// Enable authentication middleware. Auto-detected from security schemes and x-authorize-roles /
-    /// x-authentication-required.
-    /// </summary>
-    public bool UseAuthentication { get; set; } = false;
-
-    /// <summary>
-    /// Enable authorization middleware. Auto-detected from security schemes and x-authorize-roles /
-    /// x-authentication-required.
-    /// </summary>
-    public bool UseAuthorization { get; set; } = false;
 
     /// <summary>
     /// Write a ProblemDetails body for error responses that have none (<c>UseStatusCodePages()</c>).

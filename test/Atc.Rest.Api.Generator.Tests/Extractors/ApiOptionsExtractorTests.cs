@@ -41,7 +41,7 @@ public class ApiOptionsExtractorTests
                                                      """;
 
     [Fact]
-    public void ExtractServiceOptions_PlainDocumentWithoutVersioning_AutoDetectedFlagsAreOff()
+    public void ExtractServiceOptions_PlainDocumentWithoutVersioning_FeatureSwitchesAreNotGenerated()
     {
         var document = OpenApiDocumentHelper.ParseYaml(PlainYaml);
         var config = new ServerConfig { VersioningStrategy = VersioningStrategyType.None };
@@ -50,16 +50,19 @@ public class ApiOptionsExtractorTests
 
         Assert.Contains("namespace TestApi.Generated;", result, StringComparison.Ordinal);
         Assert.Contains("public class ApiServiceOptions", result, StringComparison.Ordinal);
-        Assert.Contains("public bool UseRateLimiting { get; set; } = false;", result, StringComparison.Ordinal);
-        Assert.Contains("public bool UseVersioning { get; set; } = false;", result, StringComparison.Ordinal);
-        Assert.Contains("public bool UseSecurity { get; set; } = false;", result, StringComparison.Ordinal);
 
-        // ProblemDetails is not auto-detected; it is on unless the host opts out.
+        // A switch exists only when Add{Api}Api() reads it: a switch nothing reads is a lie
+        Assert.DoesNotContain("UseRateLimiting", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseVersioning", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseSecurity", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseOutputCaching", result, StringComparison.Ordinal);
+
+        // ProblemDetails is not decided by the specification; it is on unless the host opts out.
         Assert.Contains("public bool UseProblemDetails { get; set; } = true;", result, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ExtractServiceOptions_RateLimitSecurityAndVersioning_AutoDetectedFlagsAreOn()
+    public void ExtractServiceOptions_RateLimitSecurityAndVersioning_FeatureSwitchesAreGeneratedAndOn()
     {
         var document = OpenApiDocumentHelper.ParseYaml(RateLimitedAndSecuredYaml);
         var config = new ServerConfig { VersioningStrategy = VersioningStrategyType.UrlSegment };
@@ -70,10 +73,14 @@ public class ApiOptionsExtractorTests
         Assert.Contains("public bool UseVersioning { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseSecurity { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("/// Options for configuring TestApi API services.", result, StringComparison.Ordinal);
+
+        // The default is decided when the code is generated, not detected at run time: the comment says which
+        Assert.DoesNotContain("Auto-detected", result, StringComparison.Ordinal);
+        Assert.Contains("Generated because the specification declares x-ratelimit-* policies", result, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ExtractMiddlewareOptions_PlainDocument_MiddlewareFlagsAreOffAndErrorHandlingHookIsPresent()
+    public void ExtractMiddlewareOptions_PlainDocument_FeatureSwitchesAreNotGeneratedAndErrorHandlingHookIsPresent()
     {
         var document = OpenApiDocumentHelper.ParseYaml(PlainYaml);
 
@@ -81,9 +88,12 @@ public class ApiOptionsExtractorTests
 
         Assert.Contains("namespace TestApi.Generated;", result, StringComparison.Ordinal);
         Assert.Contains("public class ApiMiddlewareOptions", result, StringComparison.Ordinal);
-        Assert.Contains("public bool UseRateLimiter { get; set; } = false;", result, StringComparison.Ordinal);
-        Assert.Contains("public bool UseAuthentication { get; set; } = false;", result, StringComparison.Ordinal);
-        Assert.Contains("public bool UseAuthorization { get; set; } = false;", result, StringComparison.Ordinal);
+
+        // A switch exists only when Map{Api}Api() reads it
+        Assert.DoesNotContain("UseRateLimiter", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseAuthentication", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseAuthorization", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseOutputCache", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseStatusCodePages { get; set; } = true;", result, StringComparison.Ordinal);
 
         // The hook references Atc.Rest.MinimalApi.Options and System.Action, so both usings are emitted.
@@ -102,6 +112,7 @@ public class ApiOptionsExtractorTests
         Assert.Contains("public bool UseRateLimiter { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseAuthentication { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseAuthorization { get; set; } = true;", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("Auto-detected", result, StringComparison.Ordinal);
     }
 
     [Fact]

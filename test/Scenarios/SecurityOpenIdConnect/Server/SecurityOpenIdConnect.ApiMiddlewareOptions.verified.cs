@@ -29,19 +29,16 @@ public class ApiMiddlewareOptions
     public bool HostOwnsPipeline { get; set; }
 
     /// <summary>
-    /// Enable rate limiter middleware. Auto-detected from x-ratelimit-* extensions.
-    /// </summary>
-    public bool UseRateLimiter { get; set; } = false;
-
-    /// <summary>
-    /// Enable authentication middleware. Auto-detected from security schemes and x-authorize-roles /
-    /// x-authentication-required.
+    /// Add the authentication middleware (<c>UseAuthentication()</c>).
+    /// Generated because the specification requires a signed-in caller (security schemes, x-authorize-roles
+    /// or x-authentication-required). Default: true.
     /// </summary>
     public bool UseAuthentication { get; set; } = true;
 
     /// <summary>
-    /// Enable authorization middleware. Auto-detected from security schemes and x-authorize-roles /
-    /// x-authentication-required.
+    /// Add the authorization middleware (<c>UseAuthorization()</c>).
+    /// Generated because the specification requires a signed-in caller (security schemes, x-authorize-roles
+    /// or x-authentication-required). Default: true.
     /// </summary>
     public bool UseAuthorization { get; set; } = true;
 

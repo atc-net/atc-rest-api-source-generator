@@ -823,12 +823,6 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateHealthCheckServiceExtensions(generatedContext, projectName);
         }
 
-        // Generate WebApplication extensions (GlobalErrorHandler middleware setup)
-        if (useGlobalErrorHandler)
-        {
-            GenerateWebApplicationExtensions(generatedContext, projectName, useGlobalErrorHandler, config.ApiName);
-        }
-
         var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
 
         // Generate the simplified API surface: Add…Api() and Map…Api() with their options. Without
@@ -1468,33 +1462,6 @@ public class ApiServerGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             $"{projectName}.EndpointMapping.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
-    }
-
-    private static void GenerateWebApplicationExtensions(
-        GeneratedSourceContext context,
-        string projectName,
-        bool useGlobalErrorHandler,
-        string? apiName)
-    {
-        // Use WebApplicationExtensionsExtractor to generate middleware setup helpers
-        var classParameters = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler, apiName);
-
-        if (classParameters is null)
-        {
-            return;
-        }
-
-        // Use GenerateContentForClass to generate the code
-        var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var contentGenerator = new GenerateContentForClass(
-            codeDocGenerator,
-            classParameters);
-
-        var generatedContent = contentGenerator.Generate();
-
-        context.AddGeneratedSource(
-            $"{projectName}.WebApplicationExtensions.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
 
     private static void GenerateParameterClasses(

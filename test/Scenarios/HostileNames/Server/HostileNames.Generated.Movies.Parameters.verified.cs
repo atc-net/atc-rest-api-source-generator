@@ -26,6 +26,7 @@ namespace HostileNames.Generated.Movies.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetMovieParameters(
     [property: FromRoute(Name = "id"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] int Id,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string IdQuery = null,
     string IdHeader = null)

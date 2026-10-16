@@ -196,6 +196,9 @@ public static class RecordContentGenerator
         return sb.ToString();
     }
 
+    private const string ObliviousRegionComment =
+        "// Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body";
+
     // Wraps the declaration line of each oblivious parameter of the record in #nullable disable/restore annotations
     private static string WithObliviousParameters(
         string content,
@@ -225,6 +228,9 @@ public static class RecordContentGenerator
                 }
                 else
                 {
+                    // Say why, once per region, so a reader of the generated record does not have to guess
+                    var indent = line.Substring(0, line.Length - line.TrimStart().Length);
+                    sb.Append(indent).Append(ObliviousRegionComment).Append('\n');
                     sb.Append("#nullable disable annotations\n");
                 }
 

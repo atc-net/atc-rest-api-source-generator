@@ -25,6 +25,7 @@ namespace AsyncEnumerableHooks.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string Filter = null)
 #nullable restore annotations

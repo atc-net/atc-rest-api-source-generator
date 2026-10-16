@@ -25,7 +25,9 @@ public static class ApiOptionsExtractor
 
         var hasRateLimiting = openApiDoc.HasRateLimiting();
         var hasVersioning = config.VersioningStrategy != VersioningStrategyType.None;
-        var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
+
+        // The same condition under which Add{Api}Api() reads UseSecurity (UnifiedServiceCollectionExtractor)
+        var hasSecurity = openApiDoc.HasSecuritySchemes();
 
         return GenerateApiServiceOptionsContent(projectName, hasRateLimiting, hasVersioning, hasSecurity, openApiDoc.HasOutputCaching());
     }
@@ -133,35 +135,47 @@ public static class ApiOptionsExtractor
         builder.AppendLine("public class ApiServiceOptions");
         builder.AppendLine("{");
 
-        // UseRateLimiting - auto-detected
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable rate limiting policies. Auto-detected from x-ratelimit-* extensions.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public bool UseRateLimiting {{ get; set; }} = {BoolToString(hasRateLimiting)};");
-        builder.AppendLine();
+        // Each feature switch exists only when Add{Api}Api() reads it - when the specification (or the marker)
+        // declares the feature. A switch nothing reads would say the feature can be turned on.
+        if (hasRateLimiting)
+        {
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Register the rate limiting policies (<c>AddApiRateLimiting()</c>).");
+            builder.AppendLine(4, "/// Generated because the specification declares x-ratelimit-* policies. Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseRateLimiting { get; set; } = true;");
+            builder.AppendLine();
+        }
 
         if (hasOutputCaching)
         {
             builder.AppendLine(4, "/// <summary>");
-            builder.AppendLine(4, "/// Register the output cache policies (<c>AddApiOutputCaching()</c>). Auto-detected from x-cache-type: output.");
+            builder.AppendLine(4, "/// Register the output cache policies (<c>AddApiOutputCaching()</c>).");
+            builder.AppendLine(4, "/// Generated because the specification declares x-cache-type: output. Default: true.");
             builder.AppendLine(4, "/// </summary>");
             builder.AppendLine(4, "public bool UseOutputCaching { get; set; } = true;");
             builder.AppendLine();
         }
 
-        // UseVersioning - auto-detected
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable API versioning. Auto-detected from versioningStrategy config.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public bool UseVersioning {{ get; set; }} = {BoolToString(hasVersioning)};");
-        builder.AppendLine();
+        if (hasVersioning)
+        {
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Register API versioning.");
+            builder.AppendLine(4, "/// Generated because the server marker sets a versioningStrategy. Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseVersioning { get; set; } = true;");
+            builder.AppendLine();
+        }
 
-        // UseSecurity - auto-detected
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable security policies. Auto-detected from security schemes.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public bool UseSecurity {{ get; set; }} = {BoolToString(hasSecurity)};");
-        builder.AppendLine();
+        if (hasSecurity)
+        {
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Register the authorization policies of the security schemes (<c>AddApiSecurityPolicies()</c>).");
+            builder.AppendLine(4, "/// Generated because the specification declares security schemes. Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseSecurity { get; set; } = true;");
+            builder.AppendLine();
+        }
 
         // UseProblemDetails - always on by default
         builder.AppendLine(4, "/// <summary>");
@@ -202,38 +216,46 @@ public static class ApiOptionsExtractor
         builder.AppendLine(4, "public bool HostOwnsPipeline { get; set; }");
         builder.AppendLine();
 
-        // UseRateLimiter - auto-detected
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable rate limiter middleware. Auto-detected from x-ratelimit-* extensions.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public bool UseRateLimiter {{ get; set; }} = {BoolToString(hasRateLimiting)};");
-        builder.AppendLine();
+        // Each feature switch exists only when Map{Api}Api() reads it - when the specification declares the feature
+        if (hasRateLimiting)
+        {
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Add the rate limiter middleware (<c>UseRateLimiter()</c>).");
+            builder.AppendLine(4, "/// Generated because the specification declares x-ratelimit-* policies. Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseRateLimiter { get; set; } = true;");
+            builder.AppendLine();
+        }
 
         if (hasOutputCaching)
         {
             builder.AppendLine(4, "/// <summary>");
-            builder.AppendLine(4, "/// Enable the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated");
-            builder.AppendLine(4, "/// caller's answer is never cached). Auto-detected from x-cache-type: output.");
+            builder.AppendLine(4, "/// Add the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated");
+            builder.AppendLine(4, "/// caller's answer is never cached).");
+            builder.AppendLine(4, "/// Generated because the specification declares x-cache-type: output. Default: true.");
             builder.AppendLine(4, "/// </summary>");
             builder.AppendLine(4, "public bool UseOutputCache { get; set; } = true;");
             builder.AppendLine();
         }
 
-        // UseAuthentication - auto-detected
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable authentication middleware. Auto-detected from security schemes and x-authorize-roles /");
-        builder.AppendLine(4, "/// x-authentication-required.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public bool UseAuthentication {{ get; set; }} = {BoolToString(hasSecurity)};");
-        builder.AppendLine();
+        if (hasSecurity)
+        {
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Add the authentication middleware (<c>UseAuthentication()</c>).");
+            builder.AppendLine(4, "/// Generated because the specification requires a signed-in caller (security schemes, x-authorize-roles");
+            builder.AppendLine(4, "/// or x-authentication-required). Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseAuthentication { get; set; } = true;");
+            builder.AppendLine();
 
-        // UseAuthorization - auto-detected
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Enable authorization middleware. Auto-detected from security schemes and x-authorize-roles /");
-        builder.AppendLine(4, "/// x-authentication-required.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public bool UseAuthorization {{ get; set; }} = {BoolToString(hasSecurity)};");
-        builder.AppendLine();
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// Add the authorization middleware (<c>UseAuthorization()</c>).");
+            builder.AppendLine(4, "/// Generated because the specification requires a signed-in caller (security schemes, x-authorize-roles");
+            builder.AppendLine(4, "/// or x-authentication-required). Default: true.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public bool UseAuthorization { get; set; } = true;");
+            builder.AppendLine();
+        }
 
         // UseStatusCodePages - always on by default
         builder.AppendLine(4, "/// <summary>");
@@ -272,10 +294,4 @@ public static class ApiOptionsExtractor
 
         builder.AppendLine("}");
     }
-
-    /// <summary>
-    /// Converts a boolean to lowercase string for C# code generation.
-    /// </summary>
-    private static string BoolToString(bool value)
-        => value ? "true" : "false";
 }

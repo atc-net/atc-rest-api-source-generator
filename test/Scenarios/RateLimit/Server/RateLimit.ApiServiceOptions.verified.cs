@@ -25,19 +25,10 @@ namespace RateLimit.Generated;
 public class ApiServiceOptions
 {
     /// <summary>
-    /// Enable rate limiting policies. Auto-detected from x-ratelimit-* extensions.
+    /// Register the rate limiting policies (<c>AddApiRateLimiting()</c>).
+    /// Generated because the specification declares x-ratelimit-* policies. Default: true.
     /// </summary>
     public bool UseRateLimiting { get; set; } = true;
-
-    /// <summary>
-    /// Enable API versioning. Auto-detected from versioningStrategy config.
-    /// </summary>
-    public bool UseVersioning { get; set; } = false;
-
-    /// <summary>
-    /// Enable security policies. Auto-detected from security schemes.
-    /// </summary>
-    public bool UseSecurity { get; set; } = false;
 
     /// <summary>
     /// Register RFC 9457 ProblemDetails (<c>AddProblemDetails()</c>), so errors raised outside the handlers

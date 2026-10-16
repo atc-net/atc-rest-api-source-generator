@@ -47,27 +47,6 @@ public class UnifiedExtractorsNamingTests
         Assert.DoesNotContain("MapApiApi", result, StringComparison.Ordinal);
     }
 
-    // ========== WebApplicationExtensionsExtractor.Extract (UseXApi) ==========
-    [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "UseMontaApi")]
-    [InlineData("MyCompany.Product.Api", "UseProductApi")]
-    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "UseNexusApi")]
-    [InlineData("Showcase", "UseShowcaseApi")]
-    [InlineData("MyCompany.Product.WebApi", "UseWebApi")]
-    public void Extract_GeneratesExpectedUseMethodName(
-        string projectName,
-        string expectedMethodName)
-    {
-        // Act
-        var result = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler: true);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotNull(result.Methods);
-        Assert.Contains(result.Methods, m => string.Equals(m.Name, expectedMethodName, StringComparison.Ordinal));
-        Assert.DoesNotContain(result.Methods, m => string.Equals(m.Name, "UseApiApi", StringComparison.Ordinal));
-    }
-
     // ========== VersioningDependencyInjectionExtractor.Extract ==========
     [Theory]
     [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddMontaApiVersioning")]

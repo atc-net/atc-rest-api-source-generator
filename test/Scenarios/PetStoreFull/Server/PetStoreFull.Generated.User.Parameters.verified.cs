@@ -43,6 +43,7 @@ public sealed record CreateUsersWithListInputParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record LoginUserParameters(
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string Username = null,
     string Password = null)

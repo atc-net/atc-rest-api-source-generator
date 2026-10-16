@@ -2,55 +2,10 @@ namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
 /// Extracts parameters for WebApplication extension methods that configure middleware.
-/// Generates UseGlobalErrorHandler and UseEndpointDefinitions setup when Atc.Rest.MinimalApi is referenced.
+/// Generates the unified Map{Api}Api() method: the middleware the specification calls for, then the endpoints.
 /// </summary>
 public static class WebApplicationExtensionsExtractor
 {
-    /// <summary>
-    /// Extracts WebApplication extension class parameters for middleware configuration.
-    /// </summary>
-    /// <param name="projectName">The name of the project (used for namespace and method naming).</param>
-    /// <param name="useGlobalErrorHandler">Whether to include GlobalErrorHandler middleware setup.</param>
-    /// <param name="apiName">The server marker's <c>apiName</c>, or null (see <see cref="CasingHelper.GetApiName"/>).</param>
-    /// <returns>ClassParameters for the WebApplication extensions class, or null if no middleware is needed.</returns>
-    public static ClassParameters? Extract(
-        string projectName,
-        bool useGlobalErrorHandler,
-        string? apiName = null)
-    {
-        if (!useGlobalErrorHandler)
-        {
-            return null;
-        }
-
-        var methods = new List<MethodParameters>();
-
-        // Generate Use{ProjectName}Api method
-        var useApiMethod = GenerateUseApiMethod(projectName, CasingHelper.GetApiName(projectName, apiName), useGlobalErrorHandler);
-        methods.Add(useApiMethod);
-
-        var headerContent = GenerateHeaderContent(projectName, includeEndpointUsings: false);
-
-        return new ClassParameters(
-            HeaderContent: headerContent,
-            Namespace: $"{projectName}.Generated.Extensions",
-            DocumentationTags: new CodeDocumentationTags($"Extension methods for configuring {projectName} API middleware."),
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
-            DeclarationModifier: DeclarationModifiers.PublicStaticClass,
-            ClassTypeName: "WebApplicationExtensions",
-            GenericTypeName: null,
-            InheritedClassTypeName: null,
-            InheritedGenericClassTypeName: null,
-            InheritedInterfaceTypeName: null,
-            Constructors: null,
-            Properties: null,
-            Methods: methods,
-            GenerateToStringMethod: false);
-    }
-
     /// <summary>
     /// Generates the unified Map{ProjectName}Api() extension method that combines middleware and endpoint mapping.
     /// </summary>
@@ -306,100 +261,5 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "app.UseAuthorization();");
         builder.AppendLine(8, "}");
-    }
-
-    private static string GenerateHeaderContent(
-        string projectName,
-        bool includeEndpointUsings = false)
-    {
-        // Generate content first to analyze for required usings
-        var contentBuilder = new StringBuilder();
-        contentBuilder.AppendLine("[GeneratedCode]");
-        contentBuilder.AppendLine("public static WebApplication UseApi(this WebApplication app, Action<GlobalErrorHandlingOptions>? configureErrorHandling = null)");
-        contentBuilder.AppendLine("app.UseGlobalErrorHandler(configureErrorHandling);");
-        var content = contentBuilder.ToString();
-
-        // Build header with only required usings
-        var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
-
-        if (includeEndpointUsings)
-        {
-            builder.AppendLine($"using {projectName}.Generated.Endpoints;");
-        }
-
-        return builder.ToString();
-    }
-
-    private static MethodParameters GenerateUseApiMethod(
-        string projectName,
-        string apiName,
-        bool useGlobalErrorHandler)
-    {
-        var methodParams = new List<ParameterBaseParameters>
-        {
-            new(
-                Attributes: null,
-                GenericTypeName: null,
-                IsGenericListType: false,
-                TypeName: "this WebApplication",
-                IsNullableType: false,
-                IsReferenceType: true,
-                Name: "app",
-                DefaultValue: null),
-            new(
-                Attributes: null,
-                GenericTypeName: "Action",
-                IsGenericListType: false,
-                TypeName: "GlobalErrorHandlingOptions",
-                IsNullableType: true,
-                IsReferenceType: true,
-                Name: "configureErrorHandling",
-                DefaultValue: "null"),
-        };
-
-        var content = GenerateUseApiMethodContent(useGlobalErrorHandler);
-
-        var parameterDocs = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["app"] = "The WebApplication to configure.",
-            ["configureErrorHandling"] = "Optional configuration for global error handling options.",
-        };
-
-        return new MethodParameters(
-            DocumentationTags: new CodeDocumentationTags(
-                $"Configures {projectName} API middleware including global error handling.",
-                parameterDocs,
-                remark: null,
-                code: null,
-                example: null,
-                exceptions: null,
-                @return: "The WebApplication for method chaining."),
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: "WebApplication",
-            Name: $"Use{apiName}Api",
-            Parameters: methodParams,
-            AlwaysBreakDownParameters: true,
-            UseExpressionBody: false,
-            Content: content);
-    }
-
-    private static string GenerateUseApiMethodContent(
-        bool useGlobalErrorHandler)
-    {
-        var builder = new StringBuilder();
-
-        if (useGlobalErrorHandler)
-        {
-            builder.AppendLine("// Configure global error handling middleware");
-            builder.AppendLine("app.UseGlobalErrorHandler(configureErrorHandling);");
-            builder.AppendLine();
-        }
-
-        builder.Append("return app;");
-
-        return builder.ToString();
     }
 }

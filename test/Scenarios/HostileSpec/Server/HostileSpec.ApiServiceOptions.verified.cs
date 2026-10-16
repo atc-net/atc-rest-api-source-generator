@@ -25,17 +25,8 @@ namespace HostileSpec.Generated;
 public class ApiServiceOptions
 {
     /// <summary>
-    /// Enable rate limiting policies. Auto-detected from x-ratelimit-* extensions.
-    /// </summary>
-    public bool UseRateLimiting { get; set; } = false;
-
-    /// <summary>
-    /// Enable API versioning. Auto-detected from versioningStrategy config.
-    /// </summary>
-    public bool UseVersioning { get; set; } = false;
-
-    /// <summary>
-    /// Enable security policies. Auto-detected from security schemes.
+    /// Register the authorization policies of the security schemes (<c>AddApiSecurityPolicies()</c>).
+    /// Generated because the specification declares security schemes. Default: true.
     /// </summary>
     public bool UseSecurity { get; set; } = true;
 

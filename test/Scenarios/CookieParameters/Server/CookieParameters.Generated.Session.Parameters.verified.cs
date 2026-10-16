@@ -26,6 +26,7 @@ namespace CookieParameters.Generated.Session.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetSessionParameters(
     [property: FromHeader(Name = "x-cookie-sessionId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "sessionId")] string SessionId,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string Preferences = null)
 #nullable restore annotations

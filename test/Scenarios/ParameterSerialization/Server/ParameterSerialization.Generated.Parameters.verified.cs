@@ -25,6 +25,7 @@ namespace ParameterSerialization.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     ParsableList<string> Tags = null,
     string Q = null,
@@ -72,6 +73,7 @@ public sealed record ListItemsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsByQueryStringParameters(
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string RawFilter = null)
 #nullable restore annotations

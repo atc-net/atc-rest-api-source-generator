@@ -25,21 +25,6 @@ namespace NonJsonContent.Generated;
 public class ApiServiceOptions
 {
     /// <summary>
-    /// Enable rate limiting policies. Auto-detected from x-ratelimit-* extensions.
-    /// </summary>
-    public bool UseRateLimiting { get; set; } = false;
-
-    /// <summary>
-    /// Enable API versioning. Auto-detected from versioningStrategy config.
-    /// </summary>
-    public bool UseVersioning { get; set; } = false;
-
-    /// <summary>
-    /// Enable security policies. Auto-detected from security schemes.
-    /// </summary>
-    public bool UseSecurity { get; set; } = false;
-
-    /// <summary>
     /// Register RFC 9457 ProblemDetails (<c>AddProblemDetails()</c>), so errors raised outside the handlers
     /// (malformed requests, unknown routes, empty error results) get an <c>application/problem+json</c> body.
     /// Turn off when the host configures ProblemDetails itself. Default: true.

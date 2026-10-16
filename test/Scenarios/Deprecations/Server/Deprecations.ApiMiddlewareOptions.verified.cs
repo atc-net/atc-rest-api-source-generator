@@ -30,23 +30,6 @@ public class ApiMiddlewareOptions
     public bool HostOwnsPipeline { get; set; }
 
     /// <summary>
-    /// Enable rate limiter middleware. Auto-detected from x-ratelimit-* extensions.
-    /// </summary>
-    public bool UseRateLimiter { get; set; } = false;
-
-    /// <summary>
-    /// Enable authentication middleware. Auto-detected from security schemes and x-authorize-roles /
-    /// x-authentication-required.
-    /// </summary>
-    public bool UseAuthentication { get; set; } = false;
-
-    /// <summary>
-    /// Enable authorization middleware. Auto-detected from security schemes and x-authorize-roles /
-    /// x-authentication-required.
-    /// </summary>
-    public bool UseAuthorization { get; set; } = false;
-
-    /// <summary>
     /// Write a ProblemDetails body for error responses that have none (<c>UseStatusCodePages()</c>).
     /// Only applied when ProblemDetails is registered (see <c>ApiServiceOptions.UseProblemDetails</c>);
     /// without it, status code pages would write plain text. Default: true.

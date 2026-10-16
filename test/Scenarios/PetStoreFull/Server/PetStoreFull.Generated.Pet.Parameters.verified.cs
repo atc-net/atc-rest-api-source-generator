@@ -71,6 +71,7 @@ public sealed record GetPetByIdParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetWithFormParameters(
     [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string Name = null,
     string Status = null)
@@ -91,6 +92,7 @@ public sealed record UpdatePetWithFormParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeletePetParameters(
     [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string ApiKey = null)
 #nullable restore annotations
@@ -108,6 +110,7 @@ public sealed record DeletePetParameters(
 public sealed record UploadFileParameters(
     [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] long PetId,
     [property: FromBody, Required] Stream File,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string AdditionalMetadata = null)
 #nullable restore annotations

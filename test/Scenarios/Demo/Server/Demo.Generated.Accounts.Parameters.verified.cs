@@ -73,6 +73,7 @@ public sealed record UpdateAccountByIdParameters(
 public sealed record ListPaginatedAccountsParameters(
     [property: FromQuery(Name = "pageSize"), Range(1, 100), DefaultValue(10)] int? PageSize = 10,
     [property: FromQuery(Name = "pageIndex"), Range(0, long.MaxValue), DefaultValue(0)] int? PageIndex = 0,
+    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string QueryString = null,
     string Continuation = null)

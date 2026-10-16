@@ -84,6 +84,32 @@ public sealed class RecordContentGeneratorTests
         Assert.EndsWith(Lines("    public string? Nickname { get; init; } = Nickname;", "}"), content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void GenerateParameterRecords_ObliviousParameter_SaysWhyAboveItsRegion()
+    {
+        // An optional string parameter is declared nullable-oblivious for the Request Delegate Generator (CS8639);
+        // the generated record says so, once per region, so a reader of the output does not have to guess
+        var record = Record("ListPetsParameters", docs: null, Parameter("Filter"), Parameter("Sort"));
+
+        // The region lines are written with '\n'; the generator's consumer normalizes the whole file afterwards
+        var content = RecordContentGenerator.GenerateParameterRecords(new CodeDocumentationTagsGenerator(), Container(record))
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        Assert.Contains(
+            string.Join(
+                "\n",
+                "public sealed record ListPetsParameters(",
+                "    // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body",
+                "#nullable disable annotations",
+                "    string Filter = null,",
+                "    string Sort = null)",
+                "#nullable restore annotations"),
+            content,
+            StringComparison.Ordinal);
+        Assert.Equal(1, content.Split("Nullable-oblivious").Length - 1);
+        Assert.Contains("    public string? Filter { get; init; } = Filter;", content, StringComparison.Ordinal);
+    }
+
     private static string Lines(params string[] lines)
         => string.Join(Environment.NewLine, lines);
 
