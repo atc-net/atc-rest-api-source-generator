@@ -52,7 +52,7 @@ public partial class ErrorResponseBodyRuntimeTests
             AssessLevelImprove,
             "A declared string 400, but validation writes problem+json",
             "The specification declares 400 as a string (application/json or text/plain), while the generated ValidationFilter writes application/problem+json - a media type the operation does not declare. The client reads its title as the string; the field errors are only in Content.",
-            "Done: the server generator notes it (ATC_API_SRV002, information) - declare the 400 as ValidationProblemDetails to keep the field errors typed. Still open: validation could honour the declared 400 and write the message as the declared string (Atc.Rest.MinimalApi's ValidationFilter)."),
+            "Done: the server generator warns (ATC_API_SRV002) - declare the 400 as ValidationProblemDetails to keep the field errors typed. Still open: validation could honour the declared 400 and write the message as the declared string (Atc.Rest.MinimalApi's ValidationFilter)."),
         new(
             AssessEmptyCallDeclaredModel,
             AssessLevelImprove,

@@ -290,7 +290,7 @@ internal static class DiagnosticHelpers
         "Validation 400 Declared As String",
         "'{0}' declares its 400 as a string, but the ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json): the client reads its title as the string, and the field errors are only in the response content. Declare the 400 as ValidationProblemDetails to keep them typed.",
         RuleIdentifiers.Category,
-        DiagnosticSeverity.Info,
+        DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     /// <summary>

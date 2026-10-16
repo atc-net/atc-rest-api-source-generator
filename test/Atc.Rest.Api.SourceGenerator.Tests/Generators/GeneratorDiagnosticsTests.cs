@@ -229,7 +229,8 @@ public class GeneratorDiagnosticsTests
     /// <summary>
     /// The ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json); an
     /// operation that declares its 400 as a string cannot carry its field errors, so the client reads only the title
-    /// as the string. A note, not a warning: the specification is valid, and a hand-written 400 may be the string.
+    /// as the string. A warning: the specification is valid and a hand-written 400 may be the string, but the wire
+    /// contract of an invalid request is one the specification does not describe - and Info is not shown by a build.
     /// </summary>
     [Theory]
     [InlineData("text/plain", "type: string", true)]
@@ -270,9 +271,9 @@ public class GeneratorDiagnosticsTests
 
         if (reported)
         {
-            var info = Assert.Single(validating, d => d.Id == "ATC_API_SRV002");
-            Assert.Equal(DiagnosticSeverity.Info, info.Severity);
-            Assert.Contains("createThing", info.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            var warning = Assert.Single(validating, d => d.Id == "ATC_API_SRV002");
+            Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+            Assert.Contains("createThing", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
         }
         else
         {
