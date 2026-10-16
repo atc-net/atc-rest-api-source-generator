@@ -479,7 +479,10 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("          buf += decoder.decode(value, { stream: true });");
         sb.AppendLine("          // Discard preamble (everything before the first delimiter boundary).");
         sb.AppendLine("          const first = buf.indexOf(delimiter);");
-        sb.AppendLine("          if (first === -1) { if (buf.length > delimiter.length) buf = buf.substring(buf.length - delimiter.length); continue; }");
+        sb.AppendLine("          if (first === -1) {");
+        sb.AppendLine("            if (buf.length > delimiter.length) buf = buf.substring(buf.length - delimiter.length);");
+        sb.AppendLine("            continue;");
+        sb.AppendLine("          }");
         sb.AppendLine("          if (first > 0) buf = buf.substring(first);");
         sb.AppendLine("          // Yield each complete part; buf always starts at a delimiter after this loop.");
         sb.AppendLine("          while (buf.startsWith(delimiter)) {");
@@ -490,7 +493,10 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("              // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one");
         sb.AppendLine("              const pending = buf.substring(partStart);");
         sb.AppendLine("              const pendingBody = multipartBody(pending) ?? '';");
-        sb.AppendLine("              if (pendingBody.length > 0 && pending.endsWith('\\r\\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }");
+        sb.AppendLine("              if (pendingBody.length > 0 && pending.endsWith('\\r\\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) {");
+        sb.AppendLine("                yield JSON.parse(pendingBody) as T;");
+        sb.AppendLine("                buf = '';");
+        sb.AppendLine("              }");
         sb.AppendLine("              break;");
         sb.AppendLine("            }");
         sb.AppendLine("            guardRecord(next - partStart);");

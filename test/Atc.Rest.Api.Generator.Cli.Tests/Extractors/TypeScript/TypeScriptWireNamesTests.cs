@@ -257,4 +257,91 @@ public class TypeScriptWireNamesTests
         Assert.DoesNotContain("displayName: [", file, StringComparison.Ordinal);
         Assert.DoesNotContain("  Plain: {", file, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// A union with a <c>discriminator</c> names the member to convert with by the discriminator's value - the
+    /// mapping key, or the member's schema name when the mapping leaves it out - so two members that share their
+    /// top-level keys (and differ inside a nested model) are told apart; "the member with the most keys" is only the
+    /// fallback for a union without one. A member with nothing to rename maps to <c>null</c>: its value is left as
+    /// it is, not converted as another member.
+    /// </summary>
+    [Fact]
+    public void ShapeOf_DiscriminatedUnion_NamesTheMemberByTheDiscriminatorValue()
+    {
+        var sut = new TypeScriptWireNames(
+            OpenApiDocumentHelper.ParseYaml("""
+                openapi: 3.0.3
+                info: { title: WireNames, version: 1.0.0 }
+                paths:
+                  /payments:
+                    get:
+                      operationId: listPayments
+                      responses:
+                        '200':
+                          description: OK
+                          content:
+                            application/json:
+                              schema:
+                                type: array
+                                items: { $ref: '#/components/schemas/Payment' }
+                components:
+                  schemas:
+                    Payment:
+                      oneOf:
+                        - $ref: '#/components/schemas/Card'
+                        - $ref: '#/components/schemas/Bank'
+                        - $ref: '#/components/schemas/Cash'
+                      discriminator:
+                        propertyName: payment_type
+                        mapping:
+                          card: '#/components/schemas/Card'
+                          cash: '#/components/schemas/Cash'
+                    Card:
+                      type: object
+                      properties:
+                        payment_type: { type: string }
+                        holder_name: { type: string }
+                        details: { $ref: '#/components/schemas/CardDetails' }
+                    Bank:
+                      type: object
+                      properties:
+                        payment_type: { type: string }
+                        holder_name: { type: string }
+                        details: { $ref: '#/components/schemas/BankDetails' }
+                    Cash:
+                      type: object
+                      properties:
+                        paymentType: { type: string }
+                        amount: { type: number }
+                    CardDetails:
+                      type: object
+                      properties:
+                        card_number: { type: string }
+                    BankDetails:
+                      type: object
+                      properties:
+                        iban_number: { type: string }
+                """),
+            TypeScriptNamingStrategy.CamelCase);
+
+        Assert.Equal(
+            "{ union: ['Card', 'Bank'], discriminator: { wire: 'payment_type', ts: 'paymentType', mapping: { card: 'Card', Bank: 'Bank', cash: null } } }",
+            sut.ShapeOfModel("Payment"));
+
+        var file = sut.GenerateFile(headerContent: null);
+        Assert.NotNull(file);
+        Assert.Contains("export interface WireDiscriminator {", file, StringComparison.Ordinal);
+        Assert.Contains("const kind = value[toWire ? discriminator.ts : discriminator.wire];", file, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ShapeOf_UnionWithoutADiscriminator_HasNoDiscriminator()
+    {
+        var sut = new TypeScriptWireNames(OpenApiDocumentHelper.ParseYaml(SpecYaml), TypeScriptNamingStrategy.CamelCase);
+
+        var file = sut.GenerateFile(headerContent: null);
+
+        Assert.NotNull(file);
+        Assert.DoesNotContain("discriminator: {", file, StringComparison.Ordinal);
+    }
 }

@@ -311,17 +311,19 @@ public static class TypeScriptMswHandlerExtractor
             return null;
         }
 
-        // The body has the declared shape: an array of strings is ['sample-item'], a number a number, a model an object
-        return GenerateMockValue(schema, "item", openApiDoc, namingStrategy, depth: 0);
+        // The body has the declared shape all the way down: an array of strings is ['sample-item'], a number a number,
+        // a model an object with its properties. Only a model that refers to itself is cut - after one level (see
+        // GenerateMockValue), so a tree shows one child - the path of component names keeps count.
+        return GenerateMockValue(schema, "item", openApiDoc, namingStrategy, new Dictionary<string, int>(StringComparer.Ordinal));
     }
 
     private static string GenerateMockObject(
         IOpenApiSchema? schema,
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
-        int depth = 0)
+        Dictionary<string, int> onPath)
     {
-        if (schema is null || depth > 3)
+        if (schema is null)
         {
             return "{}";
         }
@@ -331,7 +333,7 @@ public static class TypeScriptMswHandlerExtractor
         {
             var target = schemaRef.Target;
             return target is not null
-                ? GenerateMockObject(target, openApiDoc, namingStrategy, depth)
+                ? GenerateMockObject(target, openApiDoc, namingStrategy, onPath)
                 : "{}";
         }
 
@@ -356,7 +358,7 @@ public static class TypeScriptMswHandlerExtractor
                 }
             }
 
-            return GenerateMockFromProperties(mergedProps, openApiDoc, namingStrategy, depth);
+            return GenerateMockFromProperties(mergedProps, openApiDoc, namingStrategy, onPath);
         }
 
         if (actualSchema.Properties is null || actualSchema.Properties.Count == 0)
@@ -364,14 +366,14 @@ public static class TypeScriptMswHandlerExtractor
             return "{}";
         }
 
-        return GenerateMockFromProperties(actualSchema.Properties, openApiDoc, namingStrategy, depth);
+        return GenerateMockFromProperties(actualSchema.Properties, openApiDoc, namingStrategy, onPath);
     }
 
     private static string GenerateMockFromProperties(
         IDictionary<string, IOpenApiSchema> properties,
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
-        int depth)
+        Dictionary<string, int> onPath)
     {
         var sb = new StringBuilder();
         sb.Append("{ ");
@@ -391,7 +393,7 @@ public static class TypeScriptMswHandlerExtractor
             var propName = Regex.IsMatch(prop.Key, "^[A-Za-z_$][A-Za-z0-9_$]*$", RegexOptions.None, TimeSpan.FromSeconds(1))
                 ? prop.Key
                 : "'" + prop.Key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\\'", StringComparison.Ordinal) + "'";
-            var value = GenerateMockValue(prop.Value, prop.Key, openApiDoc, namingStrategy, depth + 1);
+            var value = GenerateMockValue(prop.Value, prop.Key, openApiDoc, namingStrategy, onPath);
             sb.Append(propName).Append(": ").Append(value);
         }
 
@@ -405,7 +407,7 @@ public static class TypeScriptMswHandlerExtractor
         string propertyName,
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
-        int depth)
+        Dictionary<string, int> onPath)
     {
         // Resolve references
         if (schema is OpenApiSchemaReference schemaRef)
@@ -418,10 +420,30 @@ public static class TypeScriptMswHandlerExtractor
                 return firstValue is not null ? $"'{firstValue}'" : "'unknown'";
             }
 
+            if (target is null)
+            {
+                return "{}";
+            }
+
+            // A model that refers to itself (a parent link, a tree) is sampled one level deep, then stops with an
+            // empty object; a list of it stops with an empty list (the array branch below)
+            if (IsOnPathTwice(schemaRef, onPath))
+            {
+                return "{}";
+            }
+
             // A named array, primitive or model: mocked by its own shape
-            return target is not null
-                ? GenerateMockValue(target, propertyName, openApiDoc, namingStrategy, depth)
-                : "{}";
+            var id = RefId(schemaRef);
+            onPath.TryGetValue(id, out var visits);
+            onPath[id] = visits + 1;
+            try
+            {
+                return GenerateMockValue(target, propertyName, openApiDoc, namingStrategy, onPath);
+            }
+            finally
+            {
+                onPath[id] = visits;
+            }
         }
 
         if (schema is not OpenApiSchema actualSchema)
@@ -433,14 +455,14 @@ public static class TypeScriptMswHandlerExtractor
         if (actualSchema.Type is null &&
             (actualSchema.Properties is { Count: > 0 } || actualSchema.AllOf is { Count: > 0 }))
         {
-            return depth > 2 ? "{}" : GenerateMockObject(actualSchema, openApiDoc, namingStrategy, depth);
+            return GenerateMockObject(actualSchema, openApiDoc, namingStrategy, onPath);
         }
 
         // oneOf / anyOf: the first alternative
         if (actualSchema.Type is null &&
             (actualSchema.OneOf ?? actualSchema.AnyOf) is { Count: > 0 } alternatives)
         {
-            return GenerateMockValue(alternatives[0], propertyName, openApiDoc, namingStrategy, depth);
+            return GenerateMockValue(alternatives[0], propertyName, openApiDoc, namingStrategy, onPath);
         }
 
         // Handle enums
@@ -482,22 +504,32 @@ public static class TypeScriptMswHandlerExtractor
 
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
         {
-            if (depth > 2)
+            // A list of a model already sampled twice on this path (children of a child) is empty
+            if (actualSchema.Items is OpenApiSchemaReference itemsRef && IsOnPathTwice(itemsRef, onPath))
             {
                 return "[]";
             }
 
             var itemMock = actualSchema.Items is not null
-                ? GenerateMockValue(actualSchema.Items, propertyName, openApiDoc, namingStrategy, depth + 1)
+                ? GenerateMockValue(actualSchema.Items, propertyName, openApiDoc, namingStrategy, onPath)
                 : "null";
             return $"[{itemMock}]";
         }
 
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Object) == true)
         {
-            return depth > 2 ? "{}" : GenerateMockObject(actualSchema, openApiDoc, namingStrategy, depth);
+            return GenerateMockObject(actualSchema, openApiDoc, namingStrategy, onPath);
         }
 
         return "null";
     }
+
+    private static string RefId(OpenApiSchemaReference reference)
+        => reference.Reference.Id ?? string.Empty;
+
+    // The component is already sampled twice on the current path: once, and once more inside itself
+    private static bool IsOnPathTwice(
+        OpenApiSchemaReference reference,
+        Dictionary<string, int> onPath)
+        => onPath.TryGetValue(RefId(reference), out var visits) && visits >= 2;
 }

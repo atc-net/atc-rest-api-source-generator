@@ -182,6 +182,47 @@ public sealed class TypeScriptWireNamesGateTests
                   oneOf:
                     - $ref: '#/components/schemas/Cat'
                     - $ref: '#/components/schemas/Dog'
+                payment:
+                  $ref: '#/components/schemas/Payment'
+            Payment:
+              oneOf:
+                - $ref: '#/components/schemas/Bank'
+                - $ref: '#/components/schemas/Card'
+              discriminator:
+                propertyName: payment_type
+                mapping:
+                  bank: '#/components/schemas/Bank'
+                  card: '#/components/schemas/Card'
+            Bank:
+              type: object
+              required: [payment_type]
+              properties:
+                payment_type:
+                  type: string
+                holder_name:
+                  type: string
+                details:
+                  $ref: '#/components/schemas/BankDetails'
+            Card:
+              type: object
+              required: [payment_type]
+              properties:
+                payment_type:
+                  type: string
+                holder_name:
+                  type: string
+                details:
+                  $ref: '#/components/schemas/CardDetails'
+            BankDetails:
+              type: object
+              properties:
+                iban_number:
+                  type: string
+            CardDetails:
+              type: object
+              properties:
+                card_number:
+                  type: string
             Address:
               type: object
               properties:
@@ -348,6 +389,9 @@ public sealed class TypeScriptWireNamesGateTests
           tags: [{ tag_name: 'a' }],
           labels: { Some_Key: { tag_name: 'b' } },
           pet: { cat_name: 'Tom', meow_volume: 3 },
+          // Bank and Card share every top-level key: only the discriminator tells them apart, and only the right
+          // member renames the nested details
+          payment: { payment_type: 'card', holder_name: 'Anna', details: { card_number: '4111' } },
         };
 
         async function main(): Promise<void> {
@@ -364,6 +408,7 @@ public sealed class TypeScriptWireNamesGateTests
           check('W1 array of models', p?.tags?.[0]?.tagName === 'a', JSON.stringify(p?.tags));
           check('W1 dictionary keys stay, values renamed', p?.labels?.Some_Key?.tagName === 'b', JSON.stringify(p?.labels));
           check('W1 oneOf member', p?.pet?.catName === 'Tom' && p?.pet?.meowVolume === 3, JSON.stringify(p?.pet));
+          check('W1 discriminated member', p?.payment?.paymentType === 'card' && p?.payment?.holderName === 'Anna' && p?.payment?.details?.cardNumber === '4111', JSON.stringify(p?.payment));
 
           // W2: an array response.
           respond([wirePerson, { ...wirePerson, user_name: 'bo' }], 200);
@@ -380,6 +425,7 @@ public sealed class TypeScriptWireNamesGateTests
             tags: [{ tagName: 'a' }],
             labels: { Some_Key: { tagName: 'b' } },
             pet: { dogName: 'Rex', barkVolume: 9 },
+            payment: { paymentType: 'card', holderName: 'Anna', details: { cardNumber: '4111' } },
           });
           const w: any = lastSent();
           check('W3 renamed keys', w?.user_name === 'anna' && w?.UserId === '7' && w?.displayName === 'Anna', JSON.stringify(w));
@@ -388,6 +434,7 @@ public sealed class TypeScriptWireNamesGateTests
           check('W3 array of models', w?.tags?.[0]?.tag_name === 'a', JSON.stringify(w?.tags));
           check('W3 dictionary keys stay', w?.labels?.Some_Key?.tag_name === 'b', JSON.stringify(w?.labels));
           check('W3 oneOf member', w?.pet?.dog_name === 'Rex' && w?.pet?.bark_volume === 9, JSON.stringify(w?.pet));
+          check('W3 discriminated member', w?.payment?.payment_type === 'card' && w?.payment?.holder_name === 'Anna' && w?.payment?.details?.card_number === '4111', JSON.stringify(w?.payment));
 
           // W4: a declared error model is renamed in error.body; the message and detail come from the wire body.
           respond({ error_code: 'E404', detail: 'Person 7 is gone.' }, 404);

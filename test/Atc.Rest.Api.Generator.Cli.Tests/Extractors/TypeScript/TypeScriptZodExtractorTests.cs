@@ -210,6 +210,46 @@ public class TypeScriptZodExtractorTests
         Assert.Contains("export const PaymentSchema = z.union([CardSchema.passthrough(), WalletSchema.passthrough()]);", content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The option schemas name the discriminator as the models do (the naming strategy), so the union dispatches on
+    /// that name - <c>z.discriminatedUnion('payment_type', ...)</c> over options that declare <c>paymentType</c>
+    /// did not type-check (TS2322) and could not parse anything.
+    /// </summary>
+    [Fact]
+    public void ZodUnion_DiscriminatorNamedForTheWire_DispatchesOnTheModelsName()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Card:
+                                  type: object
+                                  required: [payment_type]
+                                  properties: { payment_type: { type: string }, card_number: { type: string } }
+                                Bank:
+                                  type: object
+                                  required: [payment_type]
+                                  properties: { payment_type: { type: string }, iban_number: { type: string } }
+                                Payment:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/Card'
+                                    - $ref: '#/components/schemas/Bank'
+                                  discriminator:
+                                    propertyName: payment_type
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var config = new TypeScriptClientConfig();
+
+        var (_, union) = Assert.Single(TypeScriptZodModelExtractor.ExtractUnionTypeAliases(doc, config));
+        var models = TypeScriptZodModelExtractor.Extract(doc, config);
+
+        Assert.Contains("export const PaymentSchema = z.discriminatedUnion('paymentType', [CardSchema, BankSchema]);", union, StringComparison.Ordinal);
+        Assert.Contains("  paymentType: z.literal('Card'),", models.Single(m => m.Name == "Card").Content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ZodUnion_OneOfWithAnExplicitDiscriminator_IsADiscriminatedUnionOfLiterals()
     {

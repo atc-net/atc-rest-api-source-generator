@@ -294,20 +294,24 @@ public static class TypeScriptAxiosApiClientExtractor
         const string jsonParse = "JSON.parse(data)";
 
         sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>, status?: number) {");
-        sb.AppendLine("        const bodyType = bodyTypeOf(this);");
-        sb.AppendLine("        const rawContentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
-        sb.AppendLine("        // Every body arrives as bytes: its text is decoded by the charset the Content-Type names, which the");
-        sb.AppendLine("        // adapters do not agree on (Node's http adapter and the fetch adapter read every text as UTF-8)");
-        sb.AppendLine("        if ((this as BodyRequestConfig).bodyType !== 'arraybuffer' && (Object.prototype.toString.call(data) === '[object ArrayBuffer]' || ArrayBuffer.isView(data))) {");
-        sb.AppendLine("          data = decodeText(data as ArrayBuffer, rawContentType);");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
-        sb.AppendLine("        if (bodyType === 'text') return data;");
-        sb.AppendLine("        const contentType = rawContentType.toLowerCase();");
+        sb.AppendLine("        const bodyType = bodyTypeOf(this);");
+        sb.AppendLine("        const rawContentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("        // Every body arrives as bytes: its text is decoded by the charset the Content-Type names, which the");
+        sb.AppendLine("        // adapters do not agree on (Node's http adapter and the fetch adapter read every text as UTF-8)");
+        sb.AppendLine("        if ((this as BodyRequestConfig).bodyType !== 'arraybuffer' && (Object.prototype.toString.call(data) === '[object ArrayBuffer]' || ArrayBuffer.isView(data))) {");
+        sb.AppendLine("          data = decodeText(data as ArrayBuffer, rawContentType);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
+        sb.AppendLine("        if (bodyType === 'text') return data;");
+        sb.AppendLine("        const contentType = rawContentType.toLowerCase();");
         sb.AppendLine("        const successReadAsJson = bodyType === 'json' && (status ?? 200) < 400;");
         sb.AppendLine("        if (!successReadAsJson && !contentType.includes('application/json') && !contentType.includes('+json')) return data;");
-        sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
+        sb.AppendLine("        try {");
+        sb.Append("          return ").Append(jsonParse).AppendLine(";");
+        sb.AppendLine("        } catch {");
+        sb.AppendLine("          return new UnparseableBody(data);");
+        sb.AppendLine("        }");
         sb.AppendLine("      }],");
 
         sb.AppendLine("    });");
@@ -406,7 +410,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
-            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
             sb.AppendLine("    } as BodyRequestConfig);");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
@@ -441,7 +445,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
             sb.AppendLine("    } as BodyRequestConfig);");
         }
 
@@ -606,7 +610,10 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("          buf += decoder.decode(value, { stream: true });");
         sb.AppendLine("          // Discard preamble (everything before the first delimiter boundary).");
         sb.AppendLine("          const first = buf.indexOf(delimiter);");
-        sb.AppendLine("          if (first === -1) { if (buf.length > delimiter.length) buf = buf.substring(buf.length - delimiter.length); continue; }");
+        sb.AppendLine("          if (first === -1) {");
+        sb.AppendLine("            if (buf.length > delimiter.length) buf = buf.substring(buf.length - delimiter.length);");
+        sb.AppendLine("            continue;");
+        sb.AppendLine("          }");
         sb.AppendLine("          if (first > 0) buf = buf.substring(first);");
         sb.AppendLine("          // Yield each complete part; buf always starts at a delimiter after this loop.");
         sb.AppendLine("          while (buf.startsWith(delimiter)) {");
@@ -617,7 +624,10 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("              // A part whose body is complete JSON is yielded now, not at the next boundary - a server that fails after it never sends one");
         sb.AppendLine("              const pending = buf.substring(partStart);");
         sb.AppendLine("              const pendingBody = multipartBody(pending) ?? '';");
-        sb.AppendLine("              if (pendingBody.length > 0 && pending.endsWith('\\r\\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) { yield JSON.parse(pendingBody) as T; buf = ''; }");
+        sb.AppendLine("              if (pendingBody.length > 0 && pending.endsWith('\\r\\n') && scanJsonValue(pendingBody, 0, true) === pendingBody.length) {");
+        sb.AppendLine("                yield JSON.parse(pendingBody) as T;");
+        sb.AppendLine("                buf = '';");
+        sb.AppendLine("              }");
         sb.AppendLine("              break;");
         sb.AppendLine("            }");
         sb.AppendLine("            guardRecord(next - partStart);");

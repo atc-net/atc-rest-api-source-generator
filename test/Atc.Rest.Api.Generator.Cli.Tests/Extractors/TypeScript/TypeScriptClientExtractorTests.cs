@@ -1839,6 +1839,92 @@ public class TypeScriptClientExtractorTests
                 scopes: { type: array, items: { type: string } }
         """;
 
+    /// <summary>
+    /// With <c>--convert-dates</c>, every operation whose body, response or declared error carries a declared date
+    /// passes its <c>wire</c> shape to the request - the runtime converts nothing it is not told about, so a missed
+    /// operation would silently leave its dates as strings while the types say <c>Date</c>.
+    /// </summary>
+    [Fact]
+    public void Extract_ConvertDates_EveryOperationWithADateGetsItsWireShape()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /events:
+                                get:
+                                  operationId: listEvents
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { type: array, items: { $ref: '#/components/schemas/Event' } }
+                                post:
+                                  operationId: createEvent
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema: { $ref: '#/components/schemas/Event' }
+                                  responses:
+                                    '204': { description: Created }
+                                    '409':
+                                      description: Conflict
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Clash' }
+                              /events/{id}:
+                                get:
+                                  operationId: getEvent
+                                  parameters:
+                                    - { name: id, in: path, required: true, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Event' }
+                              /ping:
+                                get:
+                                  operationId: ping
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Plain' }
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                                    at: { type: string, format: date-time }
+                                Clash:
+                                  type: object
+                                  properties:
+                                    existingSince: { type: string, format: date }
+                                Plain:
+                                  type: object
+                                  properties:
+                                    text: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null, convertDates: true);
+
+        var events = clients.Single(c => c.ClassName == "EventsClient").Content;
+        Assert.Contains("wire: { response: { array: 'Event' } }", events, StringComparison.Ordinal);
+        Assert.Contains("wire: { response: 'Event' }", events, StringComparison.Ordinal);
+        Assert.Contains("wire: { body: 'Event', errors: {", events, StringComparison.Ordinal);
+        Assert.Equal(3, events.Split("wire: ").Length - 1);
+
+        // An operation without a declared date passes no shape: nothing to convert
+        var ping = clients.Single(c => c.ClassName == "PingClient").Content;
+        Assert.DoesNotContain("wire:", ping, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

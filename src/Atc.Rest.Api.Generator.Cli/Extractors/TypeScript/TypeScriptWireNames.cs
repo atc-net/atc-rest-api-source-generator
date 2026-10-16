@@ -196,7 +196,17 @@ public sealed class TypeScriptWireNames
         sb.AppendLine("  | { readonly date: 'date' | 'date-time' }");
         sb.AppendLine("  | { readonly array: WireShape }");
         sb.AppendLine("  | { readonly record: WireShape }");
-        sb.AppendLine("  | { readonly union: readonly WireShape[] };");
+        sb.AppendLine("  | { readonly union: readonly WireShape[]; readonly discriminator?: WireDiscriminator };");
+        sb.AppendLine();
+        sb.AppendLine("/**");
+        sb.AppendLine(" * The discriminator of a union: the property's name on the wire and in the models, and the member each of its");
+        sb.AppendLine(" * values names (null: a member with nothing to convert).");
+        sb.AppendLine(" */");
+        sb.AppendLine("export interface WireDiscriminator {");
+        sb.AppendLine("  readonly wire: string;");
+        sb.AppendLine("  readonly ts: string;");
+        sb.AppendLine("  readonly mapping: Readonly<Record<string, string | null>>;");
+        sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/** The shapes of an operation's request body, response (or stream item) and declared error bodies. */");
         sb.AppendLine("export interface WireShapes {");
@@ -336,9 +346,23 @@ public sealed class TypeScriptWireNames
         sb.AppendLine("      : value;");
         sb.AppendLine("  }");
         sb.AppendLine();
-        sb.AppendLine("  // A union: the member model the object has the most keys of.");
+        sb.AppendLine("  // A union: the member its discriminator names; without one (or with a value the specification does not");
+        sb.AppendLine("  // map), the member model the object has the most keys of.");
         sb.AppendLine("  if (!isPlainObject(value)) {");
         sb.AppendLine("    return value;");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+        sb.AppendLine("  const discriminator = shape.discriminator;");
+        sb.AppendLine("  if (discriminator) {");
+        sb.AppendLine("    const kind = value[toWire ? discriminator.ts : discriminator.wire];");
+        sb.AppendLine("    const member = typeof kind === 'string' ? discriminator.mapping[kind] : undefined;");
+        sb.AppendLine("    if (typeof member === 'string') {");
+        sb.AppendLine("      return convert(value, member, toWire);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if (member === null) {");
+        sb.AppendLine("      return value;");
+        sb.AppendLine("    }");
         sb.AppendLine("  }");
         sb.AppendLine();
         sb.AppendLine("  const keys = Object.keys(value);");
@@ -377,6 +401,55 @@ public sealed class TypeScriptWireNames
 
     private static string? RefId(IOpenApiSchema? schema)
         => schema is OpenApiSchemaReference { Reference.Id: { Length: > 0 } id } ? id : null;
+
+    /// <summary>
+    /// The <c>discriminator</c> of a union as a TypeScript literal - the property's wire and model names and, per
+    /// value (the mapping key, else the member's schema name), the member model to convert with (<c>null</c> for a
+    /// member with nothing to rename, so the value is left as it is rather than converted as another member) - or
+    /// <see langword="null"/> when the union declares none: the runtime then picks the member by its keys.
+    /// </summary>
+    private string? DiscriminatorOf(
+        IOpenApiSchema schema,
+        IList<IOpenApiSchema> branches,
+        HashSet<string> visiting)
+    {
+        if (schema.GetDiscriminatorPropertyName() is not { Length: > 0 } wire)
+        {
+            return null;
+        }
+
+        var mapping = schema.GetDiscriminatorMapping();
+        var entries = new List<string>();
+        string? ts = null;
+        foreach (var branch in branches)
+        {
+            if (RefId(branch) is not { } member)
+            {
+                continue;
+            }
+
+            var values = mapping?
+                .Where(m => string.Equals(m.Value, member, StringComparison.Ordinal))
+                .Select(m => m.Key)
+                .ToList() ?? [];
+            if (values.Count == 0)
+            {
+                values.Add(member);
+            }
+
+            // A member is a model (its name) or nothing to convert; any other shape is not a union member a
+            // discriminator can name
+            var memberShape = ShapeOf(branch, visiting) is { } shape && shape.StartsWith('\'') ? shape : "null";
+            ts ??= models.TryGetValue(member, out var properties)
+                ? properties.Find(p => string.Equals(p.Wire, wire, StringComparison.Ordinal))?.Ts
+                : null;
+            entries.AddRange(values.Select(value => Key(value) + ": " + memberShape));
+        }
+
+        return entries.Count == 0
+            ? null
+            : "{ wire: " + Quote(wire) + ", ts: " + Quote(ts ?? wire) + ", mapping: { " + string.Join(", ", entries) + " } }";
+    }
 
     private static string Quote(string value)
         => "'" + value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\\'", StringComparison.Ordinal) + "'";
@@ -469,7 +542,15 @@ public sealed class TypeScriptWireNames
                 .OfType<string>()
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
-            return shapes.Count == 0 ? null : "{ union: [" + string.Join(", ", shapes) + "] }";
+            if (shapes.Count == 0)
+            {
+                return null;
+            }
+
+            var discriminator = DiscriminatorOf(schema, branches, visiting);
+            return "{ union: [" + string.Join(", ", shapes) + "]" +
+                   (discriminator is null ? string.Empty : ", discriminator: " + discriminator) +
+                   " }";
         }
 
         if (schema.Properties is not { Count: > 0 } &&

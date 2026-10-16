@@ -147,6 +147,63 @@ public class TypeScriptMswHandlerExtractorTests
         Assert.Contains("http.get('/resources', () => {", content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A sample has the declared shape all the way down: a model inside a list inside a model is a full object, not
+    /// <c>{}</c> (the mock stood in for a server and cut every object deeper than three levels). Only a model that
+    /// refers to itself stops - after one level, with an empty list or object - so a tree shows one child.
+    /// </summary>
+    [Fact]
+    public void Extract_NestedModels_AreFullSamples_AndASelfReferenceStopsAfterOneLevel()
+    {
+        var doc = ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /devices:
+                get:
+                  operationId: listDevices
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              items:
+                                type: array
+                                items: { $ref: '#/components/schemas/Device' }
+            components:
+              schemas:
+                Device:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    properties:
+                      type: array
+                      items: { $ref: '#/components/schemas/Property' }
+                    parent: { $ref: '#/components/schemas/Device' }
+                    children:
+                      type: array
+                      items: { $ref: '#/components/schemas/Device' }
+                Property:
+                  type: object
+                  properties:
+                    key: { type: string }
+                    value: { type: string }
+            """);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, headerContent: null, baseUrl: string.Empty, TypeScriptNamingStrategy.CamelCase);
+
+        var (_, content) = result.First(x => x.SegmentName == "Devices");
+        const string property = "{ key: 'sample-key', value: 'sample-value' }";
+        Assert.Contains(
+            $"items: [{{ id: 1, properties: [{property}], parent: {{ id: 1, properties: [{property}], parent: {{}}, children: [] }}, children: [{{ id: 1, properties: [{property}], parent: {{}}, children: [] }}] }}]",
+            content,
+            StringComparison.Ordinal);
+    }
+
     private const string NonStandardVerbYaml = """
                                                openapi: 3.2.0
                                                info: { title: T, version: 1.0.0 }

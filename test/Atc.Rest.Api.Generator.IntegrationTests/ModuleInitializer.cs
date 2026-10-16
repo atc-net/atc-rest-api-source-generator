@@ -18,6 +18,9 @@ public static partial class ModuleInitializer
             {
                 var content = builder.ToString();
                 var scrubbed = GeneratedCodeVersionRegex().Replace(content, "[GeneratedCode(\"${name}\", \"1.0.0\")]");
+
+                // The TypeScript files carry the tool's version on their second line (// atc-rest-api-gen x.y.z)
+                scrubbed = TypeScriptVersionLineRegex().Replace(scrubbed, "// atc-rest-api-gen 1.0.0");
                 builder.Clear();
                 builder.Append(scrubbed);
             });
@@ -25,4 +28,7 @@ public static partial class ModuleInitializer
 
     [GeneratedRegex(@"\[GeneratedCode\(""(?<name>[^""]+)"",\s*""[^""]+""\)\]", RegexOptions.ExplicitCapture, 1000)]
     private static partial Regex GeneratedCodeVersionRegex();
+
+    [GeneratedRegex(@"^// atc-rest-api-gen \S+$", RegexOptions.Multiline, 1000)]
+    private static partial Regex TypeScriptVersionLineRegex();
 }
