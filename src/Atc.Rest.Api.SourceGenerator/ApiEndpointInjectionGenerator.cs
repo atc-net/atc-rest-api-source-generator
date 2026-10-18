@@ -119,7 +119,9 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
 
             return new ClassInfo(
                 ClassName: classSymbol.Name,
-                ClassNamespace: classSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty,
+                ClassNamespace: classSymbol.ContainingNamespace is { IsGlobalNamespace: false } containingNamespace
+                    ? containingNamespace.ToDisplayString()
+                    : string.Empty,
                 ProjectName: projectName,
                 Modifiers: classDecl.GetModifiersString());
         }
@@ -139,6 +141,8 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
 
         try
         {
+            GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.EndpointInjectionGenerationError);
+
             // Find YAML file matching the project name
             var matchingYaml = yamlFiles.FirstOrDefault(y =>
                 Path.GetFileNameWithoutExtension(y.Path).Equals(classInfo.ProjectName, StringComparison.OrdinalIgnoreCase));
@@ -204,7 +208,10 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 classInfo.Modifiers);
 
             // Add the generated source
-            var fileName = $"{classInfo.ClassName}.EndpointInjection.g.cs";
+            // Named by the namespace as well: two classes of the same name in different namespaces each get a file
+            var fileName = classInfo.ClassNamespace.Length == 0
+                ? $"{classInfo.ClassName}.EndpointInjection.g.cs"
+                : $"{classInfo.ClassNamespace}.{classInfo.ClassName}.EndpointInjection.g.cs";
             context.AddGeneratedSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

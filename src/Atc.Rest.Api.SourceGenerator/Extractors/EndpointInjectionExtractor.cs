@@ -124,8 +124,13 @@ internal static class EndpointInjectionExtractor
         builder.AppendLine();
 
         // Generate namespace and class declaration
-        builder.AppendLine($"namespace {classNamespace};");
-        builder.AppendLine();
+        // A class in the global namespace (the Program of top-level statements) is declared without one
+        if (classNamespace.Length > 0)
+        {
+            builder.AppendLine($"namespace {classNamespace};");
+            builder.AppendLine();
+        }
+
         builder.AppendLine($"{classModifiers} class {className}");
         builder.AppendLine("{");
 
