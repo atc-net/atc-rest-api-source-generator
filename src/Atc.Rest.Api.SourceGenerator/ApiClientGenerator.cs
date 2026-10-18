@@ -141,6 +141,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         var filePath = marker.Path;
         try
         {
+            GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.ClientGenerationError);
+
             // Identify the base file (non-part file or the first file that is not a part file)
             // Overlay files are no specifications: the ones the marker lists are applied to it
             var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);

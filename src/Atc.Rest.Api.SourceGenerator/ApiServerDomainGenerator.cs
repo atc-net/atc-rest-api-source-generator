@@ -124,6 +124,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             var filePath = markerInfo.Path;
             try
             {
+                GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.HandlerScaffoldGenerationError);
+
                 // Identify base file and part files for multi-part spec support
                 // Overlay files are no specifications: the ones the marker lists are applied to it
                 var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);

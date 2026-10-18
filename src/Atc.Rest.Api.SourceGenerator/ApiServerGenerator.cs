@@ -261,6 +261,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         var filePath = marker.Path;
         try
         {
+            GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.ServerGenerationError);
+
             // Identify the base file (non-part file or the first file that is not a part file)
             // Part files follow the naming convention: {BaseName}_{PartName}.yaml
             // Overlay files are no specifications: the ones the marker lists are applied to it

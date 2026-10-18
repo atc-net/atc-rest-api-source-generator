@@ -13,13 +13,10 @@ public class RuleCoverageTests
     /// </summary>
     internal static readonly Dictionary<string, string> ExcludedRules = new(StringComparer.Ordinal)
     {
-        // ========== Generation Rules (GEN) - the catch-all of a generator run ==========
-        // The other GEN ids (a document that does not parse, no output directory, no endpoints to inject, the
+        // ========== Generation Rules (GEN) ==========
+        // The catch of each generator step (GEN001, GEN003, GEN005, GEN008) is tested in Generators.GeneratorFailureDiagnosticsTests;
+        // the other GEN ids (a document that does not parse, no output directory, no endpoints to inject, the
         // summary) are produced by a real generator run in Generators.GeneratorDiagnosticsTests.
-        ["ATC_API_GEN001"] = "ServerGenerationError - the catch around server generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
-        ["ATC_API_GEN003"] = "ClientGenerationError - the catch around client generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
-        ["ATC_API_GEN005"] = "HandlerScaffoldGenerationError - the catch around scaffold generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
-        ["ATC_API_GEN008"] = "EndpointInjectionGenerationError - the catch around endpoint injection; no known input makes the generator throw",
         ["ATC_API_GEN022"] = "MarkerNamespaceRewritten - Tested in Atc.Rest.Api.SourceGenerator.Tests.Generators.RootNamespaceResolutionTests",
 
         // ========== OpenAPI Validation Rules (VAL) ==========
