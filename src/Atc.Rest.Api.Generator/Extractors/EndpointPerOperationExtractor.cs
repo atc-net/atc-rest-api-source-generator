@@ -34,7 +34,8 @@ public static class EndpointPerOperationExtractor
         string? ResultInterfaceFileName,
         string? ResultInterfaceContent,
         string? ResultClassFileName,
-        string? ResultClassContent);
+        string? ResultClassContent,
+        IReadOnlyList<(string FileName, string Content)>? HeaderEnumFiles = null);
 
     /// <summary>
     /// Extracts all endpoint files for operations in the OpenAPI document filtered by path segment,
@@ -410,6 +411,7 @@ public static class EndpointPerOperationExtractor
         string? resultInterfaceContent = null;
         string? resultClassFileName = null;
         string? resultClassContent = null;
+        var headerEnumFiles = new List<(string FileName, string Content)>();
         var streamedItemType = isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType) ? streamingItemType : null;
 
         if (!isBinaryEndpoint && (!isAsyncEnumerable || streamedItemType is not null))
@@ -419,8 +421,20 @@ public static class EndpointPerOperationExtractor
                 : responses.ConvertAll(r => r.IsSuccess ? r with { ContentType = null, Xml = null, IsFile = false, FileMediaTypes = null, TextMediaType = null } : r);
 
             // Generate result interface
-            // The headers the responses declare: typed properties of the result
-            var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation, registry);
+            // The headers the responses declare: typed properties of the result. An enum a header declares inline is
+            // a type next to the result's interface, which the result class imports too.
+            var componentTypeNames = TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc);
+            var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation, registry, operationName, componentTypeNames);
+            var interfacesNamespace = NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment);
+            foreach (var (typeName, schema) in ResponseHeaderFactoryHelper.InlineEnumsOf(operation, operationName, componentTypeNames))
+            {
+                if (InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, typeName, interfacesNamespace) is { } enumParameters)
+                {
+                    headerEnumFiles.Add((
+                        NamespaceBuilder.ToFileName(interfacesNamespace, typeName),
+                        InlineEnumExtractor.GenerateEnumContent(enumParameters, extensible: extensibleEnums)));
+                }
+            }
 
             resultInterfaceContent = GenerateResultInterface(
                 projectName,
@@ -471,7 +485,8 @@ public static class EndpointPerOperationExtractor
             ResultInterfaceFileName: resultInterfaceFileName,
             ResultInterfaceContent: resultInterfaceContent,
             ResultClassFileName: resultClassFileName,
-            ResultClassContent: resultClassContent);
+            ResultClassContent: resultClassContent,
+            HeaderEnumFiles: headerEnumFiles);
     }
 
     private static List<ResponseInfo> ExtractResponses(

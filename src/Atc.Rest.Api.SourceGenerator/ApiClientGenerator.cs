@@ -1361,6 +1361,14 @@ public class ApiClientGenerator : IIncrementalGenerator
                     opFiles.ResultClassFileName,
                     SourceText.From(opFiles.ResultClassContent.NormalizeForSourceOutput(), Encoding.UTF8));
             }
+
+            // The enums the operation's response headers declare inline
+            foreach (var (fileName, content) in opFiles.HeaderEnumFiles ?? [])
+            {
+                context.AddGeneratedSource(
+                    fileName,
+                    SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+            }
         }
 
         // Generate DI extension method

@@ -1571,6 +1571,18 @@ public class ApiServerGenerator : IIncrementalGenerator
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, effectiveSegment);
         var resultsNamespace = NamespaceBuilder.ForResults(projectName, effectiveSegment);
 
+        // An enum a response header declares inline is a type next to the results whose factories take it
+        foreach (var (typeName, schema) in ResultClassExtractor.HeaderInlineEnums(openApiDoc, pathSegment, includeDeprecated))
+        {
+            if (InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, typeName, resultsNamespace) is { } enumParameters)
+            {
+                var enumContent = InlineEnumExtractor.GenerateEnumContent(enumParameters, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+                context.AddGeneratedSource(
+                    NamespaceBuilder.ToFileName(resultsNamespace, typeName),
+                    SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            }
+        }
+
         // Generate inline model files for any inline schemas discovered
         if (inlineSchemas.Count > 0)
         {

@@ -134,6 +134,16 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                       schema:
                         type: number
                         format: float
+                    X-Level:
+                      schema:
+                        type: string
+                        enum: [low, very-high]
+                    X-Levels:
+                      schema:
+                        type: array
+                        items:
+                          type: string
+                          enum: [low, very-high]
                   content:
                     application/json:
                       schema:
@@ -234,7 +244,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 await Add("toomany", GetThingResult.TooManyRequests(xRateLimitRemaining: 0));
                 await Add("head", ProbeThingResult.Ok(eTag: "\"v2\""));
                 await Add("created", CreateThingResult.Created(thing, xRequestId: new Guid("11111111-2222-3333-4444-555555555555")));
-                await Add("status-all", GetStatusResult.Ok(thing, xMode: Mode.SlowAndSteady, xModes: new[] { Mode.Fast, Mode.SlowAndSteady }, xPriority: Priority.Value2, xRatio: 0.5f));
+                await Add("status-all", GetStatusResult.Ok(thing, xMode: Mode.SlowAndSteady, xModes: new[] { Mode.Fast, Mode.SlowAndSteady }, xPriority: Priority.Value2, xRatio: 0.5f, xLevel: GetStatusXLevelHeader.VeryHigh, xLevels: new[] { GetStatusXLevelsHeader.Low, GetStatusXLevelsHeader.VeryHigh }));
                 await Add("status-unavailable", GetStatusResult.ServiceUnavailable(xMode: Mode.Fast));
                 return lines;
 
@@ -290,7 +300,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 "toomany: 429 [X-RateLimit-Remaining=0] wrapped=True",
                 "head: 200 [ETag=\"v2\"] wrapped=True",
                 "created: 201 [X-Request-Id=11111111-2222-3333-4444-555555555555] wrapped=True",
-                "status-all: 200 [X-Mode=slow-and-steady; X-Modes=fast,slow-and-steady; X-Priority=2; X-Ratio=0.5] wrapped=True",
+                "status-all: 200 [X-Level=very-high; X-Levels=low,very-high; X-Mode=slow-and-steady; X-Modes=fast,slow-and-steady; X-Priority=2; X-Ratio=0.5] wrapped=True",
                 "status-unavailable: 503 [X-Mode=fast] wrapped=True",
             ],
             lines);
@@ -517,7 +527,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     StubHandler.Scenario = scenario;
                     var result = await provider.GetRequiredService<IGetStatusEndpoint>().ExecuteAsync(new GetStatusParameters("1"));
                     var modes = result.XModesHeader is null ? null : string.Join("|", result.XModesHeader.Select(m => m.ToWireValue()));
-                    lines.Add($"{scenario}: {(int)result.StatusCode} X-Mode={Show(result.XModeHeader.ToWireValue())} X-Modes={Show(modes)} X-Priority={Show((int?)result.XPriorityHeader)} X-Ratio={Show(result.XRatioHeader)}");
+                    var levels = result.XLevelsHeader is null ? null : string.Join("|", result.XLevelsHeader.Select(l => l.ToWireValue()));
+                    lines.Add($"{scenario}: {(int)result.StatusCode} X-Mode={Show(result.XModeHeader.ToWireValue())} X-Modes={Show(modes)} X-Priority={Show((int?)result.XPriorityHeader)} X-Ratio={Show(result.XRatioHeader)} X-Level={Show(result.XLevelHeader.ToWireValue())} X-Levels={Show(levels)}");
                 }
 
                 return lines;
@@ -548,6 +559,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                             response.Headers.TryAddWithoutValidation("X-Modes", "fast, slow-and-steady");
                             response.Headers.TryAddWithoutValidation("X-Priority", "2");
                             response.Headers.TryAddWithoutValidation("X-Ratio", "0.5");
+                            response.Headers.TryAddWithoutValidation("X-Level", "very-high");
+                            response.Headers.TryAddWithoutValidation("X-Levels", "low, very-high");
                             break;
                         case "unavailable":
                             response.Headers.TryAddWithoutValidation("x-mode", "fast");
@@ -557,6 +570,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                             response.Headers.TryAddWithoutValidation("X-Modes", "fast,warp");
                             response.Headers.TryAddWithoutValidation("X-Priority", "7");
                             response.Headers.TryAddWithoutValidation("X-Ratio", "half");
+                            response.Headers.TryAddWithoutValidation("X-Level", "medium");
                             break;
                     }
 
@@ -594,17 +608,20 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
         Assert.Equal(
             [
-                "all: 200 X-Mode=slow-and-steady X-Modes=fast|slow-and-steady X-Priority=2 X-Ratio=0.5",
-                "unavailable: 503 X-Mode=fast X-Modes=(null) X-Priority=(null) X-Ratio=(null)",
+                "all: 200 X-Mode=slow-and-steady X-Modes=fast|slow-and-steady X-Priority=2 X-Ratio=0.5 X-Level=very-high X-Levels=low|very-high",
+                "unavailable: 503 X-Mode=fast X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null)",
                 extensibleEnums
-                    ? "odd: 200 X-Mode=turbo X-Modes=fast|warp X-Priority=(null) X-Ratio=(null)"
-                    : "odd: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null)",
-                "none: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null)",
+                    ? "odd: 200 X-Mode=turbo X-Modes=fast|warp X-Priority=(null) X-Ratio=(null) X-Level=medium X-Levels=(null)"
+                    : "odd: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null)",
+                "none: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null)",
             ],
             lines);
 
         var contract = assembly.GetTypes().Single(t => t.Name == "IGetStatusEndpointResult");
         Assert.Equal("Mode", Nullable.GetUnderlyingType(contract.GetProperty("XModeHeader")!.PropertyType)!.Name);
         Assert.Equal(typeof(float?), contract.GetProperty("XRatioHeader")!.PropertyType);
+
+        // An enum a header declares inline is generated for it: {Operation}{Header}Header
+        Assert.Equal("GetStatusXLevelHeader", Nullable.GetUnderlyingType(contract.GetProperty("XLevelHeader")!.PropertyType)!.Name);
     }
 }

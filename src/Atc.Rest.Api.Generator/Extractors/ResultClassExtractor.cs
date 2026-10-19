@@ -44,6 +44,48 @@ public static class ResultClassExtractor
         => ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas: null);
 
     /// <summary>
+    /// The enums the response headers of a path segment's operations declare inline: generated next to the result
+    /// classes, whose factories take them (see <see cref="ResponseHeaderFactoryHelper.InlineEnumsOf"/>).
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="pathSegment">The path segment to filter by; all operations when null.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <returns>Per enum: its type name and its schema.</returns>
+    public static List<(string TypeName, OpenApiSchema Schema)> HeaderInlineEnums(
+        OpenApiDocument openApiDoc,
+        string? pathSegment,
+        bool includeDeprecated = false)
+    {
+        var enums = new List<(string TypeName, OpenApiSchema Schema)>();
+        if (openApiDoc?.Paths is null)
+        {
+            return enums;
+        }
+
+        var componentTypeNames = TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc);
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (path.Key.ShouldSkipForPathSegment(pathSegment) || path.Value?.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (var operation in path.Value.Operations)
+            {
+                if (operation.Value is null || (!includeDeprecated && operation.Value.Deprecated))
+                {
+                    continue;
+                }
+
+                var operationId = OperationIdHelper.Effective(operation.Value, operation.Key.ToString(), path.Key);
+                enums.AddRange(ResponseHeaderFactoryHelper.InlineEnumsOf(operation.Value, operationId.ToPascalCaseForDotNet(), componentTypeNames));
+            }
+        }
+
+        return enums;
+    }
+
+    /// <summary>
     /// Extracts result class parameters along with any inline schemas discovered.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
@@ -476,7 +518,12 @@ public static class ResultClassExtractor
                 }
 
                 var factoryMethods = GenerateFactoryMethods(openApiDoc, projectName, className, response.Key, openApiResponse, isAsyncEnumerable, operationValue.GetStreamingFraming(), registry, operationId, pathSegment, inlineSchemas);
-                methods.AddRange(ResponseHeaderFactoryHelper.WithDeclaredHeaders(factoryMethods, openApiResponse, registry));
+                methods.AddRange(ResponseHeaderFactoryHelper.WithDeclaredHeaders(
+                    factoryMethods,
+                    openApiResponse,
+                    registry,
+                    operationId.ToPascalCaseForDotNet(),
+                    TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc)));
             }
         }
 

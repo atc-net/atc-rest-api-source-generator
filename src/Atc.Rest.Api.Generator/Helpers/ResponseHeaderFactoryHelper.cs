@@ -35,11 +35,15 @@ public static class ResponseHeaderFactoryHelper
     /// <param name="factories">The factory methods generated for the response.</param>
     /// <param name="response">The response.</param>
     /// <param name="registry">The type names the models were generated under (an enum header's type).</param>
+    /// <param name="operationName">The operation's name in Pascal case: an inline enum header is its type (see <see cref="InlineEnumsOf"/>); text without it.</param>
+    /// <param name="componentTypeNames">The C# names of the component schemas, which an inline enum's name gives way to.</param>
     /// <returns>The factories; unchanged when the response declares no header a factory can take.</returns>
     public static List<MethodParameters> WithDeclaredHeaders(
         List<MethodParameters> factories,
         IOpenApiResponse response,
-        TypeConflictRegistry? registry = null)
+        TypeConflictRegistry? registry = null,
+        string? operationName = null,
+        ISet<string>? componentTypeNames = null)
     {
         if (factories is null)
         {
@@ -47,9 +51,7 @@ public static class ResponseHeaderFactoryHelper
         }
 
         var declared = (response?.Headers ?? new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal))
-            .Where(h => h.Value is not null &&
-                        !string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(h.Key, "Content-Length", StringComparison.OrdinalIgnoreCase))
+            .Where(h => h.Value is not null && !IsTheBodysOwn(h.Key))
             .ToList();
         if (declared.Count == 0)
         {
@@ -60,7 +62,7 @@ public static class ResponseHeaderFactoryHelper
         var factoryNames = new HashSet<string>(factories.Where(f => f.Name.Length > 0).Select(f => f.Name), StringComparer.Ordinal);
         return factories.ConvertAll(factory => factory.DeclarationModifier == DeclarationModifiers.PublicStaticImplicitOperator
             ? factory
-            : WithHeaders(factory, declared, factoryNames, registry));
+            : WithHeaders(factory, declared, factoryNames, registry, operationName, componentTypeNames));
     }
 
     /// <summary>
@@ -216,10 +218,14 @@ public static class ResponseHeaderFactoryHelper
     /// </summary>
     /// <param name="operation">The operation.</param>
     /// <param name="registry">The type names the models were generated under (an enum header's type).</param>
+    /// <param name="operationName">The operation's name in Pascal case: an inline enum header is its type (see <see cref="InlineEnumsOf"/>); text without it.</param>
+    /// <param name="componentTypeNames">The C# names of the component schemas, which an inline enum's name gives way to.</param>
     /// <returns>Per header: its name, the property a result reads it through, the C# type of one value, whether it is an array, and how a value is read.</returns>
     public static List<DeclaredResponseHeader> DeclaredBy(
         OpenApiOperation? operation,
-        TypeConflictRegistry? registry = null)
+        TypeConflictRegistry? registry = null,
+        string? operationName = null,
+        ISet<string>? componentTypeNames = null)
     {
         var headers = new List<DeclaredResponseHeader>();
         var taken = new HashSet<string>(StringComparer.Ordinal);
@@ -227,14 +233,13 @@ public static class ResponseHeaderFactoryHelper
         {
             foreach (var header in response?.Headers ?? new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal))
             {
-                if (header.Value is null ||
-                    string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(header.Key, "Content-Length", StringComparison.OrdinalIgnoreCase))
+                if (header.Value is null || IsTheBodysOwn(header.Key))
                 {
                     continue;
                 }
 
-                var (type, isArray, kind) = ValueOf(header.Value.Schema, registry);
+                var inlineEnumTypeName = operationName is null ? null : InlineEnumTypeName(operationName, header.Key, componentTypeNames);
+                var (type, isArray, kind) = ValueOf(header.Value.Schema, registry, inlineEnumTypeName);
                 var index = headers.FindIndex(h => string.Equals(h.Name, header.Key, StringComparison.OrdinalIgnoreCase));
                 if (index >= 0)
                 {
@@ -265,6 +270,40 @@ public static class ResponseHeaderFactoryHelper
         }
 
         return headers;
+    }
+
+    /// <summary>
+    /// The enums an operation's response headers declare inline (an <c>enum</c> in the header's schema, or in its
+    /// array's items): each is generated as <c>{Operation}{Header}Header</c>, once per header name.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="operationName">The operation's name in Pascal case.</param>
+    /// <param name="componentTypeNames">The C# names of the component schemas, which an inline enum's name gives way to.</param>
+    /// <returns>Per enum: its type name and its schema.</returns>
+    public static List<(string TypeName, OpenApiSchema Schema)> InlineEnumsOf(
+        OpenApiOperation? operation,
+        string operationName,
+        ISet<string>? componentTypeNames)
+    {
+        var enums = new List<(string TypeName, OpenApiSchema Schema)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var response in operation?.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>())
+        {
+            foreach (var header in response?.Headers ?? new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal))
+            {
+                if (header.Value is null ||
+                    IsTheBodysOwn(header.Key) ||
+                    InlineEnumSchemaOf(header.Value.Schema) is not { } schema ||
+                    !seen.Add(header.Key))
+                {
+                    continue;
+                }
+
+                enums.Add((InlineEnumTypeName(operationName, header.Key, componentTypeNames), schema));
+            }
+        }
+
+        return enums;
     }
 
     /// <summary>
@@ -409,16 +448,17 @@ public static class ResponseHeaderFactoryHelper
     // anything else is text
     private static (string Type, bool IsArray, ResponseHeaderValueKind Kind) ValueOf(
         IOpenApiSchema? schema,
-        TypeConflictRegistry? registry)
+        TypeConflictRegistry? registry,
+        string? inlineEnumTypeName)
     {
         if (schema is OpenApiSchema { Items: { } items } array &&
             array.IsOfType(JsonSchemaType.Array) &&
-            ValueTypeOf(items, registry) is { } item)
+            ValueTypeOf(items, registry, inlineEnumTypeName) is { } item)
         {
             return (item.Type, true, item.Kind);
         }
 
-        return ValueTypeOf(schema, registry) is { } value
+        return ValueTypeOf(schema, registry, inlineEnumTypeName) is { } value
             ? (value.Type, false, value.Kind)
             : ("string", false, ResponseHeaderValueKind.Scalar);
     }
@@ -427,7 +467,9 @@ public static class ResponseHeaderFactoryHelper
         MethodParameters factory,
         List<KeyValuePair<string, IOpenApiHeader>> declared,
         HashSet<string> factoryNames,
-        TypeConflictRegistry? registry)
+        TypeConflictRegistry? registry,
+        string? operationName,
+        ISet<string>? componentTypeNames)
     {
         var parameters = (factory.Parameters ?? []).ToList();
         var taken = new HashSet<string>(parameters.Select(p => p.Name), StringComparer.Ordinal);
@@ -443,7 +485,8 @@ public static class ResponseHeaderFactoryHelper
 
             var name = ParameterName(header.Key, taken);
             taken.Add(name);
-            var (typeName, isReference, text) = TypeOf(header.Key, header.Value.Schema, name, registry);
+            var inlineEnumTypeName = operationName is null ? null : InlineEnumTypeName(operationName, header.Key, componentTypeNames);
+            var (typeName, isReference, text) = TypeOf(header.Key, header.Value.Schema, name, registry, inlineEnumTypeName);
             parameters.Add(new ParameterBaseParameters(
                 Attributes: null,
                 GenericTypeName: null,
@@ -534,11 +577,12 @@ public static class ResponseHeaderFactoryHelper
         string headerName,
         IOpenApiSchema? schema,
         string parameterName,
-        TypeConflictRegistry? registry)
+        TypeConflictRegistry? registry,
+        string? inlineEnumTypeName)
     {
         if (schema is OpenApiSchema { Items: { } items } array &&
             array.IsOfType(JsonSchemaType.Array) &&
-            ValueTypeOf(items, registry) is { } item)
+            ValueTypeOf(items, registry, inlineEnumTypeName) is { } item)
         {
             var listType = $"global::System.Collections.Generic.IEnumerable<{item.Type}>";
             return item.Kind switch
@@ -549,7 +593,7 @@ public static class ResponseHeaderFactoryHelper
             };
         }
 
-        if (ValueTypeOf(schema, registry) is not { } value || value.Type == "string")
+        if (ValueTypeOf(schema, registry, inlineEnumTypeName) is not { } value || value.Type == "string")
         {
             return ("string", true, parameterName);
         }
@@ -565,12 +609,51 @@ public static class ResponseHeaderFactoryHelper
         };
     }
 
-    // The C# type of one header value and how it is written and read: a scalar, or a generated enum (a component the
-    // header's schema refers to - an inline enum is text). Null for what is the text itself.
+    private static bool IsTheBodysOwn(string headerName)
+        => string.Equals(headerName, "Content-Type", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(headerName, "Content-Length", StringComparison.OrdinalIgnoreCase);
+
+    // The enum a header's schema declares inline: the schema itself, or its array's items
+    private static OpenApiSchema? InlineEnumSchemaOf(IOpenApiSchema? schema)
+    {
+        if (InlineEnumExtractor.IsInlineEnumSchema(schema))
+        {
+            return (OpenApiSchema)schema!;
+        }
+
+        return schema is OpenApiSchema { Items: { } items } array &&
+               array.IsOfType(JsonSchemaType.Array) &&
+               InlineEnumExtractor.IsInlineEnumSchema(items)
+            ? (OpenApiSchema)items
+            : null;
+    }
+
+    private static string InlineEnumTypeName(
+        string operationName,
+        string headerName,
+        ISet<string>? componentTypeNames)
+    {
+        var pascal = headerName.ToPascalCaseForDotNet();
+        return InlineEnumExtractor.GenerateInlineEnumTypeName(operationName, pascal + "Header", componentTypeNames);
+    }
+
+    // The C# type of one header value and how it is written and read: a scalar, or a generated enum - a component the
+    // header's schema refers to, or the enum the header declares inline (inlineEnumTypeName; text without it). Null for
+    // what is the text itself.
     private static (string Type, ResponseHeaderValueKind Kind)? ValueTypeOf(
         IOpenApiSchema? schema,
-        TypeConflictRegistry? registry)
+        TypeConflictRegistry? registry,
+        string? inlineEnumTypeName = null)
     {
+        if (inlineEnumTypeName is not null &&
+            InlineEnumExtractor.IsInlineEnumSchema(schema) &&
+            schema is OpenApiSchema inline)
+        {
+            return inline.IsOfType(JsonSchemaType.String)
+                ? (inlineEnumTypeName, ResponseHeaderValueKind.StringEnum)
+                : (inlineEnumTypeName, ResponseHeaderValueKind.IntegerEnum);
+        }
+
         if (schema is OpenApiSchemaReference reference)
         {
             if (reference.Target is not OpenApiSchema target)
