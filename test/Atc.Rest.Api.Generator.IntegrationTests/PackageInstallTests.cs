@@ -208,6 +208,25 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
     }
 
     /// <summary>
+    /// The plain host (no Atc.Rest.MinimalApi, so no ValidationFilter) with .NET 10's <c>AddValidation()</c>: a body
+    /// that breaks a constraint of the generated model - a name longer than its <c>maxLength</c> - reaches the handler.
+    /// The framework's validation takes its metadata from its own source generator, which does not see the models and
+    /// the <c>Map*</c> calls this generator writes, so it validates nothing here. What the wiki says about that host
+    /// rests on this test: when it fails, the framework validates the generated models and the wiki can say so.
+    /// </summary>
+    [Fact]
+    public async Task APlainHostWithAddValidation_DoesNotValidateTheGeneratedModels()
+    {
+        var server = package.NewDirectory("server-plain-addvalidation");
+        WritePlainServerWithAddValidation(server);
+
+        var run = await PackedGeneratorFixture.RunDotnetAsync(server, "run", "-p:UseSharedCompilation=false");
+        Assert.True(run.ExitCode == 0, $"The server did not run:\n{run.Output}");
+
+        Assert.True(run.Output.Contains("too long: 201", StringComparison.Ordinal), run.Output);
+    }
+
+    /// <summary>
     /// A typed client in an app with reflection-based serialization off (<c>JsonSerializerIsReflectionEnabledByDefault</c>,
     /// as Native AOT and trimmed apps have it): the app's <c>JsonSerializerContext</c>, added through the client's
     /// <c>configureJsonSerializerOptions</c>, is all the client needs - and without it the client fails rather than
@@ -342,6 +361,34 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
              </Project>
              """);
         package.WriteNuGetConfig(server);
+    }
+
+    // The plain server whose NewPet.name has a maxLength, with AddValidation() and a create whose name is too long
+    private void WritePlainServerWithAddValidation(string server)
+    {
+        WriteServer(server, withMinimalApi: false);
+        File.WriteAllText(
+            Path.Combine(server, "Contoso.yaml"),
+            ContosoYaml.Replace(
+                "required: [name, kind]\n      properties:\n        name: { type: string }",
+                "required: [name, kind]\n      properties:\n        name: { type: string, maxLength: 5 }",
+                StringComparison.Ordinal));
+        File.WriteAllText(
+            Path.Combine(server, "Program.cs"),
+            ServerProgramSource
+                .Replace(
+                    "builder.Services.AddContosoApi();",
+                    "builder.Services.AddContosoApi();\nbuilder.Services.AddValidation();",
+                    StringComparison.Ordinal)
+                .Replace(
+                    "await app.StopAsync();",
+                    """
+                    using var tooLong = await client.PostAsync(new Uri("/pets", UriKind.Relative), new StringContent("{\"name\":\"Rexanthemum\",\"kind\":\"Dog\"}", Encoding.UTF8, "application/json"));
+                    Console.WriteLine($"too long: {(int)tooLong.StatusCode}");
+
+                    await app.StopAsync();
+                    """,
+                    StringComparison.Ordinal));
     }
 
     private void WriteConsumer(string consumer)
