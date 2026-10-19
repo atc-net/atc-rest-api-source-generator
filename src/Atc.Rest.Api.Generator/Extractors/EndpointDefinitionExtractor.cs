@@ -1727,9 +1727,7 @@ using Microsoft.AspNetCore.Builder;
                         typeName = propSchema.ToCSharpType(isRequired: false, registry: null);
 
                         // Every field is nullable: a required one is checked by the wire-form-binding step, which
-                        // answers a problem naming it; the framework's own check answers a bare 400. (ToCSharpType
-                        // leaves a DateOnly / TimeOnly non-nullable: CSharpTypeHelper.IsExtendedValueType does not
-                        // know them.)
+                        // answers a problem naming it; the framework's own check answers a bare 400.
                         if (!typeName.EndsWith("?", StringComparison.Ordinal))
                         {
                             typeName += "?";

@@ -899,35 +899,11 @@ public static class OperationParameterExtractor
     }
 
     /// <summary>
-    /// Extended value types that are not covered by CSharpTypeHelper.IsBasicValueType.
-    /// These types need '?' suffix to be nullable.
-    /// </summary>
-    private static readonly HashSet<string> ExtendedValueTypes = new(StringComparer.Ordinal)
-    {
-        "DateTimeOffset",
-        "DateTime",
-        "Guid",
-        "TimeSpan",
-        "DateOnly",
-        "TimeOnly",
-    };
-
-    /// <summary>
-    /// Determines if a type is an extended value type (struct types not covered by IsBasicValueType).
-    /// </summary>
-    private static bool IsExtendedValueType(string typeName)
-        => ExtendedValueTypes.Contains(typeName);
-
-    /// <summary>
     /// Determines if a type is a reference type.
     /// </summary>
     private static bool IsReferenceType(string typeName)
-    {
-        // Remove nullable marker for checking
-        var baseType = typeName.TrimEnd('?');
-        return (!CSharpTypeHelper.IsBasicValueType(baseType) && !IsExtendedValueType(baseType)) ||
-               typeName.EndsWith("[]", StringComparison.Ordinal);
-    }
+        => !CSharpTypeHelper.IsExtendedValueType(typeName) ||
+           typeName.EndsWith("[]", StringComparison.Ordinal);
 
     /// <summary>
     /// Gets the default value for a property based on its type, required status, and schema default.

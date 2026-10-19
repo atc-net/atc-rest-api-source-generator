@@ -805,6 +805,13 @@ public class OpenApiSchemaExtensionsTests
     }
 
     [Fact]
+    public void ToCSharpType_OptionalDate_ReturnsNullableDateOnly()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date" };
+        Assert.Equal("DateOnly?", schema.ToCSharpType(isRequired: false));
+    }
+
+    [Fact]
     public void ToCSharpType_ByteFormat_ReturnsByteArray()
     {
         var schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "byte" };
