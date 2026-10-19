@@ -106,6 +106,44 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     ETag:
                       schema:
                         type: string
+          /things/{id}/status:
+            get:
+              operationId: getStatus
+              parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: The status
+                  headers:
+                    X-Mode:
+                      schema:
+                        $ref: '#/components/schemas/Mode'
+                    X-Modes:
+                      schema:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Mode'
+                    X-Priority:
+                      schema:
+                        $ref: '#/components/schemas/Priority'
+                    X-Ratio:
+                      schema:
+                        type: number
+                        format: float
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Thing'
+                '503':
+                  description: Down for maintenance
+                  headers:
+                    X-Mode:
+                      schema:
+                        $ref: '#/components/schemas/Mode'
         components:
           headers:
             RequestId:
@@ -119,6 +157,12 @@ public sealed partial class ErrorResponseBodyRuntimeTests
               properties:
                 id:
                   type: string
+            Mode:
+              type: string
+              enum: [fast, slow-and-steady]
+            Priority:
+              type: integer
+              enum: [1, 2, 3]
         """;
 
     private const string ResponseHeadersProbe = """"
@@ -190,6 +234,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 await Add("toomany", GetThingResult.TooManyRequests(xRateLimitRemaining: 0));
                 await Add("head", ProbeThingResult.Ok(eTag: "\"v2\""));
                 await Add("created", CreateThingResult.Created(thing, xRequestId: new Guid("11111111-2222-3333-4444-555555555555")));
+                await Add("status-all", GetStatusResult.Ok(thing, xMode: Mode.SlowAndSteady, xModes: new[] { Mode.Fast, Mode.SlowAndSteady }, xPriority: Priority.Value2, xRatio: 0.5f));
+                await Add("status-unavailable", GetStatusResult.ServiceUnavailable(xMode: Mode.Fast));
                 return lines;
 
                 async Task Add(string name, IResult result)
@@ -244,6 +290,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 "toomany: 429 [X-RateLimit-Remaining=0] wrapped=True",
                 "head: 200 [ETag=\"v2\"] wrapped=True",
                 "created: 201 [X-Request-Id=11111111-2222-3333-4444-555555555555] wrapped=True",
+                "status-all: 200 [X-Mode=slow-and-steady; X-Modes=fast,slow-and-steady; X-Priority=2; X-Ratio=0.5] wrapped=True",
+                "status-unavailable: 503 [X-Mode=fast] wrapped=True",
             ],
             lines);
 
@@ -362,5 +410,201 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         var contract = assembly.GetTypes().Single(t => t.Name == "IGetThingEndpointResult");
         Assert.NotNull(contract.GetProperty("ETagHeader"));
         Assert.Null(contract.GetProperty("ContentTypeHeader"));
+    }
+
+    /// <summary>
+    /// Two path segments, so each has its own namespaces, and an operation whose only use of an enum is a header of a
+    /// response without a body: the result's file finds the enum's type all the same, on the server and on the
+    /// EndpointPerOperation client, a closed or an extensible enum.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EnumHeaders_CompileWhereTheEnumIsUsedByAHeaderAlone(
+        bool extensibleEnums)
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: The things
+                      content:
+                        application/json:
+                          schema:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Thing'
+              /status:
+                head:
+                  operationId: probeStatus
+                  responses:
+                    '204':
+                      description: Up
+                      headers:
+                        X-Mode:
+                          schema:
+                            $ref: '#/components/schemas/Mode'
+                        X-Modes:
+                          schema:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Mode'
+                        X-Priority:
+                          schema:
+                            $ref: '#/components/schemas/Priority'
+            components:
+              schemas:
+                Thing:
+                  type: object
+                  required: [id]
+                  properties:
+                    id:
+                      type: string
+                Mode:
+                  type: string
+                  enum: [fast, slow-and-steady]
+                Priority:
+                  type: integer
+                  enum: [1, 2, 3]
+            """;
+        var server = Generate(new ApiServerGenerator(), ".atc-rest-api-server", ServerMarker, includeMinimalApi: true, yaml);
+        Assert.Contains(server, s => s.Source.Contains("Mode? xMode = null", StringComparison.Ordinal));
+        CompilationVerificationHarness.EmitAndLoad(server, includeMinimalApi: true);
+
+        var marker = $$"""
+            {
+              "generationMode": "EndpointPerOperation",
+              "errorResponseFormat": "ProblemDetails",
+              "extensibleEnums": {{(extensibleEnums ? "true" : "false")}}
+            }
+            """;
+        var client = Generate(new ApiClientGenerator(), ".atc-rest-api-client", marker, includeMinimalApi: false, yaml);
+        Assert.Contains(client, s => s.Source.Contains("Mode? XModeHeader", StringComparison.Ordinal));
+        CompilationVerificationHarness.EmitAndLoad(client);
+    }
+
+    private const string StatusHeadersClientProbe = """"
+        using Atc.Rest.Client;
+        using Microsoft.Extensions.DependencyInjection;
+        using ErrorBodies.Generated;
+        using ErrorBodies.Generated.Client;
+        using ErrorBodies.Generated.Endpoints.Interfaces;
+        using ErrorBodies.Generated.Models;
+
+        namespace ErrorBodies.RuntimeTest;
+
+        public static class Probe
+        {
+            public static async Task<List<string>> RunAsync()
+            {
+                var services = new ServiceCollection();
+                services
+                    .AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = new Uri("http://stub/"))
+                    .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
+                services.AddErrorBodiesEndpoints();
+                using var provider = services.BuildServiceProvider();
+
+                var lines = new List<string>();
+                foreach (var scenario in new[] { "all", "unavailable", "odd", "none" })
+                {
+                    StubHandler.Scenario = scenario;
+                    var result = await provider.GetRequiredService<IGetStatusEndpoint>().ExecuteAsync(new GetStatusParameters("1"));
+                    var modes = result.XModesHeader is null ? null : string.Join("|", result.XModesHeader.Select(m => m.ToWireValue()));
+                    lines.Add($"{scenario}: {(int)result.StatusCode} X-Mode={Show(result.XModeHeader.ToWireValue())} X-Modes={Show(modes)} X-Priority={Show((int?)result.XPriorityHeader)} X-Ratio={Show(result.XRatioHeader)}");
+                }
+
+                return lines;
+            }
+
+            private static string Show(object? value)
+                => value is null ? "(null)" : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!;
+
+            // "all": every header as a server writes it. "unavailable": a 503 with its one header. "odd": an enum value
+            // the specification does not list, and an integer enum value it does not list. "none": no header.
+            private sealed class StubHandler : HttpMessageHandler
+            {
+                public static string Scenario { get; set; } = "none";
+
+                protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+                {
+                    var response = new HttpResponseMessage(Scenario == "unavailable" ? System.Net.HttpStatusCode.ServiceUnavailable : System.Net.HttpStatusCode.OK)
+                    {
+                        RequestMessage = request,
+                        Content = Scenario == "unavailable"
+                            ? new ByteArrayContent([])
+                            : new StringContent("""{"id":"1"}""", System.Text.Encoding.UTF8, "application/json"),
+                    };
+                    switch (Scenario)
+                    {
+                        case "all":
+                            response.Headers.TryAddWithoutValidation("X-Mode", "slow-and-steady");
+                            response.Headers.TryAddWithoutValidation("X-Modes", "fast, slow-and-steady");
+                            response.Headers.TryAddWithoutValidation("X-Priority", "2");
+                            response.Headers.TryAddWithoutValidation("X-Ratio", "0.5");
+                            break;
+                        case "unavailable":
+                            response.Headers.TryAddWithoutValidation("x-mode", "fast");
+                            break;
+                        case "odd":
+                            response.Headers.TryAddWithoutValidation("X-Mode", "turbo");
+                            response.Headers.TryAddWithoutValidation("X-Modes", "fast,warp");
+                            response.Headers.TryAddWithoutValidation("X-Priority", "7");
+                            response.Headers.TryAddWithoutValidation("X-Ratio", "half");
+                            break;
+                    }
+
+                    return Task.FromResult(response);
+                }
+            }
+        }
+        """";
+
+    /// <summary>
+    /// An enum header is the generated enum on the client result, read from its wire value (<c>slow-and-steady</c>,
+    /// not the member name), as an array of them is; an integer enum and a <c>float</c> are typed the same way, on a
+    /// success and on an error response. A value the specification does not list is kept by an extensible enum (it is
+    /// open, as in a body) and is null for the classic enum - reading a header never throws.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OperationClient_Result_ReadsEnumAndNumberHeadersAsTheirTypes(
+        bool extensibleEnums)
+    {
+        var marker = $$"""
+            {
+              "generationMode": "EndpointPerOperation",
+              "errorResponseFormat": "ProblemDetails",
+              "extensibleEnums": {{(extensibleEnums ? "true" : "false")}}
+            }
+            """;
+        var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", marker, includeMinimalApi: false, ResponseHeadersYaml);
+        sources.Add(("Probe.cs", StatusHeadersClientProbe));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+        var run = assembly.GetType("ErrorBodies.RuntimeTest.Probe", throwOnError: true)!.GetMethod("RunAsync")!;
+
+        var lines = await (Task<List<string>>)run.Invoke(null, [])!;
+
+        Assert.Equal(
+            [
+                "all: 200 X-Mode=slow-and-steady X-Modes=fast|slow-and-steady X-Priority=2 X-Ratio=0.5",
+                "unavailable: 503 X-Mode=fast X-Modes=(null) X-Priority=(null) X-Ratio=(null)",
+                extensibleEnums
+                    ? "odd: 200 X-Mode=turbo X-Modes=fast|warp X-Priority=(null) X-Ratio=(null)"
+                    : "odd: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null)",
+                "none: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null)",
+            ],
+            lines);
+
+        var contract = assembly.GetTypes().Single(t => t.Name == "IGetStatusEndpointResult");
+        Assert.Equal("Mode", Nullable.GetUnderlyingType(contract.GetProperty("XModeHeader")!.PropertyType)!.Name);
+        Assert.Equal(typeof(float?), contract.GetProperty("XRatioHeader")!.PropertyType);
     }
 }

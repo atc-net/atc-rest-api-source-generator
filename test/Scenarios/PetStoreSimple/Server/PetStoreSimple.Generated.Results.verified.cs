@@ -184,6 +184,9 @@ internal static class ResponseHeaders
     public static string? Text(long? value)
         => value?.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
 
+    public static string? Text(float? value)
+        => value?.ToString("R", global::System.Globalization.CultureInfo.InvariantCulture);
+
     public static string? Text(double? value)
         => value?.ToString("R", global::System.Globalization.CultureInfo.InvariantCulture);
 
@@ -219,6 +222,27 @@ internal static class ResponseHeaders
         foreach (var value in values)
         {
             texts.Add(global::System.Convert.ToString(value, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);
+        }
+
+        return string.Join(",", texts);
+    }
+
+    /// <summary>
+    /// An array of enum values as their wire values joined by commas.
+    /// </summary>
+    public static string? Text<T>(
+        global::System.Collections.Generic.IEnumerable<T>? values,
+        global::System.Func<T, string> wireValue)
+    {
+        if (values is null)
+        {
+            return null;
+        }
+
+        var texts = new global::System.Collections.Generic.List<string>();
+        foreach (var value in values)
+        {
+            texts.Add(wireValue(value));
         }
 
         return string.Join(",", texts);

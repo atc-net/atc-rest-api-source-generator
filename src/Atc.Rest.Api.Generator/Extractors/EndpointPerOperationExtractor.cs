@@ -52,6 +52,8 @@ public static class EndpointPerOperationExtractor
     /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
     /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
     /// <param name="namespaceSegment">The segment used for namespaces and file names. When null, <paramref name="pathSegment"/> is used. Pass an explicitly resolved value (possibly empty) to omit the segment from namespaces.</param>
+    /// <param name="preferXml">Whether a body offered as JSON and XML is sent and read as XML.</param>
+    /// <param name="extensibleEnums">Whether the client's string enums are extensible (a response header keeps a value the specification does not list).</param>
     /// <returns>A tuple containing the operation files and a dictionary of inline schemas.</returns>
     public static (List<OperationFiles> Files, Dictionary<string, InlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
@@ -66,7 +68,8 @@ public static class EndpointPerOperationExtractor
         bool hasSharedModels = false,
         bool useServersBasePath = true,
         string? namespaceSegment = null,
-        bool preferXml = false)
+        bool preferXml = false,
+        bool extensibleEnums = true)
     {
         var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
@@ -138,7 +141,8 @@ public static class EndpointPerOperationExtractor
                     hasSharedModels,
                     inlineSchemas,
                     useServersBasePath,
-                    preferXml);
+                    preferXml,
+                    extensibleEnums);
 
                 if (files is not null)
                 {
@@ -253,7 +257,8 @@ public static class EndpointPerOperationExtractor
         bool hasSharedModels,
         Dictionary<string, InlineSchemaInfo>? inlineSchemas = null,
         bool useServersBasePath = true,
-        bool preferXml = false)
+        bool preferXml = false,
+        bool extensibleEnums = true)
     {
         var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var operationName = operationId.ToPascalCaseForDotNet();
@@ -415,7 +420,7 @@ public static class EndpointPerOperationExtractor
 
             // Generate result interface
             // The headers the responses declare: typed properties of the result
-            var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation);
+            var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation, registry);
 
             resultInterfaceContent = GenerateResultInterface(
                 projectName,
@@ -445,7 +450,8 @@ public static class EndpointPerOperationExtractor
                 hasSharedModels,
                 customErrorTypeName,
                 declaredHeaders,
-                streamedItemType);
+                streamedItemType,
+                extensibleEnums);
             resultClassFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointResults(projectName, pathSegment),
                 $"{operationName}EndpointResult");
@@ -1514,7 +1520,7 @@ public static class EndpointPerOperationExtractor
         ResponseInfo? defaultResponse,
         bool hasSegmentModels,
         bool hasSharedModels,
-        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders,
+        List<DeclaredResponseHeader> declaredHeaders,
         string? streamedItemType,
         bool isEventStream)
     {
@@ -1636,8 +1642,9 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels,
         string? customErrorTypeName,
-        List<(string Name, string PropertyName, string Scalar, bool IsArray)> declaredHeaders,
-        string? streamedItemType)
+        List<DeclaredResponseHeader> declaredHeaders,
+        string? streamedItemType,
+        bool extensibleEnums)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1972,7 +1979,7 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine();
 
         // The headers the responses declare
-        foreach (var line in ResponseHeaderFactoryHelper.ClientProperties(declaredHeaders))
+        foreach (var line in ResponseHeaderFactoryHelper.ClientProperties(declaredHeaders, extensibleEnums))
         {
             if (line.Length == 0)
             {

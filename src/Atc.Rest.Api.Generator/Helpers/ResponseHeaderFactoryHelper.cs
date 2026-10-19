@@ -34,10 +34,12 @@ public static class ResponseHeaderFactoryHelper
     /// </summary>
     /// <param name="factories">The factory methods generated for the response.</param>
     /// <param name="response">The response.</param>
+    /// <param name="registry">The type names the models were generated under (an enum header's type).</param>
     /// <returns>The factories; unchanged when the response declares no header a factory can take.</returns>
     public static List<MethodParameters> WithDeclaredHeaders(
         List<MethodParameters> factories,
-        IOpenApiResponse response)
+        IOpenApiResponse response,
+        TypeConflictRegistry? registry = null)
     {
         if (factories is null)
         {
@@ -58,7 +60,7 @@ public static class ResponseHeaderFactoryHelper
         var factoryNames = new HashSet<string>(factories.Where(f => f.Name.Length > 0).Select(f => f.Name), StringComparer.Ordinal);
         return factories.ConvertAll(factory => factory.DeclarationModifier == DeclarationModifiers.PublicStaticImplicitOperator
             ? factory
-            : WithHeaders(factory, declared, factoryNames));
+            : WithHeaders(factory, declared, factoryNames, registry));
     }
 
     /// <summary>
@@ -102,6 +104,9 @@ public static class ResponseHeaderFactoryHelper
                 public static string? Text(long? value)
                     => value?.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
 
+                public static string? Text(float? value)
+                    => value?.ToString("R", global::System.Globalization.CultureInfo.InvariantCulture);
+
                 public static string? Text(double? value)
                     => value?.ToString("R", global::System.Globalization.CultureInfo.InvariantCulture);
 
@@ -137,6 +142,27 @@ public static class ResponseHeaderFactoryHelper
                     foreach (var value in values)
                     {
                         texts.Add(global::System.Convert.ToString(value, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);
+                    }
+
+                    return string.Join(",", texts);
+                }
+
+                /// <summary>
+                /// An array of enum values as their wire values joined by commas.
+                /// </summary>
+                public static string? Text<T>(
+                    global::System.Collections.Generic.IEnumerable<T>? values,
+                    global::System.Func<T, string> wireValue)
+                {
+                    if (values is null)
+                    {
+                        return null;
+                    }
+
+                    var texts = new global::System.Collections.Generic.List<string>();
+                    foreach (var value in values)
+                    {
+                        texts.Add(wireValue(value));
                     }
 
                     return string.Join(",", texts);
@@ -189,11 +215,13 @@ public static class ResponseHeaderFactoryHelper
     /// name declared with different types is text.
     /// </summary>
     /// <param name="operation">The operation.</param>
-    /// <returns>Per header: its name, the property a result reads it through, the C# type of one value and whether it is an array.</returns>
-    public static List<(string Name, string PropertyName, string Scalar, bool IsArray)> DeclaredBy(
-        OpenApiOperation? operation)
+    /// <param name="registry">The type names the models were generated under (an enum header's type).</param>
+    /// <returns>Per header: its name, the property a result reads it through, the C# type of one value, whether it is an array, and how a value is read.</returns>
+    public static List<DeclaredResponseHeader> DeclaredBy(
+        OpenApiOperation? operation,
+        TypeConflictRegistry? registry = null)
     {
-        var headers = new List<(string Name, string PropertyName, string Scalar, bool IsArray)>();
+        var headers = new List<DeclaredResponseHeader>();
         var taken = new HashSet<string>(StringComparer.Ordinal);
         foreach (var response in operation?.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>())
         {
@@ -206,13 +234,13 @@ public static class ResponseHeaderFactoryHelper
                     continue;
                 }
 
-                var (scalar, isArray) = ValueOf(header.Value.Schema);
+                var (type, isArray, kind) = ValueOf(header.Value.Schema, registry);
                 var index = headers.FindIndex(h => string.Equals(h.Name, header.Key, StringComparison.OrdinalIgnoreCase));
                 if (index >= 0)
                 {
-                    if (headers[index].Scalar != scalar || headers[index].IsArray != isArray)
+                    if (headers[index].Type != type || headers[index].IsArray != isArray || headers[index].Kind != kind)
                     {
-                        headers[index] = (headers[index].Name, headers[index].PropertyName, "string", false);
+                        headers[index] = headers[index] with { Type = "string", IsArray = false, Kind = ResponseHeaderValueKind.Scalar };
                     }
 
                     continue;
@@ -232,7 +260,7 @@ public static class ResponseHeaderFactoryHelper
                     propertyName = pascal + "Header" + number.ToString(CultureInfo.InvariantCulture);
                 }
 
-                headers.Add((header.Key, propertyName, scalar, isArray));
+                headers.Add(new DeclaredResponseHeader(header.Key, propertyName, type, isArray, kind));
             }
         }
 
@@ -245,17 +273,20 @@ public static class ResponseHeaderFactoryHelper
     /// <param name="headers">The headers, from <see cref="DeclaredBy"/>.</param>
     /// <returns>One line per property.</returns>
     public static List<string> ClientInterfaceProperties(
-        List<(string Name, string PropertyName, string Scalar, bool IsArray)> headers)
-        => (headers ?? []).ConvertAll(h => $"{ClientType(h.Scalar, h.IsArray)} {h.PropertyName} {{ get; }}");
+        List<DeclaredResponseHeader> headers)
+        => (headers ?? []).ConvertAll(h => $"{ClientType(h.Type, h.IsArray)} {h.PropertyName} {{ get; }}");
 
     /// <summary>
     /// The header properties of a client result class: each reads its header from the response's <c>Headers</c> by
-    /// name, whatever the casing, and is null when the header is absent or is not a value of its type.
+    /// name, whatever the casing, and is null when the header is absent or is not a value of its type. An extensible
+    /// enum keeps a value the specification does not list (it is open); a classic enum reads it as null.
     /// </summary>
     /// <param name="headers">The headers, from <see cref="DeclaredBy"/>.</param>
+    /// <param name="extensibleEnums">Whether the client's string enums are extensible (they parse any value).</param>
     /// <returns>The members' source lines, without indentation; none without headers.</returns>
     public static List<string> ClientProperties(
-        List<(string Name, string PropertyName, string Scalar, bool IsArray)> headers)
+        List<DeclaredResponseHeader> headers,
+        bool extensibleEnums = true)
     {
         var lines = new List<string>();
         if (headers is null || headers.Count == 0)
@@ -271,13 +302,13 @@ public static class ResponseHeaderFactoryHelper
             lines.Add("/// </summary>");
             if (!header.IsArray)
             {
-                lines.Add($"public {ClientType(header.Scalar, isArray: false)} {header.PropertyName}");
-                lines.Add($"    => {Parsed(header.Scalar, $"HeaderText(\"{name}\")", "value")};");
+                lines.Add($"public {ClientType(header.Type, isArray: false)} {header.PropertyName}");
+                lines.Add($"    => {Parsed(header, extensibleEnums, $"HeaderText(\"{name}\")", "value")};");
                 lines.Add(string.Empty);
                 continue;
             }
 
-            lines.Add($"public {ClientType(header.Scalar, isArray: true)} {header.PropertyName}");
+            lines.Add($"public {ClientType(header.Type, isArray: true)} {header.PropertyName}");
             lines.Add("{");
             lines.Add("    get");
             lines.Add("    {");
@@ -286,10 +317,10 @@ public static class ResponseHeaderFactoryHelper
             lines.Add("            return null;");
             lines.Add("        }");
             lines.Add(string.Empty);
-            lines.Add($"        var values = new global::System.Collections.Generic.List<{header.Scalar}>();");
+            lines.Add($"        var values = new global::System.Collections.Generic.List<{header.Type}>();");
             lines.Add("        foreach (var part in text.Split(','))");
             lines.Add("        {");
-            lines.Add($"            if ({Parsed(header.Scalar, "part.Trim()", "item")} is not {{ }} parsed)");
+            lines.Add($"            if ({Parsed(header, extensibleEnums, "part.Trim()", "item")} is not {{ }} parsed)");
             lines.Add("            {");
             lines.Add("                return null;");
             lines.Add("            }");
@@ -307,55 +338,96 @@ public static class ResponseHeaderFactoryHelper
         lines.Add("// casing.");
         lines.Add("private string? HeaderText(string name)");
         lines.Add("    => Headers.TryGetValue(name, out var values) ? string.Join(\",\", values) : null;");
+
+        if (!extensibleEnums && headers.Any(h => h.Kind == ResponseHeaderValueKind.StringEnum))
+        {
+            lines.Add(string.Empty);
+            lines.Add("// The member of a classic enum whose wire value the text is; null for a value the specification does not list");
+            lines.Add("private static T? HeaderEnum<T>(");
+            lines.Add("    string? text,");
+            lines.Add("    global::System.Func<T, string> wireValue)");
+            lines.Add("    where T : struct, global::System.Enum");
+            lines.Add("{");
+            lines.Add("    if (text is null)");
+            lines.Add("    {");
+            lines.Add("        return null;");
+            lines.Add("    }");
+            lines.Add(string.Empty);
+            lines.Add("    foreach (var value in global::System.Enum.GetValues<T>())");
+            lines.Add("    {");
+            lines.Add("        if (string.Equals(wireValue(value), text.Trim(), global::System.StringComparison.Ordinal))");
+            lines.Add("        {");
+            lines.Add("            return value;");
+            lines.Add("        }");
+            lines.Add("    }");
+            lines.Add(string.Empty);
+            lines.Add("    return null;");
+            lines.Add("}");
+        }
+
         return lines;
     }
 
     private static string ClientType(
-        string scalar,
+        string type,
         bool isArray)
         => isArray
-            ? $"global::System.Collections.Generic.IReadOnlyList<{scalar}>?"
-            : scalar + "?";
+            ? $"global::System.Collections.Generic.IReadOnlyList<{type}>?"
+            : type + "?";
 
-    // The expression that is the text as a value of the type, or null
+    // The expression that is the text as a value of the header's type, or null
     private static string Parsed(
-        string scalar,
+        DeclaredResponseHeader header,
+        bool extensibleEnums,
         string text,
         string variable)
     {
         const string invariant = "global::System.Globalization.CultureInfo.InvariantCulture";
-        return scalar switch
+        var type = header.Type;
+        return header.Kind switch
         {
-            "string" => text,
-            "bool" => $"(bool.TryParse({text}, out var {variable}) ? {variable} : (bool?)null)",
-            "int" => $"(int.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) ? {variable} : (int?)null)",
-            "long" => $"(long.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) ? {variable} : (long?)null)",
-            "double" => $"(double.TryParse({text}, global::System.Globalization.NumberStyles.Float, {invariant}, out var {variable}) ? {variable} : (double?)null)",
-            "global::System.Guid" => $"(global::System.Guid.TryParse({text}, out var {variable}) ? {variable} : (global::System.Guid?)null)",
-            "global::System.DateOnly" => $"(global::System.DateOnly.TryParseExact({text}, \"yyyy-MM-dd\", {invariant}, global::System.Globalization.DateTimeStyles.None, out var {variable}) ? {variable} : (global::System.DateOnly?)null)",
-            _ => $"(global::System.DateTimeOffset.TryParse({text}, {invariant}, global::System.Globalization.DateTimeStyles.AssumeUniversal, out var {variable}) ? {variable} : (global::System.DateTimeOffset?)null)",
+            // An extensible enum is open: any value is one of it, known or not
+            ResponseHeaderValueKind.StringEnum when extensibleEnums => $"({type}.TryParse({text}, out var {variable}) ? {variable} : ({type}?)null)",
+            ResponseHeaderValueKind.StringEnum => $"HeaderEnum<{type}>({text}, static value => value.ToWireValue())",
+            ResponseHeaderValueKind.IntegerEnum => $"(long.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) && global::System.Enum.IsDefined(({type}){variable}) ? ({type}){variable} : ({type}?)null)",
+            _ => type switch
+            {
+                "string" => text,
+                "bool" => $"(bool.TryParse({text}, out var {variable}) ? {variable} : (bool?)null)",
+                "int" => $"(int.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) ? {variable} : (int?)null)",
+                "long" => $"(long.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) ? {variable} : (long?)null)",
+                "float" => $"(float.TryParse({text}, global::System.Globalization.NumberStyles.Float, {invariant}, out var {variable}) ? {variable} : (float?)null)",
+                "double" => $"(double.TryParse({text}, global::System.Globalization.NumberStyles.Float, {invariant}, out var {variable}) ? {variable} : (double?)null)",
+                "global::System.Guid" => $"(global::System.Guid.TryParse({text}, out var {variable}) ? {variable} : (global::System.Guid?)null)",
+                "global::System.DateOnly" => $"(global::System.DateOnly.TryParseExact({text}, \"yyyy-MM-dd\", {invariant}, global::System.Globalization.DateTimeStyles.None, out var {variable}) ? {variable} : (global::System.DateOnly?)null)",
+                _ => $"(global::System.DateTimeOffset.TryParse({text}, {invariant}, global::System.Globalization.DateTimeStyles.AssumeUniversal, out var {variable}) ? {variable} : (global::System.DateTimeOffset?)null)",
+            },
         };
     }
 
-    // The C# type of one value of a header and whether the header is an array of them; anything else is text
-    private static (string Scalar, bool IsArray) ValueOf(IOpenApiSchema? schema)
+    // The C# type of one value of a header, whether the header is an array of them, and how a value is read;
+    // anything else is text
+    private static (string Type, bool IsArray, ResponseHeaderValueKind Kind) ValueOf(
+        IOpenApiSchema? schema,
+        TypeConflictRegistry? registry)
     {
-        if (schema is OpenApiSchema { Items: OpenApiSchema items } array &&
+        if (schema is OpenApiSchema { Items: { } items } array &&
             array.IsOfType(JsonSchemaType.Array) &&
-            ScalarOf(items) is { } itemType)
+            ValueTypeOf(items, registry) is { } item)
         {
-            return (itemType, true);
+            return (item.Type, true, item.Kind);
         }
 
-        return schema is OpenApiSchema own && ScalarOf(own) is { } scalar
-            ? (scalar, false)
-            : ("string", false);
+        return ValueTypeOf(schema, registry) is { } value
+            ? (value.Type, false, value.Kind)
+            : ("string", false, ResponseHeaderValueKind.Scalar);
     }
 
     private static MethodParameters WithHeaders(
         MethodParameters factory,
         List<KeyValuePair<string, IOpenApiHeader>> declared,
-        HashSet<string> factoryNames)
+        HashSet<string> factoryNames,
+        TypeConflictRegistry? registry)
     {
         var parameters = (factory.Parameters ?? []).ToList();
         var taken = new HashSet<string>(parameters.Select(p => p.Name), StringComparer.Ordinal);
@@ -371,7 +443,7 @@ public static class ResponseHeaderFactoryHelper
 
             var name = ParameterName(header.Key, taken);
             taken.Add(name);
-            var (typeName, isReference, text) = TypeOf(header.Key, header.Value.Schema, name);
+            var (typeName, isReference, text) = TypeOf(header.Key, header.Value.Schema, name, registry);
             parameters.Add(new ParameterBaseParameters(
                 Attributes: null,
                 GenericTypeName: null,
@@ -461,23 +533,72 @@ public static class ResponseHeaderFactoryHelper
     private static (string TypeName, bool IsReference, string Text) TypeOf(
         string headerName,
         IOpenApiSchema? schema,
-        string parameterName)
+        string parameterName,
+        TypeConflictRegistry? registry)
     {
-        if (schema is OpenApiSchema { Items: OpenApiSchema items } array &&
+        if (schema is OpenApiSchema { Items: { } items } array &&
             array.IsOfType(JsonSchemaType.Array) &&
-            ScalarOf(items) is { } itemType)
+            ValueTypeOf(items, registry) is { } item)
         {
-            return ($"global::System.Collections.Generic.IEnumerable<{itemType}>", true, $"ResponseHeaders.Text({parameterName})");
+            var listType = $"global::System.Collections.Generic.IEnumerable<{item.Type}>";
+            return item.Kind switch
+            {
+                ResponseHeaderValueKind.StringEnum => (listType, true, $"ResponseHeaders.Text({parameterName}, static value => value.ToWireValue())"),
+                ResponseHeaderValueKind.IntegerEnum => (listType, true, $"ResponseHeaders.Text({parameterName}, static value => ((long)value).ToString(global::System.Globalization.CultureInfo.InvariantCulture))"),
+                _ => (listType, true, $"ResponseHeaders.Text({parameterName})"),
+            };
         }
 
-        if (schema is not OpenApiSchema own || ScalarOf(own) is not { } scalar || scalar == "string")
+        if (ValueTypeOf(schema, registry) is not { } value || value.Type == "string")
         {
             return ("string", true, parameterName);
         }
 
-        return scalar == "global::System.DateTimeOffset" && HttpDateHeaders.Contains(headerName)
-            ? (scalar, false, $"ResponseHeaders.HttpDate({parameterName})")
-            : (scalar, false, $"ResponseHeaders.Text({parameterName})");
+        return value.Kind switch
+        {
+            // An enum is written as the specification writes it: a string enum by its value, an integer enum by its number
+            ResponseHeaderValueKind.StringEnum => (value.Type, false, $"{parameterName}.ToWireValue()"),
+            ResponseHeaderValueKind.IntegerEnum => (value.Type, false, $"ResponseHeaders.Text((long?){parameterName})"),
+            _ => value.Type == "global::System.DateTimeOffset" && HttpDateHeaders.Contains(headerName)
+                ? (value.Type, false, $"ResponseHeaders.HttpDate({parameterName})")
+                : (value.Type, false, $"ResponseHeaders.Text({parameterName})"),
+        };
+    }
+
+    // The C# type of one header value and how it is written and read: a scalar, or a generated enum (a component the
+    // header's schema refers to - an inline enum is text). Null for what is the text itself.
+    private static (string Type, ResponseHeaderValueKind Kind)? ValueTypeOf(
+        IOpenApiSchema? schema,
+        TypeConflictRegistry? registry)
+    {
+        if (schema is OpenApiSchemaReference reference)
+        {
+            if (reference.Target is not OpenApiSchema target)
+            {
+                return null;
+            }
+
+            if (target.Enum is { Count: > 0 } &&
+                reference.Reference.Id is { Length: > 0 } id)
+            {
+                if (target.IsOfType(JsonSchemaType.String))
+                {
+                    return (OpenApiSchemaExtensions.ResolveTypeName(id, registry), ResponseHeaderValueKind.StringEnum);
+                }
+
+                if (target.IsOfType(JsonSchemaType.Integer))
+                {
+                    return (OpenApiSchemaExtensions.ResolveTypeName(id, registry), ResponseHeaderValueKind.IntegerEnum);
+                }
+            }
+
+            // A component that is a plain value (a uuid, a number) is that value
+            return ScalarOf(target) is { } referenced ? (referenced, ResponseHeaderValueKind.Scalar) : null;
+        }
+
+        return schema is OpenApiSchema own && ScalarOf(own) is { } scalar
+            ? (scalar, ResponseHeaderValueKind.Scalar)
+            : null;
     }
 
     // The C# type of a header value that is one value; null for what is written as the text the handler gives
@@ -495,7 +616,8 @@ public static class ResponseHeaderFactoryHelper
 
         if (schema.IsOfType(JsonSchemaType.Number))
         {
-            return "double";
+            // As a model's property: float for format float, double for any other
+            return string.Equals(schema.Format, "float", StringComparison.Ordinal) ? "float" : "double";
         }
 
         if (!schema.IsOfType(JsonSchemaType.String))

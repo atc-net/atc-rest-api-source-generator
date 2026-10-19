@@ -1310,7 +1310,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             hasSharedModels: hasSharedModels,
             useServersBasePath: useServersBasePath,
             namespaceSegment: namespaceSegment,
-            preferXml: preferXml);
+            preferXml: preferXml,
+            extensibleEnums: extensibleEnums);
 
         // Generate inline model types if any were discovered
         if (inlineSchemas.Count > 0)
