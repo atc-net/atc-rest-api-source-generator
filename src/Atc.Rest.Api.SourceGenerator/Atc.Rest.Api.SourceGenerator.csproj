@@ -30,6 +30,8 @@
     <None Include="$(PKGMicrosoft_OpenApi)\lib\netstandard2.0\Microsoft.OpenApi.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(PKGMicrosoft_OpenApi_YamlReader)\lib\netstandard2.0\Microsoft.OpenApi.YamlReader.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(PKGSharpYaml)\lib\netstandard2.0\SharpYaml.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <!-- What the generators read from the build (see build/*.props and build/*.targets) -->
+    <None Include="build\Atc.Rest.Api.SourceGenerator.props;build\Atc.Rest.Api.SourceGenerator.targets" Pack="true" PackagePath="build" />
     <!-- README -->
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>

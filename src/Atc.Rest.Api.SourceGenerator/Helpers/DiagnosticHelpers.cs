@@ -305,6 +305,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN024: An operation has no handler, and the scaffold is not written (AtcRestApiScaffoldHandlers is false).
+    /// </summary>
+    public static readonly DiagnosticDescriptor HandlerNotImplemented = new(
+        RuleIdentifiers.HandlerNotImplemented,
+        "Handler Not Implemented",
+        "The operation's handler '{0}' is not implemented: the scaffold that answers 501 is part of this build, but '{1}' is not written because AtcRestApiScaffoldHandlers is false (a CI build). Build the project where the scaffolds are written, and commit the handler.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATC_API_GEN018: An overlay file is an AdditionalFiles item, but the marker file does not list it.
     /// </summary>
     public static readonly DiagnosticDescriptor OverlayNotListed = new(
@@ -941,6 +952,24 @@ internal static class DiagnosticHelpers
             handlerName,
             filePath,
             exception.Message));
+    }
+
+    /// <summary>
+    /// Reports ATC_API_GEN024: an operation has no handler, and the scaffold is not written into the project.
+    /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="handlerName">The handler's class name.</param>
+    /// <param name="filePath">The file the scaffold would be written to.</param>
+    public static void ReportHandlerNotImplemented(
+        SourceProductionContext context,
+        string handlerName,
+        string filePath)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            HandlerNotImplemented,
+            Location.None,
+            handlerName,
+            filePath));
     }
 
     /// <summary>

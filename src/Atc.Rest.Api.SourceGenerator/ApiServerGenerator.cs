@@ -21,11 +21,14 @@ public class ApiServerGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find marker files - marker file presence IS the trigger for this generator
+        // A sibling project's marker that the package's targets add to a domain project (AtcRestApiSiblingMarker) is that
+        // project's, not this one's
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.Server, StringComparison.OrdinalIgnoreCase) ||
-                                  Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerJson, StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) =>
-                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Combine(context.AnalyzerConfigOptionsProvider)
+            .Where(static pair => MarkerFileHelper.IsServerMarker(pair.Left.Path) &&
+                                  !BuildSettings.IsSiblingMarker(pair.Right.GetOptions(pair.Left)))
+            .Select(static (pair, cancellationToken) =>
+                new MarkerFileInfo(pair.Left.Path, pair.Left.GetText(cancellationToken)?.ToString() ?? "{}"))
             .Collect()
             .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 

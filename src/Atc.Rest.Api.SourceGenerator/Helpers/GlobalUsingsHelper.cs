@@ -83,7 +83,7 @@ internal static class DomainGlobalUsingsHelper
         // If nothing to add and no stale entries, just fix newline
         if (missingUsings.Count == 0 && staleGeneratedUsings.Count == 0)
         {
-            FileHelper.WriteCsFile(globalUsingsPath, existingContent);
+            ScaffoldFileWriter.Write(globalUsingsPath, existingContent);
             return;
         }
 
@@ -100,7 +100,7 @@ internal static class DomainGlobalUsingsHelper
             config.RemoveNamespaceGroupSeparatorInGlobalUsings);
 
         // Write file using helper (ensures proper newline handling)
-        FileHelper.WriteCsFile(globalUsingsPath, sortedContent);
+        ScaffoldFileWriter.Write(globalUsingsPath, sortedContent);
     }
 
     /// <summary>

@@ -144,6 +144,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ReadEnumMemberNamesOn = "ATC_API_GEN023";
 
+    /// <summary>
+    /// ATC_API_GEN024: An operation has no handler, and the scaffold is not written into the project because
+    /// AtcRestApiScaffoldHandlers is false (the package's default for a CI build): the stub is part of the build and
+    /// answers 501. Warning.
+    /// </summary>
+    public const string HandlerNotImplemented = "ATC_API_GEN024";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>

@@ -18,6 +18,7 @@ public class RuleCoverageTests
         // the other GEN ids (a document that does not parse, no output directory, no endpoints to inject, the
         // summary) are produced by a real generator run in Generators.GeneratorDiagnosticsTests.
         ["ATC_API_GEN022"] = "MarkerNamespaceRewritten - Tested in Atc.Rest.Api.SourceGenerator.Tests.Generators.RootNamespaceResolutionTests",
+        ["ATC_API_GEN024"] = "HandlerNotImplemented - Tested in Atc.Rest.Api.SourceGenerator.Tests.Generators.HandlerScaffoldWriteTests",
 
         // ========== OpenAPI Validation Rules (VAL) ==========
         ["ATC_API_VAL002"] = "OpenApi20NotSupported - Tested in Atc.Rest.Api.SourceGenerator.Tests.Validators.OpenApiVersionValidationTests",

@@ -60,17 +60,35 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Collect()
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
+        // The server markers among the AdditionalFiles - the project's own, and a sibling project's that the package's
+        // targets add (AtcRestApiSiblingMarker) - for the contracts namespace: a declared input, so a change to it runs
+        // this generator again
+        var serverMarkers = context.AdditionalTextsProvider
+            .Where(static file => MarkerFileHelper.IsServerMarker(file.Path))
+            .Select(static (file, cancellationToken) =>
+                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
+
+        // Whether the scaffolds may be written into the project: not when AtcRestApiScaffoldHandlers is false (the
+        // package's targets make it false for a CI build)
+        var writesFiles = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, _) => BuildSettings.WritesScaffolds(options.GlobalOptions));
+
         // Combine ALL YAML files (as collection) with the stable compilation summary and marker files.
         // This means the callback only fires when YAML content, marker config,
         // or meaningful compilation state changes — not on every C# keystroke.
         var combined = yamlFiles
             .Combine(compilationSummary)
-            .Combine(markerFiles);
+            .Combine(markerFiles)
+            .Combine(serverMarkers)
+            .Combine(writesFiles);
 
         // Register source output for handler scaffolds
         context.RegisterSourceOutput(combined, (productionContext, combinedData) =>
         {
-            var ((yamlFiles, summary), markers) = combinedData;
+            var ((((yamlFiles, summary), markers), declaredServerMarkers), writes) = combinedData;
+            var scaffolding = new ScaffoldSettings(declaredServerMarkers.Values, writes);
 
             // Skip if no marker file found - marker file presence IS the trigger
             if (markers.IsEmpty)
@@ -182,12 +200,12 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                         return;
                     }
 
-                    GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, merged, summary, config, markerDirectory);
+                    GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, merged, summary, config, markerDirectory, scaffolding);
                 }
                 else
                 {
                     // Single file mode
-                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory, overlays, baseFile.Value.RuleSeverities);
+                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory, overlays, baseFile.Value.RuleSeverities, scaffolding);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -252,7 +270,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             // Replace that one signature while preserving everything else, and write the file back as it was read:
             // without a BOM unless it had one
             var updatedContent = ExecuteAsyncSignatureRegex.Replace(content, replacementSignature, 1);
-            File.WriteAllText(filePath, updatedContent, hadBom ? Encoding.UTF8 : Utf8NoBom);
+            ScaffoldFileWriter.Replace(filePath, updatedContent, hadBom ? Encoding.UTF8 : Utf8NoBom);
         }
         catch (IOException)
         {
@@ -400,7 +418,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         ServerDomainConfig config,
         string markerDirectory,
         IReadOnlyList<OverlayFile> overlays,
-        string ruleSeverities)
+        string ruleSeverities,
+        ScaffoldSettings scaffolding)
     {
         var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError, overlays, parametersMustBind: true, RuleSeverityOverrides.From(ruleSeverities, config.SuppressRules));
         if (openApiDoc is null)
@@ -408,7 +427,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return;
         }
 
-        GenerateHandlerScaffoldsFromDocument(context, yamlPath, openApiDoc, summary, config, markerDirectory);
+        GenerateHandlerScaffoldsFromDocument(context, yamlPath, openApiDoc, summary, config, markerDirectory, scaffolding);
     }
 
     private static void GenerateHandlerScaffoldsFromDocument(
@@ -417,7 +436,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         OpenApiDocument openApiDoc,
         DomainCompilationSummary summary,
         ServerDomainConfig config,
-        string markerDirectory)
+        string markerDirectory,
+        ScaffoldSettings scaffolding)
     {
         // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
         InlineAllOfFlattener.Flatten(openApiDoc);
@@ -428,7 +448,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Determine contracts namespace for GlobalUsings:
         // Priority: explicit config > server marker (same dir or sibling) > derive from domain namespace
-        var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory);
+        var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory, scaffolding.ServerMarkers);
         var contractsNamespace = config.ContractsNamespace ?? serverNamespace;
 
         // If we couldn't auto-detect the contracts namespace AND multiple sibling markers
@@ -437,7 +457,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // usings (the symptom that GEN011 is meant to catch).
         if (contractsNamespace is null &&
             !string.IsNullOrEmpty(markerDirectory) &&
-            MarkerFileHelper.HasMultipleSiblingServerMarkers(markerDirectory))
+            MarkerFileHelper.HasMultipleSiblingServerMarkers(markerDirectory, scaffolding.ServerMarkers))
         {
             DiagnosticHelpers.ReportContractsNamespaceAmbiguous(
                 context,
@@ -504,8 +524,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             DiagnosticHelpers.ReportLoggingRequiresPackage(context);
         }
 
-        // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
-        if (!string.IsNullOrEmpty(markerDirectory))
+        // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers - when the
+        // project's files may be written; the usings below are part of the build either way
+        if (scaffolding.WritesFiles && !string.IsNullOrEmpty(markerDirectory))
         {
             DomainGlobalUsingsHelper.EnsureUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config, rawPathSegments);
         }
@@ -577,11 +598,12 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             // Determine sub-folder path for physical file (if enabled)
             var subFolderPath = GetSubFolderPath(path, operation, config);
 
-            // If handler is already implemented, check if signature needs updating
+            // If handler is already implemented, check if signature needs updating (when the project's files may be
+            // written; a signature that does not match fails the build either way)
             if (isImplemented)
             {
                 var handlerFilePath = GetHandlerFilePath(handlerName, markerDirectory, subFolderPath, config);
-                if (File.Exists(handlerFilePath))
+                if (scaffolding.WritesFiles && File.Exists(handlerFilePath))
                 {
                     var expectedSignature = BuildExpectedSignature(openApiDoc, path, operation, operationId);
                     UpdateHandlerSignatureIfNeeded(handlerFilePath, expectedSignature);
@@ -591,7 +613,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
 
             // Generate handler scaffold as physical file
-            GenerateHandlerScaffold(context, handlerName, handlerNamespace, operation, pathItem, operationId, config, markerDirectory, subFolderPath, systemTypeResolver);
+            GenerateHandlerScaffold(context, handlerName, handlerNamespace, operation, pathItem, operationId, config, markerDirectory, subFolderPath, systemTypeResolver, scaffolding.WritesFiles);
         }
 
         // Generate DI registration extension method for handlers
@@ -878,7 +900,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         ServerDomainConfig config,
         string markerDirectory,
         string subFolderPath,
-        SystemTypeConflictResolver systemTypeResolver)
+        SystemTypeConflictResolver systemTypeResolver,
+        bool writesFiles)
     {
         // Determine output directory (GenerateHandlersOutput is relative to marker file)
         var outputDirectory = Path.Combine(markerDirectory, config.GenerateHandlersOutput);
@@ -928,16 +951,24 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var content = contentGenerator.Generate();
 
-        // Write physical file. A folder that is a file, a path too long or a folder without access is the
-        // project's, not a failed generation: say which scaffold, and keep it in this build
-        try
+        // Write physical file - created only when no other host has written it meanwhile. A folder that is a file, a
+        // path too long or a folder without access is the project's, not a failed generation: say which scaffold, and
+        // keep it in this build. Not written at all where the project's files are not to be touched (a CI build): the
+        // stub is part of the build, and the missing handler is reported
+        if (writesFiles)
         {
-            Directory.CreateDirectory(outputDirectory);
-            FileHelper.WriteCsFile(filePath, content);
+            try
+            {
+                ScaffoldFileWriter.TryCreate(filePath, content);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                DiagnosticHelpers.ReportHandlerScaffoldNotWritten(context, handlerName, filePath, ex);
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        else
         {
-            DiagnosticHelpers.ReportHandlerScaffoldNotWritten(context, handlerName, filePath, ex);
+            DiagnosticHelpers.ReportHandlerNotImplemented(context, handlerName, filePath);
         }
 
         // Also emit as in-memory source so the current compilation can reference this type

@@ -1,0 +1,28 @@
+<Project>
+
+  <!--
+    A CI build compiles the handler scaffolds in, but writes nothing into the working copy: ContinuousIntegrationBuild,
+    or the variables the common CI systems set. Set AtcRestApiScaffoldHandlers yourself to decide either way.
+  -->
+  <PropertyGroup Condition="'$(AtcRestApiScaffoldHandlers)' == ''">
+    <AtcRestApiScaffoldHandlers Condition="'$(ContinuousIntegrationBuild)' == 'true' or '$(CI)' == 'true' or '$(TF_BUILD)' == 'true' or '$(GITHUB_ACTIONS)' == 'true'">false</AtcRestApiScaffoldHandlers>
+  </PropertyGroup>
+
+  <!--
+    A domain project (it has a .atc-rest-api-server-handlers marker) takes its contracts namespace from the server
+    marker of a sibling project: that marker is added to its AdditionalFiles, so a change to it runs the generator
+    again. The project's own server marker is its own, never a sibling's.
+  -->
+  <PropertyGroup>
+    <_AtcRestApiProjectDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)'))</_AtcRestApiProjectDirectory>
+    <_AtcRestApiParentDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..'))</_AtcRestApiParentDirectory>
+    <_AtcRestApiIsDomainProject Condition="Exists('$(_AtcRestApiProjectDirectory).atc-rest-api-server-handlers') or Exists('$(_AtcRestApiProjectDirectory).atc-rest-api-server-handlers.json')">true</_AtcRestApiIsDomainProject>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_AtcRestApiIsDomainProject)' == 'true'">
+    <_AtcRestApiSiblingMarker Include="$(_AtcRestApiParentDirectory)*/.atc-rest-api-server;$(_AtcRestApiParentDirectory)*/.atc-rest-api-server.json"
+                              Exclude="$(_AtcRestApiProjectDirectory).atc-rest-api-server;$(_AtcRestApiProjectDirectory).atc-rest-api-server.json" />
+    <AdditionalFiles Include="@(_AtcRestApiSiblingMarker)" AtcRestApiSiblingMarker="true" />
+  </ItemGroup>
+
+</Project>
