@@ -118,7 +118,7 @@ public sealed class FormFieldWithNoTextFormTests
 
     [Theory]
     [InlineData("text/plain")]
-    [InlineData("application/xml")]
+    [InlineData("application/octet-stream")] // XML or URL-encoded carry a model (an XML or a URL-encoded part)
     public void Multipart_WithANonJsonEncoding_ClientsLeaveTheFieldOut_AServerIsAnError(
         string encodingContentType)
     {
