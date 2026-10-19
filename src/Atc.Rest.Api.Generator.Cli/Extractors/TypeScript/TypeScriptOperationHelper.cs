@@ -12,19 +12,47 @@ public static class TypeScriptOperationHelper
     // types are built deep inside every client and hook extractor, so the setting travels with the run, not the calls.
     private static readonly AsyncLocal<bool> EnumsAreClosed = new();
 
+    // Whether the generated enum types are closed: extensibleEnums off, or the Enum style, which cannot be opened
+    private static readonly AsyncLocal<bool> EnumTypesAreClosed = new();
+
+    /// <summary>
+    /// Whether an inline string enum is an open union for the code generated in the current scope.
+    /// </summary>
+    public static bool InlineEnumsAreOpen
+        => !EnumsAreClosed.Value;
+
+    /// <summary>
+    /// Whether a generated string enum type takes any string for the code generated in the current scope.
+    /// </summary>
+    public static bool EnumTypesAreOpen
+        => !EnumTypesAreClosed.Value;
+
     /// <summary>
     /// Sets whether an inline string enum parameter is an open union (<c>'a' | 'b' | (string &amp; {})</c>, the
     /// default) for the code generated until the scope is disposed - like the enum types, so a value read from a
     /// response can be passed back.
     /// </summary>
     /// <param name="extensibleEnums">The run's <c>ExtensibleEnums</c> setting.</param>
+    /// <param name="enumStyle">The run's <c>EnumStyle</c>: an Enum-style enum type is never open.</param>
     /// <returns>A scope that restores the previous setting.</returns>
-    public static IDisposable EnumsScope(bool extensibleEnums)
+    public static IDisposable EnumsScope(
+        bool extensibleEnums,
+        TypeScriptEnumStyle enumStyle = TypeScriptEnumStyle.Union)
     {
         var previous = EnumsAreClosed.Value;
+        var previousTypes = EnumTypesAreClosed.Value;
         EnumsAreClosed.Value = !extensibleEnums;
-        return new EnumsScopeRestore(previous);
+        EnumTypesAreClosed.Value = !extensibleEnums || enumStyle != TypeScriptEnumStyle.Union;
+        return new EnumsScopeRestore(previous, previousTypes);
     }
+
+    /// <summary>
+    /// An inline enum as a TypeScript literal union (<c>'a' | 'b'</c>), open as <see cref="InlineEnumsAreOpen"/> says.
+    /// </summary>
+    /// <param name="schema">The enum's schema.</param>
+    /// <returns>The union; null when the schema is no string or number enum.</returns>
+    public static string? LiteralUnionOf(OpenApiSchema schema)
+        => BuildLiteralUnion(schema);
 
     /// <summary>
     /// Merges path-level and operation-level parameters by location.
@@ -272,19 +300,45 @@ public static class TypeScriptOperationHelper
     /// <param name="isFileDownload">When true, the success arm's data type is <c>Blob</c>.</param>
     /// <param name="isTextDownload">When true, the success arm's data type is <c>string</c>.</param>
     /// <param name="httpClient">Selects <c>Response</c> (Fetch) vs <c>AxiosResponse</c> for the response field.</param>
-    /// <returns>The type alias declaration, the set of model/error type names that must be imported
-    /// alongside it, and the union's discriminators (the client passes them as <c>arms</c>, so the
-    /// ApiClient folds a status the union does not declare into one it does).</returns>
-    public static (string Declaration, HashSet<string> Imports, List<string> Arms) BuildPerOperationResultType(
+    /// <param name="features">The errors the server produces without the specification listing them.</param>
+    /// <param name="responseHeaders">How the arms' typed headers are written; null for none.</param>
+    /// <returns>The type alias declaration (after the interfaces of the arms' typed headers), the set of model/error
+    /// type names that must be imported alongside it, the union's discriminators (the client passes them as
+    /// <c>arms</c>, so the ApiClient folds a status the union does not declare into one it does), and the readers of
+    /// the arms' typed headers - the lines of the <c>responseHeaders</c> object's members - or null.</returns>
+    public static (string Declaration, HashSet<string> Imports, List<string> Arms, IReadOnlyList<string>? HeaderReaders) BuildPerOperationResultType(
         OpenApiOperation operation,
         string typeName,
         bool isFileDownload,
         bool isTextDownload,
         TypeScriptHttpClient httpClient,
-        OperationFeatures? features = null)
+        OperationFeatures? features = null,
+        TypeScriptResponseHeaderOptions? responseHeaders = null)
     {
         var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
         var imports = new HashSet<string>(StringComparer.Ordinal);
+
+        // The responses each arm stands for: the headers they declare are the arm's
+        var armResponses = new Dictionary<string, List<IOpenApiResponse>>(StringComparer.Ordinal);
+
+        void AddArmResponse(
+            string discriminator,
+            IOpenApiResponse? response)
+        {
+            if (response is null)
+            {
+                return;
+            }
+
+            if (!armResponses.TryGetValue(discriminator, out var responses))
+            {
+                responses = [];
+                armResponses[discriminator] = responses;
+            }
+
+            responses.Add(response);
+        }
+
         var successArms = new List<string>();
         var successDiscriminators = new List<string>();
         var seenSuccess = new HashSet<string>(StringComparer.Ordinal);
@@ -322,6 +376,7 @@ public static class TypeScriptOperationHelper
 
         var hasDefaultResponse = false;
         string? defaultBodyType = null;
+        IOpenApiResponse? defaultResponse = null;
 
         if (operation.Responses is not null)
         {
@@ -331,6 +386,7 @@ public static class TypeScriptOperationHelper
                 {
                     hasDefaultResponse = true;
                     defaultBodyType = ResolveErrorBodyType(response, imports);
+                    defaultResponse = response;
                     continue;
                 }
 
@@ -338,7 +394,16 @@ public static class TypeScriptOperationHelper
                 {
                     var (errorDiscriminator, baseType) = ErrorArmFor(statusCode);
                     AddErrorArm(errorDiscriminator, baseType, ResolveErrorBodyType(response, imports));
+                    AddArmResponse(errorDiscriminator, response);
                     continue;
+                }
+
+                // A followed redirect's own headers (Location) are the redirection arm's, which is the result when it is
+                // not followed
+                if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var redirectCode) &&
+                    HttpStatusCodeHelper.IsRedirect(redirectCode))
+                {
+                    AddArmResponse("redirection", response);
                 }
 
                 var arm = BuildResultArmForStatus(
@@ -349,6 +414,11 @@ public static class TypeScriptOperationHelper
                     responseType,
                     imports,
                     out var discriminator);
+                if (discriminator is not null)
+                {
+                    AddArmResponse(discriminator, response);
+                }
+
                 if (arm is not null && discriminator is not null && seenSuccess.Add(discriminator))
                 {
                     successArms.Add(arm);
@@ -381,6 +451,15 @@ public static class TypeScriptOperationHelper
         {
             foreach (var (discriminator, errorType) in DefaultResponseErrorArms)
             {
+                // The default's headers are those of the arms it stands for: the catch-alls, and a status the
+                // specification does not declare (not the validation 400, which the server writes itself)
+                var isCatchAll = discriminator is "clientError" or "serverError";
+                if (discriminator != "badRequest" &&
+                    (isCatchAll || !errorArms.Exists(a => string.Equals(a.Discriminator, discriminator, StringComparison.Ordinal))))
+                {
+                    AddArmResponse(discriminator, defaultResponse);
+                }
+
                 // The catch-alls may already hold a declared status' body (a 402 model): add the default body to it.
                 AddErrorArm(
                     discriminator,
@@ -443,11 +522,34 @@ public static class TypeScriptOperationHelper
             arms.Add($"  | {{ status: '{discriminator}'; error: {errorType}; response: {responseType} }}");
         }
 
+        // The typed headers of each arm whose responses declare any: an interface, and its reader
+        var sb = new StringBuilder();
+        List<string>? headerReaders = null;
+        if (responseHeaders is not null)
+        {
+            var operationTypeName = typeName.EndsWith("Result", StringComparison.Ordinal) ? typeName[..^"Result".Length] : typeName;
+            var discriminators = successDiscriminators.Concat(errorArms.Select(a => a.Discriminator)).ToList();
+            for (var i = 0; i < discriminators.Count; i++)
+            {
+                if (!armResponses.TryGetValue(discriminators[i], out var responses) ||
+                    TypeScriptResponseHeaders.ForArm(operationTypeName, discriminators[i], responses, responseHeaders, imports) is not { } headers)
+                {
+                    continue;
+                }
+
+                sb.Append(headers.Declaration).AppendLine();
+                arms[i] = arms[i].Replace("; response: ", "; headers: " + headers.TypeName + "; response: ", StringComparison.Ordinal);
+                headerReaders ??= [];
+                headerReaders.Add(discriminators[i] + ": " + headers.Reader[0]);
+                headerReaders.AddRange(headers.Reader.Skip(1).Take(headers.Reader.Count - 2));
+                headerReaders.Add(headers.Reader[^1] + ",");
+            }
+        }
+
         // Universal synthetic: any 2xx with a JSON body can produce parseError; emit it
         // as Error rather than ApiError so consumers know it carries the JS SyntaxError.
         arms.Add($"  | {{ status: 'parseError'; error: Error; response: {responseType} }}");
 
-        var sb = new StringBuilder();
         sb.Append("export type ").Append(typeName).AppendLine(" =");
         for (var i = 0; i < arms.Count; i++)
         {
@@ -455,7 +557,7 @@ public static class TypeScriptOperationHelper
             sb.AppendLine(i == arms.Count - 1 ? ";" : string.Empty);
         }
 
-        return (sb.ToString(), imports, [.. successDiscriminators, .. errorArms.Select(a => a.Discriminator), "parseError"]);
+        return (sb.ToString(), imports, [.. successDiscriminators, .. errorArms.Select(a => a.Discriminator), "parseError"], headerReaders);
     }
 
     private static readonly Dictionary<string, (string Discriminator, string ErrorType)> ErrorStatusMapping =
@@ -1686,10 +1788,15 @@ public static class TypeScriptOperationHelper
             : string.Join(" | ", parts);
     }
 
-    private sealed class EnumsScopeRestore(bool previous) : IDisposable
+    private sealed class EnumsScopeRestore(
+        bool previous,
+        bool previousTypes) : IDisposable
     {
         public void Dispose()
-            => EnumsAreClosed.Value = previous;
+        {
+            EnumsAreClosed.Value = previous;
+            EnumTypesAreClosed.Value = previousTypes;
+        }
     }
 
     private static bool IsIdentifierChar(char c)

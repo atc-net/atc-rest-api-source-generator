@@ -12,8 +12,13 @@ export type CreateTestItemWithModelResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+/** The headers the 'created' result reads: undefined when one is absent or is not a value of its type. */
+export interface CreateTestItemWithLocationHeaderCreatedHeaders {
+  'Location'?: string;
+}
+
 export type CreateTestItemWithLocationHeaderResult =
-  | { status: 'created'; response: Response }
+  | { status: 'created'; headers: CreateTestItemWithLocationHeaderCreatedHeaders; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
@@ -58,6 +63,11 @@ export class TestsClient {
     return this.api.request<void>('POST', '/tests/create/create-location-header', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        created: (header): CreateTestItemWithLocationHeaderCreatedHeaders => ({
+          'Location': header.text('Location'),
+        }),
+      },
       signal,
     }) as Promise<CreateTestItemWithLocationHeaderResult>;
   }

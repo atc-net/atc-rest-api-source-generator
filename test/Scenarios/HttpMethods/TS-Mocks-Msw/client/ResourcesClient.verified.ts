@@ -17,14 +17,24 @@ export type QueryResourcesResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+/** The headers the 'ok' result reads: undefined when one is absent or is not a value of its type. */
+export interface ProbeResourcesOkHeaders {
+  'ETag'?: string;
+}
+
 export type ProbeResourcesResult =
-  | { status: 'ok'; response: Response }
+  | { status: 'ok'; headers: ProbeResourcesOkHeaders; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+/** The headers the 'noContent' result reads: undefined when one is absent or is not a value of its type. */
+export interface DescribeResourcesNoContentHeaders {
+  'Allow'?: string;
+}
+
 export type DescribeResourcesResult =
-  | { status: 'noContent'; response: Response }
+  | { status: 'noContent'; headers: DescribeResourcesNoContentHeaders; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -71,6 +81,11 @@ export class ResourcesClient {
   async probeResources(signal?: AbortSignal): Promise<ProbeResourcesResult> {
     return this.api.request<void>('HEAD', '/resources', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        ok: (header): ProbeResourcesOkHeaders => ({
+          'ETag': header.text('ETag'),
+        }),
+      },
       signal,
     }) as Promise<ProbeResourcesResult>;
   }
@@ -79,6 +94,11 @@ export class ResourcesClient {
   async describeResources(signal?: AbortSignal): Promise<DescribeResourcesResult> {
     return this.api.request<void>('OPTIONS', '/resources', {
       arms: ['noContent', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        noContent: (header): DescribeResourcesNoContentHeaders => ({
+          'Allow': header.text('Allow'),
+        }),
+      },
       signal,
     }) as Promise<DescribeResourcesResult>;
   }

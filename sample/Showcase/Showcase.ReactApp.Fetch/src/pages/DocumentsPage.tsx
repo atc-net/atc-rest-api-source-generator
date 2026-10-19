@@ -31,13 +31,6 @@ function save(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-// A response header, from the Fetch Response or the Axios response (the API exposes ETag to the browser)
-function responseHeader(response: { headers: unknown }, name: string): string | undefined {
-  const headers = response.headers as { get?: (name: string) => unknown } & Record<string, unknown>;
-  const value = typeof headers?.get === 'function' ? headers.get(name) : headers?.[name.toLowerCase()];
-  return typeof value === 'string' ? value : undefined;
-}
-
 /**
  * PDF, Excel, PNG and JPEG files sent as the raw request body with their own media type, downloads with their media
  * type and file name, and a summary that is a model or a file.
@@ -108,9 +101,10 @@ export default function DocumentsPage() {
     if (result.data instanceof Blob) {
       save(result.data, getDownloadFileName(result.response) ?? 'summary.pdf');
     } else {
-      // The JSON summary with its ETag - the version a later request sends back as If-None-Match
+      // The JSON summary with its ETag - the version a later request sends back as If-None-Match (a header the
+      // response declares is typed on its result; the API exposes ETag to the browser)
       setSummary(result.data);
-      setSummaryETag(responseHeader(result.response, 'ETag'));
+      setSummaryETag(result.headers.ETag);
       setSummaryCheck(null);
     }
   };
@@ -122,10 +116,10 @@ export default function DocumentsPage() {
 
     const result = await documentsClient.getDocumentSummary(summary.id, { printable: false }, { 'If-None-Match': summaryETag });
     if (result.status === 'notModified') {
-      setSummaryCheck(`Not modified (304) - ${responseHeader(result.response, 'ETag') ?? summaryETag} is current`);
+      setSummaryCheck(`Not modified (304) - ${result.headers.ETag ?? summaryETag} is current`);
     } else if (result.status === 'ok' && !(result.data instanceof Blob)) {
       setSummary(result.data);
-      setSummaryETag(responseHeader(result.response, 'ETag'));
+      setSummaryETag(result.headers.ETag);
       setSummaryCheck('Changed - the summary was read again');
     } else {
       setSummaryCheck('The document is gone');

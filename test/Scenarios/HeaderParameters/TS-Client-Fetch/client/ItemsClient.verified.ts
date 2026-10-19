@@ -4,8 +4,13 @@ import { ApiClient } from './ApiClient';
 import type { ErrorModel, Item, Items } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
+/** The headers the 'ok' result reads: undefined when one is absent or is not a value of its type. */
+export interface ListItemsOkHeaders {
+  'x-continuation'?: string;
+}
+
 export type ListItemsResult =
-  | { status: 'ok'; data: Items; response: Response }
+  | { status: 'ok'; data: Items; headers: ListItemsOkHeaders; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError<ErrorModel>; response: Response }
   | { status: 'forbidden'; error: ApiError<ErrorModel>; response: Response }
@@ -49,6 +54,11 @@ export class ItemsClient {
       },
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        ok: (header): ListItemsOkHeaders => ({
+          'x-continuation': header.text('x-continuation'),
+        }),
+      },
       signal,
     }) as Promise<ListItemsResult>;
   }

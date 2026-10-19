@@ -23,6 +23,7 @@ public static class TypeScriptFetchApiClientExtractor
     /// ProblemDetails object.
     /// </param>
     /// <param name="hasModelOrFile">When true, an operation answers a model or a file: the <c>modelOrFile</c> request option.</param>
+    /// <param name="hasResponseHeaders">When true, an operation's result arms have typed headers: the <c>responseHeaders</c> request option and their readers.</param>
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
@@ -31,7 +32,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasWireNames = false,
         bool convertDates = false,
         bool hasXml = false,
-        bool hasModelOrFile = false)
+        bool hasModelOrFile = false,
+        bool hasResponseHeaders = false)
     {
         var sb = new StringBuilder();
 
@@ -47,9 +49,14 @@ public static class TypeScriptFetchApiClientExtractor
         }
 
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
-        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
+        if (hasResponseHeaders)
+        {
+            TypeScriptResponseHeaders.AppendRuntime(sb, axios: false);
+        }
+
+        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasResponseHeaders);
 
         return sb.ToString();
     }
@@ -125,7 +132,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool zodRuntimeValidate,
         bool hasWireNames,
         bool hasXml,
-        bool hasModelOrFile)
+        bool hasModelOrFile,
+        bool hasResponseHeaders)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -138,6 +146,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  contentType?: string;");
         sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
         sb.AppendLine("  arms?: readonly string[];");
+        TypeScriptResponseHeaders.AppendRequestOption(sb, hasResponseHeaders);
         sb.AppendLine("  /** Called for every Server-Sent Event that is yielded as an item, before it is yielded: with the id to send as Last-Event-ID to continue the stream after it. */");
         sb.AppendLine("  onEvent?: (event: ServerSentEventInfo) => void;");
         TypeScriptModelOrFileExtractor.AppendRequestOption(sb, hasModelOrFile);
@@ -189,7 +198,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames,
-        bool hasXml)
+        bool hasXml,
+        bool hasResponseHeaders)
     {
         TypeScriptResultArms.AppendFitToArms(sb);
         sb.AppendLine("/** A body as text, in the charset its Content-Type names (fetch's own text() reads every body as UTF-8). */");
@@ -223,7 +233,7 @@ public static class TypeScriptFetchApiClientExtractor
             AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
+        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasResponseHeaders);
         if (hasWireNames)
         {
             TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
@@ -278,7 +288,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames,
-        bool hasXml)
+        bool hasXml,
+        bool hasResponseHeaders)
     {
         var body = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
         var stringify = $"JSON.stringify({body})";
@@ -356,7 +367,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
         if (hasXml)
         {
-            AppendReadXmlResponse(sb);
+            AppendReadXmlResponse(sb, hasResponseHeaders);
         }
 
         var wireArgument = hasWireNames ? ", options?.wire" : string.Empty;
@@ -365,9 +376,13 @@ public static class TypeScriptFetchApiClientExtractor
             : "response, options?.responseType" + wireArgument;
 
         // With XML, the result keeps the server's response when a declared XML error model was read through a stand-in
-        sb.AppendLine(hasXml
-            ? $"    return fitToArms(withResponse(serverResponse, await this.handleResponse<T>({handleArguments})), options?.arms);"
-            : $"    return fitToArms(await this.handleResponse<T>({handleArguments}), options?.arms);");
+        sb.Append("    return ")
+            .Append(TypeScriptResponseHeaders.Returned(
+                hasXml
+                    ? $"fitToArms(withResponse(serverResponse, await this.handleResponse<T>({handleArguments})), options?.arms)"
+                    : $"fitToArms(await this.handleResponse<T>({handleArguments}), options?.arms)",
+                hasResponseHeaders))
+            .AppendLine(";");
         sb.AppendLine("  }");
         sb.AppendLine();
     }
@@ -376,7 +391,9 @@ public static class TypeScriptFetchApiClientExtractor
     /// A declared XML error model is read into the model and handed on as a JSON error body (the result keeps the
     /// server's response); an XML success body is read by the operation's mapping, with no JSON handling.
     /// </summary>
-    private static void AppendReadXmlResponse(StringBuilder sb)
+    private static void AppendReadXmlResponse(
+        StringBuilder sb,
+        bool hasResponseHeaders)
     {
         sb.AppendLine("    // A declared XML error model: read into the model and handed on as a JSON error body - the result keeps the");
         sb.AppendLine("    // server's response (its headers say XML)");
@@ -397,9 +414,9 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    // An XML body: read by the operation's mapping (no JSON handling)");
         sb.AppendLine("    if (options?.xml?.read && response.ok && response.status !== 204 && response.status !== 205 && isXmlMediaType(response.headers.get('Content-Type'))) {");
         sb.AppendLine("      try {");
-        sb.AppendLine("        return fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(await readText(response))) as T, response } as ApiResult<T>, options.arms);");
+        sb.Append("        return ").Append(TypeScriptResponseHeaders.Returned("fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(await readText(response))) as T, response } as ApiResult<T>, options.arms)", hasResponseHeaders)).AppendLine(";");
         sb.AppendLine("      } catch (parseError) {");
-        sb.AppendLine("        return fitToArms({ status: 'parseError', error: parseError as Error, response }, options.arms);");
+        sb.Append("        return ").Append(TypeScriptResponseHeaders.Returned("fitToArms({ status: 'parseError', error: parseError as Error, response }, options.arms)", hasResponseHeaders)).AppendLine(";");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();

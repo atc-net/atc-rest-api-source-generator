@@ -1083,7 +1083,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         var operation = ((OpenApiPathItem)doc.Paths["/noop"]).Operations.Values.First();
 
-        var (declaration, imports, _) = TypeScriptOperationHelper.BuildPerOperationResultType(
+        var (declaration, imports, _, _) = TypeScriptOperationHelper.BuildPerOperationResultType(
             operation,
             "NoopResult",
             isFileDownload: false,

@@ -41,6 +41,8 @@ export interface RequestOptions {
   contentType?: string;
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
+  /** The readers of the typed headers of the operation's result arms (the generated client passes them). */
+  responseHeaders?: ResponseHeaderReaders;
   /** Called for every Server-Sent Event that is yielded as an item, before it is yielded: with the id to send as Last-Event-ID to continue the stream after it. */
   onEvent?: (event: ServerSentEventInfo) => void;
 }
@@ -311,6 +313,142 @@ async function* parseJsonSeqStream<T>(reader: ReadableStreamDefaultReader<Uint8A
   }
 }
 
+/** Reads one header value from its text: undefined when the text is not such a value. */
+export type HeaderValueParser<T> = (text: string | undefined) => T | undefined;
+
+function headerNumber(text: string | undefined): number | undefined {
+  const value = text === undefined || text.trim() === '' ? NaN : Number(text);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+/** The readers of one header value, for the typed headers of a result. */
+export const headerValue = {
+  /** The text itself. */
+  text: (text: string | undefined): string | undefined => text,
+  /** A number. */
+  number: headerNumber,
+  /** A whole number. */
+  integer: (text: string | undefined): number | undefined => {
+    const value = headerNumber(text);
+    return value !== undefined && Number.isInteger(value) ? value : undefined;
+  },
+  /** true or false, whatever the casing. */
+  boolean: (text: string | undefined): boolean | undefined => {
+    const value = text?.trim().toLowerCase();
+    return value === 'true' ? true : value === 'false' ? false : undefined;
+  },
+  /** A date or a date-time: ISO 8601, or an HTTP date. */
+  date: (text: string | undefined): Date | undefined => {
+    if (text === undefined || text.trim() === '') {
+      return undefined;
+    }
+
+    const value = new Date(text.trim());
+    return Number.isNaN(value.getTime()) ? undefined : value;
+  },
+  /** One of an enum's values. */
+  oneOf: <T>(values: readonly (string | number)[]): HeaderValueParser<T> => (text) => {
+    const value = text?.trim();
+    return values.find((candidate) => String(candidate) === value) as T | undefined;
+  },
+};
+
+/** Reads the headers of a response for the typed headers of its result. */
+export class ResponseHeaderReader {
+  private readonly get: (name: string) => string | undefined;
+
+  constructor(get: (name: string) => string | undefined) {
+    this.get = get;
+  }
+
+  /** A header's text. */
+  text(name: string): string | undefined {
+    return this.get(name);
+  }
+
+  /** A header's value: undefined when it is not a value of its type. */
+  value<T>(name: string, parse: HeaderValueParser<T>): T | undefined {
+    const text = this.get(name);
+    return text === undefined ? undefined : parse(text);
+  }
+
+  /** An array header, its items separated by commas: undefined when an item is not a value of its type. */
+  list<T>(name: string, parse: HeaderValueParser<T>): T[] | undefined {
+    const text = this.get(name);
+    if (text === undefined) {
+      return undefined;
+    }
+
+    const items: T[] = [];
+    for (const part of text.split(',')) {
+      const item = parse(part.trim());
+      if (item === undefined) {
+        return undefined;
+      }
+
+      items.push(item);
+    }
+
+    return items;
+  }
+
+  /**
+   * An object header in OpenAPI's simple style - name,value,... or name=value,... when exploded - read by the
+   * operation's mapping: undefined when the text is not such an object, or a required field is missing.
+   */
+  object<T>(
+    name: string,
+    explode: boolean,
+    read: (fields: Record<string, string>) => { [K in keyof T]?: T[K] },
+    required: readonly (keyof T)[],
+  ): T | undefined {
+    const text = this.get(name);
+    if (text === undefined) {
+      return undefined;
+    }
+
+    const fields: Record<string, string> = Object.create(null);
+    const parts = text.split(',');
+    if (explode) {
+      for (const part of parts) {
+        const at = part.indexOf('=');
+        if (at < 0) {
+          return undefined;
+        }
+
+        fields[part.slice(0, at).trim()] = part.slice(at + 1).trim();
+      }
+    } else {
+      if (parts.length % 2 !== 0) {
+        return undefined;
+      }
+
+      for (let i = 0; i < parts.length; i += 2) {
+        fields[(parts[i] ?? '').trim()] = (parts[i + 1] ?? '').trim();
+      }
+    }
+
+    const value = read(fields);
+    return required.every((key) => value[key] !== undefined) ? value as T : undefined;
+  }
+}
+
+/** The readers of an operation's typed response headers, by result arm (the generated client passes them). */
+export type ResponseHeaderReaders = Partial<Record<string, (header: ResponseHeaderReader) => object>>;
+
+// A header of a Response (several values are joined by commas)
+function responseHeader(response: Response, name: string): string | undefined {
+  return response.headers.get(name) ?? undefined;
+}
+
+// The result with the typed headers of its arm, when the operation declares any for it
+function withResponseHeaders<T>(result: ApiResult<T>, readers: ResponseHeaderReaders | undefined): ApiResult<T> {
+  const read = readers?.[result.status];
+  return read
+    ? Object.assign({}, result, { headers: read(new ResponseHeaderReader((name) => responseHeader(result.response, name))) })
+    : result;
+}
+
 const httpErrorArms: readonly string[] = ['badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError'];
 const successArms = ['ok', 'created', 'accepted', 'noContent'] as const;
 
@@ -391,7 +529,7 @@ export class ApiClient {
       response = await interceptor(response);
     }
 
-    return fitToArms(await this.handleResponse<T>(response, options?.responseType), options?.arms);
+    return withResponseHeaders(fitToArms(await this.handleResponse<T>(response, options?.responseType), options?.arms), options?.responseHeaders);
   }
 
   async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {

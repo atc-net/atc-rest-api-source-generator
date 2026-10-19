@@ -26,7 +26,7 @@ public static class TypeScriptClientGenerationService
         ArgumentNullException.ThrowIfNull(openApiDoc);
         ArgumentNullException.ThrowIfNull(config);
 
-        using var enumsScope = TypeScriptOperationHelper.EnumsScope(config.ExtensibleEnums);
+        using var enumsScope = TypeScriptOperationHelper.EnumsScope(config.ExtensibleEnums, config.EnumStyle);
 
         // Types, files and imports are named after the component schemas: names that are no identifier
         // (Note-Size, 3DModel, Company.Api.Thing) are renamed in the document first.
@@ -557,9 +557,12 @@ public static class TypeScriptClientGenerationService
         // dateOnly is exported for the segment clients that write a format: date parameter or form field; a
         // specification without one gets no dead export
         var exportsDateOnly = convertDates && clients.Any(c => TypeScriptOperationHelper.ReferencesIdentifier(c.Content, "dateOnly"));
+
+        // The typed headers of the result arms: their readers, for a specification whose responses declare headers
+        var hasResponseHeaders = clients.Any(c => TypeScriptOperationHelper.ReferencesIdentifier(c.Content, "responseHeaders"));
         var apiClientContent = httpClient == TypeScriptHttpClient.Axios
-            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile)
-            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile);
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders);
 
         WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);
 

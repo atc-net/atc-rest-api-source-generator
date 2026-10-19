@@ -18,14 +18,24 @@ export type QueryResourcesResult =
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+/** The headers the 'ok' result reads: undefined when one is absent or is not a value of its type. */
+export interface ProbeResourcesOkHeaders {
+  'ETag'?: string;
+}
+
 export type ProbeResourcesResult =
-  | { status: 'ok'; response: AxiosResponse }
+  | { status: 'ok'; headers: ProbeResourcesOkHeaders; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+/** The headers the 'noContent' result reads: undefined when one is absent or is not a value of its type. */
+export interface DescribeResourcesNoContentHeaders {
+  'Allow'?: string;
+}
+
 export type DescribeResourcesResult =
-  | { status: 'noContent'; response: AxiosResponse }
+  | { status: 'noContent'; headers: DescribeResourcesNoContentHeaders; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -72,6 +82,11 @@ export class ResourcesClient {
   async probeResources(signal?: AbortSignal): Promise<ProbeResourcesResult> {
     return this.api.request<void>('HEAD', '/resources', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        ok: (header): ProbeResourcesOkHeaders => ({
+          'ETag': header.text('ETag'),
+        }),
+      },
       signal,
     }) as Promise<ProbeResourcesResult>;
   }
@@ -80,6 +95,11 @@ export class ResourcesClient {
   async describeResources(signal?: AbortSignal): Promise<DescribeResourcesResult> {
     return this.api.request<void>('OPTIONS', '/resources', {
       arms: ['noContent', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        noContent: (header): DescribeResourcesNoContentHeaders => ({
+          'Allow': header.text('Allow'),
+        }),
+      },
       signal,
     }) as Promise<DescribeResourcesResult>;
   }

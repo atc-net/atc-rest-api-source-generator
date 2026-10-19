@@ -161,6 +161,8 @@ public static class TypeScriptClientExtractor
         // so their referenced model/error types get folded into the file-level import set.
         var perOpResultTypes = new Dictionary<OpenApiOperation, string>(ReferenceEqualityComparer.Instance);
         var perOpArms = new Dictionary<OpenApiOperation, string>(ReferenceEqualityComparer.Instance);
+        var perOpHeaderReaders = new Dictionary<OpenApiOperation, IReadOnlyList<string>>(ReferenceEqualityComparer.Instance);
+        var responseHeaderOptions = new TypeScriptResponseHeaderOptions(convertDates, namingStrategy, brandedIds);
         var perOpDeclarations = new List<string>();
         var perOpErrorImports = new HashSet<string>(StringComparer.Ordinal);
 
@@ -185,15 +187,21 @@ public static class TypeScriptClientExtractor
 
             var resultTypeName = methodName.ToPascalCase() + "Result";
 
-            var (declaration, imports, arms) = TypeScriptOperationHelper.BuildPerOperationResultType(
+            var (declaration, imports, arms, headerReaders) = TypeScriptOperationHelper.BuildPerOperationResultType(
                 operation,
                 resultTypeName,
                 isFileDownload,
                 isTextDownload,
                 httpClient,
-                features);
+                features,
+                responseHeaderOptions);
 
             perOpResultTypes[operation] = resultTypeName;
+            if (headerReaders is not null)
+            {
+                perOpHeaderReaders[operation] = headerReaders;
+            }
+
             perOpArms[operation] = "[" + string.Join(", ", arms.Select(a => "'" + a + "'")) + "]";
             perOpDeclarations.Add(declaration);
 
@@ -287,8 +295,9 @@ public static class TypeScriptClientExtractor
             bodySb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpArms.TryGetValue(operation, out var armsOption);
+            perOpHeaderReaders.TryGetValue(operation, out var headerReadersOption);
             var securityOption = TypeScriptSecurity.BuildOption(operation, path, openApiDoc, declaresSecurity);
-            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions, preferXml, securityOption);
+            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions, preferXml, securityOption, headerReadersOption);
         }
 
         bodySb.AppendLine("}");
@@ -370,10 +379,18 @@ public static class TypeScriptClientExtractor
             sb.AppendLine("import type { AxiosResponse } from 'axios';");
         }
 
-        // Import ApiClient (and dateOnly, which writes a format: date parameter or form field as the calendar day)
-        sb.AppendLine(TypeScriptOperationHelper.ReferencesIdentifier(bodyText, "dateOnly")
-            ? "import { ApiClient, dateOnly } from './ApiClient';"
-            : "import { ApiClient } from './ApiClient';");
+        // Import ApiClient (and dateOnly, which writes a format: date parameter or form field as the calendar day, and
+        // headerValue, which reads a typed response header)
+        var apiClientImports = new List<string> { "ApiClient" };
+        foreach (var name in new[] { "dateOnly", "headerValue" })
+        {
+            if (TypeScriptOperationHelper.ReferencesIdentifier(bodyText, name))
+            {
+                apiClientImports.Add(name);
+            }
+        }
+
+        sb.Append("import { ").Append(string.Join(", ", apiClientImports)).AppendLine(" } from './ApiClient';");
 
         // Build model imports and enum imports separately. Only types the body actually
         // references are imported — the schema-graph scan can over-collect (e.g. an enum
@@ -528,7 +545,8 @@ public static class TypeScriptClientExtractor
         TypeScriptWireNames wireNames,
         ISet<string>? xmlFunctions = null,
         bool preferXml = false,
-        string? securityOption = null)
+        string? securityOption = null,
+        IReadOnlyList<string>? headerReadersOption = null)
     {
         var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
@@ -604,7 +622,7 @@ public static class TypeScriptClientExtractor
 
             // A multipart form: its encoding (an object field is an application/json part, see FormBodyHelper.IsJsonPart)
             var bodyMediaType = operation.RequestBody?.Content is { } bodyContent && bodyContent.TryGetValue(bodyContentType, out var declaredBody) ? declaredBody : null;
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption, bodyMediaType, wireNames);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption, bodyMediaType, wireNames, headerReadersOption);
         }
     }
 
@@ -721,7 +739,8 @@ public static class TypeScriptClientExtractor
         IReadOnlyList<string>? rawUploadMediaTypes = null,
         string? securityOption = null,
         IOpenApiMediaType? bodyMediaType = null,
-        TypeScriptWireNames? wireNames = null)
+        TypeScriptWireNames? wireNames = null,
+        IReadOnlyList<string>? headerReadersOption = null)
     {
         // Build parameter list
         var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -858,6 +877,18 @@ public static class TypeScriptClientExtractor
         if (armsOption is not null)
         {
             sb.Append("      arms: ").Append(armsOption).AppendLine(",");
+        }
+
+        // The typed headers of the arms whose responses declare any
+        if (headerReadersOption is not null)
+        {
+            sb.AppendLine("      responseHeaders: {");
+            foreach (var line in headerReadersOption)
+            {
+                sb.Append("        ").AppendLine(line);
+            }
+
+            sb.AppendLine("      },");
         }
 
         // The credentials the operation requires ([] for an anonymous one)

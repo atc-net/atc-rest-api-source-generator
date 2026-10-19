@@ -32,9 +32,19 @@ export type GetDocumentResult =
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+/** The headers the 'ok' result reads: undefined when one is absent or is not a value of its type. */
+export interface GetDocumentSummaryOkHeaders {
+  'ETag'?: string;
+}
+
+/** The headers the 'notModified' result reads: undefined when one is absent or is not a value of its type. */
+export interface GetDocumentSummaryNotModifiedHeaders {
+  'ETag'?: string;
+}
+
 export type GetDocumentSummaryResult =
-  | { status: 'ok'; data: DocumentSummary | Blob; response: AxiosResponse }
-  | { status: 'notModified'; response: AxiosResponse }
+  | { status: 'ok'; data: DocumentSummary | Blob; headers: GetDocumentSummaryOkHeaders; response: AxiosResponse }
+  | { status: 'notModified'; headers: GetDocumentSummaryNotModifiedHeaders; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
@@ -43,9 +53,14 @@ export type GetDocumentSummaryResult =
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+/** The headers the 'redirection' result reads: undefined when one is absent or is not a value of its type. */
+export interface CopyDocumentRedirectionHeaders {
+  'Location'?: string;
+}
+
 export type CopyDocumentResult =
   | { status: 'ok'; data: unknown; response: AxiosResponse }
-  | { status: 'redirection'; data?: unknown; response: AxiosResponse }
+  | { status: 'redirection'; data?: unknown; headers: CopyDocumentRedirectionHeaders; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
@@ -109,6 +124,14 @@ export class DocumentsClient {
       },
       modelOrFile: true,
       arms: ['ok', 'notModified', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        ok: (header): GetDocumentSummaryOkHeaders => ({
+          'ETag': header.text('ETag'),
+        }),
+        notModified: (header): GetDocumentSummaryNotModifiedHeaders => ({
+          'ETag': header.text('ETag'),
+        }),
+      },
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetDocumentSummaryResult>;
@@ -118,6 +141,11 @@ export class DocumentsClient {
   async copyDocument(documentId: string, signal?: AbortSignal): Promise<CopyDocumentResult> {
     return this.api.request<void>('POST', `/documents/${encodeURIComponent(documentId)}/copy`, {
       arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        redirection: (header): CopyDocumentRedirectionHeaders => ({
+          'Location': header.text('Location'),
+        }),
+      },
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CopyDocumentResult>;

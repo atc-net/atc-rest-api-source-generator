@@ -31,6 +31,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 💾 **Caching**                   | Output caching and HybridCache support from `x-cache-*` extensions               |
 | **Client** | 🔌 **Type-Safe Client**          | Strongly-typed HTTP client with full IntelliSense                                |
 |            | 🔄 **Resilience**                | Per-operation retry/circuit breaker from `x-retry-*`; POST/PATCH never resent unasked |
+|            | 📨 **Typed Response Headers**    | A declared response header is typed end to end - a parameter of the server's result factory, a property of the C# client's result, `headers` on the TypeScript result - enums, numbers, dates, arrays and `simple`-style objects |
 |            | 🔗 **URL Encoding**              | Automatic RFC 3986 compliant encoding - no more broken URLs                      |
 | **Models** | 🎯 **Enum Support**              | Strict C# enums on the server; **extensible enums** in the clients, so a value the server adds later is read instead of failing the response |
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |

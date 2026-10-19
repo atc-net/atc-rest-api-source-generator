@@ -246,10 +246,31 @@ public static class ResponseHeaderFactoryHelper
         TypeConflictRegistry? registry = null,
         string? operationName = null,
         ISet<string>? componentTypeNames = null)
+        => DeclaredByResponses(operation?.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>(), registry, operationName, componentTypeNames);
+
+    /// <summary>
+    /// The headers some responses declare, one per name, by the rules of <see cref="DeclaredBy"/>: what a result that
+    /// stands for these responses reads back.
+    /// </summary>
+    /// <param name="responses">The responses.</param>
+    /// <param name="registry">The type names the models were generated under (an enum header's type).</param>
+    /// <param name="operationName">The operation's name in Pascal case: an inline enum header is its type; text without it.</param>
+    /// <param name="componentTypeNames">The C# names of the component schemas, which an inline enum's name gives way to.</param>
+    /// <returns>Per header: its name, the property a result reads it through, the C# type of one value, whether it is an array, and how a value is read.</returns>
+    public static List<DeclaredResponseHeader> DeclaredByResponses(
+        IEnumerable<IOpenApiResponse?> responses,
+        TypeConflictRegistry? registry = null,
+        string? operationName = null,
+        ISet<string>? componentTypeNames = null)
     {
+        if (responses is null)
+        {
+            throw new ArgumentNullException(nameof(responses));
+        }
+
         var headers = new List<DeclaredResponseHeader>();
         var taken = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var response in operation?.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>())
+        foreach (var response in responses)
         {
             foreach (var header in response?.Headers ?? new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal))
             {

@@ -31,9 +31,19 @@ export type GetDocumentResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+/** The headers the 'ok' result reads: undefined when one is absent or is not a value of its type. */
+export interface GetDocumentSummaryOkHeaders {
+  'ETag'?: string;
+}
+
+/** The headers the 'notModified' result reads: undefined when one is absent or is not a value of its type. */
+export interface GetDocumentSummaryNotModifiedHeaders {
+  'ETag'?: string;
+}
+
 export type GetDocumentSummaryResult =
-  | { status: 'ok'; data: DocumentSummary | Blob; response: Response }
-  | { status: 'notModified'; response: Response }
+  | { status: 'ok'; data: DocumentSummary | Blob; headers: GetDocumentSummaryOkHeaders; response: Response }
+  | { status: 'notModified'; headers: GetDocumentSummaryNotModifiedHeaders; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
@@ -42,9 +52,14 @@ export type GetDocumentSummaryResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+/** The headers the 'redirection' result reads: undefined when one is absent or is not a value of its type. */
+export interface CopyDocumentRedirectionHeaders {
+  'Location'?: string;
+}
+
 export type CopyDocumentResult =
   | { status: 'ok'; data: unknown; response: Response }
-  | { status: 'redirection'; data?: unknown; response: Response }
+  | { status: 'redirection'; data?: unknown; headers: CopyDocumentRedirectionHeaders; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
@@ -108,6 +123,14 @@ export class DocumentsClient {
       },
       modelOrFile: true,
       arms: ['ok', 'notModified', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        ok: (header): GetDocumentSummaryOkHeaders => ({
+          'ETag': header.text('ETag'),
+        }),
+        notModified: (header): GetDocumentSummaryNotModifiedHeaders => ({
+          'ETag': header.text('ETag'),
+        }),
+      },
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<GetDocumentSummaryResult>;
@@ -117,6 +140,11 @@ export class DocumentsClient {
   async copyDocument(documentId: string, signal?: AbortSignal): Promise<CopyDocumentResult> {
     return this.api.request<void>('POST', `/documents/${encodeURIComponent(documentId)}/copy`, {
       arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        redirection: (header): CopyDocumentRedirectionHeaders => ({
+          'Location': header.text('Location'),
+        }),
+      },
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CopyDocumentResult>;

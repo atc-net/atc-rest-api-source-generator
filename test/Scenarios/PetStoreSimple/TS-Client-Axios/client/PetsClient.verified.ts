@@ -5,8 +5,13 @@ import { ApiClient } from './ApiClient';
 import type { ErrorModel, Pet, Pets } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
+/** The headers the 'ok' result reads: undefined when one is absent or is not a value of its type. */
+export interface ListPetsOkHeaders {
+  'x-next'?: string;
+}
+
 export type ListPetsResult =
-  | { status: 'ok'; data: Pets; response: AxiosResponse }
+  | { status: 'ok'; data: Pets; headers: ListPetsOkHeaders; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError<ErrorModel>; response: AxiosResponse }
   | { status: 'forbidden'; error: ApiError<ErrorModel>; response: AxiosResponse }
@@ -59,6 +64,11 @@ export class PetsClient {
       },
       responseType: 'json',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        ok: (header): ListPetsOkHeaders => ({
+          'x-next': header.text('x-next'),
+        }),
+      },
       signal,
     }) as Promise<ListPetsResult>;
   }

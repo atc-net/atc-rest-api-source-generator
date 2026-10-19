@@ -13,8 +13,13 @@ export type CreateTestItemWithModelResult =
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+/** The headers the 'created' result reads: undefined when one is absent or is not a value of its type. */
+export interface CreateTestItemWithLocationHeaderCreatedHeaders {
+  'Location'?: string;
+}
+
 export type CreateTestItemWithLocationHeaderResult =
-  | { status: 'created'; response: AxiosResponse }
+  | { status: 'created'; headers: CreateTestItemWithLocationHeaderCreatedHeaders; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
@@ -59,6 +64,11 @@ export class TestsClient {
     return this.api.request<void>('POST', '/tests/create/create-location-header', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      responseHeaders: {
+        created: (header): CreateTestItemWithLocationHeaderCreatedHeaders => ({
+          'Location': header.text('Location'),
+        }),
+      },
       signal,
     }) as Promise<CreateTestItemWithLocationHeaderResult>;
   }
