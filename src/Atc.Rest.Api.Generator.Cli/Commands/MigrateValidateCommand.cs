@@ -13,7 +13,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
     /// <param name="settings">The parsed command-line settings.</param>
     /// <param name="cancellationToken">Cancels the command.</param>
     /// <returns>0 when the solution can be migrated; otherwise 1.</returns>
-    protected override int Execute(
+    public override int Execute(
         CommandContext context,
         MigrateValidateCommandSettings settings,
         CancellationToken cancellationToken)

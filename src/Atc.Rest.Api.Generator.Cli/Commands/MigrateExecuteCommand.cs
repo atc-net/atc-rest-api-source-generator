@@ -17,6 +17,90 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         this.nugetService = nugetService;
     }
 
+    /// <summary>
+    /// Re-runs the migration validation and, when the solution is ready, rewrites it for the source generators.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the migration (or dry run) completed; otherwise 1.</returns>
+    public override int Execute(
+        CommandContext context,
+        MigrateExecuteCommandSettings settings,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(settings);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        WriteHeader();
+
+        var solutionPath = Path.GetFullPath(settings.SolutionPath);
+        var specPath = Path.GetFullPath(settings.SpecificationPath);
+
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Solution:[/]      {solutionPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
+        foreach (var note in settings.PathNotes)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Note:[/]          {note}");
+        }
+
+        if (settings.DryRun)
+        {
+            AnsiConsole.MarkupLine("[yellow]Mode:[/]          Dry Run (no changes will be made)");
+        }
+
+        AnsiConsole.WriteLine();
+
+        try
+        {
+            // Step 1: Run validation
+            var validationSettings = new MigrateValidateCommandSettings
+            {
+                SolutionPath = settings.SolutionPath,
+                SpecificationPath = settings.SpecificationPath,
+            };
+
+            var report = RunValidation(validationSettings);
+
+            if (!report.CanMigrate)
+            {
+                AnsiConsole.MarkupLine("[red]✗ Project cannot be migrated. Please fix the blocking issues first.[/]");
+                foreach (var issue in report.BlockingIssues)
+                {
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {issue}");
+                }
+
+                return 1;
+            }
+
+            // Step 2: Git status check
+            var rootDirectory = validationSettings.GetSolutionDirectory();
+            if (!CheckGitStatus(rootDirectory, settings.Force, settings.DryRun))
+            {
+                AnsiConsole.MarkupLine("[yellow]Migration cancelled by user.[/]");
+                return 1;
+            }
+
+            // Step 3: Confirm upgrade if needed
+            if (report.RequiresUpgrade &&
+                !settings.Force &&
+                !ConfirmUpgrade(report))
+            {
+                AnsiConsole.MarkupLine("[yellow]Migration cancelled. .NET 10 / C# 14 upgrade is required.[/]");
+                return 1;
+            }
+
+            // Execute migration
+            return ExecuteMigration(settings, report, rootDirectory, specPath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗ Error:[/] {ex.Message}");
+            return 1;
+        }
+    }
+
     internal static void UpdateGlobalUsings(
         MigrationValidationReport report,
         string projectName,
@@ -273,90 +357,6 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         if (!string.IsNullOrEmpty(programResult.Error))
         {
             AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {programResult.Error}");
-        }
-    }
-
-    /// <summary>
-    /// Re-runs the migration validation and, when the solution is ready, rewrites it for the source generators.
-    /// </summary>
-    /// <param name="context">The Spectre.Console command context.</param>
-    /// <param name="settings">The parsed command-line settings.</param>
-    /// <param name="cancellationToken">Cancels the command.</param>
-    /// <returns>0 when the migration (or dry run) completed; otherwise 1.</returns>
-    protected override int Execute(
-        CommandContext context,
-        MigrateExecuteCommandSettings settings,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(settings);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        WriteHeader();
-
-        var solutionPath = Path.GetFullPath(settings.SolutionPath);
-        var specPath = Path.GetFullPath(settings.SpecificationPath);
-
-        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Solution:[/]      {solutionPath}");
-        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
-        foreach (var note in settings.PathNotes)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Note:[/]          {note}");
-        }
-
-        if (settings.DryRun)
-        {
-            AnsiConsole.MarkupLine("[yellow]Mode:[/]          Dry Run (no changes will be made)");
-        }
-
-        AnsiConsole.WriteLine();
-
-        try
-        {
-            // Step 1: Run validation
-            var validationSettings = new MigrateValidateCommandSettings
-            {
-                SolutionPath = settings.SolutionPath,
-                SpecificationPath = settings.SpecificationPath,
-            };
-
-            var report = RunValidation(validationSettings);
-
-            if (!report.CanMigrate)
-            {
-                AnsiConsole.MarkupLine("[red]✗ Project cannot be migrated. Please fix the blocking issues first.[/]");
-                foreach (var issue in report.BlockingIssues)
-                {
-                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {issue}");
-                }
-
-                return 1;
-            }
-
-            // Step 2: Git status check
-            var rootDirectory = validationSettings.GetSolutionDirectory();
-            if (!CheckGitStatus(rootDirectory, settings.Force, settings.DryRun))
-            {
-                AnsiConsole.MarkupLine("[yellow]Migration cancelled by user.[/]");
-                return 1;
-            }
-
-            // Step 3: Confirm upgrade if needed
-            if (report.RequiresUpgrade &&
-                !settings.Force &&
-                !ConfirmUpgrade(report))
-            {
-                AnsiConsole.MarkupLine("[yellow]Migration cancelled. .NET 10 / C# 14 upgrade is required.[/]");
-                return 1;
-            }
-
-            // Execute migration
-            return ExecuteMigration(settings, report, rootDirectory, specPath, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗ Error:[/] {ex.Message}");
-            return 1;
         }
     }
 

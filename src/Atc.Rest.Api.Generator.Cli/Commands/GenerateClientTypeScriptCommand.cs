@@ -13,7 +13,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
     /// <param name="settings">The parsed command-line settings.</param>
     /// <param name="cancellationToken">Cancels the command, which also ends watch mode.</param>
     /// <returns>0 when generation succeeded; otherwise 1.</returns>
-    protected override int Execute(
+    public override int Execute(
         CommandContext context,
         GenerateClientTypeScriptCommandSettings settings,
         CancellationToken cancellationToken)

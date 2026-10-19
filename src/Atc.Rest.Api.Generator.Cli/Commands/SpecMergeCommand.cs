@@ -13,7 +13,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
     /// <param name="settings">The parsed command-line settings.</param>
     /// <param name="cancellationToken">Cancels the command.</param>
     /// <returns>0 when the merge succeeded; otherwise 1.</returns>
-    protected override int Execute(
+    public override int Execute(
         CommandContext context,
         SpecMergeCommandSettings settings,
         CancellationToken cancellationToken)
