@@ -96,7 +96,8 @@ public static class WireBindingHelper
     /// <param name="operation">The operation.</param>
     /// <returns>C# tuple literals, <c>(WireParameter.Parsable&lt;int&gt;("form", "count"), false, false)</c>.</returns>
     public static IReadOnlyList<string> FormFieldArguments(
-        OpenApiOperation operation)
+        OpenApiOperation operation,
+        TypeConflictRegistry? registry = null)
     {
         if (operation is null)
         {
@@ -136,7 +137,8 @@ public static class WireBindingHelper
                     "form",
                     name,
                     (isArray ? property.Value.Items?.ToCSharpType(isRequired: true, registry: null) ?? "string" : property.Value.ToCSharpType(isRequired: true, registry: null)).TrimEnd('?'),
-                    isArray);
+                    isArray,
+                    ExtensibleEnumHelper.IsExtensibleEnum(property.Value, registry));
             arguments.Add($"({field}, {isRequired}, {(isFile ? "true" : "false")})");
         }
 
@@ -188,7 +190,8 @@ public static class WireBindingHelper
     public static string ParameterExpression(
         string location,
         string nameLiteral,
-        string typeName)
+        string typeName,
+        bool extensibleEnum = false)
     {
         if (typeName is null)
         {
@@ -200,11 +203,11 @@ public static class WireBindingHelper
         {
             if (type.StartsWith(list, StringComparison.Ordinal) && type.EndsWith(">", StringComparison.Ordinal))
             {
-                return Describe(location, nameLiteral, type.Substring(list.Length, type.Length - list.Length - 1), isArray: true);
+                return Describe(location, nameLiteral, type.Substring(list.Length, type.Length - list.Length - 1), isArray: true, extensibleEnum);
             }
         }
 
-        return Describe(location, nameLiteral, type, isArray: false);
+        return Describe(location, nameLiteral, type, isArray: false, extensibleEnum);
     }
 
     /// <summary>
@@ -222,7 +225,8 @@ public static class WireBindingHelper
         string namespaceName,
         string? headerContent,
         IReadOnlyDictionary<string, OpenApiParameterExtensions.QueryObject>? queryObjects = null,
-        TypeConflictRegistry? registry = null)
+        TypeConflictRegistry? registry = null,
+        ISet<string>? extensibleEnumParameters = null)
     {
         if (record is null)
         {
@@ -256,7 +260,8 @@ public static class WireBindingHelper
 
             // A parameter the specification requires (a path parameter is always there: the route matched)
             var isRequired = location != "path" && parameter.Attributes?.Any(a => a.Name == "Required") == true;
-            entries.Add(ParameterExpression(location, nameLiteral, parameter.TypeName) + (isRequired ? ".Required()" : string.Empty));
+            var extensibleEnum = extensibleEnumParameters?.Contains(nameLiteral.Trim('"')) == true;
+            entries.Add(ParameterExpression(location, nameLiteral, parameter.TypeName, extensibleEnum) + (isRequired ? ".Required()" : string.Empty));
         }
 
         if (entries.Count == 0)
@@ -1103,22 +1108,25 @@ public static class WireBindingHelper
         TypeConflictRegistry? registry)
     {
         var properties = queryObject.Properties.Select(property =>
-            $"({ParameterExpression("query", CSharpLiteralHelper.ToStringLiteral(property.WireName), property.Schema.ToCSharpTypeForModel(property.Required, registry))}, {(property.Required ? "true" : "false")})");
+            $"({ParameterExpression("query", CSharpLiteralHelper.ToStringLiteral(property.WireName), property.Schema.ToCSharpTypeForModel(property.Required, registry), ExtensibleEnumHelper.IsExtensibleEnum(property.Schema, registry))}, {(property.Required ? "true" : "false")})");
         return $"WireParameter.Object(\"query\", {nameLiteral}, deepObject: {(queryObject.DeepObject ? "true" : "false")}, {string.Join(", ", properties)})";
     }
 
+    // An extensible enum is parsable (it takes any text, kept as it was sent); a C# enum is read by its wire value or its
+    // member name
     private static string Describe(
         string location,
         string nameLiteral,
         string itemType,
-        bool isArray)
+        bool isArray,
+        bool extensibleEnum = false)
     {
         var simple = itemType.Replace("global::", string.Empty);
         simple = simple.StartsWith("System.", StringComparison.Ordinal) ? simple.Substring("System.".Length) : simple;
         var factory = simple switch
         {
             "bool" or "Boolean" => "WireParameter.Boolean",
-            _ when ParsableTypes.Contains(simple) => $"WireParameter.Parsable<{itemType}>",
+            _ when extensibleEnum || ParsableTypes.Contains(simple) => $"WireParameter.Parsable<{itemType}>",
             _ when TextTypes.Contains(simple) || simple.EndsWith("IFormFile", StringComparison.Ordinal) => "WireParameter.Text",
             _ => $"WireParameter.EnumValue<{itemType}>",
         };

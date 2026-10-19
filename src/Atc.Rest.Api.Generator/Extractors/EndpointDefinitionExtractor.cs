@@ -477,7 +477,7 @@ using Microsoft.AspNetCore.Builder;
         // Add internal endpoint methods for each operation
         foreach (var (path, httpMethod, operation, pathParameters) in operations)
         {
-            var endpointMethod = GenerateEndpointMethod(path, httpMethod, operation, pathParameters, systemTypeResolver, useValidationFilter);
+            var endpointMethod = GenerateEndpointMethod(path, httpMethod, operation, pathParameters, systemTypeResolver, useValidationFilter, registry);
             if (endpointMethod is not null)
             {
                 methods.Add(endpointMethod);
@@ -980,7 +980,7 @@ using Microsoft.AspNetCore.Builder;
 
         // The step before the framework binds the parameters: enum wire values, cookies, array items, a 400 that names
         // the parameter
-        GenerateWireBindingMetadata(builder, operation, pathItem, methodName, useValidationFilter);
+        GenerateWireBindingMetadata(builder, operation, pathItem, methodName, useValidationFilter, registry);
 
         // Add security metadata if needed (only if different from group-level)
         if (pathItem is not null)
@@ -1233,14 +1233,15 @@ using Microsoft.AspNetCore.Builder;
         OpenApiOperation operation,
         IOpenApiPathItem? pathItem,
         string methodName,
-        bool useValidationFilter)
+        bool useValidationFilter,
+        TypeConflictRegistry? registry)
     {
         // A form bound field by field: the fields are checked by name (a required one is there, a value parses, an
         // enum by its wire value) - there is no [AsParameters] record to read the parameters from
         if (operation.RequiresFormBindingFlattening())
         {
             builder.AppendLine();
-            builder.Append($"    .WithWireFormBinding({string.Join(", ", WireBindingHelper.FormFieldArguments(operation))})");
+            builder.Append($"    .WithWireFormBinding({string.Join(", ", WireBindingHelper.FormFieldArguments(operation, registry))})");
             return;
         }
 
@@ -1620,7 +1621,8 @@ using Microsoft.AspNetCore.Builder;
         OpenApiOperation operation,
         IList<IOpenApiParameter>? pathParameters,
         SystemTypeConflictResolver systemTypeResolver,
-        bool useValidationFilter = false)
+        bool useValidationFilter = false,
+        TypeConflictRegistry? registry = null)
     {
         var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
@@ -1743,7 +1745,7 @@ using Microsoft.AspNetCore.Builder;
                         // binding reads a List<T> as a complex type, from indexed keys): the generated parsable list
                         if (typeName.StartsWith("List<", StringComparison.Ordinal))
                         {
-                            typeName = (WireValueHelper.IsStringEnum(propSchema) ? "ParsableEnum" : "Parsable") + typeName;
+                            typeName = (WireValueHelper.IsStringEnum(propSchema) && !ExtensibleEnumHelper.IsExtensibleEnum(propSchema, registry) ? "ParsableEnum" : "Parsable") + typeName;
                         }
 
                         attributes = new List<AttributeParameters>

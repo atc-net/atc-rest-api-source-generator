@@ -88,7 +88,7 @@ public class ClientConfig : BaseConfig
     /// <c>KnownValues</c>; a value the specification does not list is kept with <c>IsKnown</c> false instead of failing
     /// the response, so a server can add a value without breaking clients built before it. When false, string enums
     /// are C# enums, and an unknown value fails the response with a <c>JsonException</c>. Integer enums are C# enums
-    /// either way (they already hold any number), and servers always keep strict C# enums.
+    /// either way (they already hold any number); a server keeps strict C# enums unless its marker sets extensibleEnums.
     /// </summary>
     public bool ExtensibleEnums { get; set; } = true;
 

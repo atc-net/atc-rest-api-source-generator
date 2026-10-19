@@ -193,7 +193,7 @@
     },
     "extensibleEnums": {
       "type": "boolean",
-      "description": "Generate string enums as extensible enums. Default: true. When true, a string enum is a readonly record struct over the value on the wire, with the specification's values as named members (DeviceStatus.Online), their constants in Names for a switch, and KnownValues; a value the specification does not list is kept with IsKnown false instead of failing the response, so a server can add a value without breaking clients built before it. When false, string enums are C# enums, and an unknown value fails the response with a JsonException. Integer enums are C# enums either way (they already hold any number), and servers always keep strict C# enums.",
+      "description": "Generate string enums as extensible enums. Default: true. When true, a string enum is a readonly record struct over the value on the wire, with the specification's values as named members (DeviceStatus.Online), their constants in Names for a switch, and KnownValues; a value the specification does not list is kept with IsKnown false instead of failing the response, so a server can add a value without breaking clients built before it. When false, string enums are C# enums, and an unknown value fails the response with a JsonException. Integer enums are C# enums either way (they already hold any number); a server keeps strict C# enums unless its marker sets extensibleEnums.",
       "default": true
     },
     "readEnumMemberNames": {

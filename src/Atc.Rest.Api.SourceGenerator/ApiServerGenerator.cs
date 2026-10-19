@@ -486,7 +486,8 @@ public class ApiServerGenerator : IIncrementalGenerator
             context,
             config.ExcludeFromCodeCoverage,
             DeprecationDetector.HasDeprecatedMembers(openApiDoc),
-            config.ReadEnumMemberNames ? $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}" : null);
+            config.ReadEnumMemberNames ? $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}" : null,
+            config.ExtensibleEnums);
         if (config.ReadEnumMemberNames)
         {
             DiagnosticHelpers.ReportReadEnumMemberNamesOn(context, ".atc-rest-api-server");
@@ -526,7 +527,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate shared models/enums first (under common namespace without segment suffix)
         if (sharedSchemas.Count > 0)
         {
-            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, componentTypeNames: componentTypeNames);
+            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, extensibleEnums: config.ExtensibleEnums, componentTypeNames: componentTypeNames);
             GenerateModelsForSchemas(
                 generatedContext,
                 openApiDoc,
@@ -588,7 +589,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             // Create conflict registry for this path segment (lightweight: O(1)).
             // Uses the effective segment - the raw pathSegment would qualify conflicting types
             // against a namespace that is never generated when the segment collapses away.
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, componentTypeNames: componentTypeNames);
+            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, config.ExtensibleEnums, componentTypeNames);
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
@@ -903,7 +904,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate inline enum files first (before records that use them)
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -968,13 +969,13 @@ public class ApiServerGenerator : IIncrementalGenerator
             {
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName + "QueryObject"),
-                    SourceText.From(QueryObjectModelExtractor.Generate(record, queryObject, modelsNamespace).NormalizeForSourceOutput(), Encoding.UTF8));
+                    SourceText.From(QueryObjectModelExtractor.Generate(record, queryObject, modelsNamespace, registry).NormalizeForSourceOutput(), Encoding.UTF8));
             }
         }
 
         if (xmlModels is not null)
         {
-            XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels);
+            XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels, context.ExtensibleEnums);
         }
 
         foreach (var bound in boundSources)
@@ -1047,7 +1048,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate each enum as a separate file
         foreach (var enumParams in enumParametersList)
         {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
 
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName),
@@ -1506,7 +1507,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Emit inline enum files first so the parameter record's type references resolve.
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(parametersNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -1523,6 +1524,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Shaped so the Request Delegate Generator (a Native AOT build) can bind them
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
         var queryObjects = QueryObjectHelper.ByParametersRecord(openApiDoc);
+        var extensibleEnumParameters = ExtensibleEnumHelper.ParametersByRecord(openApiDoc, registry);
         var queryObjectModels = new HashSet<string>(QueryObjectHelper.Models(openApiDoc).Keys, StringComparer.Ordinal);
         var generatedContent = RecordContentGenerator.GenerateParameterRecords(codeDocGenerator, recordsParams, queryObjectModels);
 
@@ -1535,7 +1537,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var record in WireBindingHelper.IsNeeded(openApiDoc) ? recordsParams.Parameters : [])
         {
             queryObjects.TryGetValue(record.Name, out var recordQueryObjects);
-            if (WireBindingHelper.ParameterDescriptionClass(record, recordsParams.Namespace, recordsParams.HeaderContent, recordQueryObjects, registry) is not { } description)
+            extensibleEnumParameters.TryGetValue(record.Name, out var recordExtensibleEnums);
+            if (WireBindingHelper.ParameterDescriptionClass(record, recordsParams.Namespace, recordsParams.HeaderContent, recordQueryObjects, registry, recordExtensibleEnums) is not { } description)
             {
                 continue;
             }
@@ -1579,7 +1582,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             if (InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, typeName, resultsNamespace) is { } enumParameters)
             {
-                var enumContent = InlineEnumExtractor.GenerateEnumContent(enumParameters, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+                var enumContent = InlineEnumExtractor.GenerateEnumContent(enumParameters, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(resultsNamespace, typeName),
                     SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));

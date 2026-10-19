@@ -20,7 +20,8 @@ internal readonly struct GeneratedSourceContext(
     SourceProductionContext context,
     bool excludeFromCodeCoverage,
     bool suppressObsolete,
-    string? memberNameEnumConverter = null)
+    string? memberNameEnumConverter = null,
+    bool extensibleEnums = false)
 {
     private readonly List<GeneratedEnumDeclaration> enums = [];
 
@@ -34,6 +35,12 @@ internal readonly struct GeneratedSourceContext(
     /// Whether a string enum is also read by its member name (<c>readEnumMemberNames</c>).
     /// </summary>
     public bool ReadEnumMemberNames => memberNameEnumConverter is not null;
+
+    /// <summary>
+    /// Whether a string enum is an extensible enum (the server marker's <c>extensibleEnums</c>; the clients pass it to
+    /// the extractors themselves).
+    /// </summary>
+    public bool ExtensibleEnums => extensibleEnums;
 
     /// <summary>
     /// The enums emitted so far, in order.

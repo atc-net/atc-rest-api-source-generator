@@ -27,11 +27,13 @@ public static class QueryObjectModelExtractor
     /// <param name="record">The model's record, as generated.</param>
     /// <param name="queryObject">An object in the query the model is (its properties' wire names).</param>
     /// <param name="namespaceName">The model's namespace.</param>
+    /// <param name="registry">The registry of the generation: an extensible enum property is parsed by its own TryParse.</param>
     /// <returns>The C# source.</returns>
     public static string Generate(
         RecordParameters record,
         OpenApiParameterExtensions.QueryObject queryObject,
-        string namespaceName)
+        string namespaceName,
+        TypeConflictRegistry? registry = null)
     {
         if (record is null)
         {
@@ -46,13 +48,17 @@ public static class QueryObjectModelExtractor
         var typeName = record.Name.Split(' ')[0];
         var parameters = record.Parameters ?? [];
         var locals = new List<(ParameterBaseParameters Parameter, string Local, string? WireName)>();
+        var extensibleEnums = new HashSet<string>(StringComparer.Ordinal);
         for (var i = 0; i < parameters.Count; i++)
         {
             var parameter = parameters[i];
-            var wireName = queryObject.Properties
-                .FirstOrDefault(p => string.Equals(Normalize(p.WireName), Normalize(parameter.Name), StringComparison.Ordinal))?
-                .WireName;
-            locals.Add((parameter, $"value{i.ToString(CultureInfo.InvariantCulture)}", wireName));
+            var property = queryObject.Properties
+                .FirstOrDefault(p => string.Equals(Normalize(p.WireName), Normalize(parameter.Name), StringComparison.Ordinal));
+            locals.Add((parameter, $"value{i.ToString(CultureInfo.InvariantCulture)}", property?.WireName));
+            if (property is not null && ExtensibleEnumHelper.IsExtensibleEnum(property.Schema, registry))
+            {
+                extensibleEnums.Add(property.WireName);
+            }
         }
 
         var sb = new StringBuilder();
@@ -95,7 +101,7 @@ public static class QueryObjectModelExtractor
         {
             sb.AppendLine($"                case {CSharpLiteralHelper.ToStringLiteral(wireName!)}:");
             var parsed = local + "Parsed";
-            var parse = ParseExpression(Simple(parameter), parsed);
+            var parse = ParseExpression(Simple(parameter), parsed, extensibleEnums.Contains(wireName!));
             if (parse is null)
             {
                 sb.AppendLine($"                    {local} = text;");
@@ -131,6 +137,17 @@ public static class QueryObjectModelExtractor
 
         sb.AppendLine("        return true;");
         sb.AppendLine("    }");
+
+        // An extensible enum is called through a type argument: in the record, its name is also the property's
+        if (extensibleEnums.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("    // An extensible enum reads any text (IParsable)");
+            sb.AppendLine("    private static bool TryParseExtensible<T>(string text, [global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value)");
+            sb.AppendLine("        where T : global::System.IParsable<T>");
+            sb.AppendLine("        => T.TryParse(text, global::System.Globalization.CultureInfo.InvariantCulture, out value);");
+        }
+
         sb.AppendLine("}");
         return sb.ToString();
     }
@@ -139,10 +156,12 @@ public static class QueryObjectModelExtractor
     private static string Simple(ParameterBaseParameters parameter)
         => parameter.TypeName.TrimEnd('?');
 
-    // The call that parses 'text' into 'parsed', or null for a type the text is
+    // The call that parses 'text' into 'parsed', or null for a type the text is; an extensible enum has a TryParse of
+    // its own (it takes any text), a C# enum is read by its member name
     private static string? ParseExpression(
         string type,
-        string parsed)
+        string parsed,
+        bool extensibleEnum)
     {
         var simple = type.Replace("global::", string.Empty);
         simple = simple.StartsWith("System.", StringComparison.Ordinal) ? simple.Substring("System.".Length) : simple;
@@ -151,6 +170,7 @@ public static class QueryObjectModelExtractor
             _ when TextTypes.Contains(simple) => null,
             "bool" or "Boolean" => $"bool.TryParse(text, out var {parsed})",
             "Uri" => $"global::System.Uri.TryCreate(text, global::System.UriKind.RelativeOrAbsolute, out var {parsed})",
+            _ when extensibleEnum => $"TryParseExtensible<{type}>(text, out var {parsed})",
             _ when ParsableTypes.Contains(simple) => $"{type}.TryParse(text, global::System.Globalization.CultureInfo.InvariantCulture, out var {parsed})",
             _ => $"global::System.Enum.TryParse<{type}>(text, ignoreCase: true, out var {parsed})",
         };

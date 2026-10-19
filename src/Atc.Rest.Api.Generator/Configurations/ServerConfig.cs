@@ -118,6 +118,16 @@ public class ServerConfig : BaseConfig
     public bool ReadEnumMemberNames { get; set; }
 
     /// <summary>
+    /// Whether a string enum is an extensible enum, as in the clients: a <c>readonly record struct</c> over the value on
+    /// the wire, with the specification's values as named members, their constants in <c>Names</c> for a switch, and
+    /// <c>KnownValues</c>. Default: false - a strict C# enum, and a request with a value the specification does not list
+    /// is a <c>400</c>. When true, such a value reaches the handler with <c>IsKnown</c> false, and a handler can answer
+    /// with a value the specification does not list yet - for an API that adds values faster than it ships its
+    /// specification. Integer enums are C# enums either way.
+    /// </summary>
+    public bool ExtensibleEnums { get; set; }
+
+    /// <summary>
     /// The API's name in the generated host methods: <c>Add{ApiName}Api()</c>, <c>Map{ApiName}Api()</c>,
     /// <c>Map{ApiName}Webhooks()</c>, <c>Add{ApiName}OpenIdConnectAuthentication()</c>. Default: null - the namespace's last segment
     /// that names the API (a trailing <c>Contracts</c>, <c>Api</c> or <c>Server</c> is skipped:
