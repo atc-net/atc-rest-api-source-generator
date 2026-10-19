@@ -9,6 +9,8 @@ namespace Atc.Rest.Api.Generator.Helpers;
 /// </summary>
 public static class FormBodyHelper
 {
+    private const string UrlEncodedMediaType = "application/x-www-form-urlencoded";
+
     /// <summary>
     /// Appends the statements that add every non-file field of the form model read through
     /// <paramref name="requestAccess"/> to <paramref name="fieldsVariable"/>, a
@@ -74,8 +76,9 @@ public static class FormBodyHelper
     /// Appends the statements that add every field of the multipart form model read through
     /// <paramref name="requestAccess"/>: a file through <see cref="MultipartPartWriter.File"/>, a list of files one
     /// by one, a list of scalars as one text part per item, a scalar as its wire text, and an object, a map or a
-    /// composition as an application/json part through <see cref="MultipartPartWriter.Json"/> (a list of one as a part
-    /// per item, see <see cref="IsJsonPart"/>). A field whose encoding names another media type is left out
+    /// composition as an application/json part through <see cref="MultipartPartWriter.Json"/> - or, as its encoding
+    /// names, a model as an XML part and a flat model as a URL-encoded part through <see cref="MultipartPartWriter.Part"/>
+    /// (a list of one as a part per item, see <see cref="PartOf"/>). A field none of its media types carries is left out
     /// (ATC_API_OPR037).
     /// </summary>
     /// <param name="builder">The builder to append to.</param>
@@ -110,13 +113,15 @@ public static class FormBodyHelper
             var propertyName = property.Key.ToPascalCaseForDotNet();
             var access = $"{requestAccess}.{propertyName}";
 
-            // An object, a map or a composition has no text: an application/json part (a list of one a part per
-            // item), or - when its encoding names another media type - left out (ATC_API_OPR037)
+            // An object, a map or a composition has no text: an application/json part, an XML or a URL-encoded part as
+            // its encoding names (a list of one a part per item), or - for a media type that carries none - left out
+            // (ATC_API_OPR037)
             if (property.Value.HasNoTextForm())
             {
-                if (IsJsonPart(property.Value, property.Key, multipart))
+                var part = PartOf(property.Value, property.Key, multipart);
+                if (part.Encoding is MultipartPartEncoding.Json or MultipartPartEncoding.Xml or MultipartPartEncoding.UrlEncoded)
                 {
-                    AppendJsonParts(builder, property.Key, property.Value, requestAccess, propertyName, writer);
+                    AppendObjectParts(builder, property.Key, property.Value, requestAccess, propertyName, part, writer);
                 }
 
                 continue;
@@ -169,15 +174,18 @@ public static class FormBodyHelper
     }
 
     /// <summary>
-    /// Whether a field of a multipart form is sent as an <c>application/json</c> part: a value with no text form (an
-    /// object, a map or a composition, or a list of one - a part per item; see <c>HasNoTextForm</c>), which OpenAPI
-    /// encodes as JSON unless the form's <c>encoding</c> gives the field another media type.
+    /// How a field of a multipart form is sent. A value with a text form is a text (or file) part. A value with none
+    /// (an object, a map or a composition, or a list of one - a part per item; see <c>HasNoTextForm</c>) is an
+    /// <c>application/json</c> part, as OpenAPI encodes it, unless the form's <c>encoding</c> names other media types:
+    /// of those, JSON is taken first, then XML for a model an XML body maps, then <c>application/x-www-form-urlencoded</c>
+    /// for a flat model (each property one value, as an object in the query); a field none of them carries is
+    /// <see cref="MultipartPartEncoding.None"/> (ATC_API_OPR037).
     /// </summary>
     /// <param name="field">The field's schema.</param>
     /// <param name="fieldName">The field's name, the key of its <c>encoding</c>.</param>
     /// <param name="multipart">The multipart/form-data media type, for its <c>encoding</c>.</param>
-    /// <returns><see langword="true"/> for a JSON part.</returns>
-    public static bool IsJsonPart(
+    /// <returns>The part's encoding and media type.</returns>
+    public static MultipartPart PartOf(
         IOpenApiSchema field,
         string fieldName,
         IOpenApiMediaType? multipart)
@@ -189,14 +197,87 @@ public static class FormBodyHelper
 
         if (!field.HasNoTextForm())
         {
-            return false;
+            return new MultipartPart(MultipartPartEncoding.Text, MediaType: null);
         }
 
-        // The encoding may list several media types; any JSON one is what the generated code writes
-        return multipart?.Encoding is not { } encoding ||
-               !encoding.TryGetValue(fieldName, out var fieldEncoding) ||
-               string.IsNullOrWhiteSpace(fieldEncoding.ContentType) ||
-               fieldEncoding.ContentType!.Split(',').Any(ErrorResponseShapeResolver.IsJsonMediaType);
+        // The encoding may list several media types (each with its parameters: application/xml; charset=utf-8)
+        var mediaTypes = multipart?.Encoding is { } encoding &&
+                         encoding.TryGetValue(fieldName, out var fieldEncoding) &&
+                         !string.IsNullOrWhiteSpace(fieldEncoding.ContentType)
+            ? fieldEncoding.ContentType!
+                .Split(',')
+                .Select(m => m.Split(';')[0].Trim())
+                .Where(m => m.Length > 0)
+                .ToList()
+            : [];
+
+        if (mediaTypes.Count == 0 || mediaTypes.Any(ErrorResponseShapeResolver.IsJsonMediaType))
+        {
+            return new MultipartPart(MultipartPartEncoding.Json, "application/json");
+        }
+
+        // A list of models is a part per item
+        var value = field.IsOfType(JsonSchemaType.Array) && field.Items is { } items ? items : field;
+        if (mediaTypes.FirstOrDefault(IsXmlMediaType) is { } xml &&
+            XmlBodyHelper.IsMappedModel(value))
+        {
+            return new MultipartPart(MultipartPartEncoding.Xml, xml);
+        }
+
+        if (mediaTypes.Any(m => m.Equals(UrlEncodedMediaType, StringComparison.OrdinalIgnoreCase)) &&
+            IsFlatModel(fieldName, value))
+        {
+            return new MultipartPart(MultipartPartEncoding.UrlEncoded, UrlEncodedMediaType);
+        }
+
+        return new MultipartPart(MultipartPartEncoding.None, MediaType: null);
+    }
+
+    /// <summary>
+    /// Whether a field of a multipart form is sent as an <c>application/json</c> part (see <see cref="PartOf"/>).
+    /// </summary>
+    /// <param name="field">The field's schema.</param>
+    /// <param name="fieldName">The field's name, the key of its <c>encoding</c>.</param>
+    /// <param name="multipart">The multipart/form-data media type, for its <c>encoding</c>.</param>
+    /// <returns><see langword="true"/> for a JSON part.</returns>
+    public static bool IsJsonPart(
+        IOpenApiSchema field,
+        string fieldName,
+        IOpenApiMediaType? multipart)
+        => PartOf(field, fieldName, multipart).Encoding == MultipartPartEncoding.Json;
+
+    /// <summary>
+    /// Whether a field of a multipart form is an object part - JSON, XML or URL-encoded (see <see cref="PartOf"/>): a
+    /// value the part's text is read into.
+    /// </summary>
+    /// <param name="field">The field's schema.</param>
+    /// <param name="fieldName">The field's name, the key of its <c>encoding</c>.</param>
+    /// <param name="multipart">The multipart/form-data media type, for its <c>encoding</c>.</param>
+    /// <returns><see langword="true"/> for an object part.</returns>
+    public static bool IsObjectPart(
+        IOpenApiSchema field,
+        string fieldName,
+        IOpenApiMediaType? multipart)
+        => PartOf(field, fieldName, multipart).Encoding is MultipartPartEncoding.Json or MultipartPartEncoding.Xml or MultipartPartEncoding.UrlEncoded;
+
+    /// <summary>
+    /// The properties of a field sent as an <c>application/x-www-form-urlencoded</c> part, each one value, as the
+    /// part's text names them; null for any other field.
+    /// </summary>
+    /// <param name="field">The field's schema (a list of the model: its items).</param>
+    /// <param name="fieldName">The field's name.</param>
+    /// <returns>The properties, by wire name.</returns>
+    public static IReadOnlyList<OpenApiParameterExtensions.QueryObjectProperty>? UrlEncodedPropertiesOf(
+        IOpenApiSchema field,
+        string fieldName)
+    {
+        if (field is null)
+        {
+            throw new ArgumentNullException(nameof(field));
+        }
+
+        var value = field.IsOfType(JsonSchemaType.Array) && field.Items is { } items ? items : field;
+        return QueryObjectOf(fieldName, value)?.Properties;
     }
 
     /// <summary>
@@ -214,6 +295,22 @@ public static class FormBodyHelper
         IOpenApiSchema field)
         => FindMultipartFormData(operation) is { } multipart &&
            IsJsonPart(field, fieldName, multipart);
+
+    /// <summary>
+    /// How a field of an operation's form body is sent when the operation declares a multipart/form-data body (see
+    /// <see cref="PartOf"/>); null for a URL-encoded form.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="fieldName">The field's name.</param>
+    /// <param name="field">The field's schema.</param>
+    /// <returns>The part, or null.</returns>
+    public static MultipartPart? MultipartPartOf(
+        OpenApiOperation operation,
+        string fieldName,
+        IOpenApiSchema field)
+        => FindMultipartFormData(operation) is { } multipart
+            ? PartOf(field, fieldName, multipart)
+            : null;
 
     /// <summary>
     /// The C# type of the value one JSON part carries: the field's type, or its item's for a list of one (a part per
@@ -260,7 +357,7 @@ public static class FormBodyHelper
         }
 
         return field.HasNoTextForm() &&
-               !(IsMultipartFormData(formMediaType) && IsJsonPart(field, fieldName, form));
+               !(IsMultipartFormData(formMediaType) && IsObjectPart(field, fieldName, form));
     }
 
     /// <summary>
@@ -343,16 +440,41 @@ public static class FormBodyHelper
             ? content[mediaType]
             : null;
 
+    // application/xml, text/xml and a structured syntax suffix (application/atom+xml)
+    private static bool IsXmlMediaType(string mediaType)
+        => mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase) ||
+           mediaType.Equals("text/xml", StringComparison.OrdinalIgnoreCase) ||
+           mediaType.EndsWith("+xml", StringComparison.OrdinalIgnoreCase);
+
+    // A model whose properties are each one value: the object a query sends as form with explode, by the same rule
+    private static bool IsFlatModel(
+        string fieldName,
+        IOpenApiSchema value)
+        => QueryObjectOf(fieldName, value) is not null;
+
+    private static OpenApiParameterExtensions.QueryObject? QueryObjectOf(
+        string fieldName,
+        IOpenApiSchema value)
+        => new OpenApiParameter
+        {
+            Name = fieldName,
+            In = ParameterLocation.Query,
+            Style = ParameterStyle.Form,
+            Explode = true,
+            Schema = value,
+        }.GetQueryObject();
+
     private static bool IsMultipartFormData(string mediaType)
         => mediaType.Split(';')[0].Trim().Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase);
 
     // An application/json part of the value, or one per item of a list
-    private static void AppendJsonParts(
+    private static void AppendObjectParts(
         StringBuilder builder,
         string fieldName,
         IOpenApiSchema field,
         string requestAccess,
         string propertyName,
+        MultipartPart part,
         MultipartPartWriter writer)
     {
         if (field.IsOfType(JsonSchemaType.Array))
@@ -361,7 +483,7 @@ public static class FormBodyHelper
             builder.AppendLine("{");
             builder.AppendLine(4, $"foreach (var item in {requestAccess}.{propertyName})");
             builder.AppendLine(4, "{");
-            writer.Json(builder, 8, fieldName, "item");
+            AppendObjectPart(builder, 8, fieldName, field, "item", part, writer);
             builder.AppendLine(4, "}");
             builder.AppendLine("}");
         }
@@ -370,10 +492,51 @@ public static class FormBodyHelper
             var variable = char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
             builder.AppendLine($"if ({requestAccess}?.{propertyName} is {{ }} {variable})");
             builder.AppendLine("{");
-            writer.Json(builder, 4, fieldName, variable);
+            AppendObjectPart(builder, 4, fieldName, field, variable, part, writer);
             builder.AppendLine("}");
         }
 
         builder.AppendLine();
+    }
+
+    // One part: the value as JSON, as XML (as an XML body of the model is written), or its fields URL-encoded
+    private static void AppendObjectPart(
+        StringBuilder builder,
+        int indent,
+        string fieldName,
+        IOpenApiSchema field,
+        string value,
+        MultipartPart part,
+        MultipartPartWriter writer)
+    {
+        switch (part.Encoding)
+        {
+            case MultipartPartEncoding.Xml:
+                writer.Part(builder, indent, fieldName, $"{JsonPartValueType(field)}Xml.ToXml({value})", part.MediaType!);
+                break;
+
+            case MultipartPartEncoding.UrlEncoded:
+            {
+                var fields = value + "Fields";
+                var model = field.IsOfType(JsonSchemaType.Array) && field.Items is { } items ? items : field;
+                builder.AppendLine(indent, $"var {fields} = new List<KeyValuePair<string, string>>();");
+
+                // The model's fields as a URL-encoded body of it has them, at this part's indent
+                var fieldStatements = new StringBuilder();
+                AppendUrlEncodedFields(fieldStatements, model, value, fields);
+                foreach (var line in fieldStatements.ToString().TrimEnd().Split('\n'))
+                {
+                    var text = line.TrimEnd('\r');
+                    builder.AppendLine(text.Length == 0 ? string.Empty : new string(' ', indent) + text);
+                }
+
+                writer.Part(builder, indent, fieldName, $"string.Join(\"&\", {fields}.Select(field => Uri.EscapeDataString(field.Key) + \"=\" + Uri.EscapeDataString(field.Value)))", part.MediaType!);
+                break;
+            }
+
+            default:
+                writer.Json(builder, indent, fieldName, value);
+                break;
+        }
     }
 }

@@ -83,10 +83,14 @@ public sealed partial class GatewayService
         string contentType,
         string itemName,
         string[] items,
+        string? author = null,
         CancellationToken cancellationToken = default)
     {
         var fileContent = new StreamFileContent(fileStream, fileName, contentType);
-        var request = new FileAsFormDataRequest(ItemName: itemName, File: fileContent, Items: [..items]);
+
+        // The metadata goes as a URL-encoded part (author=Ada), as the form's encoding names
+        var metadata = string.IsNullOrWhiteSpace(author) ? null : new FileMetadata(Author: author, Confidential: null);
+        var request = new FileAsFormDataRequest(ItemName: itemName, File: fileContent, Items: [..items], Metadata: metadata);
         var parameters = new UploadSingleObjectWithFileAsFormDataParameters(Request: request);
 
         var result = await uploadSingleObjectWithFileAsFormDataEndpoint

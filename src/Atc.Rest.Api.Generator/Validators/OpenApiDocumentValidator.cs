@@ -264,10 +264,10 @@ public static class OpenApiDocumentValidator
                             Suggestions: ["Declare the field as a scalar, a list of scalars or a file, declare the body as multipart/form-data (the field is then an application/json part), or declare the body as application/json"])
                         : new DiagnosticMessage(
                             RuleIdentifiers.ParameterValueNotBindable,
-                            $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition whose encoding names '{field.EncodingContentType}', which the generated code cannot write (only an application/json part); the generated clients leave it out, a server cannot be generated.",
+                            $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition whose encoding names '{field.EncodingContentType}', which does not carry it (an application/json part carries any such field, an XML part a model, a URL-encoded part a model whose properties are each one value); the generated clients leave it out, a server cannot be generated.",
                             DiagnosticSeverity.Warning,
                             sourceFilePath,
-                            Suggestions: ["Leave out the field's encoding contentType, or set it to application/json"]));
+                            Suggestions: ["Leave out the field's encoding contentType, or set it to application/json - or to application/xml for a model, or application/x-www-form-urlencoded for a model whose properties are each one value"]));
                 }
             }
         }

@@ -21,6 +21,7 @@ public partial class FilesUpload
     private IBrowserFile? metadataFile;
     private string itemName = string.Empty;
     private string itemsText = string.Empty;
+    private string author = string.Empty;
 
     // Batch files with metadata
     private IReadOnlyList<IBrowserFile>? batchFiles;
@@ -146,11 +147,12 @@ public partial class FilesUpload
 
             var items = itemsText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            await Gateway.UploadSingleObjectWithFileAsync(ms, metadataFile.Name, metadataFile.ContentType, itemName, items);
+            await Gateway.UploadSingleObjectWithFileAsync(ms, metadataFile.Name, metadataFile.ContentType, itemName, items, author);
             Snackbar.Add($"Uploaded: {metadataFile.Name} with metadata", Severity.Success);
             metadataFile = null;
             itemName = string.Empty;
             itemsText = string.Empty;
+            author = string.Empty;
         }
         catch (Exception ex)
         {

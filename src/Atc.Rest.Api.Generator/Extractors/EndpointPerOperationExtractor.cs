@@ -2353,7 +2353,8 @@ public static class EndpointPerOperationExtractor
         }
 
         // A file through WithFile (with its metadata), a text field through WithFormField, an object through
-        // WithFormJsonField (an application/json part written by the request builder's serializer, as a JSON body is)
+        // WithFormJsonField (an application/json part written by the request builder's serializer, as a JSON body is),
+        // an XML or a URL-encoded part through WithFormField with its media type
         FormBodyHelper.AppendMultipartFields(
             sb,
             schema,
@@ -2362,6 +2363,7 @@ public static class EndpointPerOperationExtractor
             new MultipartPartWriter(
                 File: (b, indent, name, file) => b.AppendLine(indent, $"requestBuilder.WithFile({file}.OpenReadStream(), {CSharpLiteralHelper.ToStringLiteral(name)}, {file}.FileName, {file}.ContentType);"),
                 Text: (b, indent, name, text) => b.AppendLine(indent, $"requestBuilder.WithFormField({CSharpLiteralHelper.ToStringLiteral(name)}, {text});"),
-                Json: (b, indent, name, value) => b.AppendLine(indent, $"requestBuilder.WithFormJsonField({CSharpLiteralHelper.ToStringLiteral(name)}, {value});")));
+                Json: (b, indent, name, value) => b.AppendLine(indent, $"requestBuilder.WithFormJsonField({CSharpLiteralHelper.ToStringLiteral(name)}, {value});"),
+                Part: (b, indent, name, text, mediaType) => b.AppendLine(indent, $"requestBuilder.WithFormField({CSharpLiteralHelper.ToStringLiteral(name)}, {text}, {CSharpLiteralHelper.ToStringLiteral(mediaType)});")));
     }
 }

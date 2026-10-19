@@ -1063,10 +1063,16 @@ using Microsoft.AspNetCore.Builder;
         builder.AppendLine(";");
     }
 
-    // Whether a field of the operation's form body is an application/json part (read by the form step)
+    // Whether a field of the operation's form body is an object part - JSON, XML or URL-encoded (read by the form step)
     private static bool HasJsonParts(OpenApiOperation operation)
         => operation.GetFormBodySchemaInfo().Properties is { } properties &&
-           properties.Any(p => FormBodyHelper.IsMultipartJsonPart(operation, p.Key, p.Value));
+           properties.Any(p => IsObjectPart(operation, p.Key, p.Value));
+
+    private static bool IsObjectPart(
+        OpenApiOperation operation,
+        string fieldName,
+        IOpenApiSchema field)
+        => FormBodyHelper.MultipartPartOf(operation, fieldName, field)?.Encoding is MultipartPartEncoding.Json or MultipartPartEncoding.Xml or MultipartPartEncoding.UrlEncoded;
 
     private static void GenerateSecurityMetadata(
         StringBuilder builder,
@@ -1660,9 +1666,9 @@ using Microsoft.AspNetCore.Builder;
             var (_, properties, formRequired) = operation.GetFormBodySchemaInfo();
             if (properties is not null)
             {
-                // A field sent as an application/json part (an object, a map or a composition) is no form binding's: the
-                // wire-form-binding step reads it as JSON and keeps it on the request (WireBindingExtensions.FormJson)
-                var hasJsonParts = properties.Any(p => FormBodyHelper.IsMultipartJsonPart(operation, p.Key, p.Value));
+                // A field sent as an object part (JSON, XML, URL-encoded) is no form binding's: the wire-form-binding step
+                // reads it from the part's text and keeps it on the request (WireBindingExtensions.FormPart)
+                var hasJsonParts = properties.Any(p => IsObjectPart(operation, p.Key, p.Value));
 
                 // The HttpContext: a JSON part is read from it, and the request is validated with its services (the
                 // validators, the ValidationFilterOptions, the JSON naming policy)
@@ -1686,10 +1692,10 @@ using Microsoft.AspNetCore.Builder;
                     var propSchema = kvp.Value;
                     var pascalPropName = propName.ToPascalCaseForDotNet();
 
-                    if (FormBodyHelper.IsMultipartJsonPart(operation, propName, propSchema))
+                    if (IsObjectPart(operation, propName, propSchema))
                     {
                         var valueType = FormBodyHelper.JsonPartValueType(propSchema);
-                        var accessor = propSchema.IsOfType(JsonSchemaType.Array) ? "FormJsonList" : "FormJson";
+                        var accessor = propSchema.IsOfType(JsonSchemaType.Array) ? "FormPartList" : "FormPart";
                         formParameterNames.Add((string.Empty, pascalPropName, valueType, formRequired.Contains(propName), false, propName, $"WireBindingExtensions.{accessor}<{valueType}>(httpContext, {CSharpLiteralHelper.ToStringLiteral(propName)})"));
                         continue;
                     }

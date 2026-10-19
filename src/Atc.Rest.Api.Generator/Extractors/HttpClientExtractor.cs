@@ -2265,7 +2265,8 @@ public static class HttpClientExtractor
         builder.AppendLine();
 
         // A file is a StreamContent with its own content type; a text field a StringContent; an object an
-        // application/json part written through the client's serializer options (as a JSON body is)
+        // application/json part written through the client's serializer options (as a JSON body is), or an XML or a
+        // URL-encoded part as a StringContent of its media type
         FormBodyHelper.AppendMultipartFields(
             builder,
             schema,
@@ -2284,7 +2285,8 @@ public static class HttpClientExtractor
                     sb.AppendLine(indent, $"content.Add(fileContent, {CSharpLiteralHelper.ToStringLiteral(name)}, {file}.FileName);");
                 },
                 Text: (sb, indent, name, text) => sb.AppendLine(indent, $"content.Add(new StringContent({text}), {CSharpLiteralHelper.ToStringLiteral(name)});"),
-                Json: (sb, indent, name, value) => sb.AppendLine(indent, $"content.Add(jsonSerializerOptions.ToJsonContent({value}), {CSharpLiteralHelper.ToStringLiteral(name)});")));
+                Json: (sb, indent, name, value) => sb.AppendLine(indent, $"content.Add(jsonSerializerOptions.ToJsonContent({value}), {CSharpLiteralHelper.ToStringLiteral(name)});"),
+                Part: (sb, indent, name, text, mediaType) => sb.AppendLine(indent, $"content.Add(new StringContent({text}, global::System.Text.Encoding.UTF8, {CSharpLiteralHelper.ToStringLiteral(mediaType)}), {CSharpLiteralHelper.ToStringLiteral(name)});")));
     }
 
     /// <summary>

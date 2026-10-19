@@ -33,9 +33,11 @@ namespace OverlaysMultiPart.Generated;
 public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false)
 {
     /// <summary>
-    /// Reads a value sent as JSON with the given options (see <see cref="Json{T}"/>), or null for any other.
+    /// Reads the value an object part of a multipart form carries from its text, with the app's JSON options
+    /// (see <see cref="Json{T}"/>, <see cref="Xml{T}"/>, <see cref="UrlEncoded{T}"/>), or null for any other
+    /// field.
     /// </summary>
-    public Func<string, JsonSerializerOptions, object?>? ReadJson { get; init; }
+    public Func<string, JsonSerializerOptions, object?>? ReadPart { get; init; }
 
     /// <summary>
     /// Whether the specification requires the parameter (a query, header or cookie parameter). An endpoint
@@ -56,8 +58,76 @@ public sealed record WireParameter(string In, string Name, Func<string, bool>? P
     public static WireParameter Json<T>(string @in, string name, string typeName, bool isArray = false)
         => new(@in, name, null, typeName, null, isArray)
         {
-            ReadJson = (text, options) => JsonSerializer.Deserialize(text, global::OverlaysMultiPart.Generated.GeneratedJsonOptions.TypeInfo<T>(options)),
+            ReadPart = (text, options) => JsonSerializer.Deserialize(text, global::OverlaysMultiPart.Generated.GeneratedJsonOptions.TypeInfo<T>(options)),
         };
+
+    /// <summary>
+    /// A model a multipart form sends as an XML part (its encoding names an XML media type), read as an XML
+    /// body of the model is (a list of one a part per item).
+    /// </summary>
+    public static WireParameter Xml<T>(string @in, string name, string typeName, Func<string, T> read, bool isArray = false)
+        => new(@in, name, null, typeName, null, isArray)
+        {
+            ReadPart = (text, _) => read(text),
+        };
+
+    /// <summary>
+    /// A flat model a multipart form sends as an application/x-www-form-urlencoded part (name=value&amp;...):
+    /// each field written as JSON by its kind - a number, a boolean or a string - and the model read through
+    /// the metadata the app's JSON options resolve (a list of one a part per item). A field the model does not
+    /// have is ignored; a number or a boolean that is none, or a required field that is missing, makes the part
+    /// no such value.
+    /// </summary>
+    public static WireParameter UrlEncoded<T>(string @in, string name, string typeName, Dictionary<string, string> kinds, string[] required, bool isArray = false)
+        => new(@in, name, null, typeName, null, isArray)
+        {
+            ReadPart = (text, options) => JsonSerializer.Deserialize(UrlEncodedToJson(text, kinds, required), global::OverlaysMultiPart.Generated.GeneratedJsonOptions.TypeInfo<T>(options)),
+        };
+
+    // The fields of a URL-encoded text as a JSON object, the last value of a field taken
+    private static string UrlEncodedToJson(string text, Dictionary<string, string> kinds, string[] required)
+    {
+        var fields = global::Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(text.StartsWith('?') ? text : "?" + text);
+        foreach (var field in required)
+        {
+            if (!fields.TryGetValue(field, out var values) || values.Count == 0)
+            {
+                throw new JsonException($"The field '{field}' is required.");
+            }
+        }
+
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            foreach (var field in fields)
+            {
+                if (!kinds.TryGetValue(field.Key, out var kind) || field.Value.LastOrDefault() is not { } value)
+                {
+                    continue;
+                }
+
+                switch (kind)
+                {
+                    case "number" when decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number):
+                        writer.WriteNumber(field.Key, number);
+                        break;
+                    case "boolean" when bool.TryParse(value, out var boolean):
+                        writer.WriteBoolean(field.Key, boolean);
+                        break;
+                    case "number" or "boolean":
+                        throw new JsonException($"The field '{field.Key}' is not a {kind}.");
+                    default:
+                        writer.WriteString(field.Key, value);
+                        break;
+                }
+            }
+
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+    }
 
     /// <summary>
     /// An object in the query: each property by its own key - <c>{name}[{property}]</c> (deepObject) or the
@@ -126,8 +196,8 @@ public static class WireBindingExtensions
 {
     private const string CookieHeaderPrefix = "x-cookie-";
 
-    // The request item a field read as JSON is kept under, for the endpoint
-    private const string FormJsonKey = "\u001Fform-json:";
+    // The request item a field read from an object part is kept under, for the endpoint
+    private const string FormPartKey = "\u001Fform-part:";
 
     private static readonly JsonSerializerOptions FallbackJsonOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
 
@@ -216,7 +286,7 @@ public static class WireBindingExtensions
         var checks = new List<FormField>();
         foreach (var (field, required, isFile) in fields)
         {
-            checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray, field.ReadJson));
+            checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray, field.ReadPart));
         }
 
         builder.Add(endpoint =>
@@ -264,7 +334,7 @@ public static class WireBindingExtensions
                 }
 
                 var errors = CheckForm(form, checks, out var rewritten);
-                if (await ReadJsonFieldsAsync(context, form, checks) is { } jsonErrors)
+                if (await ReadPartFieldsAsync(context, form, checks) is { } jsonErrors)
                 {
                     errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
                     foreach (var (name, messages) in jsonErrors)
@@ -291,26 +361,27 @@ public static class WireBindingExtensions
         return builder;
     }
 
-    private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, Func<string, JsonSerializerOptions, object?>? ReadJson);
+    private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, Func<string, JsonSerializerOptions, object?>? ReadPart);
 
     /// <summary>
-    /// The value of a field the form step read as JSON (see <see cref="WireParameter.Json{T}"/>), or the
-    /// default when it was not sent.
+    /// The value of a field the form step read from an object part - JSON, XML or URL-encoded (see
+    /// <see cref="WireParameter.ReadPart"/>) - or the default when it was not sent.
     /// </summary>
-    public static T? FormJson<T>(HttpContext context, string name)
-        => context.Items.TryGetValue(FormJsonKey + name, out var value) && value is T typed ? typed : default;
+    public static T? FormPart<T>(HttpContext context, string name)
+        => context.Items.TryGetValue(FormPartKey + name, out var value) && value is T typed ? typed : default;
 
     /// <summary>
-    /// The items of a list field the form step read as JSON, a part each (see
-    /// <see cref="WireParameter.Json{T}"/>), or null when none was sent.
+    /// The items of a list field the form step read from object parts, a part each (see
+    /// <see cref="WireParameter.ReadPart"/>), or null when none was sent.
     /// </summary>
-    public static List<T>? FormJsonList<T>(HttpContext context, string name)
-        => context.Items.TryGetValue(FormJsonKey + name, out var value) && value is List<object> items ? items.Cast<T>().ToList() : null;
+    public static List<T>? FormPartList<T>(HttpContext context, string name)
+        => context.Items.TryGetValue(FormPartKey + name, out var value) && value is List<object> items ? items.Cast<T>().ToList() : null;
 
-    // The fields sent as JSON, read through the app's JSON options and kept for the endpoint: a part is a
-    // form value or - what a browser sends for a Blob - a file of the field's name. The parts that are no
-    // such value and the required fields that are missing (a JSON null is none), by field name, or null.
-    private static async Task<Dictionary<string, string[]>?> ReadJsonFieldsAsync(
+    // The fields sent as object parts (JSON, XML, URL-encoded), read with the app's JSON options and kept for
+    // the endpoint: a part is a form value or - what a browser sends for a Blob - a file of the field's name.
+    // The parts that are no such value and the required fields that are missing (a JSON null is none), by
+    // field name, or null.
+    private static async Task<Dictionary<string, string[]>?> ReadPartFieldsAsync(
         HttpContext context,
         IFormCollection form,
         List<FormField> fields)
@@ -319,7 +390,7 @@ public static class WireBindingExtensions
         JsonSerializerOptions? options = null;
         foreach (var field in fields)
         {
-            if (field.ReadJson is not { } readJson)
+            if (field.ReadPart is not { } readPart)
             {
                 continue;
             }
@@ -344,9 +415,9 @@ public static class WireBindingExtensions
                 object? value;
                 try
                 {
-                    value = readJson(part, options);
+                    value = readPart(part, options);
                 }
-                catch (JsonException)
+                catch (Exception ex) when (ex is JsonException or System.Xml.XmlException or FormatException or InvalidOperationException)
                 {
                     invalid = true;
                     break;
@@ -382,7 +453,7 @@ public static class WireBindingExtensions
                 continue;
             }
 
-            context.Items[FormJsonKey + field.Name] = field.IsArray ? items : items[0];
+            context.Items[FormPartKey + field.Name] = field.IsArray ? items : items[0];
         }
 
         return errors;
@@ -400,8 +471,8 @@ public static class WireBindingExtensions
         Dictionary<string, StringValues>? values = null;
         foreach (var field in fields)
         {
-            // A field sent as JSON is read by ReadJsonFieldsAsync
-            if (field.ReadJson is not null)
+            // A field sent as an object part is read by ReadPartFieldsAsync
+            if (field.ReadPart is not null)
             {
                 continue;
             }

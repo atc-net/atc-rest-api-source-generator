@@ -709,6 +709,11 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/FileAsFormDataRequest'
+            # The metadata is a URL-encoded part (author=Ada&confidential=true): a model whose properties are each one
+            # value. Without an encoding it would be an application/json part
+            encoding:
+              metadata:
+                contentType: application/x-www-form-urlencoded
     parameters: []
   /files/form-data/singleObjectMultiFile:
     # Inherit file-uploads policy
@@ -1963,7 +1968,7 @@ components:
         - items
     FileMetadata:
       title: FileMetadata
-      description: About an uploaded file; in a multipart form it is an application/json part.
+      description: About an uploaded file; the form's encoding sends it as an application/x-www-form-urlencoded part.
       type: object
       properties:
         author:

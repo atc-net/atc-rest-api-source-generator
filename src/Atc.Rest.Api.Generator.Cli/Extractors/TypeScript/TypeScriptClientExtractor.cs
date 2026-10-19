@@ -620,8 +620,22 @@ public static class TypeScriptClientExtractor
             // A raw file upload: the media types the request body declares
             var rawUploadMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList();
 
-            // A multipart form: its encoding (an object field is an application/json part, see FormBodyHelper.IsJsonPart)
+            // A multipart form: its encoding (an object field is an application/json part, or an XML or a URL-encoded
+            // part as the encoding names, see FormBodyHelper.PartOf) - an XML part is written by helpers/xml.ts
             var bodyMediaType = operation.RequestBody?.Content is { } bodyContent && bodyContent.TryGetValue(bodyContentType, out var declaredBody) ? declaredBody : null;
+            if (bodyContentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) &&
+                bodySchema?.Properties is { } formProperties)
+            {
+                foreach (var formProperty in formProperties)
+                {
+                    if (FormBodyHelper.PartOf(formProperty.Value, formProperty.Key, bodyMediaType).Encoding == MultipartPartEncoding.Xml &&
+                        PartModelKey(formProperty.Value) is { } partKey)
+                    {
+                        xmlFunctions?.Add(TypeScriptXmlHelperExtractor.FunctionNames(partKey).Write);
+                    }
+                }
+            }
+
             AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption, bodyMediaType, wireNames, headerReadersOption);
         }
     }
@@ -805,7 +819,7 @@ public static class TypeScriptClientExtractor
 
         if (hasBody && isFileUpload)
         {
-            AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes, bodyMediaType, wireNames);
+            AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes, bodyMediaType, wireNames, convertDates);
         }
         else if (hasBody && isUrlEncodedForm)
         {
@@ -1211,6 +1225,44 @@ public static class TypeScriptClientExtractor
         parts.Add("data: FormData");
     }
 
+    // The model an XML part carries (the items' of a list, a part each), by its schema name
+    private static string? PartModelKey(IOpenApiSchema field)
+    {
+        var value = field.IsOfType(JsonSchemaType.Array) && field.Items is { } items ? items : field;
+        return value is OpenApiSchemaReference reference ? reference.Reference?.Id ?? reference.Id : null;
+    }
+
+    // A flat model's fields as a URL-encoded text (name=value&...): by the API's property names, each one value - a Date
+    // as ISO 8601 (a format: date as the calendar day) - and a field without a value left out
+    private static string UrlEncodedPart(
+        string fieldName,
+        IOpenApiSchema field,
+        string value,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
+    {
+        var properties = FormBodyHelper.UrlEncodedPropertiesOf(field, fieldName) ?? [];
+        var keys = properties.Select(p => p.WireName).ToList();
+        var pairs = new List<string>();
+        foreach (var property in properties)
+        {
+            var name = TypeScriptPropertyNames.Resolve(property.WireName, keys, namingStrategy);
+            var access = TypeScriptPropertyNames.ToMemberSyntax(name) == name
+                ? value + "." + name
+                : value + "[" + TypeScriptLiteralHelper.ToStringLiteral(name) + "]";
+            if (convertDates && TypeScriptOperationHelper.IsDateOnly(property.Schema))
+            {
+                access = "(" + access + " instanceof Date ? dateOnly(" + access + ") : " + access + ")";
+            }
+
+            pairs.Add("[" + TypeScriptLiteralHelper.ToStringLiteral(property.WireName) + ", " + access + "]");
+        }
+
+        return "new URLSearchParams(([" + string.Join(", ", pairs) + "] as [string, unknown][])" +
+               ".filter(([, field]) => field != null)" +
+               ".map(([key, field]): [string, string] => [key, field instanceof Date ? field.toISOString() : String(field)])).toString()";
+    }
+
     private static void AppendFormDataBody(
         StringBuilder sb,
         IOpenApiSchema bodySchema,
@@ -1218,7 +1270,8 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy,
         IReadOnlyList<string>? rawUploadMediaTypes = null,
         IOpenApiMediaType? bodyMediaType = null,
-        TypeScriptWireNames? wireNames = null)
+        TypeScriptWireNames? wireNames = null,
+        bool convertDates = false)
     {
         // A raw binary upload: the file, sent as the declared media type (a server that accepts only it answers any
         // other with 415). One concrete media type is sent as it; a wildcard or several send the file's own type when
@@ -1267,19 +1320,29 @@ public static class TypeScriptClientExtractor
 
                 // An object, a map or a composition has no text - String() would send '[object Object]': an
                 // application/json part (a list of one a part per item) with the API's property names, as a JSON body
-                // is sent; left out when its encoding names another media type (ATC_API_OPR037)
+                // is sent - or, as its encoding names, a model as an XML part and a flat model URL-encoded; left out
+                // for a media type that carries none (ATC_API_OPR037)
                 if (prop.Value.HasNoTextForm())
                 {
-                    if (FormBodyHelper.IsJsonPart(prop.Value, prop.Key, bodyMediaType))
+                    var part = FormBodyHelper.PartOf(prop.Value, prop.Key, bodyMediaType);
+                    var isList = prop.Value.IsOfType(JsonSchemaType.Array);
+                    var value = isList ? "item" : "data." + propName;
+                    var blob = part.Encoding switch
                     {
-                        var isList = prop.Value.IsOfType(JsonSchemaType.Array);
-                        var shape = wireNames?.ShapeOf(isList ? prop.Value.Items : prop.Value);
-                        var value = isList ? "item" : "data." + propName;
-                        var json = "new Blob([JSON.stringify(" + (shape is null ? value : "toWire(" + value + ", " + shape + ")") + ")], { type: 'application/json' })";
+                        MultipartPartEncoding.Json => "new Blob([JSON.stringify(" + (wireNames?.ShapeOf(isList ? prop.Value.Items : prop.Value) is { } shape ? "toWire(" + value + ", " + shape + ")" : value) + ")], { type: 'application/json' })",
+                        MultipartPartEncoding.Xml when PartModelKey(prop.Value) is { } key =>
+                            "new Blob([" + TypeScriptXmlHelperExtractor.FunctionNames(key).Write + "(" + value + ")], { type: '" + part.MediaType + "' })",
+                        MultipartPartEncoding.UrlEncoded =>
+                            "new Blob([" + UrlEncodedPart(prop.Key, prop.Value, value, namingStrategy, convertDates) + "], { type: '" + part.MediaType + "' })",
+                        _ => null,
+                    };
+
+                    if (blob is not null)
+                    {
                         sb.Append(isList
                                 ? "        for (const item of data." + propName + " ?? []) formData.append('"
                                 : "        if (data." + propName + " != null) formData.append('")
-                            .Append(prop.Key).Append("', ").Append(json).AppendLine(");");
+                            .Append(prop.Key).Append("', ").Append(blob).AppendLine(");");
                     }
 
                     continue;

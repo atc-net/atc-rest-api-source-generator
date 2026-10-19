@@ -90,7 +90,8 @@ public static class WireBindingHelper
     /// The fields of an operation's form body (bound field by field) as the arguments of <c>WithWireFormBinding</c>:
     /// the field described by its type (an item's for a list, see <see cref="ParameterExpression"/>), whether the
     /// specification requires it, and whether it is a file - checked for presence only. A field sent as an
-    /// application/json part (see <see cref="FormBodyHelper.IsMultipartJsonPart"/>) is read as JSON by its type.
+    /// object part (see <see cref="FormBodyHelper.MultipartPartOf"/>) is read from its text by its type: JSON, XML or
+    /// URL-encoded.
     /// </summary>
     /// <param name="operation">The operation.</param>
     /// <returns>C# tuple literals, <c>(WireParameter.Parsable&lt;int&gt;("form", "count"), false, false)</c>.</returns>
@@ -110,10 +111,22 @@ public static class WireBindingHelper
             var isArray = property.Value.IsOfType(JsonSchemaType.Array);
             var name = CSharpLiteralHelper.ToStringLiteral(property.Key);
             var isRequired = required.Contains(property.Key) ? "true" : "false";
-            if (FormBodyHelper.IsMultipartJsonPart(operation, property.Key, property.Value))
+            if (FormBodyHelper.MultipartPartOf(operation, property.Key, property.Value) is { } part &&
+                part.Encoding is MultipartPartEncoding.Json or MultipartPartEncoding.Xml or MultipartPartEncoding.UrlEncoded)
             {
                 var valueType = FormBodyHelper.JsonPartValueType(property.Value);
-                arguments.Add($"(WireParameter.Json<{valueType}>(\"form\", {name}, {CSharpLiteralHelper.ToStringLiteral(valueType)}{(isArray ? ", isArray: true" : string.Empty)}), {isRequired}, false)");
+                var typeName = CSharpLiteralHelper.ToStringLiteral(valueType);
+                var list = isArray ? ", isArray: true" : string.Empty;
+                var reader = part.Encoding switch
+                {
+                    // An XML part is read as an XML body of the model is
+                    MultipartPartEncoding.Xml => $"WireParameter.Xml<{valueType}>(\"form\", {name}, {typeName}, static text => {valueType}Xml.FromXml(text){list})",
+
+                    // A URL-encoded part's fields, each by the kind of its property, read through the app's JSON options
+                    MultipartPartEncoding.UrlEncoded => $"WireParameter.UrlEncoded<{valueType}>(\"form\", {name}, {typeName}, {UrlEncodedKinds(property.Key, property.Value)}, {UrlEncodedRequired(property.Key, property.Value)}{list})",
+                    _ => $"WireParameter.Json<{valueType}>(\"form\", {name}, {typeName}{list})",
+                };
+                arguments.Add($"({reader}, {isRequired}, false)");
                 continue;
             }
 
@@ -300,6 +313,43 @@ public static class WireBindingHelper
     public static string GenerateContent(string projectName)
         => GenerateContent(projectName, NamespaceBuilder.BuildBase(projectName));
 
+    // The fields of a URL-encoded part the specification requires, by their wire names
+    private static string UrlEncodedRequired(
+        string fieldName,
+        IOpenApiSchema field)
+    {
+        var required = (FormBodyHelper.UrlEncodedPropertiesOf(field, fieldName) ?? [])
+            .Where(p => p.Required)
+            .Select(p => CSharpLiteralHelper.ToStringLiteral(p.WireName))
+            .ToList();
+        return required.Count == 0
+            ? "Array.Empty<string>()"
+            : "new[] { " + string.Join(", ", required) + " }";
+    }
+
+    // The fields of a URL-encoded part by their wire names, each a number, a boolean or a string (an enum, a date, a uuid)
+    private static string UrlEncodedKinds(
+        string fieldName,
+        IOpenApiSchema field)
+    {
+        var kinds = new List<string>();
+        foreach (var property in FormBodyHelper.UrlEncodedPropertiesOf(field, fieldName) ?? [])
+        {
+            var value = property.Schema is OpenApiSchemaReference { Target: { } target } ? target : property.Schema;
+            if (value.AllOf is { Count: 1 } allOf)
+            {
+                value = allOf[0] is OpenApiSchemaReference { Target: { } wrapped } ? wrapped : allOf[0];
+            }
+
+            var kind = value.IsOfType(JsonSchemaType.Integer) || value.IsOfType(JsonSchemaType.Number)
+                ? "number"
+                : value.IsOfType(JsonSchemaType.Boolean) ? "boolean" : "string";
+            kinds.Add($"[{CSharpLiteralHelper.ToStringLiteral(property.WireName)}] = \"{kind}\"");
+        }
+
+        return "new Dictionary<string, string>(StringComparer.Ordinal) { " + string.Join(", ", kinds) + " }";
+    }
+
     private static string GenerateContent(
         string projectName,
         string baseNamespace)
@@ -336,9 +386,11 @@ public static class WireBindingHelper
             public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false)
             {
                 /// <summary>
-                /// Reads a value sent as JSON with the given options (see <see cref="Json{T}"/>), or null for any other.
+                /// Reads the value an object part of a multipart form carries from its text, with the app's JSON options
+                /// (see <see cref="Json{T}"/>, <see cref="Xml{T}"/>, <see cref="UrlEncoded{T}"/>), or null for any other
+                /// field.
                 /// </summary>
-                public Func<string, JsonSerializerOptions, object?>? ReadJson { get; init; }
+                public Func<string, JsonSerializerOptions, object?>? ReadPart { get; init; }
 
                 /// <summary>
                 /// Whether the specification requires the parameter (a query, header or cookie parameter). An endpoint
@@ -359,8 +411,76 @@ public static class WireBindingHelper
                 public static WireParameter Json<T>(string @in, string name, string typeName, bool isArray = false)
                     => new(@in, name, null, typeName, null, isArray)
                     {
-                        ReadJson = (text, options) => JsonSerializer.Deserialize(text, global::{{baseNamespace}}.GeneratedJsonOptions.TypeInfo<T>(options)),
+                        ReadPart = (text, options) => JsonSerializer.Deserialize(text, global::{{baseNamespace}}.GeneratedJsonOptions.TypeInfo<T>(options)),
                     };
+
+                /// <summary>
+                /// A model a multipart form sends as an XML part (its encoding names an XML media type), read as an XML
+                /// body of the model is (a list of one a part per item).
+                /// </summary>
+                public static WireParameter Xml<T>(string @in, string name, string typeName, Func<string, T> read, bool isArray = false)
+                    => new(@in, name, null, typeName, null, isArray)
+                    {
+                        ReadPart = (text, _) => read(text),
+                    };
+
+                /// <summary>
+                /// A flat model a multipart form sends as an application/x-www-form-urlencoded part (name=value&amp;...):
+                /// each field written as JSON by its kind - a number, a boolean or a string - and the model read through
+                /// the metadata the app's JSON options resolve (a list of one a part per item). A field the model does not
+                /// have is ignored; a number or a boolean that is none, or a required field that is missing, makes the part
+                /// no such value.
+                /// </summary>
+                public static WireParameter UrlEncoded<T>(string @in, string name, string typeName, Dictionary<string, string> kinds, string[] required, bool isArray = false)
+                    => new(@in, name, null, typeName, null, isArray)
+                    {
+                        ReadPart = (text, options) => JsonSerializer.Deserialize(UrlEncodedToJson(text, kinds, required), global::{{baseNamespace}}.GeneratedJsonOptions.TypeInfo<T>(options)),
+                    };
+
+                // The fields of a URL-encoded text as a JSON object, the last value of a field taken
+                private static string UrlEncodedToJson(string text, Dictionary<string, string> kinds, string[] required)
+                {
+                    var fields = global::Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(text.StartsWith('?') ? text : "?" + text);
+                    foreach (var field in required)
+                    {
+                        if (!fields.TryGetValue(field, out var values) || values.Count == 0)
+                        {
+                            throw new JsonException($"The field '{field}' is required.");
+                        }
+                    }
+
+                    using var buffer = new MemoryStream();
+                    using (var writer = new Utf8JsonWriter(buffer))
+                    {
+                        writer.WriteStartObject();
+                        foreach (var field in fields)
+                        {
+                            if (!kinds.TryGetValue(field.Key, out var kind) || field.Value.LastOrDefault() is not { } value)
+                            {
+                                continue;
+                            }
+
+                            switch (kind)
+                            {
+                                case "number" when decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number):
+                                    writer.WriteNumber(field.Key, number);
+                                    break;
+                                case "boolean" when bool.TryParse(value, out var boolean):
+                                    writer.WriteBoolean(field.Key, boolean);
+                                    break;
+                                case "number" or "boolean":
+                                    throw new JsonException($"The field '{field.Key}' is not a {kind}.");
+                                default:
+                                    writer.WriteString(field.Key, value);
+                                    break;
+                            }
+                        }
+
+                        writer.WriteEndObject();
+                    }
+
+                    return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+                }
 
                 /// <summary>
                 /// An object in the query: each property by its own key - <c>{name}[{property}]</c> (deepObject) or the
@@ -429,8 +549,8 @@ public static class WireBindingHelper
             {
                 private const string CookieHeaderPrefix = "{{CookieHeaderPrefix}}";
 
-                // The request item a field read as JSON is kept under, for the endpoint
-                private const string FormJsonKey = "\u001Fform-json:";
+                // The request item a field read from an object part is kept under, for the endpoint
+                private const string FormPartKey = "\u001Fform-part:";
 
                 private static readonly JsonSerializerOptions FallbackJsonOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
 
@@ -519,7 +639,7 @@ public static class WireBindingHelper
                     var checks = new List<FormField>();
                     foreach (var (field, required, isFile) in fields)
                     {
-                        checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray, field.ReadJson));
+                        checks.Add(new FormField(field.Name, required, isFile, isFile ? null : field.Parses, field.TypeName, field.Members, field.IsArray, field.ReadPart));
                     }
 
                     builder.Add(endpoint =>
@@ -567,7 +687,7 @@ public static class WireBindingHelper
                             }
 
                             var errors = CheckForm(form, checks, out var rewritten);
-                            if (await ReadJsonFieldsAsync(context, form, checks) is { } jsonErrors)
+                            if (await ReadPartFieldsAsync(context, form, checks) is { } jsonErrors)
                             {
                                 errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
                                 foreach (var (name, messages) in jsonErrors)
@@ -594,26 +714,27 @@ public static class WireBindingHelper
                     return builder;
                 }
 
-                private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, Func<string, JsonSerializerOptions, object?>? ReadJson);
+                private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, Func<string, JsonSerializerOptions, object?>? ReadPart);
 
                 /// <summary>
-                /// The value of a field the form step read as JSON (see <see cref="WireParameter.Json{T}"/>), or the
-                /// default when it was not sent.
+                /// The value of a field the form step read from an object part - JSON, XML or URL-encoded (see
+                /// <see cref="WireParameter.ReadPart"/>) - or the default when it was not sent.
                 /// </summary>
-                public static T? FormJson<T>(HttpContext context, string name)
-                    => context.Items.TryGetValue(FormJsonKey + name, out var value) && value is T typed ? typed : default;
+                public static T? FormPart<T>(HttpContext context, string name)
+                    => context.Items.TryGetValue(FormPartKey + name, out var value) && value is T typed ? typed : default;
 
                 /// <summary>
-                /// The items of a list field the form step read as JSON, a part each (see
-                /// <see cref="WireParameter.Json{T}"/>), or null when none was sent.
+                /// The items of a list field the form step read from object parts, a part each (see
+                /// <see cref="WireParameter.ReadPart"/>), or null when none was sent.
                 /// </summary>
-                public static List<T>? FormJsonList<T>(HttpContext context, string name)
-                    => context.Items.TryGetValue(FormJsonKey + name, out var value) && value is List<object> items ? items.Cast<T>().ToList() : null;
+                public static List<T>? FormPartList<T>(HttpContext context, string name)
+                    => context.Items.TryGetValue(FormPartKey + name, out var value) && value is List<object> items ? items.Cast<T>().ToList() : null;
 
-                // The fields sent as JSON, read through the app's JSON options and kept for the endpoint: a part is a
-                // form value or - what a browser sends for a Blob - a file of the field's name. The parts that are no
-                // such value and the required fields that are missing (a JSON null is none), by field name, or null.
-                private static async Task<Dictionary<string, string[]>?> ReadJsonFieldsAsync(
+                // The fields sent as object parts (JSON, XML, URL-encoded), read with the app's JSON options and kept for
+                // the endpoint: a part is a form value or - what a browser sends for a Blob - a file of the field's name.
+                // The parts that are no such value and the required fields that are missing (a JSON null is none), by
+                // field name, or null.
+                private static async Task<Dictionary<string, string[]>?> ReadPartFieldsAsync(
                     HttpContext context,
                     IFormCollection form,
                     List<FormField> fields)
@@ -622,7 +743,7 @@ public static class WireBindingHelper
                     JsonSerializerOptions? options = null;
                     foreach (var field in fields)
                     {
-                        if (field.ReadJson is not { } readJson)
+                        if (field.ReadPart is not { } readPart)
                         {
                             continue;
                         }
@@ -647,9 +768,9 @@ public static class WireBindingHelper
                             object? value;
                             try
                             {
-                                value = readJson(part, options);
+                                value = readPart(part, options);
                             }
-                            catch (JsonException)
+                            catch (Exception ex) when (ex is JsonException or System.Xml.XmlException or FormatException or InvalidOperationException)
                             {
                                 invalid = true;
                                 break;
@@ -685,7 +806,7 @@ public static class WireBindingHelper
                             continue;
                         }
 
-                        context.Items[FormJsonKey + field.Name] = field.IsArray ? items : items[0];
+                        context.Items[FormPartKey + field.Name] = field.IsArray ? items : items[0];
                     }
 
                     return errors;
@@ -703,8 +824,8 @@ public static class WireBindingHelper
                     Dictionary<string, StringValues>? values = null;
                     foreach (var field in fields)
                     {
-                        // A field sent as JSON is read by ReadJsonFieldsAsync
-                        if (field.ReadJson is not null)
+                        // A field sent as an object part is read by ReadPartFieldsAsync
+                        if (field.ReadPart is not null)
                         {
                             continue;
                         }

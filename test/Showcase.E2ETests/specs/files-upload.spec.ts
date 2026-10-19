@@ -102,15 +102,17 @@ test.describe('File Upload', () => {
     const file = text('report.txt');
     await page.getByLabel('Item Name').fill('Quarterly');
     await page.getByLabel('Items (comma-separated)').fill('finance, q3');
+    await page.getByLabel('Author').fill('Ada');
     await uploadPage.fileInput.setInputFiles(file);
 
     const sent = await upload(page, 'singleObject', 'Upload with Metadata');
     expect(sent.headers()['content-type']).toMatch(multipart);
     await expect(page.getByText(uploaded.meta[appType](file.name), { exact: true }).first()).toBeVisible();
 
-    // The handler names the stored file after the item name and the items: what reached the server - every item, from
-    // every client (Atc.Rest.Client before 2.3.0 kept only the last value of a repeated form field)
-    expect(await findStoredFile(request, file.buffer)).toMatchObject({ fileName: 'Quarterly-finance-q3.bin' });
+    // The handler names the stored file after the author, the item name and the items: what reached the server - the
+    // author from the metadata, a URL-encoded part (as the form's encoding names), and every item, from every client
+    // (Atc.Rest.Client before 2.3.0 kept only the last value of a repeated form field)
+    expect(await findStoredFile(request, file.buffer)).toMatchObject({ fileName: 'Ada-Quarterly-finance-q3.bin' });
   });
 
   test('files as the files of a model are one multipart/form-data body (uploadSingleObjectWithFilesAsFormData)', async ({ page, request, appType }) => {

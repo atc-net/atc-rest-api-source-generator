@@ -55,7 +55,7 @@ export function useUploadMultiFiles() {
 
 export function useUploadWithMetadata() {
   return useMutation({
-    mutationFn: async (data: { itemName?: string; file?: Blob | File; items?: string[] }) => {
+    mutationFn: async (data: Parameters<typeof filesClient.uploadSingleObjectWithFileAsFormData>[0]) => {
       const result = await filesClient.uploadSingleObjectWithFileAsFormData(data);
       if (result.status === 'ok') {
         return;

@@ -829,7 +829,8 @@ public static class RuleIdentifiers
     /// ATC_API_OPR037: A parameter's value is one the generated code cannot bind or send - an object other than a
     /// flat model in the query (as deepObject or form with explode), or a 'oneOf'/'anyOf'/'allOf' without a type -
     /// or a form field that is an object, a map or a composition and has no form encoding: in a URL-encoded form, or in a
-    /// multipart form whose encoding names another media type than JSON (else it is an application/json part). A
+    /// multipart form whose encoding names only media types that do not carry it (JSON carries any such field, XML a
+    /// model, URL-encoded a model whose properties are each one value; see FormBodyHelper.PartOf). A
     /// warning (a client leaves the parameter or the field out; a server generator raises it to an error), an error in
     /// the path.
     /// </summary>

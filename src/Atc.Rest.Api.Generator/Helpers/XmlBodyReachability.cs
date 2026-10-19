@@ -2,13 +2,14 @@ namespace Atc.Rest.Api.Generator.Helpers;
 
 /// <summary>
 /// Finds the component schemas an XML body can carry: every schema a request or response body of an XML media type
-/// (<c>application/xml</c>, <c>text/xml</c>, <c>*+xml</c> with a model schema) references, directly or through
-/// properties, array items, dictionary values and compositions. Only these models get a generated XML mapping.
+/// (<c>application/xml</c>, <c>text/xml</c>, <c>*+xml</c> with a model schema) - or an XML part of a multipart form -
+/// references, directly or through properties, array items, dictionary values and compositions. Only these models get a
+/// generated XML mapping.
 /// </summary>
 public static class XmlBodyReachability
 {
     /// <summary>
-    /// Collects the names (as in <c>components.schemas</c>) of the schemas reachable from an XML body.
+    /// Collects the names (as in <c>components.schemas</c>) of the schemas reachable from an XML body or an XML part.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns>The schema names; empty when the specification has no XML body.</returns>
@@ -56,6 +57,10 @@ public static class XmlBodyReachability
                     continue;
                 }
 
+                // An XML part is read and written as an XML body of its model; its validation errors name the form's
+                // field, so it is no request body of the XML names
+                AddXmlParts(operation, reachable);
+
                 foreach (var response in operation.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>())
                 {
                     AddXmlContent(response.Content, reachable);
@@ -80,6 +85,25 @@ public static class XmlBodyReachability
             if (IsXmlModelBody(entry.Key, entry.Value.Schema))
             {
                 Walk(entry.Value.Schema, reachable);
+            }
+        }
+    }
+
+    private static void AddXmlParts(
+        OpenApiOperation operation,
+        HashSet<string> reachable)
+    {
+        if (FormBodyHelper.FindMultipartFormData(operation) is not { } multipart)
+        {
+            return;
+        }
+
+        var (_, properties, _) = operation.GetFormBodySchemaInfo();
+        foreach (var property in properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            if (FormBodyHelper.PartOf(property.Value, property.Key, multipart).Encoding == MultipartPartEncoding.Xml)
+            {
+                Walk(property.Value, reachable);
             }
         }
     }

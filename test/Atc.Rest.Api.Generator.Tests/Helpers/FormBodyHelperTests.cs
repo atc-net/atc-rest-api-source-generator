@@ -83,7 +83,8 @@ public class FormBodyHelperTests
         var writer = new MultipartPartWriter(
             File: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(" + expression + ", \"" + name + "\");"),
             Text: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(new StringContent(" + expression + "), \"" + name + "\");"),
-            Json: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(Json(" + expression + "), \"" + name + "\");"));
+            Json: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(Json(" + expression + "), \"" + name + "\");"),
+            Part: (builder, indent, name, expression, mediaType) => builder.AppendLine(new string(' ', indent) + "content.Add(Part(" + expression + ", \"" + mediaType + "\"), \"" + name + "\");"));
 
         FormBodyHelper.AppendMultipartFields(sb, schema, multipart: null, "parameters.Request", writer);
         var code = sb.ToString();

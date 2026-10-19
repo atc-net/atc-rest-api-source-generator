@@ -2294,7 +2294,9 @@ public class OperationValidationTests
     [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Either' }", "")]
     [InlineData("application/x-www-form-urlencoded", "{ type: object, additionalProperties: { type: string } }", "")]
     [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Address' }", "text/plain")]
-    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }", "application/xml")]
+    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }", "text/plain")]
+    [InlineData("multipart/form-data", "{ type: object, additionalProperties: { type: string } }", "application/xml")] // XML maps a model only
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Either' }", "application/x-www-form-urlencoded")] // URL-encoded is a flat model's
     public void Validate_FormFieldWithNoFormEncoding_ReportsOPR037(
         string mediaType,
         string fieldYaml,

@@ -79,7 +79,7 @@ export class FilesClient {
         if (data.itemName != null) formData.append('itemName', String(data.itemName));
         if (data.file != null) formData.append('file', data.file);
         for (const item of data.items ?? []) formData.append('items', String(item));
-        if (data.metadata != null) formData.append('metadata', new Blob([JSON.stringify(data.metadata)], { type: 'application/json' }));
+        if (data.metadata != null) formData.append('metadata', new Blob([new URLSearchParams(([['author', data.metadata.author], ['confidential', data.metadata.confidential]] as [string, unknown][]).filter(([, field]) => field != null).map(([key, field]): [string, string] => [key, field instanceof Date ? field.toISOString() : String(field)])).toString()], { type: 'application/x-www-form-urlencoded' }));
         return formData;
       })(),
       retry: { enabled: false, timeoutMs: 300000 },

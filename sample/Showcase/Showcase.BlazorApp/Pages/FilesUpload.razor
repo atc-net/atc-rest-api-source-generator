@@ -70,6 +70,10 @@
             <MudItem xs="12" md="6">
                 <MudTextField @bind-Value="itemsText" Label="Items (comma-separated)" Variant="Variant.Outlined" HelperText="e.g., tag1, tag2, tag3" />
             </MudItem>
+            <MudItem xs="12" md="6">
+                @* The metadata: a URL-encoded part of the form *@
+                <MudTextField @bind-Value="author" Label="Author" Variant="Variant.Outlined" HelperText="Sent as the metadata part, application/x-www-form-urlencoded" />
+            </MudItem>
         </MudGrid>
         <MudFileUpload T="IBrowserFile" @bind-Files="metadataFile" Class="mt-4" SuppressOnChangeWhenInvalid="false">
             <SelectedTemplate>
