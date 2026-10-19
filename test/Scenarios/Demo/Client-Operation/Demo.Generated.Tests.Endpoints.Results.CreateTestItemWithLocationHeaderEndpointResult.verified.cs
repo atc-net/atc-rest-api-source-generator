@@ -152,8 +152,7 @@ public partial class CreateTestItemWithLocationHeaderEndpointResult : EndpointRe
     public string? LocationHeader
         => HeaderText("Location");
 
-    // A header's values as one text (several are joined by commas). Atc.Rest.Client looks a name up whatever its
-    // casing.
+    // A header's values as one text (several are joined by commas); the lookup ignores the casing of the name.
     private string? HeaderText(string name)
         => Headers.TryGetValue(name, out var values) ? string.Join(",", values) : null;
 }

@@ -1044,6 +1044,77 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
     }
 
+    /// <summary>
+    /// The headers the responses of each operation declare, typed: <c>{Operation}ResponseHeaders</c> next to the
+    /// client, built from a Result-style response's headers or an <c>ApiException</c>'s, with the enums the headers
+    /// declare inline.
+    /// </summary>
+    private static void GenerateTypedClientResponseHeaders(
+        GeneratedSourceContext context,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string pathSegment,
+        string clientNamespace,
+        string modelsNamespace,
+        TypeConflictRegistry registry,
+        bool includeDeprecated,
+        bool hasSegmentModels,
+        bool hasSharedModels,
+        bool extensibleEnums)
+    {
+        var usings = new List<string>();
+        if (hasSharedModels)
+        {
+            usings.Add(NamespaceBuilder.ForModels(projectName));
+        }
+
+        if (hasSegmentModels && !usings.Contains(modelsNamespace, StringComparer.Ordinal))
+        {
+            usings.Add(modelsNamespace);
+        }
+
+        var componentTypeNames = TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc);
+        foreach (var path in openApiDoc.Paths ?? new OpenApiPaths())
+        {
+            if (path.Key.ShouldSkipForPathSegment(pathSegment) || path.Value?.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (var operation in path.Value.Operations)
+            {
+                if (operation.Value is null || (!includeDeprecated && operation.Value.Deprecated))
+                {
+                    continue;
+                }
+
+                var operationId = OperationIdHelper.Effective(operation.Value, operation.Key.ToString(), path.Key);
+                var operationName = operationId.ToPascalCaseForDotNet();
+                var headers = ResponseHeaderFactoryHelper.DeclaredBy(operation.Value, registry, operationName, componentTypeNames);
+                if (headers.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var (typeName, schema) in ResponseHeaderFactoryHelper.InlineEnumsOf(operation.Value, operationName, componentTypeNames))
+                {
+                    if (InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, typeName, clientNamespace) is { } enumParameters)
+                    {
+                        context.AddGeneratedSource(
+                            NamespaceBuilder.ToFileName(clientNamespace, typeName),
+                            SourceText.From(InlineEnumExtractor.GenerateEnumContent(enumParameters, extensible: extensibleEnums).NormalizeForSourceOutput(), Encoding.UTF8));
+                    }
+                }
+
+                var className = operationName + "ResponseHeaders";
+                var content = ResponseHeaderFactoryHelper.TypedClientHeadersSource(clientNamespace, usings, className, operationId, headers, extensibleEnums);
+                context.AddGeneratedSource(
+                    NamespaceBuilder.ToFileName(clientNamespace, className),
+                    SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+            }
+        }
+    }
+
     private static void GenerateTypedClient(
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
@@ -1110,6 +1181,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             NamespaceBuilder.ToFileName(clientNamespace, clientTypeName),
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+
+        GenerateTypedClientResponseHeaders(context, openApiDoc, projectName, pathSegment, clientNamespace, modelsNamespace, registry, includeDeprecated, hasSegmentModels, hasSharedModels, extensibleEnums);
 
         // Emit the matching I{ClientName} contract next to the client so consumers can depend on -
         // and mock - the API surface instead of stubbing HttpClient

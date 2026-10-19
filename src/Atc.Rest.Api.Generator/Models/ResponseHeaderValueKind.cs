@@ -19,4 +19,10 @@ public enum ResponseHeaderValueKind
     /// A generated integer enum: written and read as its number.
     /// </summary>
     IntegerEnum,
+
+    /// <summary>
+    /// A generated model whose properties are values of the kinds above: written and read in OpenAPI's
+    /// <c>simple</c> style.
+    /// </summary>
+    Model,
 }

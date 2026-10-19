@@ -160,6 +160,26 @@ internal static class ResponseHeaders
     }
 
     /// <summary>
+    /// An object's properties in OpenAPI's <c>simple</c> style - <c>name,value,…</c>, or exploded
+    /// <c>name=value,…</c>; a property without a value is left out.
+    /// </summary>
+    public static string? Fields(
+        bool explode,
+        params (string Name, string? Value)[] fields)
+    {
+        var texts = new global::System.Collections.Generic.List<string>();
+        foreach (var field in fields)
+        {
+            if (field.Value is not null)
+            {
+                texts.Add(explode ? field.Name + "=" + field.Value : field.Name + "," + field.Value);
+            }
+        }
+
+        return string.Join(",", texts);
+    }
+
+    /// <summary>
     /// An array of enum values as their wire values joined by commas.
     /// </summary>
     public static string? Text<T>(

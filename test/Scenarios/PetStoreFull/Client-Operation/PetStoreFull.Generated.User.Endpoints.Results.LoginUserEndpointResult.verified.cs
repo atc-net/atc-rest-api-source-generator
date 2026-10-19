@@ -163,8 +163,7 @@ public partial class LoginUserEndpointResult : EndpointResponse, ILoginUserEndpo
     public global::System.DateTimeOffset? XExpiresAfterHeader
         => (global::System.DateTimeOffset.TryParse(HeaderText("X-Expires-After"), global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.AssumeUniversal, out var value) ? value : (global::System.DateTimeOffset?)null);
 
-    // A header's values as one text (several are joined by commas). Atc.Rest.Client looks a name up whatever its
-    // casing.
+    // A header's values as one text (several are joined by commas); the lookup ignores the casing of the name.
     private string? HeaderText(string name)
         => Headers.TryGetValue(name, out var values) ? string.Join(",", values) : null;
 }

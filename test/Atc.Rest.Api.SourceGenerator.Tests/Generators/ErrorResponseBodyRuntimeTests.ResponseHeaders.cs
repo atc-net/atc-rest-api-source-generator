@@ -144,6 +144,13 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                         items:
                           type: string
                           enum: [low, very-high]
+                    X-Window:
+                      schema:
+                        $ref: '#/components/schemas/Window'
+                    X-Window-Exploded:
+                      explode: true
+                      schema:
+                        $ref: '#/components/schemas/Window'
                   content:
                     application/json:
                       schema:
@@ -173,6 +180,16 @@ public sealed partial class ErrorResponseBodyRuntimeTests
             Priority:
               type: integer
               enum: [1, 2, 3]
+            Window:
+              type: object
+              required: [start]
+              properties:
+                start:
+                  type: integer
+                end:
+                  type: integer
+                mode:
+                  $ref: '#/components/schemas/Mode'
         """;
 
     private const string ResponseHeadersProbe = """"
@@ -244,7 +261,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 await Add("toomany", GetThingResult.TooManyRequests(xRateLimitRemaining: 0));
                 await Add("head", ProbeThingResult.Ok(eTag: "\"v2\""));
                 await Add("created", CreateThingResult.Created(thing, xRequestId: new Guid("11111111-2222-3333-4444-555555555555")));
-                await Add("status-all", GetStatusResult.Ok(thing, xMode: Mode.SlowAndSteady, xModes: new[] { Mode.Fast, Mode.SlowAndSteady }, xPriority: Priority.Value2, xRatio: 0.5f, xLevel: GetStatusXLevelHeader.VeryHigh, xLevels: new[] { GetStatusXLevelsHeader.Low, GetStatusXLevelsHeader.VeryHigh }));
+                await Add("status-all", GetStatusResult.Ok(thing, xMode: Mode.SlowAndSteady, xModes: new[] { Mode.Fast, Mode.SlowAndSteady }, xPriority: Priority.Value2, xRatio: 0.5f, xLevel: GetStatusXLevelHeader.VeryHigh, xLevels: new[] { GetStatusXLevelsHeader.Low, GetStatusXLevelsHeader.VeryHigh }, xWindow: new Window(Start: 1, End: 5, Mode: Mode.Fast), xWindowExploded: new Window(Start: 2)));
                 await Add("status-unavailable", GetStatusResult.ServiceUnavailable(xMode: Mode.Fast));
                 return lines;
 
@@ -300,7 +317,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 "toomany: 429 [X-RateLimit-Remaining=0] wrapped=True",
                 "head: 200 [ETag=\"v2\"] wrapped=True",
                 "created: 201 [X-Request-Id=11111111-2222-3333-4444-555555555555] wrapped=True",
-                "status-all: 200 [X-Level=very-high; X-Levels=low,very-high; X-Mode=slow-and-steady; X-Modes=fast,slow-and-steady; X-Priority=2; X-Ratio=0.5] wrapped=True",
+                "status-all: 200 [X-Level=very-high; X-Levels=low,very-high; X-Mode=slow-and-steady; X-Modes=fast,slow-and-steady; X-Priority=2; X-Ratio=0.5; X-Window=start,1,end,5,mode,fast; X-Window-Exploded=start=2] wrapped=True",
                 "status-unavailable: 503 [X-Mode=fast] wrapped=True",
             ],
             lines);
@@ -498,6 +515,116 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         var client = Generate(new ApiClientGenerator(), ".atc-rest-api-client", marker, includeMinimalApi: false, yaml);
         Assert.Contains(client, s => s.Source.Contains("Mode? XModeHeader", StringComparison.Ordinal));
         CompilationVerificationHarness.EmitAndLoad(client);
+
+        var typedMarker = $$"""
+            {
+              "generationMode": "TypedClient",
+              "extensibleEnums": {{(extensibleEnums ? "true" : "false")}}
+            }
+            """;
+        var typed = Generate(new ApiClientGenerator(), ".atc-rest-api-client", typedMarker, includeMinimalApi: false, yaml);
+        Assert.Contains(typed, s => s.Source.Contains("class ProbeStatusResponseHeaders", StringComparison.Ordinal));
+        CompilationVerificationHarness.EmitAndLoad(typed);
+    }
+
+    private const string TypedClientHeadersProbe = """"
+        using ErrorBodies.Generated;
+        using ErrorBodies.Generated.Models;
+
+        namespace ErrorBodies.RuntimeTest;
+
+        public static class Probe
+        {
+            public static async Task<List<string>> RunAsync()
+            {
+                using var http = new HttpClient(new StubHandler()) { BaseAddress = new Uri("http://stub/") };
+                var client = new ErrorBodiesClient(http);
+                var lines = new List<string>();
+        #if RESULT_STYLE
+                var ok = await client.GetStatusAsync(new GetStatusParameters("ok"));
+                lines.Add(Describe($"ok {(int)ok.StatusCode}", new GetStatusResponseHeaders(ok.Headers)));
+                var down = await client.GetStatusAsync(new GetStatusParameters("down"));
+                lines.Add(Describe($"down {(int)down.StatusCode}", new GetStatusResponseHeaders(down.Headers)));
+        #else
+                try
+                {
+                    await client.GetStatusAsync(new GetStatusParameters("down"));
+                    lines.Add("down: no exception");
+                }
+                catch (ApiException exception)
+                {
+                    lines.Add(Describe($"down {(int)exception.StatusCode!}", new GetStatusResponseHeaders(exception.Headers)));
+                }
+        #endif
+                return lines;
+            }
+
+            private static string Describe(string name, GetStatusResponseHeaders headers)
+            {
+                var window = headers.XWindowHeader is { } w ? $"{w.Start}/{Show(w.End)}/{Show(w.Mode.ToWireValue())}" : null;
+                return $"{name}: X-Mode={Show(headers.XModeHeader.ToWireValue())} X-Priority={Show((int?)headers.XPriorityHeader)} X-Level={Show(headers.XLevelHeader.ToWireValue())} X-Window={Show(window)}";
+            }
+
+            private static string Show(object? value)
+                => value is null ? "(null)" : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!;
+
+            private sealed class StubHandler : HttpMessageHandler
+            {
+                protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+                {
+                    var down = request.RequestUri!.AbsolutePath.Contains("/down/", StringComparison.Ordinal);
+                    var response = new HttpResponseMessage(down ? System.Net.HttpStatusCode.ServiceUnavailable : System.Net.HttpStatusCode.OK)
+                    {
+                        RequestMessage = request,
+                        Content = down
+                            ? new ByteArrayContent([])
+                            : new StringContent("""{"id":"1"}""", System.Text.Encoding.UTF8, "application/json"),
+                    };
+                    if (down)
+                    {
+                        response.Headers.TryAddWithoutValidation("x-mode", "fast");
+                    }
+                    else
+                    {
+                        response.Headers.TryAddWithoutValidation("X-Mode", "slow-and-steady");
+                        response.Headers.TryAddWithoutValidation("X-Priority", "3");
+                        response.Headers.TryAddWithoutValidation("X-Level", "low");
+                        response.Headers.TryAddWithoutValidation("X-Window", "start,4,mode,fast");
+                    }
+
+                    return Task.FromResult(response);
+                }
+            }
+        }
+        """";
+
+    /// <summary>
+    /// The typed client has a <c>{Operation}ResponseHeaders</c> per operation whose responses declare headers: the
+    /// properties of the EndpointPerOperation result, built from any headers - a Result-style response's, or the
+    /// <c>ApiException</c> of the Throw style - whatever their casing.
+    /// </summary>
+    [Theory]
+    [InlineData("Result")]
+    [InlineData("Throw")]
+    public async Task TypedClient_ResponseHeaders_ReadTheHeadersTheResponsesDeclare(
+        string resultStyle)
+    {
+        var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientTypedMarker(resultStyle), includeMinimalApi: false, ResponseHeadersYaml);
+        var probe = resultStyle == "Result" ? "#define RESULT_STYLE\n" + TypedClientHeadersProbe : TypedClientHeadersProbe;
+        sources.Add(("Probe.cs", probe));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+        var run = assembly.GetType("ErrorBodies.RuntimeTest.Probe", throwOnError: true)!.GetMethod("RunAsync")!;
+
+        var lines = await (Task<List<string>>)run.Invoke(null, [])!;
+
+        Assert.Equal(
+            resultStyle == "Result"
+                ? [
+                    "ok 200: X-Mode=slow-and-steady X-Priority=3 X-Level=low X-Window=4/(null)/fast",
+                    "down 503: X-Mode=fast X-Priority=(null) X-Level=(null) X-Window=(null)",
+                ]
+                : ["down 503: X-Mode=fast X-Priority=(null) X-Level=(null) X-Window=(null)"],
+            lines);
     }
 
     private const string StatusHeadersClientProbe = """"
@@ -528,7 +655,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     var result = await provider.GetRequiredService<IGetStatusEndpoint>().ExecuteAsync(new GetStatusParameters("1"));
                     var modes = result.XModesHeader is null ? null : string.Join("|", result.XModesHeader.Select(m => m.ToWireValue()));
                     var levels = result.XLevelsHeader is null ? null : string.Join("|", result.XLevelsHeader.Select(l => l.ToWireValue()));
-                    lines.Add($"{scenario}: {(int)result.StatusCode} X-Mode={Show(result.XModeHeader.ToWireValue())} X-Modes={Show(modes)} X-Priority={Show((int?)result.XPriorityHeader)} X-Ratio={Show(result.XRatioHeader)} X-Level={Show(result.XLevelHeader.ToWireValue())} X-Levels={Show(levels)}");
+                    lines.Add($"{scenario}: {(int)result.StatusCode} X-Mode={Show(result.XModeHeader.ToWireValue())} X-Modes={Show(modes)} X-Priority={Show((int?)result.XPriorityHeader)} X-Ratio={Show(result.XRatioHeader)} X-Level={Show(result.XLevelHeader.ToWireValue())} X-Levels={Show(levels)} X-Window={Show(DescribeWindow(result.XWindowHeader))} X-Window-Exploded={Show(DescribeWindow(result.XWindowExplodedHeader))}");
                 }
 
                 return lines;
@@ -536,6 +663,9 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
             private static string Show(object? value)
                 => value is null ? "(null)" : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!;
+
+            private static string? DescribeWindow(Window? window)
+                => window is null ? null : $"{window.Start}/{Show(window.End)}/{Show(window.Mode.ToWireValue())}";
 
             // "all": every header as a server writes it. "unavailable": a 503 with its one header. "odd": an enum value
             // the specification does not list, and an integer enum value it does not list. "none": no header.
@@ -561,6 +691,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                             response.Headers.TryAddWithoutValidation("X-Ratio", "0.5");
                             response.Headers.TryAddWithoutValidation("X-Level", "very-high");
                             response.Headers.TryAddWithoutValidation("X-Levels", "low, very-high");
+                            response.Headers.TryAddWithoutValidation("X-Window", "start,1,end,5,mode,slow-and-steady");
+                            response.Headers.TryAddWithoutValidation("X-Window-Exploded", "start=2, end=7");
                             break;
                         case "unavailable":
                             response.Headers.TryAddWithoutValidation("x-mode", "fast");
@@ -571,6 +703,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                             response.Headers.TryAddWithoutValidation("X-Priority", "7");
                             response.Headers.TryAddWithoutValidation("X-Ratio", "half");
                             response.Headers.TryAddWithoutValidation("X-Level", "medium");
+                            response.Headers.TryAddWithoutValidation("X-Window", "end,5");
+                            response.Headers.TryAddWithoutValidation("X-Window-Exploded", "start=soon");
                             break;
                     }
 
@@ -608,12 +742,12 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
         Assert.Equal(
             [
-                "all: 200 X-Mode=slow-and-steady X-Modes=fast|slow-and-steady X-Priority=2 X-Ratio=0.5 X-Level=very-high X-Levels=low|very-high",
-                "unavailable: 503 X-Mode=fast X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null)",
+                "all: 200 X-Mode=slow-and-steady X-Modes=fast|slow-and-steady X-Priority=2 X-Ratio=0.5 X-Level=very-high X-Levels=low|very-high X-Window=1/5/slow-and-steady X-Window-Exploded=2/7/(null)",
+                "unavailable: 503 X-Mode=fast X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null) X-Window=(null) X-Window-Exploded=(null)",
                 extensibleEnums
-                    ? "odd: 200 X-Mode=turbo X-Modes=fast|warp X-Priority=(null) X-Ratio=(null) X-Level=medium X-Levels=(null)"
-                    : "odd: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null)",
-                "none: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null)",
+                    ? "odd: 200 X-Mode=turbo X-Modes=fast|warp X-Priority=(null) X-Ratio=(null) X-Level=medium X-Levels=(null) X-Window=(null) X-Window-Exploded=(null)"
+                    : "odd: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null) X-Window=(null) X-Window-Exploded=(null)",
+                "none: 200 X-Mode=(null) X-Modes=(null) X-Priority=(null) X-Ratio=(null) X-Level=(null) X-Levels=(null) X-Window=(null) X-Window-Exploded=(null)",
             ],
             lines);
 
