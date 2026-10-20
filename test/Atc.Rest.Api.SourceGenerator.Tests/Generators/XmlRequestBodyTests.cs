@@ -302,6 +302,127 @@ public sealed class XmlRequestBodyTests
     }
 
     /// <summary>
+    /// A model only an XML request carries is validated as XML only, so its messages name a field by its XML name, as
+    /// the key does (nested models too). A model a JSON request carries as well keeps the JSON name in its messages:
+    /// a message is fixed at build time, and only the key follows the request's media type. A property whose only rule
+    /// has arguments (a length here) is named by its wire name too; it used to keep its C# name.
+    /// </summary>
+    [Fact]
+    public async Task Server_ValidationMessages_OfAModelOnlyXmlCarries_NameTheXmlNames()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /people:
+                post:
+                  operationId: addPerson
+                  requestBody:
+                    required: true
+                    content:
+                      application/xml:
+                        schema:
+                          $ref: '#/components/schemas/Person'
+                  responses:
+                    '204':
+                      description: Stored
+              /pets:
+                post:
+                  operationId: addPet
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                      application/xml:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Person:
+                  type: object
+                  properties:
+                    givenName:
+                      type: string
+                      maxLength: 5
+                      xml:
+                        name: surname
+                    address:
+                      $ref: '#/components/schemas/Address'
+                  xml:
+                    name: person
+                Address:
+                  type: object
+                  properties:
+                    city:
+                      type: string
+                      maxLength: 3
+                      xml:
+                        name: town
+                Pet:
+                  type: object
+                  properties:
+                    nickName:
+                      type: string
+                      maxLength: 3
+                      xml:
+                        name: alias
+                  xml:
+                    name: pet
+            """;
+        const string handlerSource = """"
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace ErrorBodies.RuntimeTest;
+
+            public sealed class AddPersonHandlerImpl : IAddPersonHandler
+            {
+                public System.Threading.Tasks.Task<AddPersonResult> ExecuteAsync(AddPersonParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                    => System.Threading.Tasks.Task.FromResult(AddPersonResult.NoContent());
+            }
+
+            public sealed class AddPetHandlerImpl : IAddPetHandler
+            {
+                public System.Threading.Tasks.Task<AddPetResult> ExecuteAsync(AddPetParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                    => System.Threading.Tasks.Task.FromResult(AddPetResult.NoContent());
+            }
+
+            public static class PersonRegistration
+            {
+                public static void Register(IServiceCollection services)
+                    => services
+                        .AddScoped<IAddPersonHandler, AddPersonHandlerImpl>()
+                        .AddScoped<IAddPetHandler, AddPetHandlerImpl>();
+            }
+            """";
+        await using var host = await XmlTestHost.StartAsync(yaml, handlerSource, "ErrorBodies.RuntimeTest.PersonRegistration");
+
+        var rows = new List<string>
+        {
+            await host.PostAsync("/people", "application/xml", "<person><surname>Lovelace</surname></person>", accept: null, withMessages: true),
+            await host.PostAsync("/people", "application/xml", "<person><address><town>London</town></address></person>", accept: null, withMessages: true),
+            await host.PostAsync("/pets", "application/xml", "<pet><alias>Rexy</alias></pet>", accept: null, withMessages: true),
+            await host.PostAsync("/pets", "application/json", """{"nickName":"Rexy"}""", accept: null, withMessages: true),
+        };
+
+        Assert.Equal(
+            """
+            400 application/problem+json errors=surname: The field surname must be a string or array type with a maximum length of '5'.
+            400 application/problem+json errors=address.town: The field town must be a string or array type with a maximum length of '3'.
+            400 application/problem+json errors=alias: The field nickName must be a string or array type with a maximum length of '3'.
+            400 application/problem+json errors=nickName: The field nickName must be a string or array type with a maximum length of '3'.
+            """,
+            string.Join("\n", rows),
+            ignoreLineEndingDifferences: true);
+    }
+
+    /// <summary>
     /// A validation error names the field as the client sent it (Atc.Rest.MinimalApi 3.0 treats a body bound by
     /// <c>BindAsync</c> as the body): an XML request by its XML names, nested ones too; a JSON request to the same
     /// operation by its JSON names; a missing body under the empty key.

@@ -23,4 +23,4 @@ namespace Demo.Generated.Tests.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateTestItemRequest(
     [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
-    [property: ApiMaxLength(500)] string? Description = null);
+    [property: ApiMaxLength(500), global::System.ComponentModel.DataAnnotations.Display(Name = "description")] string? Description = null);

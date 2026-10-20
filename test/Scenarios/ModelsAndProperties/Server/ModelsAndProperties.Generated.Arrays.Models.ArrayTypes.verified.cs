@@ -38,7 +38,7 @@ public sealed record ArrayTypes(
     List<bool>? BooleanArray = null,
     List<Guid>? UuidArray = null,
     List<DateTimeOffset>? DateTimeArray = null,
-    [property: ApiMinLength(1), ApiMaxLength(10)] List<string>? LimitedArray = null,
+    [property: ApiMinLength(1), ApiMaxLength(10), global::System.ComponentModel.DataAnnotations.Display(Name = "limitedArray")] List<string>? LimitedArray = null,
     List<string>? UniqueArray = null,
     List<Address>? AddressArray = null,
     List<StatusType>? StatusArray = null,

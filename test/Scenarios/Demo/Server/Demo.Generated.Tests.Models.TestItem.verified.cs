@@ -26,5 +26,5 @@ namespace Demo.Generated.Tests.Models;
 public sealed record TestItem(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
     [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
-    [property: ApiMaxLength(500)] string? Description = null,
+    [property: ApiMaxLength(500), global::System.ComponentModel.DataAnnotations.Display(Name = "description")] string? Description = null,
     DateTimeOffset? CreatedAt = null);

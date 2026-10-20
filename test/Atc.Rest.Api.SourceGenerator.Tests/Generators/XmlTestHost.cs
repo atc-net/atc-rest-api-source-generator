@@ -104,7 +104,8 @@ internal sealed class XmlTestHost : IAsyncDisposable
         string path,
         string contentType,
         string body,
-        string? accept)
+        string? accept,
+        bool withMessages = false)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
@@ -123,7 +124,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
         {
             var problem = JsonNode.Parse(text)!.AsObject();
             return problem["errors"] is JsonObject errors
-                ? $"{(int)response.StatusCode} {mediaType} errors={string.Join(",", errors.Select(e => e.Key))}"
+                ? $"{(int)response.StatusCode} {mediaType} errors={string.Join(",", errors.Select(e => withMessages ? $"{e.Key}: {string.Join(" ", e.Value!.AsArray())}" : e.Key))}"
                 : $"{(int)response.StatusCode} {mediaType} title={problem["title"]}";
         }
 

@@ -21,7 +21,7 @@ public sealed record AddressRequest(
     [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "city")] string City,
     [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "postalCode")] string PostalCode,
     [property: Required, ApiMinLength(2), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "country")] string Country,
-    [property: ApiMaxLength(100)] string? State = null,
-    [property: ApiMinLength(2), ApiMaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
-    [property: Range(-90, 90)] double? Latitude = null,
-    [property: Range(-180, 180)] double? Longitude = null);
+    [property: ApiMaxLength(100), global::System.ComponentModel.DataAnnotations.Display(Name = "state")] string? State = null,
+    [property: ApiMinLength(2), ApiMaxLength(3), RegularExpression(@"^[A-Z]{2,3}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "countryCode")] string? CountryCode = null,
+    [property: Range(-90, 90), global::System.ComponentModel.DataAnnotations.Display(Name = "latitude")] double? Latitude = null,
+    [property: Range(-180, 180), global::System.ComponentModel.DataAnnotations.Display(Name = "longitude")] double? Longitude = null);

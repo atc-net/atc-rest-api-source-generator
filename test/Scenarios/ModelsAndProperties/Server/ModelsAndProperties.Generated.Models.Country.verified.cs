@@ -28,5 +28,5 @@ public sealed record Country(
     [property: Required, ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     [property: Required, ApiMinLength(2), ApiMaxLength(2), RegularExpression(@"^[A-Z]{2}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "alpha2Code")] string Alpha2Code,
     [property: Required, ApiMinLength(3), ApiMaxLength(3), RegularExpression(@"^[A-Z]{3}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "alpha3Code")] string Alpha3Code,
-    [property: Range(0, 999)] int? NumericCode = null,
-    [property: RegularExpression(@"^\+[1-9][0-9]{0,3}$")] string? PhonePrefix = null);
+    [property: Range(0, 999), global::System.ComponentModel.DataAnnotations.Display(Name = "numericCode")] int? NumericCode = null,
+    [property: RegularExpression(@"^\+[1-9][0-9]{0,3}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phonePrefix")] string? PhonePrefix = null);

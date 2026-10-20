@@ -20,5 +20,5 @@ public sealed record UpdatePetRequest(
     [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "species")] string Species,
     string? Breed = null,
-    [property: Range(0, long.MaxValue)] int? Age = null,
+    [property: Range(0, long.MaxValue), global::System.ComponentModel.DataAnnotations.Display(Name = "age")] int? Age = null,
     Guid? OwnerId = null);

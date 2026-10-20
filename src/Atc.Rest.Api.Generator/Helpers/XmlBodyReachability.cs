@@ -27,6 +27,49 @@ public static class XmlBodyReachability
         => Collect(openApiDoc, includeResponses: false);
 
     /// <summary>
+    /// Collects the names of the schemas reachable from a request that is <b>not</b> an XML body - a request body of
+    /// another media type (JSON, a form) or a parameter. A model an XML request carries that none of these reaches is
+    /// only ever validated as XML, so its validation messages can name its XML names.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>The schema names.</returns>
+    public static HashSet<string> CollectOtherRequests(
+        OpenApiDocument openApiDoc)
+    {
+        if (openApiDoc is null)
+        {
+            throw new ArgumentNullException(nameof(openApiDoc));
+        }
+
+        var reachable = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var pathItem in openApiDoc.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+        {
+            foreach (var parameter in pathItem.Parameters ?? Enumerable.Empty<IOpenApiParameter>())
+            {
+                Walk(parameter.Schema, reachable);
+            }
+
+            foreach (var operation in pathItem.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
+            {
+                foreach (var parameter in operation.Parameters ?? Enumerable.Empty<IOpenApiParameter>())
+                {
+                    Walk(parameter.Schema, reachable);
+                }
+
+                foreach (var entry in operation.RequestBody?.Content ?? new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal))
+                {
+                    if (!IsXmlModelBody(entry.Key, entry.Value.Schema))
+                    {
+                        Walk(entry.Value.Schema, reachable);
+                    }
+                }
+            }
+        }
+
+        return reachable;
+    }
+
+    /// <summary>
     /// Whether a body of this media type and schema is an XML model body.
     /// </summary>
     /// <param name="mediaType">The media type.</param>

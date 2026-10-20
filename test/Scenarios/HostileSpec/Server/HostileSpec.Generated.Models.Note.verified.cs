@@ -43,7 +43,7 @@ public sealed record Note(
     [property: JsonPropertyName("2fa")] bool? _2fa = null,
     [property: JsonPropertyName("user_name")] string? UserName = null,
     [property: JsonPropertyName("userName")] string? UserName2 = null,
-    [property: Range(1, 5)] int? Rating = null,
+    [property: Range(1, 5), global::System.ComponentModel.DataAnnotations.Display(Name = "rating")] int? Rating = null,
     double Price = 9.95,
     float Ratio = 1.5f,
     Note_Size? Size = null,

@@ -516,6 +516,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         // ([XmlElement] / [XmlAttribute]): a validation filter maps an XML request's error keys through them
         var xmlRequestModels = XmlBodyReachability.CollectRequestBodies(openApiDoc);
 
+        // A model only an XML request carries is validated as XML only: its messages name it by its XML names too
+        var xmlOnlyRequestModels = new HashSet<string>(xmlRequestModels, StringComparer.Ordinal);
+        xmlOnlyRequestModels.ExceptWith(XmlBodyReachability.CollectOtherRequests(openApiDoc));
+
         // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
         // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
         // generated type of the same name would make every reference ambiguous (CS0104). Unless another
@@ -540,6 +544,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                 xmlModels: xmlModels,
                 boundRequestModels: boundRequestModels,
                 xmlRequestModels: xmlRequestModels,
+                xmlOnlyRequestModels: xmlOnlyRequestModels,
                 requireJsonProperties: !useValidationFilter);
 
             GenerateEnumsForSchemas(
@@ -614,6 +619,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                     xmlModels: xmlModels,
                     boundRequestModels: boundRequestModels,
                     xmlRequestModels: xmlRequestModels,
+                    xmlOnlyRequestModels: xmlOnlyRequestModels,
                     requireJsonProperties: !useValidationFilter);
 
                 GenerateEnumsForSchemas(
@@ -881,6 +887,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         ISet<string>? xmlModels = null,
         Dictionary<string, ServerBoundModel>? boundRequestModels = null,
         ISet<string>? xmlRequestModels = null,
+        ISet<string>? xmlOnlyRequestModels = null,
         bool requireJsonProperties = false)
     {
         // Use SchemaExtractor.ExtractForSchemasWithInlineEnums to extract schemas and inline enums
@@ -939,7 +946,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate each model as a separate file
         foreach (var modelRecord in recordsParameters.Parameters)
         {
-            var named = WithXmlNames(modelRecord, xmlSources, xmlModels, xmlRequestModels);
+            var named = WithXmlNames(modelRecord, xmlSources, xmlModels, xmlRequestModels, xmlOnlyRequestModels);
             var record = boundTypeNames.Contains(named.Name.Split(' ')[0])
                 ? named with
                 {
@@ -988,13 +995,15 @@ public class ApiServerGenerator : IIncrementalGenerator
 
     /// <summary>
     /// The record of a model an XML request body carries, with <c>[XmlElement]</c> / <c>[XmlAttribute]</c> on the
-    /// properties whose XML name differs from their JSON name.
+    /// properties whose XML name differs from their JSON name - and, for a model only an XML request carries, the XML
+    /// name as the name its validation messages use.
     /// </summary>
     private static RecordParameters WithXmlNames(
         RecordParameters record,
         List<XmlModelSource> xmlSources,
         ISet<string>? xmlModels,
-        ISet<string>? xmlRequestModels)
+        ISet<string>? xmlRequestModels,
+        ISet<string>? xmlOnlyRequestModels)
     {
         // By name: the record may have been rebuilt since (required JSON properties, display names)
         var source = xmlSources.FirstOrDefault(x => string.Equals(x.Record.Name, record.Name, StringComparison.Ordinal));
@@ -1009,17 +1018,25 @@ public class ApiServerGenerator : IIncrementalGenerator
             return record;
         }
 
+        var xmlOnly = xmlOnlyRequestModels?.Contains(source.SchemaKey) == true;
         return record with
         {
             Parameters = record.Parameters?
-                .Select(p => overrides.TryGetValue(p.Name, out var xml)
-                    ? p with
+                .Select(p =>
+                {
+                    if (!overrides.TryGetValue(p.Name, out var xml))
                     {
-                        Attributes = (p.Attributes ?? [])
+                        return p;
+                    }
+
+                    var named = xmlOnly ? WireDisplayNameHelper.Renamed(p, xml.Name) : p;
+                    return named with
+                    {
+                        Attributes = (named.Attributes ?? [])
                             .Append(new AttributeParameters(xml.IsAttribute ? "global::System.Xml.Serialization.XmlAttribute" : "global::System.Xml.Serialization.XmlElement", $"\"{xml.Name}\""))
                             .ToList(),
-                    }
-                    : p)
+                    };
+                })
                 .ToList(),
         };
     }

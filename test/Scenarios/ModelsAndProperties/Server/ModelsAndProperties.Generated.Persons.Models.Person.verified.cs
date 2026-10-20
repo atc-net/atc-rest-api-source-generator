@@ -37,7 +37,7 @@ public sealed record Person(
     [property: Required, ApiMinLength(1), ApiMaxLength(50), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "firstName")] string FirstName,
     [property: Required, ApiMinLength(1), ApiMaxLength(50), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "lastName")] string LastName,
     [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
-    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
+    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phone")] string? Phone = null,
     Uri? Website = null,
     DateOnly? DateOfBirth = null,
     GenderType? Gender = null,

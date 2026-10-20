@@ -37,8 +37,8 @@ public sealed record CreateUserRequest(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "dateOfBirth")] DateOnly DateOfBirth,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "role")] UserRole Role,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "address")] AddressRequest Address,
-    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
+    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phone")] string? Phone = null,
     Uri? Website = null,
-    [property: ApiMaxLength(1000)] string? Bio = null,
+    [property: ApiMaxLength(1000), global::System.ComponentModel.DataAnnotations.Display(Name = "bio")] string? Bio = null,
     Uri? AvatarUrl = null,
     bool IsActive = true);

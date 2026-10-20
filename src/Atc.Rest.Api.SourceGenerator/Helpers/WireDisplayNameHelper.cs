@@ -60,6 +60,17 @@ internal static class WireDisplayNameHelper
                     : name;
             });
 
+    /// <summary>
+    /// A model property named by another wire name than <see cref="ForModels"/> gave it (the XML name of a model only an
+    /// XML request carries).
+    /// </summary>
+    public static ParameterBaseParameters Renamed(
+        ParameterBaseParameters parameter,
+        string wireName)
+        => WithDisplayName(
+            parameter with { Attributes = parameter.Attributes?.Where(a => a.Name != DisplayAttributeName).ToList() },
+            wireName);
+
     private static RecordsParameters WithDisplayNames(
         RecordsParameters recordsParameters,
         Func<ParameterBaseParameters, string?> wireNameOf)
@@ -83,12 +94,19 @@ internal static class WireDisplayNameHelper
             string.Equals(wireName, parameter.Name, StringComparison.Ordinal) ||
             parameter.Attributes is null ||
             parameter.Attributes.Any(a => a.Name is "Display" or DisplayAttributeName) ||
-            !parameter.Attributes.Any(a => ValidationAttributes.Contains(a.Name)))
+            !parameter.Attributes.Any(a => ValidationAttributes.Contains(NameOf(a))))
         {
             return parameter;
         }
 
         var literal = "\"" + wireName.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
         return parameter with { Attributes = [.. parameter.Attributes, new AttributeParameters(DisplayAttributeName, $"Name = {literal}")] };
+    }
+
+    // An attribute's name without the arguments the schema extractor writes into it ("ApiMaxLength(5)")
+    private static string NameOf(AttributeParameters attribute)
+    {
+        var argumentsStart = attribute.Name.IndexOf('(');
+        return argumentsStart < 0 ? attribute.Name : attribute.Name.Substring(0, argumentsStart);
     }
 }

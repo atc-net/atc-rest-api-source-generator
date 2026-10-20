@@ -22,4 +22,4 @@ public record Person(
     [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     DateTimeOffset? CreatedAt = null,
     string? Description = null,
-    [property: Range(0, 150)] int? Age = null) : NamedEntity(Id, Name, CreatedAt, Description);
+    [property: Range(0, 150), global::System.ComponentModel.DataAnnotations.Display(Name = "age")] int? Age = null) : NamedEntity(Id, Name, CreatedAt, Description);

@@ -50,8 +50,8 @@ public sealed record NullableTypes(
     DateOnly? NullableDate = null,
     Uri? NullableUri = null,
     [property: EmailAddress, global::System.ComponentModel.DataAnnotations.Display(Name = "nullableEmail")] string? NullableEmail = null,
-    [property: Range(0, 100)] int? NullableIntegerWithRange = null,
-    [property: ApiMinLength(1), ApiMaxLength(255)] string? NullableStringWithLength = null,
+    [property: Range(0, 100), global::System.ComponentModel.DataAnnotations.Display(Name = "nullableIntegerWithRange")] int? NullableIntegerWithRange = null,
+    [property: ApiMinLength(1), ApiMaxLength(255), global::System.ComponentModel.DataAnnotations.Display(Name = "nullableStringWithLength")] string? NullableStringWithLength = null,
     string? NullableWithDefault = "default-nullable",
     List<string>? NullableArray = null,
     Address? NullableAddress = null);

@@ -32,7 +32,7 @@ public sealed record ListUsersParameters(
 #nullable restore annotations
     [property: FromQuery(Name = "role")] ListUsersParametersRole? Role = null,
     [property: FromQuery(Name = "isActive")] bool? IsActive = null,
-    [property: FromQuery(Name = "limit"), Range(1, 100), DefaultValue(25)] int? Limit = 25)
+    [property: FromQuery(Name = "limit"), Range(1, 100), DefaultValue(25), global::System.ComponentModel.DataAnnotations.Display(Name = "limit")] int? Limit = 25)
 {
     [FromQuery(Name = "search")]
     public string? Search { get; init; } = Search;

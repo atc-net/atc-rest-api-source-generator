@@ -39,5 +39,5 @@ public sealed record DefaultValues(
     float FloatDefault = 1.5f,
     bool BooleanTrueDefault = true,
     bool BooleanFalseDefault = false,
-    [property: Range(1, 100)] int IntegerWithRangeAndDefault = 10,
-    [property: ApiMinLength(1), ApiMaxLength(50)] string StringWithLengthAndDefault = "Hello");
+    [property: Range(1, 100), global::System.ComponentModel.DataAnnotations.Display(Name = "integerWithRangeAndDefault")] int IntegerWithRangeAndDefault = 10,
+    [property: ApiMinLength(1), ApiMaxLength(50), global::System.ComponentModel.DataAnnotations.Display(Name = "stringWithLengthAndDefault")] string StringWithLengthAndDefault = "Hello");
