@@ -142,7 +142,14 @@ public static class OpenApiDocumentValidator
             SpecVersionMigrationValidator.Validate(diagnostics, sourceFilePath, document, sourceText);
         }
 
-        return SpecSuppressions.Apply(document, diagnostics);
+        // A diagnostic found at an operation, a path or a schema is put on its line (Microsoft.OpenApi keeps none)
+        var result = SpecSuppressions.Apply(document, diagnostics);
+        if (!string.IsNullOrEmpty(sourceText))
+        {
+            SpecLocations.Apply(result, [(sourceFilePath, sourceText!)]);
+        }
+
+        return result;
     }
 
     /// <summary>

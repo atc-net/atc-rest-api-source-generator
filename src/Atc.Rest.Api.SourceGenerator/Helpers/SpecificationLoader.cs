@@ -76,6 +76,17 @@ internal static class SpecificationLoader
     }
 
     /// <summary>
+    /// The texts of a specification of several files, the base file first (see <see cref="SpecLocations"/>).
+    /// </summary>
+    /// <param name="baseFile">The base file.</param>
+    /// <param name="partFiles">The part files.</param>
+    /// <returns>The files' paths and texts.</returns>
+    public static IReadOnlyList<(string FilePath, string Text)> SourcesOf(
+        YamlFileInfo baseFile,
+        IReadOnlyList<YamlFileInfo> partFiles)
+        => [(baseFile.Path, baseFile.Content), .. partFiles.Select(p => (p.Path, p.Content))];
+
+    /// <summary>
     /// Merges a base specification with its parts, applies the overlays to the result and validates it like a single
     /// file.
     /// </summary>
@@ -113,6 +124,9 @@ internal static class SpecificationLoader
             document,
             Array.Empty<OpenApiError>(),
             baseFile.Path);
+
+        // On the line of the file - the base or a part - that declares the operation, the path or the schema
+        SpecLocations.Apply(validationDiagnostics, SourcesOf(baseFile, partFiles));
         if (parametersMustBind)
         {
             validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
