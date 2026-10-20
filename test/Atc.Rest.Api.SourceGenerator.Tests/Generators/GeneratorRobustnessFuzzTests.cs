@@ -88,15 +88,29 @@ public sealed class GeneratorRobustnessFuzzTests
         "overlay: 1.0.0\ninfo: { title: x, version: '1' }\nactions:\n  - target: $.components.schemas.*\n    update: { allOf: [ { $ref: '#/components/schemas/Missing' } ] }\n",
     ];
 
+    // Third-party specifications from sample/ are seeds too: written by others, with what our scenarios do not think
+    // of. Monta (0.9 MB) runs only when ATC_FUZZ_SCENARIO names it - every mutant of it takes seconds.
+    private static readonly Dictionary<string, string> ThirdPartySeeds = new(StringComparer.Ordinal)
+    {
+        ["ThirdParty.Eloverblik"] = "sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/api-1.yaml",
+        ["ThirdParty.EloverblikCustomer"] = "sample/ThirdParty-EPO-Clients/EloverblikCustomerApiClient/api-1.yaml",
+        ["ThirdParty.Monta"] = "sample/ThirdParty-EPO-Clients/MontaClient/Monta.yaml",
+    };
+
     // ATC_FUZZ_SCENARIO=HostileNames narrows a run to one scenario, to reproduce or bisect
     public static IEnumerable<object[]> Scenarios()
-        => new DirectoryInfo(GeneratorSnapshotHarness.GetScenariosRoot())
+    {
+        var only = Environment.GetEnvironmentVariable("ATC_FUZZ_SCENARIO");
+        var scenarios = new DirectoryInfo(GeneratorSnapshotHarness.GetScenariosRoot())
             .GetDirectories()
             .Where(d => File.Exists(Path.Combine(d.FullName, d.Name + ".yaml")))
-            .Where(d => string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ATC_FUZZ_SCENARIO")) ||
-                        string.Equals(d.Name, Environment.GetEnvironmentVariable("ATC_FUZZ_SCENARIO"), StringComparison.OrdinalIgnoreCase))
-            .OrderBy(d => d.Name, StringComparer.Ordinal)
-            .Select(d => new object[] { d.Name });
+            .Select(d => d.Name)
+            .Concat(ThirdPartySeeds.Keys.Where(name => name != "ThirdParty.Monta" || string.Equals(only, name, StringComparison.OrdinalIgnoreCase)));
+        return scenarios
+            .Where(name => string.IsNullOrEmpty(only) || string.Equals(name, only, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .Select(name => new object[] { name });
+    }
 
     [Theory]
     [MemberData(nameof(Scenarios))]
@@ -222,7 +236,9 @@ public sealed class GeneratorRobustnessFuzzTests
     }
 
     private static string ReadScenario(string scenario)
-        => File.ReadAllText(Path.Combine(GeneratorSnapshotHarness.GetScenariosRoot(), scenario, scenario + ".yaml"));
+        => ThirdPartySeeds.TryGetValue(scenario, out var samplePath)
+            ? File.ReadAllText(Path.Combine(GeneratorSnapshotHarness.GetScenariosRoot(), "..", "..", samplePath))
+            : File.ReadAllText(Path.Combine(GeneratorSnapshotHarness.GetScenariosRoot(), scenario, scenario + ".yaml"));
 
     /// <summary>
     /// Runs the three generators over one input. A generator that reports no error and emits code has that code
