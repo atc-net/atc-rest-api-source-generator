@@ -153,7 +153,7 @@ public partial class ErrorResponseBodyRuntimeTests
         var template = await File.ReadAllTextAsync(
             Path.Combine(root, "test", "Atc.Rest.Api.SourceGenerator.Tests", "Generators", "ErrorBodyReport.template.html"),
             TestContext.Current.CancellationToken);
-        var html = template.Replace("/*__REPORT_DATA__*/null", matrix.ToJsonString().Replace("</", "<\\/", StringComparison.Ordinal), StringComparison.Ordinal);
+        var html = template.Replace("/*__REPORT_DATA__*/", PackReportData(matrix.ToJsonString()), StringComparison.Ordinal);
         await File.WriteAllTextAsync(Path.Combine(docs, ReportHtmlFileName), html, TestContext.Current.CancellationToken);
     }
 
@@ -944,5 +944,19 @@ public partial class ErrorResponseBodyRuntimeTests
     {
         var path = Path.Combine(root, ReportFolderName, fileName);
         return File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path)) : null;
+    }
+
+    // The page's data: gzip, then base64 - the page unpacks it with the browser's DecompressionStream. The three
+    // error-body datasets are each about 1.3 MB of JSON and mostly the same text, which gzip stores once.
+    private static string PackReportData(string json)
+    {
+        using var packed = new MemoryStream();
+        using (var gzip = new System.IO.Compression.GZipStream(packed, System.IO.Compression.CompressionLevel.SmallestSize, leaveOpen: true))
+        {
+            var bytes = Encoding.UTF8.GetBytes(json);
+            gzip.Write(bytes, 0, bytes.Length);
+        }
+
+        return Convert.ToBase64String(packed.ToArray());
     }
 }

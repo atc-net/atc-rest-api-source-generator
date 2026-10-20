@@ -126,6 +126,7 @@
   .chipbox input { margin: 0; accent-color: var(--accent); }
   .chipbox label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   select, input[type="search"] { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+  .countlink { font: inherit; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
   .btn { font: inherit; font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
   .btn:hover { border-color: var(--accent); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 500; }
@@ -389,10 +390,27 @@
 </main>
 
 <script>
-const REPORT = /*__REPORT_DATA__*/null;
+// The report's data, gzip-compressed and base64-encoded (the template itself has none): every cell keeps its own
+// run's bytes, at a fifth of the page's size. The browser unpacks it before the page is drawn.
+(async () => {
+const REPORT = await (async (packed) => {
+  if (packed.startsWith('/*')) return null;
+  const bytes = Uint8Array.from(atob(packed), (ch) => ch.charCodeAt(0));
+  const text = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  return JSON.parse(text);
+})('/*__REPORT_DATA__*/');
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const VERDICTS = ['pass', 'lossy', 'fail', 'harness', 'platform'];
+// A verdict count in a tab's intro is a link to the rows it counts: the matrix below, filtered by that verdict
+const COUNT_FILTERS = { fail: 'fail', known: 'fail', harness: 'fail', lossy: 'lossy', platform: 'nonpass' };
+const countsHtml = (key, counts) => Object.entries(counts).map(([v, n]) => COUNT_FILTERS[v]
+  ? `<button type="button" class="countlink" data-count-matrix="${esc(key)}" data-count-verdict="${COUNT_FILTERS[v]}" title="Show the rows with this verdict"><span class="v ${esc(v)}">${esc(v)}</span> ${n}</button>`
+  : `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ');
+document.addEventListener('click', (e) => {
+  const link = e.target.closest?.('[data-count-matrix]');
+  if (link) MATRIX[link.dataset.countMatrix]?.show({ verdict: link.dataset.countVerdict });
+});
 // What a lossy cell lost (cell.loss, set by the test's verdict code from the run): the badge next to "lossy".
 const LOSS_KINDS = {
   'fields': {
@@ -963,7 +981,7 @@ if (!REPORT) {
   if (!errorBodies31) {
     $('#matrix31-intro').innerHTML = '<p>This report was generated without this matrix.</p>';
   } else {
-    $('#matrix31-intro').innerHTML = openApi31Intro('Error bodies', 'the <b>Error bodies</b> tab', errorBodies31, 'EndToEnd_EveryClientReadsWhatTheServerWrites_WithAnOpenApi31Document');
+    $('#matrix31-intro').innerHTML = openApi31Intro('errorBodies31', 'Error bodies', 'the <b>Error bodies</b> tab', errorBodies31, 'EndToEnd_EveryClientReadsWhatTheServerWrites_WithAnOpenApi31Document');
     mountErrorMatrix('errorBodies31', 'matrix31', $('#matrix31'), errorBodies31, openApi30Baseline(REPORT.cases));
   }
 
@@ -1013,8 +1031,8 @@ if (!REPORT) {
     <p><b>A client</b> passes when it exposes what the server wrote: a file with the same bytes, content type (the file's own - <code>DownloadedFile.ContentType</code>, the <code>Blob</code>'s <code>type</code>; no fallback to the headers) and file name; a model equal to the handler's, field by field, with the status and media type it got (a <code>preferXml</code> client must get XML, the others JSON; the TypedClient <code>Throw</code> style exposes neither and is checked on the model only); an error with the server's status and media type and, read into the typed value, the ProblemDetails' <code>detail</code> (else <code>title</code>) and validation keys, or the XML error model's <code>code</code> and <code>message</code> (the TypedClient has no typed errors by design: its <code>Result</code> style must hold the server's raw body, its <code>Throw</code> style throws with the status).</p>
     <p><b>Not exercised.</b> ${notExercisedHtml('bodyMedia')} The 502 rows come from a stub in front of the API (no generated server code runs), and the 404/500/502 rows repeat per file kind.</p>
     <ul class="tight counts">
-      <li>${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
-      <li>${wireTotal} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+      <li>${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${countsHtml('bodyMedia', counts)}</li>
+      <li>${wireTotal} server answers: ${countsHtml('bodyMedia', wireCounts)}</li>
       <li>run ${esc(media.generatedAt)} in ${esc(media.durationSeconds)} s</li>
     </ul>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsEveryBodyMediaType"</code> (fails on any fail cell).</p></div>`;
@@ -1030,14 +1048,14 @@ const MATRIX_TESTS_31 = {
 };
 function reproduce31(test) { return `dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*${test}"`; }
 function openApi30Baseline(cases) { return { cases, name: 'OpenAPI 3.0', option: 'rows that differ from the OpenAPI 3.0 document' }; }
-function openApi31Intro(title, sameAs, data, test) {
+function openApi31Intro(key, title, sameAs, data, test) {
   const counts = {};
   for (const c of data.cases) for (const cell of Object.values(c.clients)) counts[cell.verdict] = (counts[cell.verdict] ?? 0) + 1;
   return `
     <h2>${title} &middot; an OpenAPI 3.1 document</h2>
     <p>The same specification, handlers, clients and cases as ${sameAs}, with the specification written as an OpenAPI 3.1 document (<code>openapi: ${esc(data.openApi ?? '3.1.0')}</code>; a nullable type is a type array, <code>type: [string, 'null']</code>): the server, every C# client and every TypeScript client are generated from it. A 3.1 document that says the same must give the same server and the same clients, so every cell must be what it is from the 3.0 document - a <span class="dv">≠</span> marks one that is not.</p>
     <ul class="tight counts">
-      <li>${data.cases.length} cases × ${data.clients.length} clients: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+      <li>${data.cases.length} cases × ${data.clients.length} clients: ${countsHtml(key, counts)}</li>
       <li>run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</li>
     </ul>
     <div class="note"><p><b>Reproduce:</b> <code>${esc(reproduce31(test))}</code></p></div>`;
@@ -1168,8 +1186,8 @@ function renderCaseMatrix(key, tab, data, intro, share, baseline) {
   for (const c of wire) wireCounts[c.wire.verdict] = (wireCounts[c.wire.verdict] ?? 0) + 1;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   $(introSel).innerHTML = intro + `<ul class="tight counts">
-    <li>${data.cases.length} cases × ${data.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
-    ${wire.length ? `<li>${wire.length} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>` : ''}
+    <li>${data.cases.length} cases × ${data.clients.length} clients = ${total} client cells: ${countsHtml(key, counts)}</li>
+    ${wire.length ? `<li>${wire.length} server answers: ${countsHtml(key, wireCounts)}</li>` : ''}
     <li>run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</li>
     <li>click a cell for the whole answer</li>
   </ul>`;
@@ -1254,7 +1272,7 @@ for (const [key, tab, base, title, sameAs] of [
   if (!data) {
     $(`#${tab}-intro`).innerHTML = '<p>This report was generated without this matrix.</p>';
   } else {
-    $(`#${tab}-intro`).innerHTML = openApi31Intro(title, sameAs, data, MATRIX_TESTS_31[key]);
+    $(`#${tab}-intro`).innerHTML = openApi31Intro(key, title, sameAs, data, MATRIX_TESTS_31[key]);
     mountCaseMatrix(key, tab, $('#' + tab), data, base, REPORT?.[base]?.cases ? openApi30Baseline(REPORT[base].cases) : null);
   }
 }
@@ -1723,6 +1741,7 @@ fitTabs();
 setCompact(load('compact', false));
 window.addEventListener('hashchange', route);
 if (!route()) { const stored = load('tab', 'overview'); selectTab(document.getElementById('tab-' + stored) ? stored : 'overview'); }
+})();
 </script>
 </body>
 </html>
