@@ -618,7 +618,7 @@ public static class TypeScriptModelExtractor
             }
 
             // Track referenced types for imports
-            CollectReferencedTypes(prop.Value, importTypes);
+            TypeScriptSchemaImports.Collect(prop.Value, importTypes);
 
             // Build description from schema if available. Deprecated properties carry an
             // @deprecated tag so IDE shows the strikethrough; without it the spec author's
@@ -660,7 +660,7 @@ public static class TypeScriptModelExtractor
                 : "unknown";
             if (string.Equals(indexType, valueType, StringComparison.Ordinal))
             {
-                CollectReferencedTypes(schema.AdditionalProperties, importTypes);
+                TypeScriptSchemaImports.Collect(schema.AdditionalProperties, importTypes);
             }
 
             tsProperties.Add(new TypeScriptPropertyParameters(
@@ -672,7 +672,7 @@ public static class TypeScriptModelExtractor
                 DefaultValue: null));
         }
 
-        // Drop anything collected that the emitted interface never names. CollectReferencedTypes
+        // Drop anything collected that the emitted interface never names. TypeScriptSchemaImports.Collect
         // walks the schema graph, so it picks up references the type emitter does not surface —
         // an inline `oneOf` property, for instance, is emitted as `unknown` while its branches are
         // still collected. Importing those produces an interface that fails to compile under
@@ -747,82 +747,6 @@ public static class TypeScriptModelExtractor
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Collects referenced type names from a schema for generating import statements.
-    /// </summary>
-    private static void CollectReferencedTypes(
-        IOpenApiSchema schema,
-        HashSet<string> importTypes)
-    {
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName is not null)
-            {
-                importTypes.Add(refName);
-            }
-
-            return;
-        }
-
-        if (schema is not OpenApiSchema actualSchema)
-        {
-            return;
-        }
-
-        // Check allOf references
-        if (actualSchema.AllOf is { Count: > 0 })
-        {
-            foreach (var subSchema in actualSchema.AllOf)
-            {
-                if (subSchema is OpenApiSchemaReference allOfRef)
-                {
-                    var refName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (refName is not null)
-                    {
-                        importTypes.Add(refName);
-                    }
-                }
-            }
-        }
-
-        // Check oneOf references
-        if (actualSchema.OneOf is { Count: > 0 })
-        {
-            foreach (var subSchema in actualSchema.OneOf)
-            {
-                if (subSchema is OpenApiSchemaReference oneOfRef)
-                {
-                    var refName = oneOfRef.Reference.Id ?? oneOfRef.Id;
-                    if (refName is not null)
-                    {
-                        importTypes.Add(refName);
-                    }
-                }
-            }
-        }
-
-        // Check array item references
-        if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference itemRef)
-        {
-            var refName = itemRef.Reference.Id ?? itemRef.Id;
-            if (refName is not null)
-            {
-                importTypes.Add(refName);
-            }
-        }
-
-        // Check additionalProperties references
-        if (actualSchema.AdditionalProperties is OpenApiSchemaReference addPropRef)
-        {
-            var refName = addPropRef.Reference.Id ?? addPropRef.Id;
-            if (refName is not null)
-            {
-                importTypes.Add(refName);
-            }
-        }
     }
 
     /// <summary>

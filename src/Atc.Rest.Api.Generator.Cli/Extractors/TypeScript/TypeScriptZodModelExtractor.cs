@@ -360,7 +360,7 @@ public static class TypeScriptZodModelExtractor
 
     /// <summary>
     /// Walks the schema's direct references (without following them) and records the
-    /// names. Mirrors <see cref="CollectSchemaImportTypes"/> but writes into an arbitrary
+    /// names. Mirrors <see cref="TypeScriptSchemaImports.Collect"/> but writes into an arbitrary
     /// set so it can be reused for graph building.
     /// </summary>
     private static void CollectDirectRefs(
@@ -647,12 +647,12 @@ public static class TypeScriptZodModelExtractor
         // Collect referenced types from properties, and from the value schema of a catchall
         foreach (var prop in properties)
         {
-            CollectSchemaImportTypes(prop.Value, importTypes);
+            TypeScriptSchemaImports.Collect(prop.Value, importTypes);
         }
 
         if (schema.AdditionalProperties is not null && properties.Count > 0)
         {
-            CollectSchemaImportTypes(schema.AdditionalProperties, importTypes);
+            TypeScriptSchemaImports.Collect(schema.AdditionalProperties, importTypes);
         }
 
         // Detect direct self-reference. A property whose $ref / array.items.$ref /
@@ -912,7 +912,7 @@ public static class TypeScriptZodModelExtractor
         sb.AppendLine("import { z } from 'zod';");
 
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
-        CollectSchemaImportTypes(schema.AdditionalProperties!, importTypes);
+        TypeScriptSchemaImports.Collect(schema.AdditionalProperties!, importTypes);
         var imports = BuildZodImportStatements(importTypes, schemaName, enumNames: null);
         if (imports.Count > 0)
         {
@@ -1135,11 +1135,12 @@ public static class TypeScriptZodModelExtractor
             return sb.ToString();
         }
 
-        // Handle oneOf: a branch that is only null (3.1's `oneOf: [$ref, {type: 'null'}]`) is nullability, not a member
-        if (actualSchema.OneOf is { Count: > 0 })
+        // Handle oneOf and anyOf (a union of their members, as the model types them): a branch that is only null
+        // (3.1's `oneOf: [$ref, {type: 'null'}]`) is nullability, not a member
+        if ((actualSchema.OneOf is { Count: > 0 } ? actualSchema.OneOf : actualSchema.AnyOf) is { Count: > 0 } union)
         {
-            var members = actualSchema.OneOf.Where(m => !IsNullBranch(m)).ToList();
-            isNullable = isNullable || members.Count < actualSchema.OneOf.Count;
+            var members = union.Where(m => !IsNullBranch(m)).ToList();
+            isNullable = isNullable || members.Count < union.Count;
             if (members.Count == 1 && members[0] is OpenApiSchemaReference oneOfRef)
             {
                 var refName = oneOfRef.Reference.Id ?? oneOfRef.Id ?? "unknown";
@@ -1394,82 +1395,6 @@ public static class TypeScriptZodModelExtractor
                 JsonValueKind.String => TypeScriptLiteralHelper.ToStringLiteral(jsonValue.GetValue<string>()),
                 _ => null,
             };
-
-    /// <summary>
-    /// Collects referenced type names from a schema for generating Zod import statements.
-    /// </summary>
-    private static void CollectSchemaImportTypes(
-        IOpenApiSchema schema,
-        HashSet<string> importTypes)
-    {
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName is not null)
-            {
-                importTypes.Add(refName);
-            }
-
-            return;
-        }
-
-        if (schema is not OpenApiSchema actualSchema)
-        {
-            return;
-        }
-
-        // Check allOf references
-        if (actualSchema.AllOf is { Count: > 0 })
-        {
-            foreach (var subSchema in actualSchema.AllOf)
-            {
-                if (subSchema is OpenApiSchemaReference allOfRef)
-                {
-                    var refName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (refName is not null)
-                    {
-                        importTypes.Add(refName);
-                    }
-                }
-            }
-        }
-
-        // Check oneOf references
-        if (actualSchema.OneOf is { Count: > 0 })
-        {
-            foreach (var subSchema in actualSchema.OneOf)
-            {
-                if (subSchema is OpenApiSchemaReference oneOfRef)
-                {
-                    var refName = oneOfRef.Reference.Id ?? oneOfRef.Id;
-                    if (refName is not null)
-                    {
-                        importTypes.Add(refName);
-                    }
-                }
-            }
-        }
-
-        // Check array item references
-        if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference itemRef)
-        {
-            var refName = itemRef.Reference.Id ?? itemRef.Id;
-            if (refName is not null)
-            {
-                importTypes.Add(refName);
-            }
-        }
-
-        // Check additionalProperties references
-        if (actualSchema.AdditionalProperties is OpenApiSchemaReference addPropRef)
-        {
-            var refName = addPropRef.Reference.Id ?? addPropRef.Id;
-            if (refName is not null)
-            {
-                importTypes.Add(refName);
-            }
-        }
-    }
 
     /// <summary>
     /// Builds import statements for referenced Zod schemas.
