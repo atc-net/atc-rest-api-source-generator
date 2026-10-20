@@ -18,6 +18,26 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         SpecSplitCommandSettings settings,
         CancellationToken cancellationToken)
     {
+        // A command that fails half-way leaves the project as it found it: what it wrote is put back
+        using var transaction = FileTransaction.Begin();
+        var result = ExecuteCore(context, settings, cancellationToken);
+        if (result == 0)
+        {
+            transaction.Commit();
+        }
+        else if (transaction.HasChanges)
+        {
+            AnsiConsole.MarkupLine("[yellow]The files written before the failure were put back.[/]");
+        }
+
+        return result;
+    }
+
+    private int ExecuteCore(
+        CommandContext context,
+        SpecSplitCommandSettings settings,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
@@ -211,13 +231,13 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         // Ensure output directory exists
         if (!Directory.Exists(outputDir))
         {
-            Directory.CreateDirectory(outputDir);
+            TrackedFile.CreateDirectory(outputDir);
         }
 
         foreach (var file in splitResult.AllFiles)
         {
             var outputPath = Path.Combine(outputDir, file.FileName);
-            File.WriteAllText(outputPath, file.Content);
+            TrackedFile.WriteAllText(outputPath, file.Content);
             AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Written: {file.FileName}");
         }
 

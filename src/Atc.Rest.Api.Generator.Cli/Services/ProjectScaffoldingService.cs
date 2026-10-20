@@ -102,13 +102,13 @@ public sealed class ProjectScaffoldingService
 
             if (!Directory.Exists(srcPath))
             {
-                Directory.CreateDirectory(srcPath);
+                TrackedFile.CreateDirectory(srcPath);
                 AnsiConsole.MarkupLine("[green]✓[/] Created directory: src/");
             }
 
             if (!Directory.Exists(testPath))
             {
-                Directory.CreateDirectory(testPath);
+                TrackedFile.CreateDirectory(testPath);
                 AnsiConsole.MarkupLine("[green]✓[/] Created directory: test/");
             }
 
@@ -172,7 +172,7 @@ public sealed class ProjectScaffoldingService
                 return true;
             }
 
-            File.WriteAllText(slnxPath, sb.ToString());
+            TrackedFile.WriteAllText(slnxPath, sb.ToString());
             AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created solution file: {solutionName}.slnx");
             return true;
         }
@@ -203,13 +203,13 @@ public sealed class ProjectScaffoldingService
         {
             if (!Directory.Exists(testProjectPath))
             {
-                Directory.CreateDirectory(testProjectPath);
+                TrackedFile.CreateDirectory(testProjectPath);
             }
 
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateTestProjectContent(projectName);
-                File.WriteAllText(csprojPath, csprojContent);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created test project: {testProjectName}.csproj");
 
                 // Create a sample test file
@@ -217,7 +217,7 @@ public sealed class ProjectScaffoldingService
                 if (!File.Exists(testFilePath))
                 {
                     var testContent = GenerateTestFileContent(testProjectName);
-                    File.WriteAllText(testFilePath, testContent);
+                    TrackedFile.WriteAllText(testFilePath, testContent);
                     AnsiConsole.MarkupLine("[green]✓[/] Created sample test: UnitTest1.cs");
                 }
             }
@@ -249,7 +249,7 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(jsonPath))
             {
-                File.WriteAllText(jsonPath, CodingRulesJson);
+                TrackedFile.WriteAllText(jsonPath, CodingRulesJson);
                 AnsiConsole.MarkupLine("[green]✓[/] Created atc-coding-rules-updater.json");
             }
             else
@@ -259,7 +259,7 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(ps1Path))
             {
-                File.WriteAllText(ps1Path, CodingRulesPs1);
+                TrackedFile.WriteAllText(ps1Path, CodingRulesPs1);
                 AnsiConsole.MarkupLine("[green]✓[/] Created atc-coding-rules-updater.ps1");
             }
             else
@@ -388,7 +388,7 @@ public sealed class ProjectScaffoldingService
 
         try
         {
-            File.WriteAllText(gitignorePath, GitIgnoreContent);
+            TrackedFile.WriteAllText(gitignorePath, GitIgnoreContent);
             AnsiConsole.MarkupLine("[green]✓[/] Created .gitignore");
             return true;
         }
@@ -430,7 +430,7 @@ public sealed class ProjectScaffoldingService
             // Create project directory
             if (!Directory.Exists(hostProjectPath))
             {
-                Directory.CreateDirectory(hostProjectPath);
+                TrackedFile.CreateDirectory(hostProjectPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {hostProjectName}/");
             }
 
@@ -443,7 +443,7 @@ public sealed class ProjectScaffoldingService
                     targetFramework,
                     hostUi,
                     hostNamespace);
-                File.WriteAllText(csprojPath, csprojContent);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {hostProjectName}.csproj");
             }
             else
@@ -456,7 +456,7 @@ public sealed class ProjectScaffoldingService
             {
                 var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
                 var programContent = GenerateProgramContent(baseName, hostUi, hostUiMode);
-                File.WriteAllText(programPath, programContent);
+                TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else
@@ -470,7 +470,7 @@ public sealed class ProjectScaffoldingService
             {
                 var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
                 var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
-                File.WriteAllText(globalUsingsPath, globalUsingsContent);
+                TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
             }
             else
@@ -510,7 +510,7 @@ public sealed class ProjectScaffoldingService
             // Create project directory
             if (!Directory.Exists(aspireProjectPath))
             {
-                Directory.CreateDirectory(aspireProjectPath);
+                TrackedFile.CreateDirectory(aspireProjectPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {aspireProjectName}/");
             }
 
@@ -518,7 +518,7 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateAspireProjectContent(apiProjectName, targetFramework);
-                File.WriteAllText(csprojPath, csprojContent);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {aspireProjectName}.csproj");
             }
             else
@@ -530,7 +530,7 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(programPath))
             {
                 var programContent = GenerateAspireProgramContent(apiProjectName);
-                File.WriteAllText(programPath, programContent);
+                TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else

@@ -29,6 +29,26 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         GenerateClientCommandSettings settings,
         CancellationToken cancellationToken)
     {
+        // A command that fails half-way leaves the project as it found it: what it wrote is put back
+        using var transaction = FileTransaction.Begin();
+        var result = ExecuteCore(context, settings, cancellationToken);
+        if (result == 0)
+        {
+            transaction.Commit();
+        }
+        else if (transaction.HasChanges)
+        {
+            AnsiConsole.MarkupLine("[yellow]The files written before the failure were put back.[/]");
+        }
+
+        return result;
+    }
+
+    private int ExecuteCore(
+        CommandContext context,
+        GenerateClientCommandSettings settings,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
@@ -156,7 +176,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 {
                     if (!Directory.Exists(outputPath))
                     {
-                        Directory.CreateDirectory(outputPath);
+                        TrackedFile.CreateDirectory(outputPath);
                         AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
                     }
                 }
@@ -413,12 +433,12 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 }
 
                 // Source is newer, update the file
-                File.Copy(sourcePath, destinationPath, overwrite: true);
+                TrackedFile.Copy(sourcePath, destinationPath, overwrite: true);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated specification file: {fileName}");
             }
             else
             {
-                File.Copy(sourcePath, destinationPath);
+                TrackedFile.Copy(sourcePath, destinationPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file: {fileName}");
             }
 
@@ -457,7 +477,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             }
             else
             {
-                File.WriteAllText(markerFilePath, json);
+                TrackedFile.WriteAllText(markerFilePath, json);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Client}");
             }
 
@@ -487,7 +507,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion, signalRClientVersion);
-                File.WriteAllText(csprojPath, csprojContent);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
                 foreach (var partFileName in partFileNames)
                 {
                     UpdateProjectFileIfNeeded(csprojPath, partFileName);
@@ -643,7 +663,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
         if (content != originalContent)
         {
-            File.WriteAllText(csprojPath, content);
+            TrackedFile.WriteAllText(csprojPath, content);
             return true;
         }
 

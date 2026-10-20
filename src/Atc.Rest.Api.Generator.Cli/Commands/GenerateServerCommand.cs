@@ -30,6 +30,26 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         GenerateServerCommandSettings settings,
         CancellationToken cancellationToken)
     {
+        // A command that fails half-way leaves the project as it found it: what it wrote is put back
+        using var transaction = FileTransaction.Begin();
+        var result = ExecuteCore(context, settings, cancellationToken);
+        if (result == 0)
+        {
+            transaction.Commit();
+        }
+        else if (transaction.HasChanges)
+        {
+            AnsiConsole.MarkupLine("[yellow]The files written before the failure were put back.[/]");
+        }
+
+        return result;
+    }
+
+    private int ExecuteCore(
+        CommandContext context,
+        GenerateServerCommandSettings settings,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
@@ -598,7 +618,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                Directory.CreateDirectory(outputPath);
+                TrackedFile.CreateDirectory(outputPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
@@ -680,7 +700,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                Directory.CreateDirectory(outputPath);
+                TrackedFile.CreateDirectory(outputPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
@@ -765,7 +785,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                Directory.CreateDirectory(outputPath);
+                TrackedFile.CreateDirectory(outputPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
@@ -921,7 +941,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             // Create folder if needed
             if (!Directory.Exists(specsFolder))
             {
-                Directory.CreateDirectory(specsFolder);
+                TrackedFile.CreateDirectory(specsFolder);
                 AnsiConsole.MarkupLine("[green]✓[/] Created directory: ScriptsAndSpecifications/");
             }
 
@@ -933,7 +953,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (!File.Exists(destPath) ||
                     File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destPath))
                 {
-                    File.Copy(sourcePath, destPath, overwrite: true);
+                    TrackedFile.Copy(sourcePath, destPath, overwrite: true);
                     AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file to ScriptsAndSpecifications/{fileName}");
                 }
                 else
@@ -973,8 +993,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 if (!string.Equals(source, Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
                 {
-                    Directory.CreateDirectory(specBasePath);
-                    File.Copy(source, destination, overwrite: true);
+                    TrackedFile.CreateDirectory(specBasePath);
+                    TrackedFile.Copy(source, destination, overwrite: true);
                     AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied overlay next to the specification: {fileName}");
                 }
             }
@@ -1031,7 +1051,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             }
             else
             {
-                File.WriteAllText(markerFilePath, json);
+                TrackedFile.WriteAllText(markerFilePath, json);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Server}");
             }
 
@@ -1070,7 +1090,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             }
             else
             {
-                File.WriteAllText(markerFilePath, json);
+                TrackedFile.WriteAllText(markerFilePath, json);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.ServerHandlers}");
             }
 
@@ -1096,7 +1116,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateContractsProjectFileContent(specFilePaths, sourceGeneratorVersion);
-                File.WriteAllText(csprojPath, csprojContent);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
@@ -1135,7 +1155,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsProjectName, sourceGeneratorVersion);
-                File.WriteAllText(csprojPath, csprojContent);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
@@ -1250,7 +1270,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFilePaths, domainProjectName, targetFramework, hostUi, sourceGeneratorVersion);
-                File.WriteAllText(csprojPath, csprojContent);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
@@ -1345,7 +1365,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(programPath))
             {
                 var programContent = GenerateProgramContent(baseName, hostUi, hostUiMode);
-                File.WriteAllText(programPath, programContent);
+                TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else
@@ -1356,7 +1376,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(globalUsingsPath))
             {
                 var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
-                File.WriteAllText(globalUsingsPath, globalUsingsContent);
+                TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
             }
             else
@@ -1567,7 +1587,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         if (content != originalContent)
         {
-            File.WriteAllText(csprojPath, content);
+            TrackedFile.WriteAllText(csprojPath, content);
             return true;
         }
 
