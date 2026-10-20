@@ -2,9 +2,9 @@ namespace Atc.Rest.Api.Generator.Cli.Helpers;
 
 /// <summary>
 /// Runs a tool the CLI depends on (git, atc-coding-rules-updater) so that the tool cannot hold the command up: both
-/// output streams are read as they come (a full stderr pipe never blocks the tool), standard input is closed (a tool
-/// that asks a question gets no answer instead of waiting for one), and after the time it is given the tool and the
-/// processes it started are stopped.
+/// output streams are read as they come, each on a thread of its own (a full stderr pipe never blocks the tool, also
+/// when the thread pool is busy), standard input is closed (a tool that asks a question gets no answer instead of
+/// waiting for one), and after the time it is given the tool and the processes it started are stopped.
 /// </summary>
 public static class ExternalTool
 {
@@ -37,23 +37,52 @@ public static class ExternalTool
 
         var output = new StringBuilder();
         var error = new StringBuilder();
-        process.OutputDataReceived += (_, e) => Append(output, e.Data);
-        process.ErrorDataReceived += (_, e) => Append(error, e.Data);
 
         process.Start();
         process.StandardInput.Close();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        var outputReader = Pump(process.StandardOutput, output);
+        var errorReader = Pump(process.StandardError, error);
 
         if (!process.WaitForExit(timeout))
         {
             Stop(process);
+            outputReader.Join(TimeSpan.FromSeconds(5));
+            errorReader.Join(TimeSpan.FromSeconds(5));
             return new ExternalToolResult(ExitCode: null, Text(output), Text(error));
         }
 
-        // The exit is in; this waits for the readers to see the end of both streams
-        process.WaitForExit();
+        // The exit is in; the readers end at the end of both streams
+        outputReader.Join();
+        errorReader.Join();
         return new ExternalToolResult(process.ExitCode, Text(output), Text(error));
+    }
+
+    // Reads a stream line by line on a thread of its own, not on the thread pool: a pool busy with other work cannot
+    // leave the pipe full and the tool blocked on it
+    private static Thread Pump(
+        StreamReader reader,
+        StringBuilder builder)
+    {
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                while (reader.ReadLine() is { } line)
+                {
+                    Append(builder, line);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+            {
+                // The tool was stopped: what it wrote until then is kept
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "ExternalTool output",
+        };
+        thread.Start();
+        return thread;
     }
 
     private static void Append(
