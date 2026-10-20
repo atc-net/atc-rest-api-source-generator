@@ -4,8 +4,6 @@
 #pragma warning disable CS0618
 
 using System;
-using System.IO;
-using System.Linq;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net;

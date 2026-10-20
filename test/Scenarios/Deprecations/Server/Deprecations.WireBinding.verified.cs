@@ -3,8 +3,6 @@
 #pragma warning disable CS1591
 #pragma warning disable CS0618
 
-using System.Net.Http;
-using System.Threading;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;

@@ -3,8 +3,9 @@ namespace Atc.Rest.Api.Generator.Helpers;
 /// <summary>
 /// Gives a generated C# file the usings the SDK's implicit usings would otherwise supply, so the file compiles in a
 /// project with <c>ImplicitUsings</c> off as well. The emitters write code against the SDK's base set (<c>Task</c>,
-/// <c>List&lt;T&gt;</c>, <c>HttpClient</c>, LINQ, ...); where the project has them on, the file's own using of a namespace
-/// the project imports globally is harmless.
+/// <c>List&lt;T&gt;</c>, <c>HttpClient</c>, LINQ, ...); a file gets <c>System</c> and each other namespace whose types (or
+/// LINQ's extension methods) it names - a model is not given <c>System.Net.Http</c>. Where the project has them on, the
+/// file's own using of a namespace the project imports globally is harmless.
 /// </summary>
 public static class ImplicitUsingsHelper
 {
@@ -21,6 +22,53 @@ public static class ImplicitUsingsHelper
         "System.Threading",
         "System.Threading.Tasks",
     ];
+
+    // The names that use a namespace: its types, or (System.Linq) its extension methods and query syntax
+    private static readonly Dictionary<string, Regex> UsedBy = new(StringComparer.Ordinal)
+    {
+        ["System.Collections.Generic"] = Words(
+            [
+                "List", "IList", "Dictionary", "IDictionary", "IReadOnlyDictionary", "IReadOnlyList", "IReadOnlyCollection",
+                "ICollection", "IEnumerable", "IEnumerator", "IAsyncEnumerable", "IAsyncEnumerator", "HashSet", "ISet",
+                "IReadOnlySet", "KeyValuePair", "Queue", "Stack", "LinkedList", "SortedDictionary", "SortedSet", "SortedList",
+                "IEqualityComparer", "EqualityComparer", "IComparer", "Comparer", "KeyNotFoundException", "CollectionExtensions",
+                "GetValueOrDefault", "TryAdd", "AsReadOnly",
+            ]),
+        ["System.IO"] = Words(
+            [
+                "Stream", "MemoryStream", "FileStream", "BufferedStream", "File", "Path", "Directory", "TextReader", "TextWriter",
+                "StreamReader", "StreamWriter", "StringReader", "StringWriter", "BinaryReader", "BinaryWriter", "IOException",
+                "InvalidDataException", "EndOfStreamException", "SeekOrigin", "FileMode", "FileAccess", "FileShare",
+            ]),
+        ["System.Linq"] = new Regex(
+            @"\.(Select|SelectMany|Where|Any|All|First|FirstOrDefault|Last|LastOrDefault|Single|SingleOrDefault|Count|LongCount|"
+            + @"ToList|ToArray|ToDictionary|ToHashSet|ToLookup|OrderBy|OrderByDescending|ThenBy|ThenByDescending|GroupBy|Distinct|"
+            + @"DistinctBy|Concat|Skip|SkipWhile|SkipLast|Take|TakeWhile|TakeLast|Sum|Max|Min|MaxBy|MinBy|Average|Aggregate|"
+            + @"Contains|SequenceEqual|Zip|Reverse|Except|ExceptBy|Intersect|IntersectBy|Union|UnionBy|Cast|OfType|Prepend|Append|"
+            + @"DefaultIfEmpty|ElementAt|ElementAtOrDefault|AsEnumerable|Chunk|Join|GroupJoin|Order|OrderDescending|Index|CountBy|AggregateBy)\s*[<(]|\bEnumerable\.|\bfrom\s+\w+\s+in\b",
+            RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+            TimeSpan.FromSeconds(1)),
+        ["System.Net.Http"] = Words(
+            [
+                "HttpClient", "IHttpClientFactory", "HttpMethod", "HttpRequestMessage", "HttpResponseMessage", "HttpContent",
+                "StreamContent", "StringContent", "ByteArrayContent", "ReadOnlyMemoryContent", "FormUrlEncodedContent",
+                "MultipartContent", "MultipartFormDataContent", "HttpRequestException", "HttpCompletionOption",
+                "HttpMessageHandler", "DelegatingHandler", "HttpClientHandler", "SocketsHttpHandler", "HttpRequestOptions",
+                "HttpRequestOptionsKey", "HttpVersionPolicy", "HttpIOException",
+            ]),
+        ["System.Threading"] = Words(
+            [
+                "CancellationToken", "CancellationTokenSource", "CancellationTokenRegistration", "Interlocked", "SemaphoreSlim",
+                "Semaphore", "Thread", "Timeout", "Volatile", "Monitor", "Lock", "Mutex", "ManualResetEvent",
+                "ManualResetEventSlim", "AutoResetEvent", "AsyncLocal", "ThreadLocal", "Timer", "LazyInitializer",
+                "SynchronizationContext", "WaitHandle", "ReaderWriterLockSlim", "SpinWait",
+            ]),
+        ["System.Threading.Tasks"] = Words(
+            [
+                "Task", "ValueTask", "TaskCompletionSource", "Parallel", "TaskScheduler", "TaskCreationOptions",
+                "TaskContinuationOptions", "TaskFactory", "TaskStatus", "TaskCanceledException", "ConfigureAwaitOptions",
+            ]),
+    };
 
     /// <summary>
     /// Adds a using for each implicit namespace the file does not import itself: before its first using directive, after
@@ -45,7 +93,7 @@ public static class ImplicitUsingsHelper
             StringComparer.Ordinal);
 
         var missing = ImplicitNamespaces
-            .Where(ns => !imported.Contains(ns))
+            .Where(ns => !imported.Contains(ns) && IsUsed(ns, content))
             .ToList();
         if (missing.Count == 0)
         {
@@ -76,6 +124,19 @@ public static class ImplicitUsingsHelper
 
         return string.Join("\n", lines.Take(insertAt).Concat(block).Concat(lines.Skip(insertAt)));
     }
+
+    // A namespace the file names a type of (or, for System.Linq, calls an extension method of). Naming one in a comment
+    // or a string counts too: an unused using is harmless, a missing one does not compile. System is always used.
+    private static bool IsUsed(
+        string ns,
+        string content)
+        => !UsedBy.TryGetValue(ns, out var pattern) || pattern.IsMatch(content);
+
+    private static Regex Words(string[] names)
+        => new(
+            @"\b(" + string.Join("|", names) + @")\b",
+            RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+            TimeSpan.FromSeconds(1));
 
     // Comments, preprocessor directives, blank lines and global usings come before the usings
     private static bool IsHeader(string line)
