@@ -51,6 +51,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
             .Accepts<Pet>("application/json", "application/xml");
 
         pets

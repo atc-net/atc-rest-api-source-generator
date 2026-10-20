@@ -27,13 +27,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <summary>
     /// The cells each host is expected to fail, with the reason: the ratchet of the enum-casing matrix.
     /// </summary>
-    internal static readonly Dictionary<string, Dictionary<string, string>> KnownEnumCasingFailures = new(StringComparer.Ordinal)
-    {
-        ["enumCasingPlain"] = new(StringComparer.Ordinal)
-        {
-            ["two values in one casing each · ACTIVE [xml]"] = "Not casing: on the MapEndpoints() host every XML body the generated reader rejects is a 500 - UseExceptionHandler() answers the BadHttpRequestException(400) it throws with 500, as for a value the specification does not list. The Atc.Rest.MinimalApi host answers 400.",
-        },
-    };
+    internal static readonly Dictionary<string, Dictionary<string, string>> KnownEnumCasingFailures = new(StringComparer.Ordinal);
 
     /// <summary>
     /// What the enum-casing matrix does not exercise.

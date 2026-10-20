@@ -40,6 +40,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithRequestBodyProblems()
             .Accepts<PetStoreFull.Generated.User.Models.User>("application/json", "application/xml");
 
         user
@@ -87,6 +88,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithWireBinding(UpdateUserParametersWire.Parameters, requireParameters: true)
+            .WithRequestBodyProblems()
             .Accepts<PetStoreFull.Generated.User.Models.User>("application/json", "application/xml");
 
         user

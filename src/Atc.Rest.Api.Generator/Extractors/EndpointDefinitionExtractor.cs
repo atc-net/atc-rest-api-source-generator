@@ -982,6 +982,14 @@ using Microsoft.AspNetCore.Builder;
         // the parameter
         GenerateWireBindingMetadata(builder, operation, pathItem, methodName, useValidationFilter, registry);
 
+        // A body the generated reader reads (XML, or JSON next to it): one it cannot read is a problem with its status,
+        // not the host exception handler's 500
+        if (XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is not null)
+        {
+            builder.AppendLine();
+            builder.Append("    .WithRequestBodyProblems()");
+        }
+
         // Add security metadata if needed (only if different from group-level)
         if (pathItem is not null)
         {

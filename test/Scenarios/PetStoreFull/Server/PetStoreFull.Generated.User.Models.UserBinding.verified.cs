@@ -37,7 +37,7 @@ public partial record User
             }
             catch (global::System.Exception ex) when (ex is global::System.Xml.XmlException or global::System.FormatException or global::System.NotSupportedException)
             {
-                throw new global::Microsoft.AspNetCore.Http.BadHttpRequestException($"The XML request body is invalid: {ex.Message}", global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, ex);
+                throw global::PetStoreFull.Generated.RequestBodyProblems.Rejected(context, $"The XML request body is invalid: {ex.Message}", global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, ex);
             }
         }
 
@@ -49,10 +49,10 @@ public partial record User
             }
             catch (global::System.Text.Json.JsonException ex)
             {
-                throw new global::Microsoft.AspNetCore.Http.BadHttpRequestException($"The JSON request body is invalid: {ex.Message}", global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, ex);
+                throw global::PetStoreFull.Generated.RequestBodyProblems.Rejected(context, $"The JSON request body is invalid: {ex.Message}", global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, ex);
             }
         }
 
-        throw new global::Microsoft.AspNetCore.Http.BadHttpRequestException($"The request body must be application/json or XML, not '{mediaType}'.", global::Microsoft.AspNetCore.Http.StatusCodes.Status415UnsupportedMediaType);
+        throw global::PetStoreFull.Generated.RequestBodyProblems.Rejected(context, $"The request body must be application/json or XML, not '{mediaType}'.", global::Microsoft.AspNetCore.Http.StatusCodes.Status415UnsupportedMediaType);
     }
 }

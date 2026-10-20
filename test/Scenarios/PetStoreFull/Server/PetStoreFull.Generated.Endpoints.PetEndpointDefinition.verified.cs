@@ -47,6 +47,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithRequestBodyProblems()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())
@@ -64,6 +65,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithRequestBodyProblems()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())

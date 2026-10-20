@@ -52,6 +52,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithRequestBodyProblems()
             .Accepts<Order>("application/json", "application/xml");
 
         store
