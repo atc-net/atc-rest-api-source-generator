@@ -29,8 +29,21 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         var specPath = Path.GetFullPath(settings.SpecificationPath);
         var outputPath = Path.GetFullPath(settings.OutputPath);
 
-        // Build configuration from CLI options
-        var config = BuildConfig(settings);
+        // The options file (auto-discovered, or --options): its general settings, which the command line overrides; a
+        // file that cannot be read stops the command
+        ApiGeneratorOptions options;
+        try
+        {
+            options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {ex.Message}");
+            return 1;
+        }
+
+        // Build configuration from the options file and the CLI options
+        var config = BuildConfig(settings, options.General);
 
         AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
         AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Output path:[/] {outputPath}");
@@ -245,9 +258,14 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
     }
 
     private static TypeScriptClientConfig BuildConfig(
-        GenerateClientTypeScriptCommandSettings settings)
+        GenerateClientTypeScriptCommandSettings settings,
+        GeneralOptions general)
     {
-        var config = new TypeScriptClientConfig();
+        var config = new TypeScriptClientConfig
+        {
+            ValidateSpecificationStrategy = general.ValidateSpecificationStrategy,
+            IncludeDeprecated = general.IncludeDeprecated,
+        };
 
         if (settings.DisableStrictMode)
         {
@@ -353,7 +371,8 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             config.ExtensibleEnums = false;
         }
 
-        config.Overlays = settings.Overlays;
+        // The options file's overlays first, then the command line's
+        config.Overlays = OverlayCliHelper.All(general.Overlays, settings.Overlays);
 
         if (settings.DryRun)
         {

@@ -166,6 +166,40 @@ public sealed class OverlayCommandTests : IDisposable
         Assert.Contains("async getMeteringPoint(", client, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// <c>generate client-typescript</c> reads the options file too: its <c>general.overlays</c> are applied before the
+    /// <c>--overlay</c> ones.
+    /// </summary>
+    [Fact]
+    public async Task GenerateClientTypeScript_AppliesTheOverlaysOfTheOptionsFile_BeforeTheCommandLines()
+    {
+        var output = Path.Combine(tempDir, "ts-options");
+        var second = Path.Combine(tempDir, "Second.overlay.yaml");
+        await File.WriteAllTextAsync(
+            second,
+            """
+            overlay: 1.2.0
+            info:
+              title: A summary
+              version: 1.0.0
+            actions:
+              - target: "$.paths['/api/meteringpoints/{id}'].get"
+                update:
+                  summary: Reads a metering point
+            """,
+            TestContext.Current.CancellationToken);
+        var optionsPath = Path.Combine(tempDir, "ApiGeneratorOptions.json");
+        await File.WriteAllTextAsync(optionsPath, """{ "general": { "overlays": [ "Metering.overlay.yaml" ] } }""", TestContext.Current.CancellationToken);
+
+        // The specification has no operationId without the options file's overlay: Strict validation would stop the command
+        var (isSuccessful, log) = await Run($"generate client-typescript -s \"{specPath}\" -o \"{output}\" --options \"{optionsPath}\" --overlay \"{second}\"");
+
+        Assert.True(isSuccessful, log);
+        var client = Directory.GetFiles(Path.Combine(output, "client"), "*.ts").Select(File.ReadAllText).First(c => c.Contains("getMeteringPoint", StringComparison.Ordinal));
+        Assert.Contains("async getMeteringPoint(", client, StringComparison.Ordinal);
+        Assert.Contains("Reads a metering point", client, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("client", ".atc-rest-api-client")]
     [InlineData("server", ".atc-rest-api-server")]

@@ -22,6 +22,15 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     public string[] Overlays { get; init; } = [];
 
     /// <summary>
+    /// Gets or sets an explicit path to the ApiGeneratorOptions.json file or its directory; auto-discovered when not set.
+    /// Its <c>general</c> settings apply (validation strategy, deprecated operations, overlays); an option given on the
+    /// command line wins, and its overlays come after the file's.
+    /// </summary>
+    [CommandOption("--options <PATH>")]
+    [Description("Path to ApiGeneratorOptions.json file (optional, auto-discovered if not specified). Its general settings apply: validateSpecificationStrategy, includeDeprecated, overlays.")]
+    public string? OptionsPath { get; set; }
+
+    /// <summary>
     /// Gets or sets the output directory for the generated TypeScript files; resolved to an absolute path by <see cref="Validate"/>.
     /// </summary>
     [CommandOption("-o|--output <PATH>")]
@@ -198,6 +207,16 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
         if (OverlayCliHelper.FindMissing(Overlays) is { } missingOverlay)
         {
             return ValidationResult.Error(missingOverlay);
+        }
+
+        if (!string.IsNullOrWhiteSpace(OptionsPath))
+        {
+            OptionsPath = PathHelper.ResolveRelativePath(OptionsPath);
+            if (!File.Exists(OptionsPath) &&
+                !Directory.Exists(OptionsPath))
+            {
+                return ValidationResult.Error($"Options file or directory not found: {OptionsPath}");
+            }
         }
 
         if (string.IsNullOrWhiteSpace(SpecificationPath))

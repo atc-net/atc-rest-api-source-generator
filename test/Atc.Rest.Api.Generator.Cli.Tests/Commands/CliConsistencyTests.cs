@@ -28,7 +28,6 @@ public sealed class CliConsistencyTests : IDisposable
     }
 
     [Theory]
-    [InlineData("generate client-typescript -s \"{spec}\" -o \"{out}\" --options \"{out}\"", "--options")]
     [InlineData("generate client-typescript -s \"{spec}\" -o \"{out}\" --report", "--report")]
     [InlineData("migrate execute -s \"{spec}\" --dry-run --verbose", "--verbose")]
     [InlineData("spec validate -s \"{spec}\" --no-such-flag", "no-such-flag")]
