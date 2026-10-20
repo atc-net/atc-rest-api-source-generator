@@ -117,7 +117,16 @@ internal static class NodeWorkspace
             {
                 File.Copy(Path.Combine(SourceDirectory, "package.json"), Path.Combine(root, "package.json"), overwrite: true);
                 File.Copy(lockfile, Path.Combine(root, "package-lock.json"), overwrite: true);
+
+                // A registry or network blip (fetch failed, a reset connection, a 5xx) is tried again, three times at most;
+                // any other failure is the workspace's own and is reported at once
                 var install = Run("npm", "ci --no-audit --no-fund --loglevel=error", root, TimeSpan.FromMinutes(10));
+                for (var attempt = 2; attempt <= 3 && install.ExitCode != 0 && IsTransportFailure(install.Output); attempt++)
+                {
+                    Thread.Sleep(TimeSpan.FromSeconds(10 * (attempt - 1)));
+                    install = Run("npm", "ci --no-audit --no-fund --loglevel=error", root, TimeSpan.FromMinutes(10));
+                }
+
                 if (install.ExitCode != 0)
                 {
                     throw new InvalidOperationException($"npm ci of the shared test workspace failed (exit {install.ExitCode}):\n{install.Output}");
@@ -134,6 +143,11 @@ internal static class NodeWorkspace
 
         return nodeModules;
     }
+
+    // What npm prints when the registry could not be reached or failed, not when the workspace itself is wrong
+    private static bool IsTransportFailure(string output)
+        => new[] { "fetch failed", "ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "ENOTFOUND", "ECONNREFUSED", "socket hang up", "network", " 500 ", " 502 ", " 503 ", " 504 " }
+            .Any(marker => output.Contains(marker, StringComparison.OrdinalIgnoreCase));
 
     private static FileStream AcquireLock(string path)
     {

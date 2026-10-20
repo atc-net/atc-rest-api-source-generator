@@ -94,7 +94,7 @@ jobs:
           path: |
             **/TestResults/**/*.trx
             **/TestResults/**/*.cobertura.xml
-          if-no-files-found: warn
+          if-no-files-found: error
 
   playwright:
     runs-on: ubuntu-latest
@@ -195,7 +195,7 @@ jobs:
             docs/test-suite-report.html
             docs/test-suite-report.json
             docs/test-suite-report.history.jsonl
-          if-no-files-found: warn
+          if-no-files-found: error
 
   smoke-tests:
     strategy:
