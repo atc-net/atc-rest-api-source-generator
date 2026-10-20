@@ -126,6 +126,13 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
         sb.AppendLine("  requestInterceptors?: AxiosRequestInterceptor[];");
         sb.AppendLine("  responseInterceptors?: AxiosResponseInterceptor[];");
+        sb.AppendLine("  /**");
+        sb.AppendLine("   * The axios instance every request is sent with - your own interceptors, adapter, agent or defaults; defaults to a");
+        sb.AppendLine("   * new instance. The client's own settings (base URL, status handling, body parsing, query format) go with each");
+        sb.AppendLine("   * request, so the instance's defaults for those do not apply; defaultHeaders go with each request too, and");
+        sb.AppendLine("   * requestInterceptors / responseInterceptors are added to the instance.");
+        sb.AppendLine("   */");
+        sb.AppendLine("  axiosInstance?: AxiosInstance;");
 
         if (hasRetry)
         {
@@ -224,6 +231,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly client: AxiosInstance;");
         sb.AppendLine("  private readonly options: ApiClientOptions;");
+        sb.AppendLine("  // What every request carries: the client's settings, and the default headers when the instance is the caller's");
+        sb.AppendLine("  private readonly transport: AxiosRequestConfig;");
+        sb.AppendLine("  private readonly requestHeaders: Record<string, string>;");
 
         if (hasRetry)
         {
@@ -284,7 +294,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("    this.retryPolicy = this.options.retryPolicy !== undefined ? this.options.retryPolicy : defaultRetryPolicy;");
         }
 
-        sb.AppendLine("    this.client = axios.create({");
+        sb.AppendLine("    this.transport = {");
         sb.AppendLine("      baseURL: this.baseUrl,");
         sb.AppendLine("      validateStatus: () => true,");
 
@@ -324,9 +334,11 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("        }");
         sb.AppendLine("      }],");
 
-        sb.AppendLine("    });");
+        sb.AppendLine("    };");
+        sb.AppendLine("    this.client = this.options.axiosInstance ?? axios.create(this.transport);");
+        sb.AppendLine("    this.requestHeaders = this.options.axiosInstance ? { ...this.options.defaultHeaders } : {};");
         sb.AppendLine();
-        sb.AppendLine("    if (this.options.defaultHeaders) {");
+        sb.AppendLine("    if (this.options.defaultHeaders && !this.options.axiosInstance) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(this.options.defaultHeaders)) {");
         sb.AppendLine("        this.client.defaults.headers.common[key] = value;");
         sb.AppendLine("      }");
@@ -355,7 +367,7 @@ public static class TypeScriptAxiosApiClientExtractor
         var jsonBody = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    let data: unknown;");
-        sb.AppendLine("    const headers: Record<string, string> = {};");
+        sb.AppendLine("    const headers: Record<string, string> = { ...this.requestHeaders };");
         sb.AppendLine();
         sb.AppendLine("    if (options?.body !== undefined) {");
         sb.AppendLine("      if (options.body instanceof FormData) {");
@@ -415,6 +427,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("    // doRequest accepts an optional override signal so the retry path can hand each");
             sb.AppendLine("    // attempt a fresh AbortSignal — that way policy.timeoutMs actually cancels axios.");
             sb.AppendLine("    const doRequest = (attemptSignal?: AbortSignal) => this.client.request<T>({");
+            sb.AppendLine("      ...this.transport,");
             sb.AppendLine("      method,");
             sb.AppendLine("      url: path,");
             sb.AppendLine("      data,");
@@ -450,6 +463,7 @@ public static class TypeScriptAxiosApiClientExtractor
         else
         {
             sb.AppendLine("    const response = await this.client.request<T>({");
+            sb.AppendLine("      ...this.transport,");
             sb.AppendLine("      method,");
             sb.AppendLine("      url: path,");
             sb.AppendLine("      data,");
@@ -542,7 +556,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine(hasWireNames
             ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {"
             : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {");
-        sb.AppendLine("    const headers: Record<string, string> = {};");
+        sb.AppendLine("    const headers: Record<string, string> = { ...this.requestHeaders };");
         AppendCredentials(sb);
         sb.AppendLine("    if (options?.headers) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(options.headers)) {");
@@ -561,6 +575,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const response = await this.client.request<ReadableStream<Uint8Array> | undefined>({");
+        sb.AppendLine("      ...this.transport,");
         sb.AppendLine("      method,");
         sb.AppendLine("      url: path,");
         sb.AppendLine("      data,");

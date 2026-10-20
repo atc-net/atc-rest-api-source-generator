@@ -115,6 +115,8 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
         sb.AppendLine("  requestInterceptors?: FetchRequestInterceptor[];");
         sb.AppendLine("  responseInterceptors?: FetchResponseInterceptor[];");
+        sb.AppendLine("  /** The fetch every request is sent with - an SSR framework's own, or a test double; defaults to the global fetch. It is called as a plain function, so the browser's window.fetch works as it is. */");
+        sb.AppendLine("  fetch?: typeof fetch;");
 
         if (hasRetry)
         {
@@ -210,6 +212,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly options: ApiClientOptions;");
+        sb.AppendLine("  private readonly send: (url: string, init: RequestInit) => Promise<Response>;");
 
         if (hasRetry)
         {
@@ -273,6 +276,8 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  constructor(baseUrl: string, options?: ApiClientOptions) {");
         sb.AppendLine("    this.baseUrl = baseUrl.replace(/\\/+$/, '');");
         sb.AppendLine("    this.options = options ?? {};");
+        sb.AppendLine("    const transport = this.options.fetch;");
+        sb.AppendLine("    this.send = (url, init) => (transport ?? fetch)(url, init);");
 
         if (hasRetry)
         {
@@ -347,7 +352,7 @@ public static class TypeScriptFetchApiClientExtractor
             sb.AppendLine("      // Each attempt gets its own signal, so policy.timeoutMs cancels the in-flight fetch and a parent abort");
             sb.AppendLine("      // reaches every attempt; the body is read inside the attempt, so both cover the body read too.");
             sb.AppendLine("      return retryWithBackoff(");
-            sb.AppendLine("        (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),");
+            sb.AppendLine("        (attemptSignal) => this.send(url, { ...init, signal: attemptSignal }),");
             sb.AppendLine("        retryPolicy,");
             sb.AppendLine("        options?.signal,");
             sb.AppendLine("        (response) => this.readResponse<T>(response, options),");
@@ -356,7 +361,7 @@ public static class TypeScriptFetchApiClientExtractor
             sb.AppendLine();
         }
 
-        sb.AppendLine("    return this.readResponse<T>(await fetch(url, init), options);");
+        sb.AppendLine("    return this.readResponse<T>(await this.send(url, init), options);");
         sb.AppendLine("  }");
         sb.AppendLine();
 
@@ -448,7 +453,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    // The same pipeline as any request: the response interceptors see the stream's response (a 401 refresh applies)");
-        sb.AppendLine("    let response = await fetch(url, init);");
+        sb.AppendLine("    let response = await this.send(url, init);");
         sb.AppendLine("    for (const interceptor of this.options.responseInterceptors ?? []) {");
         sb.AppendLine("      response = await interceptor(response);");
         sb.AppendLine("    }");

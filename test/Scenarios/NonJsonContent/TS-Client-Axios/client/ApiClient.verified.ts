@@ -30,6 +30,13 @@ export interface ApiClientOptions {
   defaultHeaders?: Record<string, string>;
   requestInterceptors?: AxiosRequestInterceptor[];
   responseInterceptors?: AxiosResponseInterceptor[];
+  /**
+   * The axios instance every request is sent with - your own interceptors, adapter, agent or defaults; defaults to a
+   * new instance. The client's own settings (base URL, status handling, body parsing, query format) go with each
+   * request, so the instance's defaults for those do not apply; defaultHeaders go with each request too, and
+   * requestInterceptors / responseInterceptors are added to the instance.
+   */
+  axiosInstance?: AxiosInstance;
 }
 
 export interface RequestOptions {
@@ -359,11 +366,14 @@ export class ApiClient {
   private readonly baseUrl: string;
   private readonly client: AxiosInstance;
   private readonly options: ApiClientOptions;
+  // What every request carries: the client's settings, and the default headers when the instance is the caller's
+  private readonly transport: AxiosRequestConfig;
+  private readonly requestHeaders: Record<string, string>;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.options = options ?? {};
-    this.client = axios.create({
+    this.transport = {
       baseURL: this.baseUrl,
       validateStatus: () => true,
       paramsSerializer: { indexes: null },
@@ -387,9 +397,11 @@ export class ApiClient {
           return new UnparseableBody(data);
         }
       }],
-    });
+    };
+    this.client = this.options.axiosInstance ?? axios.create(this.transport);
+    this.requestHeaders = this.options.axiosInstance ? { ...this.options.defaultHeaders } : {};
 
-    if (this.options.defaultHeaders) {
+    if (this.options.defaultHeaders && !this.options.axiosInstance) {
       for (const [key, value] of Object.entries(this.options.defaultHeaders)) {
         this.client.defaults.headers.common[key] = value;
       }
@@ -406,7 +418,7 @@ export class ApiClient {
 
   async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {
     let data: unknown;
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...this.requestHeaders };
 
     if (options?.body !== undefined) {
       if (options.body instanceof FormData) {
@@ -443,6 +455,7 @@ export class ApiClient {
     }
 
     const response = await this.client.request<T>({
+      ...this.transport,
       method,
       url: path,
       data,
@@ -466,7 +479,7 @@ export class ApiClient {
       const modelContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();
       if (/^(application\/json|application\/xml|text\/xml)$|\+(json|xml)$/.test((modelContentType.split(';')[0] ?? '').trim())) {
         let body: unknown = decodeText(await response.data.arrayBuffer(), modelContentType);
-        for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {
+        for (const transform of ([] as unknown[]).concat(this.transport.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {
           body = transform.call({}, body, response.headers);
         }
 
@@ -481,7 +494,7 @@ export class ApiClient {
   // request and response interceptors apply - with axios' fetch adapter, whose 'stream' response is the body's
   // ReadableStream (axios 1.7 or later).
   async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...this.requestHeaders };
     for (const [key, value] of Object.entries(await this.credentials(options?.security, 'headers'))) {
       headers[key] = value;
     }
@@ -503,6 +516,7 @@ export class ApiClient {
     }
 
     const response = await this.client.request<ReadableStream<Uint8Array> | undefined>({
+      ...this.transport,
       method,
       url: path,
       data,

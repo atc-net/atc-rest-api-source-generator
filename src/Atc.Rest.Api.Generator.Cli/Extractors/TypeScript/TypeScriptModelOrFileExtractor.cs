@@ -65,7 +65,7 @@ public static class TypeScriptModelOrFileExtractor
         sb.AppendLine("      const modelContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();");
         sb.AppendLine("      if (/^(application\\/json|application\\/xml|text\\/xml)$|\\+(json|xml)$/.test((modelContentType.split(';')[0] ?? '').trim())) {");
         sb.AppendLine("        let body: unknown = decodeText(await response.data.arrayBuffer(), modelContentType);");
-        sb.AppendLine("        for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {");
+        sb.AppendLine("        for (const transform of ([] as unknown[]).concat(this.transport.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {");
         sb.AppendLine("          body = transform.call({}, body, response.headers);");
         sb.AppendLine("        }");
         sb.AppendLine();

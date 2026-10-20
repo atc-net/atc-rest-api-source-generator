@@ -72,7 +72,7 @@ public class TypeScriptFetchApiClientExtractorTests
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: true);
 
         Assert.Contains("(response) => this.readResponse<T>(response, options),", result, StringComparison.Ordinal);
-        Assert.Contains("return this.readResponse<T>(await fetch(url, init), options);", result, StringComparison.Ordinal);
+        Assert.Contains("return this.readResponse<T>(await this.send(url, init), options);", result, StringComparison.Ordinal);
         Assert.Contains("private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {", result, StringComparison.Ordinal);
     }
 
@@ -85,7 +85,7 @@ public class TypeScriptFetchApiClientExtractorTests
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: true);
 
         Assert.Contains(
-            "(attemptSignal) => fetch(url, { ...init, signal: attemptSignal })",
+            "(attemptSignal) => this.send(url, { ...init, signal: attemptSignal })",
             result,
             StringComparison.Ordinal);
     }

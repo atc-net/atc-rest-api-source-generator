@@ -39,7 +39,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🧾 **XML**                       | XML bodies mapped by the `xml` keyword, negotiated by `Accept`; `application/problem+xml` on request |
 |            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` in five formats: JSON array, JSON Lines, JSON Text Sequence, Server-Sent Events, multipart - read by every C# and TypeScript client; a Server-Sent Events stream can resume with `Last-Event-ID` |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
-|            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios, interceptors, retry, MSW handlers    |
+|            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios (or your own fetch / axios instance), interceptors, retry, MSW handlers |
 |            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — `queryOptions` factories for loaders and prefetching, cancellation through `AbortSignal`, streaming hooks for `IAsyncEnumerable` |
 |            | 🪪 **Branded ID types**          | `--branded-ids` emits nominal types — `getUser(petId)` becomes a compile error  |
 |            | 🔍 **Runtime Zod validation**    | `--zod-runtime-validate` wires Zod into response parsing — spec-drift detection  |

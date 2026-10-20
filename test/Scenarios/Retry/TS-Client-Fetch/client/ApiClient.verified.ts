@@ -27,6 +27,8 @@ export interface ApiClientOptions {
   defaultHeaders?: Record<string, string>;
   requestInterceptors?: FetchRequestInterceptor[];
   responseInterceptors?: FetchResponseInterceptor[];
+  /** The fetch every request is sent with - an SSR framework's own, or a test double; defaults to the global fetch. It is called as a plain function, so the browser's window.fetch works as it is. */
+  fetch?: typeof fetch;
   /** Retry policy for failed requests. Set to false to disable retry. Defaults to the spec-defined policy. */
   retryPolicy?: RetryPolicy | false;
 }
@@ -353,11 +355,14 @@ async function readText(response: Response): Promise<string> {
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly options: ApiClientOptions;
+  private readonly send: (url: string, init: RequestInit) => Promise<Response>;
   private readonly retryPolicy: RetryPolicy | false;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.options = options ?? {};
+    const transport = this.options.fetch;
+    this.send = (url, init) => (transport ?? fetch)(url, init);
     this.retryPolicy = this.options.retryPolicy !== undefined ? this.options.retryPolicy : defaultRetryPolicy;
   }
 
@@ -397,14 +402,14 @@ export class ApiClient {
       // Each attempt gets its own signal, so policy.timeoutMs cancels the in-flight fetch and a parent abort
       // reaches every attempt; the body is read inside the attempt, so both cover the body read too.
       return retryWithBackoff(
-        (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),
+        (attemptSignal) => this.send(url, { ...init, signal: attemptSignal }),
         retryPolicy,
         options?.signal,
         (response) => this.readResponse<T>(response, options),
       );
     }
 
-    return this.readResponse<T>(await fetch(url, init), options);
+    return this.readResponse<T>(await this.send(url, init), options);
   }
 
   private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {
@@ -436,7 +441,7 @@ export class ApiClient {
     }
 
     // The same pipeline as any request: the response interceptors see the stream's response (a 401 refresh applies)
-    let response = await fetch(url, init);
+    let response = await this.send(url, init);
     for (const interceptor of this.options.responseInterceptors ?? []) {
       response = await interceptor(response);
     }
