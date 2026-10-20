@@ -321,7 +321,8 @@ public sealed class TypeScriptConvertDatesGateTests
 
           if (failures.length > 0) {
             console.error('CONVERT-DATES FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL CONVERT-DATES CHECKS PASSED');
         }

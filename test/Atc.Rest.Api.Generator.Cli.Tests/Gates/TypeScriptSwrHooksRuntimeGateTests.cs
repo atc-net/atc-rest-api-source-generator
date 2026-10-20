@@ -331,11 +331,11 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
 
           if (failures.length > 0) {
             console.error('SWR HOOK FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
 
           console.log('ALL SWR HOOK CHECKS PASSED');
-          process.exit(0);
         }
 
         main().catch((e) => {

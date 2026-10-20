@@ -392,7 +392,8 @@ public sealed class TypeScriptClientRetryGateTests
 
           if (failures.length > 0) {
             console.error('BODY RELEASE FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
 
           console.log('ALL BODY RELEASE CHECKS PASSED');
@@ -501,7 +502,8 @@ public sealed class TypeScriptClientRetryGateTests
 
           if (failures.length > 0) {
             console.error('RETRY FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
 
           console.log('ALL RETRY CHECKS PASSED');

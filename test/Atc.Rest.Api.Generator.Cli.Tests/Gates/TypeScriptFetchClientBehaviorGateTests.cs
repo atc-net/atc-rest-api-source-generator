@@ -219,7 +219,8 @@ public sealed class TypeScriptFetchClientBehaviorGateTests
 
           if (failures.length > 0) {
             console.error('BEHAVIOUR FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL BEHAVIOUR CHECKS PASSED');
         }

@@ -370,10 +370,10 @@ public sealed class TypeScriptXmlGateTests
 
         if (failures.length > 0) {
           console.error(failures.join('\n'));
-          process.exit(1);
+          process.exitCode = 1;
+        } else {
+          console.log('xml gate: all checks passed');
         }
-
-        console.log('xml gate: all checks passed');
         """;
 
     private const string PreferXmlSpecYaml = """
@@ -501,9 +501,9 @@ public sealed class TypeScriptXmlGateTests
 
         if (failures.length > 0) {
           console.error(failures.join('\n'));
-          process.exit(1);
+          process.exitCode = 1;
+        } else {
+          console.log('prefer-xml gate: all checks passed');
         }
-
-        console.log('prefer-xml gate: all checks passed');
         """;
 }

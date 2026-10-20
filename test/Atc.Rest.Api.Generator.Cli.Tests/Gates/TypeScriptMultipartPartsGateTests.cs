@@ -237,10 +237,10 @@ public sealed class TypeScriptMultipartPartsGateTests
           server.close();
           if (failures.length > 0) {
             console.error('MULTIPART PART FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL MULTIPART PART CHECKS PASSED');
-          process.exit(0);
         }
 
         function verify(label: string, parts: Part[], day: string): void {

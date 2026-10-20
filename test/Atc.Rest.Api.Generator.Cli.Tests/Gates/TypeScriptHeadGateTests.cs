@@ -160,10 +160,10 @@ public sealed class TypeScriptHeadGateTests
 
           if (failures.length > 0) {
             console.error('HEAD FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL HEAD CHECKS PASSED');
-          process.exit(0);
         }
 
         main().catch((e) => {

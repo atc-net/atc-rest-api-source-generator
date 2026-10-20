@@ -179,10 +179,10 @@ public sealed class TypeScriptStreamCancelGateTests
 
           if (failures.length > 0) {
             console.error('STREAM CANCEL FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL STREAM CANCEL CHECKS PASSED');
-          process.exit(0);
         }
 
         main().catch((e) => {

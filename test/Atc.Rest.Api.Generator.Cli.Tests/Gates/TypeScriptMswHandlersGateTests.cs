@@ -229,7 +229,8 @@ public sealed class TypeScriptMswHandlersGateTests
 
           if (failures.length > 0) {
             console.error('MSW HANDLER FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
 
           console.log('ALL MSW HANDLER CHECKS PASSED');

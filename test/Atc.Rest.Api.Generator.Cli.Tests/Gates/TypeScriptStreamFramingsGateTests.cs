@@ -259,10 +259,10 @@ public sealed class TypeScriptStreamFramingsGateTests
 
           if (failures.length > 0) {
             console.error('STREAM FRAMING FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL STREAM FRAMING CHECKS PASSED');
-          process.exit(0);
         }
 
         main().catch((e) => {

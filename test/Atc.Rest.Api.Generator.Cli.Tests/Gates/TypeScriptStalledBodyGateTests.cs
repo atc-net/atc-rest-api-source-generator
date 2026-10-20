@@ -189,10 +189,10 @@ public sealed class TypeScriptStalledBodyGateTests
 
           if (failures.length > 0) {
             console.error('STALLED BODY FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL STALLED BODY CHECKS PASSED');
-          process.exit(0);
         }
 
         main().catch((e) => {
