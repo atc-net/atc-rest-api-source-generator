@@ -9,6 +9,9 @@ public static class WireValueHelper
 {
     private const string Invariant = "global::System.Globalization.CultureInfo.InvariantCulture";
 
+    // How deep a schema walk goes before it gives up: far beyond any real nesting, short of a stack overflow
+    private const int MaxDepth = 64;
+
     /// <summary>
     /// Whether a parameter's schema is a string enum (a component or an inline one), or an array of one. Such a
     /// value is written with the generated <c>ToWireValue()</c>: the value as the specification writes it.
@@ -16,20 +19,7 @@ public static class WireValueHelper
     /// <param name="schema">The parameter's schema.</param>
     /// <returns><see langword="true"/> for a string enum or an array of string enums.</returns>
     public static bool IsStringEnum(IOpenApiSchema? schema)
-    {
-        var actual = schema is OpenApiSchemaReference reference ? reference.Target : schema;
-        if (actual is null)
-        {
-            return false;
-        }
-
-        if (actual.IsOfType(JsonSchemaType.Array))
-        {
-            return actual.Items is not null && IsStringEnum(actual.Items);
-        }
-
-        return actual.Enum is { Count: > 0 } && actual.IsOfType(JsonSchemaType.String);
-    }
+        => IsStringEnum(schema, depth: 0);
 
     /// <summary>
     /// Whether a parameter's schema is an integer enum (a component or an inline one). Such a value is its number on
@@ -169,5 +159,25 @@ public static class WireValueHelper
         return arguments is null
             ? null
             : $"((global::System.IFormattable?){accessExpression})?.ToString({arguments})";
+    }
+
+    // An array of arrays ... of a string enum; the depth bounds a cycle the validator did not catch (an array alias
+    // whose items are itself)
+    private static bool IsStringEnum(
+        IOpenApiSchema? schema,
+        int depth)
+    {
+        var actual = schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        if (actual is null || depth > MaxDepth)
+        {
+            return false;
+        }
+
+        if (actual.IsOfType(JsonSchemaType.Array))
+        {
+            return actual.Items is not null && IsStringEnum(actual.Items, depth + 1);
+        }
+
+        return actual.Enum is { Count: > 0 } && actual.IsOfType(JsonSchemaType.String);
     }
 }

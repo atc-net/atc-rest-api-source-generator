@@ -16,6 +16,9 @@ public static class OpenApiDocumentValidator
     /// </summary>
     private const int RequestLineBudgetInBytes = 8192;
 
+    // How deep a schema walk goes before it gives up: far beyond any real nesting, short of a stack overflow
+    private const int MaxSchemaDepth = 64;
+
     private static readonly string[] PaginationPropertyNames = ["items", "results", "data", "records", "values"];
 
     private static readonly string[] CollectionIntentPrefixes = ["list", "search", "find"];
@@ -2989,8 +2992,15 @@ public static class OpenApiDocumentValidator
     /// </summary>
     private static bool IsPaginatedSchema(
         IOpenApiSchema schema,
-        OpenApiDocument document)
+        OpenApiDocument document,
+        int depth = 0)
     {
+        // An allOf cycle is SCH023 before this runs; the depth bounds one that check does not see
+        if (depth > MaxSchemaDepth)
+        {
+            return false;
+        }
+
         // Check explicit x-pagination annotation first (authoritative when present)
         var annotation = schema.GetPaginationAnnotation();
         if (annotation.HasValue)
@@ -3038,7 +3048,7 @@ public static class OpenApiDocumentValidator
         {
             foreach (var allOfSchema in openApiSchema.AllOf)
             {
-                if (IsPaginatedSchema(allOfSchema, document))
+                if (IsPaginatedSchema(allOfSchema, document, depth + 1))
                 {
                     return true;
                 }
@@ -3054,8 +3064,14 @@ public static class OpenApiDocumentValidator
     /// </summary>
     private static bool IsObjectContainingArray(
         IOpenApiSchema schema,
-        OpenApiDocument document)
+        OpenApiDocument document,
+        int depth = 0)
     {
+        if (depth > MaxSchemaDepth)
+        {
+            return false;
+        }
+
         var actualSchema = schema;
 
         if (schema is OpenApiSchemaReference schemaRef)
@@ -3085,7 +3101,7 @@ public static class OpenApiDocumentValidator
         {
             foreach (var allOfSchema in openApiSchema.AllOf)
             {
-                if (IsObjectContainingArray(allOfSchema, document))
+                if (IsObjectContainingArray(allOfSchema, document, depth + 1))
                 {
                     return true;
                 }
