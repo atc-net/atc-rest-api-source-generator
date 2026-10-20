@@ -33,6 +33,43 @@ public class InlineAllOfFlattenerTests
                                       """;
 
     [Fact]
+    public void Flatten_ParameterWrappingAnEnumWithADefault_KeepsTheDefault()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+                                                       openapi: 3.0.3
+                                                       info:
+                                                         title: Test API
+                                                         version: 1.0.0
+                                                       paths:
+                                                         /paints:
+                                                           get:
+                                                             operationId: listPaints
+                                                             parameters:
+                                                               - name: finish
+                                                                 in: query
+                                                                 schema:
+                                                                   allOf:
+                                                                     - $ref: '#/components/schemas/Shade'
+                                                                   default: dark-blue
+                                                             responses:
+                                                               '204':
+                                                                 description: Done
+                                                       components:
+                                                         schemas:
+                                                           Shade:
+                                                             type: string
+                                                             enum: [light, dark-blue]
+                                                       """);
+
+        InlineAllOfFlattener.Flatten(document);
+
+        // The parameter is the reference, with the wrapper's default as its own - so it is the parameter's default
+        var parameter = (OpenApiParameter)((OpenApiPathItem)document.Paths["/paints"]).Operations!.Values.First().Parameters![0];
+        Assert.IsType<OpenApiSchemaReference>(parameter.Schema);
+        Assert.Equal("Shade.DarkBlue", DefaultValueHelper.ExtractSchemaDefault(parameter.Schema, "Shade?"));
+    }
+
+    [Fact]
     public void Flatten_BaseThatIsNotAGenericPage_BecomesOneInlineObject()
     {
         var schema = FlattenResponse("""

@@ -85,6 +85,13 @@ public static class InlineAllOfFlattener
             if (parameter.Resolve().Parameter is OpenApiParameter { Schema: OpenApiSchema schema } resolved &&
                 schema.SingleWrappedReference() is { } reference)
             {
+                // The wrapper's default is the parameter's (default: dark-blue next to the allOf): kept as the
+                // reference's own, as OpenAPI 3.1 writes it next to the $ref
+                if (schema.Default is not null)
+                {
+                    reference.Default = schema.Default;
+                }
+
                 resolved.Schema = reference;
             }
         }

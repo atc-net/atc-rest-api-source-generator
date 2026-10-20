@@ -226,7 +226,7 @@ public static class WireBindingHelper
         string? headerContent,
         IReadOnlyDictionary<string, OpenApiParameterExtensions.QueryObject>? queryObjects = null,
         TypeConflictRegistry? registry = null,
-        ISet<string>? extensibleEnumParameters = null)
+        IReadOnlyDictionary<string, string?>? extensibleEnumParameters = null)
     {
         if (record is null)
         {
@@ -260,8 +260,12 @@ public static class WireBindingHelper
 
             // A parameter the specification requires (a path parameter is always there: the route matched)
             var isRequired = location != "path" && parameter.Attributes?.Any(a => a.Name == "Required") == true;
-            var extensibleEnum = extensibleEnumParameters?.Contains(nameLiteral.Trim('"')) == true;
-            entries.Add(ParameterExpression(location, nameLiteral, parameter.TypeName, extensibleEnum) + (isRequired ? ".Required()" : string.Empty));
+            string? enumDefault = null;
+            var extensibleEnum = extensibleEnumParameters?.TryGetValue(nameLiteral.Trim('"'), out enumDefault) == true;
+
+            // An extensible enum's default is no constant of the record: the step sends it when the request does not
+            var withDefault = extensibleEnum && enumDefault is not null ? $".WithDefault({CSharpLiteralHelper.ToStringLiteral(enumDefault)})" : string.Empty;
+            entries.Add(ParameterExpression(location, nameLiteral, parameter.TypeName, extensibleEnum) + (isRequired ? ".Required()" : string.Empty) + withDefault);
         }
 
         if (entries.Count == 0)
@@ -408,6 +412,18 @@ public static class WireBindingHelper
                 /// </summary>
                 public WireParameter Required()
                     => this with { IsRequired = true };
+
+                /// <summary>
+                /// The text a query or header parameter has when the request does not send it: its default, for a type
+                /// whose default is no constant of the parameters record (an extensible enum).
+                /// </summary>
+                public string? DefaultText { get; init; }
+
+                /// <summary>
+                /// The parameter, with the default it has when the request does not send it (see <see cref="DefaultText"/>).
+                /// </summary>
+                public WireParameter WithDefault(string text)
+                    => this with { DefaultText = text };
 
                 /// <summary>
                 /// A value sent as JSON - an object, a map or a composition in a multipart form, an application/json part
@@ -563,7 +579,7 @@ public static class WireBindingHelper
 
                 private const char ItemSeparator = '\u001F';
 
-                private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false);
+                private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false, string? DefaultText = null);
 
                 /// <summary>
                 /// Adds the step for the parameters an endpoint binds (its <c>{Record}Wire.Parameters</c>); an array whose
@@ -606,7 +622,7 @@ public static class WireBindingHelper
                         }
 
                         var delimited = Array.Find(delimitedArrays, d => string.Equals(d.Name, wire.Name, StringComparison.OrdinalIgnoreCase));
-                        parameters.Add(new BoundParameter(wire.In, wire.Name, wire.Parses, wire.TypeName, wire.Members, delimited.Name is null ? null : delimited.Delimiter, wire.IsArray, wire.Properties, wire.DeepObject));
+                        parameters.Add(new BoundParameter(wire.In, wire.Name, wire.Parses, wire.TypeName, wire.Members, delimited.Name is null ? null : delimited.Delimiter, wire.IsArray, wire.Properties, wire.DeepObject, wire.DefaultText));
                     }
 
                     if (parameters.Count == 0)
@@ -1018,6 +1034,22 @@ public static class WireBindingHelper
                         };
                         if (values.Count == 0)
                         {
+                            // A parameter with a default the binder cannot have (an extensible enum's): sent as its default
+                            if (parameter.DefaultText is { } defaultText)
+                            {
+                                if (parameter.In == "query")
+                                {
+                                    query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                                    query[parameter.Name] = defaultText;
+                                }
+                                else if (parameter.In == "header")
+                                {
+                                    request.Headers[parameter.Name] = defaultText;
+                                }
+
+                                continue;
+                            }
+
                             // A required parameter that was not sent, named as the specification names it (a cookie
                             // by its own name, not by the header it is bound from)
                             if (required is not null && required.Contains(parameter.Name))

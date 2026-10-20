@@ -154,8 +154,9 @@ public sealed class TypeConflictRegistry
         {
             // Only a schema that becomes a type can clash with a namespace: an array or primitive alias
                 // (Accounts: array of Account) is replaced by the type it names wherever it is referenced.
+            // A model's XML mapping is {Model}Xml: a namespace of that name hides it as well
             if (ReservedSystemTypes.Contains(schema.Key) ||
-                (namespaceSegments.Contains(schema.Key) && IsGeneratedType(schema.Value)))
+                ((namespaceSegments.Contains(schema.Key) || namespaceSegments.Contains(schema.Key + "Xml")) && IsGeneratedType(schema.Value)))
             {
                 conflicts.Add(schema.Key);
             }

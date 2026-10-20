@@ -108,7 +108,7 @@ public sealed class ServerExtensibleEnumRuntimeTests
                     application/json:
                       schema:
                         type: string
-          /paint-documents:
+          /paint-xml:
             post:
               operationId: createPaintXml
               requestBody:
@@ -276,6 +276,19 @@ public sealed class ServerExtensibleEnumRuntimeTests
     }
 
     [Fact]
+    public async Task AParameterNotSent_IsItsDefault()
+    {
+        await using var host = await StartAsync(useRequestDelegateGenerator: false);
+        using var client = new HttpClient { BaseAddress = host.BaseAddress };
+
+        using var response = await client.GetAsync(new Uri("/paints/light", UriKind.Relative), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(response.IsSuccessStatusCode, $"{(int)response.StatusCode}: {body}");
+        Assert.Equal("light:True|-|-|-|-|dark-blue:True|-", JsonNode.Parse(body)!["name"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task JsonBody_TakesAnyValue_AndAnswersIt()
     {
         await using var host = await StartAsync(useRequestDelegateGenerator: false);
@@ -332,7 +345,7 @@ public sealed class ServerExtensibleEnumRuntimeTests
         using var client = new HttpClient { BaseAddress = host.BaseAddress };
         using var content = new StringContent("<Paint><name>a</name><shade>teal</shade><others>dark-blue</others><others>x</others></Paint>", Encoding.UTF8, "application/xml");
 
-        using var response = await client.PostAsync(new Uri("/paint-documents", UriKind.Relative), content, TestContext.Current.CancellationToken);
+        using var response = await client.PostAsync(new Uri("/paint-xml", UriKind.Relative), content, TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.True(response.IsSuccessStatusCode, $"{(int)response.StatusCode}: {body}");

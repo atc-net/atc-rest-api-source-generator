@@ -96,6 +96,20 @@ public class TypeConflictRegistryTests
     }
 
     [Fact]
+    public void ScanForConflicts_SchemaWhoseXmlMappingMatchesAPathSegment_DetectsConflict()
+    {
+        // Arrange: /device-xml is the namespace DeviceXml - the name of the Device schema's XML mapping
+        var doc = OpenApiDocumentHelper.ParseYaml(MinimalYamlWithDeviceSchema);
+
+        // Act
+        var conflicts = TypeConflictRegistry.ScanForConflicts(doc, "Contoso.Api", ["DeviceXml"]);
+
+        // Assert
+        Assert.Contains("Device", conflicts);
+        Assert.DoesNotContain("Pet", conflicts);
+    }
+
+    [Fact]
     public void ScanForConflicts_SchemaNotMatchingNamespaceSegment_NoConflict()
     {
         // Arrange: "Pet" schema does not match any segment of "Contoso.Data.Device.Management"
