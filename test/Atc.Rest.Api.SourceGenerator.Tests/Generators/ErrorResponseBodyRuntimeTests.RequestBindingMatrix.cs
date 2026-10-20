@@ -845,6 +845,43 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix against the third host: <c>Atc.Rest.MinimalApi</c> referenced, the ValidationFilter and the
+    /// global error handler switched off through the marker. The binding is the same generated code; what the server
+    /// answers a request it cannot bind is the framework's, outside <see cref="KnownSwitchedOffRequestBindingFailures"/>.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientSendsWhatTheServerBinds_WithTheFiltersSwitchedOff()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the request-binding matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectRequestBindingMatrixAsync(switchedOff: true);
+        if (Environment.GetEnvironmentVariable("REQUESTBINDING_E2E_OFF_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownSwitchedOffRequestBindingFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownSwitchedOffRequestBindingFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownSwitchedOffRequestBindingFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
     /// The verdict is not blind: a changed value, a missing value and a value the client did not send each fail,
     /// and the echo of what was sent passes.
     /// </summary>
@@ -867,7 +904,7 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         Assert.Equal(VerdictFail, RequestBindingWireVerdict(missingProperty, 400, "application/problem+json", unnamed).Verdict);
-        Assert.Equal(VerdictLossy, RequestBindingWireVerdict(missingProperty, 400, "application/problem+json", unnamed, plainHost: true).Verdict);
+        Assert.Equal(VerdictLossy, RequestBindingWireVerdict(missingProperty, 400, "application/problem+json", unnamed, withoutValidationFilter: true).Verdict);
 
         var expected = new Dictionary<string, string>(StringComparer.Ordinal) { ["S"] = "a b", ["I"] = "1" };
 
@@ -1194,7 +1231,8 @@ public partial class ErrorResponseBodyRuntimeTests
 
     private static async Task<JsonObject> CollectRequestBindingMatrixAsync(
         bool plainHost = false,
-        bool openApi31 = false)
+        bool openApi31 = false,
+        bool switchedOff = false)
     {
         var started = DateTimeOffset.Now;
         var yaml = openApi31 ? RequestBindingYaml31 : RequestBindingYaml;
@@ -1219,7 +1257,8 @@ public partial class ErrorResponseBodyRuntimeTests
 
                 await next(context);
             }),
-            plainHost: plainHost);
+            plainHost: plainHost,
+            serverMarker: switchedOff ? SwitchedOffServerMarker : null);
 
         var casesJson = RequestBindingCasesJson(cases).ToJsonString();
         var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
@@ -1284,7 +1323,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
                 using var response = await http.SendAsync(request, TestContext.Current.CancellationToken);
                 var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-                var verdict = RequestBindingWireVerdict(wireCase, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType, body, plainHost);
+                var verdict = RequestBindingWireVerdict(wireCase, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType, body, withoutValidationFilter: plainHost || switchedOff);
                 casesArray.Add(new JsonObject
                 {
                     ["id"] = "server: " + wireCase.Name,
@@ -1325,7 +1364,7 @@ public partial class ErrorResponseBodyRuntimeTests
         int status,
         string? mediaType,
         string body,
-        bool plainHost = false)
+        bool withoutValidationFilter = false)
     {
         if (status != wireCase.Status)
         {
@@ -1346,7 +1385,7 @@ public partial class ErrorResponseBodyRuntimeTests
             (problem["errors"] is not JsonObject errors || !errors.Any(e => string.Equals(e.Key, key, StringComparison.OrdinalIgnoreCase))))
         {
             var keys = problem["errors"] is JsonObject found ? string.Join(", ", found.Select(e => e.Key)) : "(no errors)";
-            return plainHost && wireCase.NamedByValidation && problem["errors"] is null
+            return withoutValidationFilter && wireCase.NamedByValidation && problem["errors"] is null
                 ? (VerdictLossy, $"rejected with the expected status as a problem, but '{key}' is not named: without Atc.Rest.MinimalApi's ValidationFilter the framework's JSON reader rejects the body")
                 : (VerdictFail, $"errors names [{keys}], expected '{key}'");
         }
@@ -1541,10 +1580,6 @@ public partial class ErrorResponseBodyRuntimeTests
     };
 
     /// <summary>
-    /// The cells that fail today on the plain host (<c>MapEndpoints()</c>, no <c>Atc.Rest.MinimalApi</c>), as
-    /// <c>case [client]</c>, each with the reason it is accepted.
-    /// </summary>
-    /// <summary>
     /// The cells that fail today from the OpenAPI 3.1 document, as <c>case [client]</c>, each with the reason it is
     /// accepted.
     /// </summary>
@@ -1552,7 +1587,19 @@ public partial class ErrorResponseBodyRuntimeTests
     {
     };
 
+    /// <summary>
+    /// The cells that fail today on the plain host (<c>MapEndpoints()</c>, no <c>Atc.Rest.MinimalApi</c>), as
+    /// <c>case [client]</c>, each with the reason it is accepted.
+    /// </summary>
     private static readonly Dictionary<string, string> KnownPlainRequestBindingFailures = new(StringComparer.Ordinal)
+    {
+    };
+
+    /// <summary>
+    /// The cells that fail today with the ValidationFilter and the global error handler switched off through the
+    /// marker, as <c>case [client]</c>, each with the reason it is accepted.
+    /// </summary>
+    private static readonly Dictionary<string, string> KnownSwitchedOffRequestBindingFailures = new(StringComparer.Ordinal)
     {
     };
 }

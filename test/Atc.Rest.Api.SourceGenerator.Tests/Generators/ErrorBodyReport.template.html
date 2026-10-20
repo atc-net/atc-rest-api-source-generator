@@ -322,6 +322,16 @@
     <div id="bindingplain"></div>
   </section>
 
+  <section id="tab-matrixoff" role="tabpanel" hidden>
+    <div class="panel" id="matrixoff-intro"></div>
+    <div id="matrixoff"></div>
+  </section>
+
+  <section id="tab-bindingoff" role="tabpanel" hidden>
+    <div class="panel" id="bindingoff-intro"></div>
+    <div id="bindingoff"></div>
+  </section>
+
   <section id="tab-binding31" role="tabpanel" hidden>
     <div class="panel" id="binding31-intro"></div>
     <div id="binding31"></div>
@@ -976,6 +986,25 @@ if (!REPORT) {
     mountErrorMatrix('errorBodiesPlain', 'matrixplain', $('#matrixplain'), plain, { cases: REPORT.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
   }
 
+  // The third host: the package referenced, the ValidationFilter and the global error handler switched off in the marker
+  const off = REPORT.errorBodiesOff;
+  if (!off) {
+    $('#matrixoff-intro').innerHTML = '<p>This report was generated without this matrix.</p>';
+  } else {
+    const offCounts = {};
+    for (const c of off.cases) for (const cell of Object.values(c.clients)) offCounts[cell.verdict] = (offCounts[cell.verdict] ?? 0) + 1;
+    $('#matrixoff-intro').innerHTML = `
+      <h2>Error bodies &middot; the filters switched off</h2>
+      <p>The same specification, handlers and clients as the <b>Error bodies</b> tab, against a server generated <i>with</i> <code>Atc.Rest.MinimalApi</code> but with the two switches of the marker off: <code>"useValidationFilter": "Disabled"</code> and <code>"useGlobalErrorHandler": "Disabled"</code>. The generated <code>Add…Api()</code> / <code>Map…Api()</code> host it. What the two switches take away is on the wire as <span class="v lossy">lossy</span>, as on the <code>MapEndpoints()</code> host: nothing validates a request, so the too-long value reaches the handler; an unhandled exception is the framework's 500 ProblemDetails (the generated host's <code>UseExceptionHandler()</code>, no <code>detail</code> outside Development) instead of the exception &rarr; status mapping. Everything else must be what the package host writes, and every client must read it the same.</p>
+      <ul class="tight counts">
+        <li>${off.cases.length} cases × ${off.clients.length} clients: ${Object.entries(offCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}</li>
+        <li>run ${esc(off.generatedAt)} in ${esc(off.durationSeconds)} s</li>
+        <li>a <span class="dv">≠</span> marks a cell that differs from the Atc.Rest.MinimalApi host</li>
+      </ul>
+      <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsWhatTheServerWrites_WithTheFiltersSwitchedOff"</code></p></div>`;
+    mountErrorMatrix('errorBodiesOff', 'matrixoff', $('#matrixoff'), off, { cases: REPORT.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
+  }
+
   // The same matrix from the specification as an OpenAPI 3.1 document
   const errorBodies31 = REPORT.errorBodies31;
   if (!errorBodies31) {
@@ -1206,6 +1235,12 @@ renderCaseMatrix('requestBindingPlain', 'bindingplain', REPORT?.requestBindingPl
   <p>The <b>Request binding</b> matrix against the server generated without <code>Atc.Rest.MinimalApi</code> and hosted by hand (<code>AddProblemDetails</code>, <code>UseExceptionHandler</code>, <code>UseStatusCodePages</code>, <code>MapEndpoints</code>). The binding is the same generated code, so every client's values bind the same. What the server answers a request it cannot bind comes from the framework and the host wiring there: a wrong type, a malformed body, a media type the operation does not take and a body that is too large are the same problems; a required query parameter that is missing is answered by the generated binding step, naming it, as on the generated host; a body missing a required property is rejected - the models carry <code>[JsonRequired]</code> on this host - by the framework's JSON reader, whose problem names no property: the one <span class="v lossy">lossy</span> cell (nothing validates without the ValidationFilter; .NET 10's <code>AddValidation()</code> is the way to validate on this host).</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost"</code></p></div>`, 'requestBinding', { cases: REPORT?.requestBinding?.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
 
+// The third host: the package referenced, the ValidationFilter and the global error handler switched off in the marker
+renderCaseMatrix('requestBindingOff', 'bindingoff', REPORT?.requestBindingOff, `
+  <h2>Request binding &middot; the filters switched off</h2>
+  <p>The <b>Request binding</b> matrix against the server generated with <code>Atc.Rest.MinimalApi</code> but with <code>"useValidationFilter": "Disabled"</code> and <code>"useGlobalErrorHandler": "Disabled"</code> in the marker, hosted by the generated <code>Add…Api()</code> / <code>Map…Api()</code>. The binding is the same generated code, so every client's values bind the same. A request the server cannot bind is answered as on the <code>MapEndpoints()</code> host: a body missing a required property is rejected by the framework's JSON reader, whose problem names no property - the <span class="v lossy">lossy</span> cell; everything else is the same problem as with the filters on.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds_WithTheFiltersSwitchedOff"</code></p></div>`, 'requestBinding', { cases: REPORT?.requestBinding?.cases, name: 'MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
+
 renderCaseMatrix('requestBinding31', 'binding31', REPORT?.requestBinding31, `
   <h2>Request binding &middot; an OpenAPI 3.1 document</h2>
   <p>The <b>Request binding</b> specification as an OpenAPI 3.1 document (<code>openapi: 3.1.0</code>), with one more body operation that uses what 3.1 adds: a nullable member and a nullable array as type arrays (<code>type: [string, 'null']</code>), a <code>const</code>, a tuple (<code>prefixItems</code>, generated as a record read and written as the JSON array) and the <code>examples</code> keyword. Every 3.0 case binds the same from the 3.1 document; the 3.1 body is sent with every member, with the nullable members <code>null</code> on the wire, and with them absent - the server must bind <code>null</code> for both.</p>
@@ -1371,15 +1406,17 @@ for (const [key, tab, base, title, sameAs] of [
 // The top of the Overview: the state of the run in one glance, a start for each reader, and what needs attention.
 // Everything here is computed from REPORT.summary (written by the test) and REPORT.ratchet.
 // ---------------------------------------------------------------------------------------------------------------
-const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features', errorBodies31: 'Error bodies · OpenAPI 3.1', bodyMedia31: 'Body media types · OpenAPI 3.1', guard31: 'Security & rate limiting · OpenAPI 3.1', feature31: 'Features · OpenAPI 3.1' };
-const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBinding31: 'binding31', guard: 'guard', feature: 'feature', errorBodies31: 'matrix31', bodyMedia31: 'media31', guard31: 'guard31', feature31: 'feature31' };
-const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix', errorBodies31: 'EndToEndMatrix', bodyMedia31: 'BodyMediaMatrix', guard31: 'SecurityAndRateLimit', feature31: 'FeatureMatrix' };
+const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', errorBodiesOff: 'Error bodies · filters switched off', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBindingOff: 'Request binding · filters switched off', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features', errorBodies31: 'Error bodies · OpenAPI 3.1', bodyMedia31: 'Body media types · OpenAPI 3.1', guard31: 'Security & rate limiting · OpenAPI 3.1', feature31: 'Features · OpenAPI 3.1' };
+const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', errorBodiesOff: 'matrixoff', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBindingOff: 'bindingoff', requestBinding31: 'binding31', guard: 'guard', feature: 'feature', errorBodies31: 'matrix31', bodyMedia31: 'media31', guard31: 'guard31', feature31: 'feature31' };
+const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', errorBodiesOff: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBindingOff: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix', errorBodies31: 'EndToEndMatrix', bodyMedia31: 'BodyMediaMatrix', guard31: 'SecurityAndRateLimit', feature31: 'FeatureMatrix' };
 const MATRIX_TESTS = {
   errorBodies: 'EndToEnd_EveryClientReadsWhatTheServerWrites',
   errorBodiesPlain: 'EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost',
+  errorBodiesOff: 'EndToEnd_EveryClientReadsWhatTheServerWrites_WithTheFiltersSwitchedOff',
   bodyMedia: 'EndToEnd_EveryClientReadsEveryBodyMediaType',
   requestBinding: 'EndToEnd_EveryClientSendsWhatTheServerBinds',
   requestBindingPlain: 'EndToEnd_EveryClientSendsWhatTheServerBinds_OnTheMapEndpointsHost',
+  requestBindingOff: 'EndToEnd_EveryClientSendsWhatTheServerBinds_WithTheFiltersSwitchedOff',
   requestBinding31: 'EndToEnd_EveryClientSendsWhatTheServerBinds_WithAnOpenApi31Document',
   guard: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays',
   feature: 'EndToEnd_EveryClientRunsEveryFeature',
@@ -1524,14 +1561,14 @@ document.addEventListener('click', (e) => {
       <li>In this file: <code>const REPORT = {…}</code> at the start of the script - the whole dataset. <code>docs/test-suite-report.html</code> in the repository is the last committed run.</li>
       <li>Beside this page: <code>docs/test-suite-report.json</code> (the same object, indented) and <code>docs/test-suite-report.history.jsonl</code> (the last run's verdict per cell - what <b>Changes since previous run</b> is computed from; overwritten each run, git keeps the older ones); all three are committed together, so a new run is compared with the last committed one.</li>
       <li>In CI: the <code>test-suite-report</code> artifact of the build workflow.</li>
-      <li>A matrix that runs against more than one host or document is one tab with a switch: <code>#matrix</code> / <code>#matrixplain</code> (error bodies on the generated host / the <code>MapEndpoints()</code> host) and <code>#binding</code> / <code>#bindingplain</code> / <code>#binding31</code>; every matrix also has its run from an OpenAPI 3.1 document (<code>#matrix31</code>, <code>#media31</code>, <code>#guard31</code>, <code>#feature31</code>). The variants share their filters, and a <b>≠</b> marks a cell that differs from the same cell on the generated host (the 3.0 document for 3.1).</li>
+      <li>A matrix that runs against more than one host or document is one tab with a switch: <code>#matrix</code> / <code>#matrixplain</code> / <code>#matrixoff</code> (error bodies on the generated host / the <code>MapEndpoints()</code> host / the generated host with the ValidationFilter and the global error handler switched off) and <code>#binding</code> / <code>#bindingplain</code> / <code>#bindingoff</code> / <code>#binding31</code>; every matrix also has its run from an OpenAPI 3.1 document (<code>#matrix31</code>, <code>#media31</code>, <code>#guard31</code>, <code>#feature31</code>). The variants share their filters, and a <b>≠</b> marks a cell that differs from the same cell on the generated host (the 3.0 document for 3.1).</li>
       <li>A link to one cell: <code>#&lt;tab&gt;/&lt;case id&gt;/&lt;client id or wire&gt;</code> (each part URL-encoded) opens that cell's detail - the address shows it while a cell is open, and its <b>copy link</b> button copies it.</li>
     </ul>
     <h3>Shape of REPORT</h3>
     <div class="table-wrap"><table class="kv-table"><tbody>
       <tr><td>summary</td><td><code>state</code> = <code>green</code> | <code>known-failures</code> | <code>regressions</code>; <code>unexpectedFailures</code> = cell keys <code>matrix|case|client</code>; <code>matrices[key]</code> = { cases, clients, verdicts{pass,lossy,fail,platform,na}, knownFailures }; <code>compileGate</code> = { scenarios, clean, generators }, <code>diagnostics</code> = { rules, tested }, <code>playwright</code> = { apps, failed, flaky } (flaky: failed, then passed on a retry - not a failure).</td></tr>
       <tr><td>cases</td><td>The error-body matrix: one object per case - <code>id</code>, <code>status</code>, <code>group</code> (scenario), <code>operation</code> (declaration), <code>handler</code>, <code>wire</code> { verdict, status, contentType, body, why } and <code>clients[clientId]</code> { verdict, why, summary, loss?, assessment? }.</td></tr>
-      <tr><td>bodyMedia, requestBinding, guard, feature - and <code>…Plain</code> / <code>…31</code> (the MapEndpoints host, an OpenAPI 3.1 document)</td><td>The other matrices: { generatedAt, durationSeconds, clients[], cases[] } with the same cell shape; a case may carry <code>expects</code> and a <code>wire</code>.</td></tr>
+      <tr><td>bodyMedia, requestBinding, guard, feature - and <code>…Plain</code> / <code>…Off</code> / <code>…31</code> (the MapEndpoints host, the filters switched off in the marker, an OpenAPI 3.1 document)</td><td>The other matrices: { generatedAt, durationSeconds, clients[], cases[] } with the same cell shape; a case may carry <code>expects</code> and a <code>wire</code>.</td></tr>
       <tr><td>ratchet[key]</td><td>The cells each matrix expects to fail, as <code>case [clientId]</code> - mirrors the <code>Known…Failures</code> set in the matrix's test file. A fail not listed here fails the test; a listed cell that passes fails it too (remove it).</td></tr>
       <tr><td>ratchetReasons[key]</td><td>Why each ratcheted cell is expected to fail: <code>case [clientId]</code> to the reason its <code>Known…Failures</code> entry records (a cell without a reason fails <code>RatchetReasons_GiveEveryKnownCellAReason</code>).</td></tr>
       <tr><td>notExercised[key]</td><td>What the matrix deliberately leaves out, one sentence each (<code>…NotExercised</code> arrays in <code>Report.cs</code>, checked against the cases by <code>NotExercised_NamesNothingAMatrixCovers</code>).</td></tr>
@@ -1638,12 +1675,12 @@ document.addEventListener('click', (e) => {
 })();
 
 // Tabs. A matrix that runs against more than one host or document is one tab with a switch (its variants); each
-// variant has an address of its own (#matrixplain, #bindingplain, #binding31, #matrix31, #media31, #guard31, #feature31). The address names the tab and,
+// variant has an address of its own (#matrixplain, #matrixoff, #bindingplain, #bindingoff, #binding31, #matrix31, #media31, #guard31, #feature31). The address names the tab and,
 // while a cell is open, the cell (#feature/<case>/<client>), so a link opens what its sender was looking at.
 const VARIANTS = {
-  matrix: [['matrix', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['matrixplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['matrix31', 'OpenAPI 3.1 document']],
+  matrix: [['matrix', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['matrixplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['matrixoff', 'OpenAPI 3.0 · filters switched off'], ['matrix31', 'OpenAPI 3.1 document']],
   media: [['media', 'OpenAPI 3.0 document'], ['media31', 'OpenAPI 3.1 document']],
-  binding: [['binding', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['bindingplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['binding31', 'OpenAPI 3.1 document']],
+  binding: [['binding', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['bindingplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['bindingoff', 'OpenAPI 3.0 · filters switched off'], ['binding31', 'OpenAPI 3.1 document']],
   guard: [['guard', 'OpenAPI 3.0 document'], ['guard31', 'OpenAPI 3.1 document']],
   feature: [['feature', 'OpenAPI 3.0 document'], ['feature31', 'OpenAPI 3.1 document']],
 };

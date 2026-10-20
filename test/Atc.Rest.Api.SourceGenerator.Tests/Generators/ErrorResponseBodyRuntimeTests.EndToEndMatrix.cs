@@ -176,6 +176,35 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The same matrix against the third host: <c>Atc.Rest.MinimalApi</c> referenced, the ValidationFilter and the
+    /// global error handler switched off through the marker. What the two switches take away is a lossy wire, as on the
+    /// MapEndpoints host; everything else is what the package host writes.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientReadsWhatTheServerWrites_WithTheFiltersSwitchedOff()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the end-to-end matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectEndToEndMatrixAsync(switchedOff: true);
+        if (Environment.GetEnvironmentVariable("ERRORBODY_E2E_OFF_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(), TestContext.Current.CancellationToken);
+        }
+
+        var failures = FailingCells(matrix);
+        Assert.True(failures.Count == 0, $"{failures.Count} failing cells:\n" + string.Join("\n", failures.Take(80)));
+    }
+
+    /// <summary>
     /// The same matrix from the specification as an OpenAPI 3.1 document: the server, every C# client and both
     /// TypeScript clients are generated from it, and every cell must be what it is from the 3.0 document.
     /// </summary>
@@ -493,11 +522,12 @@ public partial class ErrorResponseBodyRuntimeTests
 
     private static async Task<JsonObject> CollectEndToEndMatrixAsync(
         bool plainHost = false,
-        bool openApi31 = false)
+        bool openApi31 = false,
+        bool switchedOff = false)
     {
         OpenApi31Run.Value = openApi31;
         var started = DateTimeOffset.Now;
-        await using var host = await ErrorBodyHost.StartAsync(plainHost: plainHost);
+        await using var host = await ErrorBodyHost.StartAsync(plainHost: plainHost, switchedOff: switchedOff);
 
         var matrixCases = host.Cases
             .Where(c => MatrixDeclarations.Any(d => d.OperationId == c.OperationId) || c.OperationId is "getFault" or "getDefaultError" || c.OperationId.StartsWith("getStatus", StringComparison.Ordinal))
@@ -526,7 +556,7 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             var observed = wire[probeCase.Name];
             var caseStatus = observed.Status;
-            var wireVerdict = WireVerdict(probeCase, observed, plainHost);
+            var wireVerdict = WireVerdict(probeCase, observed, withoutValidationFilter: plainHost || switchedOff, withoutErrorHandler: plainHost || switchedOff);
             var clients = new JsonObject();
 
             // A 1xx is never a final response (RFC 9110 §15.2): the generator must write no factory for it, and there
@@ -932,7 +962,8 @@ public partial class ErrorResponseBodyRuntimeTests
     private static (string Verdict, string Why) WireVerdict(
         ProbeCase probeCase,
         WireResult wire,
-        bool plainHost = false)
+        bool withoutValidationFilter = false,
+        bool withoutErrorHandler = false)
     {
         if (CaseGroup(probeCase) == "sweep")
         {
@@ -942,16 +973,16 @@ public partial class ErrorResponseBodyRuntimeTests
                 : (VerdictFail, problem);
         }
 
-        // The plain host (MapEndpoints, no Atc.Rest.MinimalApi) has neither the ValidationFilter nor the exception
-        // mapping: what it loses against the package is a lossy wire, what it must still do is checked
-        if (plainHost && probeCase.Reason == TooLongReason)
+        // A host without the ValidationFilter or the exception mapping (the plain host has neither; the marker can
+        // switch each off): what it loses against the package is a lossy wire, what it must still do is checked
+        if (withoutValidationFilter && probeCase.Reason == TooLongReason)
         {
             return wire.Status == 204
                 ? (VerdictLossy, "no validation without Atc.Rest.MinimalApi's ValidationFilter: the too-long value reached the handler, which answered 204")
                 : (VerdictFail, "expected the handler's 204: nothing validates the value without the ValidationFilter");
         }
 
-        if (plainHost && probeCase.Mode.StartsWith("throw", StringComparison.Ordinal))
+        if (withoutErrorHandler && probeCase.Mode.StartsWith("throw", StringComparison.Ordinal))
         {
             var isFrameworkProblem = string.Equals(wire.MediaType, "application/problem+json", StringComparison.Ordinal) &&
                                      TryReadStatus(wire.Body, out var frameworkStatus) && frameworkStatus == wire.Status;

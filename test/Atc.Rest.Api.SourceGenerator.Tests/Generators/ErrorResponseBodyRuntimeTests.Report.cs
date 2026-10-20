@@ -19,7 +19,6 @@ public partial class ErrorResponseBodyRuntimeTests
     [
         "Validation exceptions thrown by handler code (the feature matrix runs one).",
         "The Development environment beyond one exception per host: the matrices run as Production, and Production_A5xxFromAnException_CarriesNothingOfIt_AndDevelopmentNamesIt checks that a Production 5xx carries nothing of the exception on either host and that Development names it.",
-        "A server with the ValidationFilter or the global error handler switched off through the marker (the host without Atc.Rest.MinimalApi - MapEndpoints() with the wiring written by hand - has its own tabs).",
         "Network failures, timeouts and cancellation (the feature matrix runs a reset, a hang, a stall and a mid-body cancel).",
         "HEAD, and 2xx statuses other than 200 and 204 on the sweep operations (every 1xx, 2xx and 3xx has its own operation under Statuses 1xx-3xx; a HEAD answered 200 and 404 with the GET's headers and no body is read by every client in TypedClient_Head_ReturnsNoValue_AndReadsNoBody, OperationClient_Head_IsItsStatus_WithoutAValue and the TypeScript HEAD gate).",
         "What only OpenAPI 3.1 / 3.2 can say, beyond the request-binding matrix's 3.1 body (type arrays, null on the wire, a const, a tuple): every matrix also runs from its specification as a 3.1 document, which says what the 3.0 one says; the Feature support tab compiles the 3.1 and 3.2 scenarios.",
@@ -65,7 +64,7 @@ public partial class ErrorResponseBodyRuntimeTests
     [
         "A browser runtime: the React Query and SWR hooks render with React on jsdom in Node.",
         "The hooks on a 304: a browser cache sends the condition, not a hook.",
-        "The hooks with a timeout of the caller's own (a hook takes no AbortSignal: its timeout is the operation's x-retry-timeout-seconds), and a cancelled SWR read (SWR hands its fetcher no signal).",
+        "A cancelled SWR read: SWR hands its fetcher no signal (a hook's timeout of the caller's own is run, through the client's fetch option).",
         "Webhooks and output caching.",
     ];
 
@@ -96,6 +95,10 @@ public partial class ErrorResponseBodyRuntimeTests
         // The README's second path: MapEndpoints() without Atc.Rest.MinimalApi, the host wiring written by hand
         matrix["errorBodiesPlain"] = await CollectEndToEndMatrixAsync(plainHost: true);
         matrix["requestBindingPlain"] = await CollectRequestBindingMatrixAsync(plainHost: true);
+
+        // The third host: the package referenced, the ValidationFilter and the global error handler switched off
+        matrix["errorBodiesOff"] = await CollectEndToEndMatrixAsync(switchedOff: true);
+        matrix["requestBindingOff"] = await CollectRequestBindingMatrixAsync(switchedOff: true);
 
         // The request-binding specification as an OpenAPI 3.1 document, with a 3.1 body
         matrix["requestBinding31"] = await CollectRequestBindingMatrixAsync(openApi31: true);
@@ -487,9 +490,11 @@ public partial class ErrorResponseBodyRuntimeTests
             // ratchet is empty by construction; the others list the cells their tests expect to fail
             ["errorBodies"] = new JsonArray(),
             ["errorBodiesPlain"] = new JsonArray(),
+            ["errorBodiesOff"] = new JsonArray(),
             ["bodyMedia"] = new JsonArray(),
             ["requestBinding"] = new JsonArray([.. KnownRequestBindingFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["requestBindingPlain"] = new JsonArray([.. KnownPlainRequestBindingFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["requestBindingOff"] = new JsonArray([.. KnownSwitchedOffRequestBindingFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["requestBinding31"] = new JsonArray([.. KnownRequestBinding31Failures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["guard"] = new JsonArray([.. KnownGuardFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
             ["feature"] = new JsonArray([.. KnownFeatureFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
@@ -511,6 +516,7 @@ public partial class ErrorResponseBodyRuntimeTests
         foreach (var (key, known) in ((string, Dictionary<string, string>)[])[
             ("requestBinding", KnownRequestBindingFailures),
             ("requestBindingPlain", KnownPlainRequestBindingFailures),
+            ("requestBindingOff", KnownSwitchedOffRequestBindingFailures),
             ("requestBinding31", KnownRequestBinding31Failures),
             ("guard", KnownGuardFailures),
             ("feature", KnownFeatureFailures),
@@ -568,7 +574,7 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject matrix)
     {
         yield return ("errorBodies", matrix["cases"]!.AsArray().Select(c => c!.AsObject()));
-        foreach (var key in (string[])["errorBodiesPlain", "errorBodies31", "bodyMedia", "bodyMedia31", "requestBinding", "requestBindingPlain", "requestBinding31", "guard", "guard31", "feature", "feature31"])
+        foreach (var key in (string[])["errorBodiesPlain", "errorBodiesOff", "errorBodies31", "bodyMedia", "bodyMedia31", "requestBinding", "requestBindingPlain", "requestBindingOff", "requestBinding31", "guard", "guard31", "feature", "feature31"])
         {
             if (matrix[key]?["cases"] is JsonArray cases)
             {

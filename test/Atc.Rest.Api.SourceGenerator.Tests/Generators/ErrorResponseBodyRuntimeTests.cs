@@ -26,6 +26,18 @@ public partial class ErrorResponseBodyRuntimeTests
         """;
 
     /// <summary>
+    /// The third host: Atc.Rest.MinimalApi referenced and used for the result types, with the ValidationFilter and the
+    /// global error handler switched off through the marker.
+    /// </summary>
+    internal const string SwitchedOffServerMarker = """
+        {
+          "useMinimalApiPackage": "Enabled",
+          "useValidationFilter": "Disabled",
+          "useGlobalErrorHandler": "Disabled"
+        }
+        """;
+
+    /// <summary>
     /// Where a hand-run (explicit) test writes its output: the environment variable's path when set, else a fresh
     /// folder of its own under the temp folder - two runs (or two checkouts) never overwrite each other. The path is
     /// written to the test output.
@@ -2576,14 +2588,21 @@ public partial class ErrorResponseBodyRuntimeTests
         /// error handler). The host is wired by the generated <c>Add…Api()</c> / <c>Map…Api()</c> all the same.
         /// </param>
         /// <param name="environment">The host environment: Production (the matrices) or Development.</param>
+        /// <param name="switchedOff">
+        /// Generate with <c>Atc.Rest.MinimalApi</c> but with the ValidationFilter and the global error handler switched
+        /// off through the marker (<see cref="SwitchedOffServerMarker"/>).
+        /// </param>
         public static async Task<ErrorBodyHost> StartAsync(
             bool problemDetailsWiringOff = false,
             bool plainHost = false,
-            string environment = "Production")
+            string environment = "Production",
+            bool switchedOff = false)
         {
             var sources = plainHost
                 ? Generate(new ApiServerGenerator(), ".atc-rest-api-server", "{}", includeMinimalApi: false)
-                : GenerateServer();
+                : switchedOff
+                    ? Generate(new ApiServerGenerator(), ".atc-rest-api-server", SwitchedOffServerMarker, includeMinimalApi: true)
+                    : GenerateServer();
             var factories = ParseFactories(sources);
             var producesMetadata = sources
                 .Where(s => s.HintName.Contains("EndpointDefinition", StringComparison.Ordinal))

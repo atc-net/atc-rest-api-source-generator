@@ -19,8 +19,8 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <remarks>
 /// Not exercised: a browser runtime (the hooks render with
 /// React on jsdom in Node); the React Query and SWR hooks on a 304 (a browser cache sends the condition, not a
-/// hook); a cancelled SWR read (SWR hands its fetcher no signal); the hooks with a timeout of the caller's own (a hook
-/// takes no signal); webhooks and output caching.
+/// hook); a cancelled SWR read (SWR hands its fetcher no signal); webhooks and output caching. A hook's timeout of the
+/// caller's own is the client's <c>fetch</c> option, handed to the ApiProvider.
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
@@ -1544,10 +1544,17 @@ public partial class ErrorResponseBodyRuntimeTests
           }
         }
 
+        // A hook takes no AbortSignal: the caller's own timeout goes in the client's fetch option, given to the
+        // ApiProvider - together with the signal React Query hands its queryFn, so an unmount still cancels
+        const withTimeout = (ms: number) => (url: any, init?: any) =>
+          fetch(url, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms) });
+
         function wrapperFor(c: any, headers: Record<string, string>) {
           const { ApiProvider } = hookModule;
           const queryClient = hooks === 'reactquery' ? new QueryClient({ defaultOptions: { queries: { retry: false } } }) : null;
-          const options = optionsFor(c, headers);
+
+          // Built once per case: the ApiProvider makes a new client when the options object changes
+          const options = c.scenario === 'client-timeout' ? { ...optionsFor(c, headers), fetch: withTimeout(1000) } : optionsFor(c, headers);
           return ({ children }: any) => {
             const inner = React.createElement(ApiProvider, { baseUrl: c.address ?? baseUrl, options }, children);
             if (hooks === 'reactquery') return React.createElement(QueryClientProvider, { client: queryClient }, inner);
@@ -1749,7 +1756,6 @@ public partial class ErrorResponseBodyRuntimeTests
             }
             case 'net': {
               const hook = H['use' + c.operation];
-              if (c.scenario === 'client-timeout') return { kind: 'na', why: 'a hook takes no AbortSignal of its own: its timeout is the operation\'s x-retry-timeout-seconds' };
               if (c.scenario === 'cancel-mid-body') {
                 if (hooks === 'swr') return { kind: 'na', why: 'SWR hands its fetcher no AbortSignal' };
                 const { unmount } = renderHook(() => hook(), { wrapper });
@@ -1890,7 +1896,7 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("cancellation: a read the client cancels stops on the server", "cancellation", "FeatureSlow", "slow", new JsonObject()));
         cases.Add(new("cancellation: the caller cancels mid-body, after the headers", "cancellation", "FeatureStall", "net", new JsonObject { ["scenario"] = "cancel-mid-body" }));
         cases.Add(new("network: the connection resets mid-body", "network", "FeatureReset", "net", new JsonObject { ["scenario"] = "reset" }));
-        cases.Add(new("network: no answer, the client's own timeout (C#: HttpClient.Timeout; TypeScript: the caller's AbortSignal.timeout)", "network", "FeatureHang", "net", new JsonObject { ["scenario"] = "client-timeout" }));
+        cases.Add(new("network: no answer, the client's own timeout (C#: HttpClient.Timeout; TypeScript: the caller's AbortSignal.timeout, for a hook through the client's fetch option)", "network", "FeatureHang", "net", new JsonObject { ["scenario"] = "client-timeout" }));
         cases.Add(new("network: no answer, the operation's x-retry-timeout-seconds", "network", "FeatureTimeout", "net", new JsonObject { ["scenario"] = "retry-timeout" }));
         cases.Add(new("network: headers, then a body that stalls, the operation's x-retry-timeout-seconds", "network", "FeatureStallTimeout", "net", new JsonObject { ["scenario"] = "stall-timeout" }));
         cases.Add(new("network: no server listens on the port (connection refused)", "network", "FeatureReset", "net", new JsonObject { ["scenario"] = "refused" }));
