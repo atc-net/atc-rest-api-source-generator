@@ -34,22 +34,18 @@ public static class SchemaExtractor
         bool includeDeprecated = false,
         bool generatePartialModels = false)
     {
-        var recordParametersList = ExtractIndividual(openApiDoc, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
-
-        if (recordParametersList is null || recordParametersList.Count == 0)
+        if (openApiDoc is null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        var headerContent = BuildHeaderContent(recordParametersList);
-
-        return new RecordsParameters(
-            HeaderContent: headerContent,
-            Namespace: NamespaceBuilder.ForModels(projectName),
-            DocumentationTags: null,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.Public,
-            Parameters: recordParametersList);
+        return ExtractForSchemas(
+            openApiDoc,
+            projectName,
+            new HashSet<string>(openApiDoc.Components?.Schemas?.Keys ?? Enumerable.Empty<string>(), StringComparer.Ordinal),
+            pathSegment: null,
+            includeDeprecated: includeDeprecated,
+            generatePartialModels: generatePartialModels);
     }
 
     /// <summary>
@@ -74,36 +70,15 @@ public static class SchemaExtractor
         bool includeDeprecated = false,
         bool generatePartialModels = false,
         bool includeSharedModelsUsing = false)
-    {
-        if (schemaNames is null || schemaNames.Count == 0)
-        {
-            return null;
-        }
-
-        var recordParametersList = ExtractIndividual(openApiDoc, schemaNames, registry, includeDeprecated, generatePartialModels: generatePartialModels);
-
-        if (recordParametersList is null || recordParametersList.Count == 0)
-        {
-            return null;
-        }
-
-        // Build header with optional shared models using
-        var sharedModelsNamespace = includeSharedModelsUsing && !string.IsNullOrEmpty(pathSegment)
-            ? NamespaceBuilder.ForModels(projectName)
-            : null;
-        var headerContent = BuildHeaderContent(recordParametersList, sharedModelsNamespace);
-
-        // Use shared namespace if no pathSegment, otherwise segment-specific namespace
-        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        return new RecordsParameters(
-            HeaderContent: headerContent,
-            Namespace: ns,
-            DocumentationTags: null,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.Public,
-            Parameters: recordParametersList);
-    }
+        => ExtractForSchemasWithInlineEnums(
+            openApiDoc,
+            projectName,
+            schemaNames,
+            pathSegment,
+            registry,
+            includeDeprecated,
+            generatePartialModels,
+            includeSharedModelsUsing).Records;
 
     /// <summary>
     /// Extracts model records from OpenAPI document components for specific schemas,
@@ -190,26 +165,7 @@ public static class SchemaExtractor
         OpenApiDocument openApiDoc,
         bool includeDeprecated = false,
         bool generatePartialModels = false)
-        => ExtractIndividual(openApiDoc, schemaFilter: null, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
-
-    /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components with polymorphic support.
-    /// Returns a list of individual records without combined header/namespace.
-    /// Polymorphic base schemas are skipped; variant records include inheritance.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="polymorphicConfigs">Polymorphic configurations for inheritance tracking.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model, or null if no schemas exist.</returns>
-    public static List<RecordParameters>? ExtractIndividualWithPolymorphism(
-        OpenApiDocument openApiDoc,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
-        => ExtractIndividual(openApiDoc, schemaFilter: null, registry, includeDeprecated, polymorphicConfigs, generatePartialModels);
+        => Extract(openApiDoc, "Api", includeDeprecated, generatePartialModels)?.Parameters.ToList();
 
     /// <summary>
     /// Checks if a schema represents a pagination base (has results/items/data/values/content: array with empty/untyped items).
@@ -253,143 +209,6 @@ public static class SchemaExtractor
                                         itemSchema.Type == JsonSchemaType.Null,
             _ => false,
         };
-    }
-
-    /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components.
-    /// Optionally filters to only include schemas in the provided set.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="schemaFilter">Optional set of schema names to include. If null, all schemas are included.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="polymorphicConfigs">Optional polymorphic configurations for adding inheritance to variant types.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model, or null if no schemas exist.</returns>
-    private static List<RecordParameters>? ExtractIndividual(
-        OpenApiDocument openApiDoc,
-        HashSet<string>? schemaFilter,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null,
-        bool generatePartialModels = false)
-    {
-        if (openApiDoc is null)
-        {
-            throw new ArgumentNullException(nameof(openApiDoc));
-        }
-
-        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
-        {
-            return null;
-        }
-
-        // Pre-scan: collect schema names that are referenced as allOf bases
-        var allOfBaseSchemas = CollectAllOfBaseSchemas(openApiDoc);
-
-        var recordParametersList = new List<RecordParameters>();
-
-        foreach (var schema in openApiDoc.Components.Schemas)
-        {
-            var originalSchemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            // Apply schema filter if provided (uses original name from OpenAPI spec)
-            if (schemaFilter is not null && !schemaFilter.Contains(originalSchemaName))
-            {
-                continue;
-            }
-
-            // Skip schema references as they point to other schemas
-            if (schemaValue is OpenApiSchemaReference)
-            {
-                continue;
-            }
-
-            // Skip deprecated schemas if not including them
-            if (!includeDeprecated && schemaValue is OpenApiSchema { Deprecated: true })
-            {
-                continue;
-            }
-
-            // Skip polymorphic base schemas (oneOf/anyOf) - they're handled by PolymorphicTypeExtractor
-            if (schemaValue.HasPolymorphicComposition())
-            {
-                continue;
-            }
-
-            if (schemaValue is OpenApiSchema actualSchema)
-            {
-                // Skip array schemas (like "Pets"), they're handled inline
-                if (actualSchema.IsOfType(JsonSchemaType.Array))
-                {
-                    continue;
-                }
-
-                // Skip enum schemas - handled by EnumExtractor
-                if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
-                {
-                    continue;
-                }
-
-                // Skip tuple schemas - handled by TupleExtractor
-                if (actualSchema.HasPrefixItems())
-                {
-                    continue;
-                }
-
-                // Detect allOf base reference for inheritance
-                var allOfBaseName = DetectAllOfBaseName(actualSchema);
-
-                if (actualSchema.IsOfType(JsonSchemaType.Object) || allOfBaseName is not null)
-                {
-                    // Sanitize schema name - replace dots with underscores for valid C# identifiers
-                    var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
-
-                    // Check if this schema is a polymorphic variant and get its base type (uses original name)
-                    var baseTypeName = PolymorphicTypeExtractor.GetBaseTypeForVariant(originalSchemaName, polymorphicConfigs);
-
-                    // Use non-sealed modifier for schemas that are allOf bases
-                    var declarationModifier = allOfBaseSchemas.Contains(originalSchemaName)
-                        ? DeclarationModifiers.PublicRecord
-                        : (generatePartialModels
-                            ? DeclarationModifiers.PublicPartialRecord
-                            : DeclarationModifiers.PublicSealedRecord);
-
-                    // Check if this is a pagination base schema (has results: array with empty items)
-                    if (IsPaginationBaseSchema(actualSchema))
-                    {
-                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels, allOfBaseSchemas.Contains(originalSchemaName));
-                        if (genericRecordParams is not null)
-                        {
-                            recordParametersList.Add(genericRecordParams);
-                        }
-                    }
-                    else
-                    {
-                        // For allOf schemas, merge properties from all sub-schemas
-                        var effectiveSchema = allOfBaseName is not null
-                            ? MergeAllOfProperties(actualSchema)
-                            : actualSchema;
-
-                        var recordParams = ExtractRecordFromSchema(schemaName, effectiveSchema, registry, baseTypeName, generatePartialModels, declarationModifier);
-
-                        // Add allOf inheritance info (only if not already a polymorphic variant)
-                        if (recordParams is not null && allOfBaseName is not null && string.IsNullOrEmpty(baseTypeName))
-                        {
-                            recordParams = WithAllOfBase(openApiDoc, actualSchema, allOfBaseName, recordParams, registry);
-                        }
-
-                        if (recordParams is not null)
-                        {
-                            recordParametersList.Add(recordParams);
-                        }
-                    }
-                }
-            }
-        }
-
-        return recordParametersList.Count > 0 ? recordParametersList : null;
     }
 
     /// <summary>

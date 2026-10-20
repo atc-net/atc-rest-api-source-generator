@@ -49,9 +49,7 @@ public class JsonPropertyNameGenerationTests
         var document = ParseYaml();
 
         // Act
-        var models = CodeGenerationService
-            .GenerateModels(document, "EloverblikTest", CodeGenerationService.GeneratorType.Client)
-            .ToList();
+        var models = Models(document);
 
         // Assert
         var document1 = models.Single(m => m.TypeName == "MyEnergyDataMarketDocument");
@@ -87,13 +85,23 @@ public class JsonPropertyNameGenerationTests
         var document = ParseYaml();
 
         // Act
-        var models = CodeGenerationService
-            .GenerateModels(document, "EloverblikTest", CodeGenerationService.GeneratorType.Client)
-            .ToList();
+        var models = Models(document);
 
         // Assert
         var document1 = models.Single(m => m.TypeName == "MyEnergyDataMarketDocument");
-        Assert.Contains("System.Text.Json.Serialization", document1.RequiredUsings, StringComparer.Ordinal);
+        Assert.Contains("using System.Text.Json.Serialization;", document1.Header, StringComparison.Ordinal);
+    }
+
+    // The models as the generators write them: the records SchemaExtractor extracts, one file each
+    private static List<(string TypeName, string Content, string Header)> Models(
+        OpenApiDocument document)
+    {
+        var records = SchemaExtractor.Extract(document, "EloverblikTest");
+        Assert.NotNull(records);
+        var codeDocGenerator = new Atc.CodeGeneration.CSharp.CodeDocumentation.CodeComment.CodeDocumentationTagsGenerator();
+        return records.Parameters
+            .Select(record => (record.Name, Atc.Rest.Api.Generator.Helpers.RecordContentGenerator.Generate(codeDocGenerator, records with { Parameters = [record] }), records.HeaderContent ?? string.Empty))
+            .ToList();
     }
 
     private static OpenApiDocument ParseYaml()

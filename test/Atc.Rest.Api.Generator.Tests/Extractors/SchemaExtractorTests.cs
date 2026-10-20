@@ -1256,11 +1256,10 @@ public class SchemaExtractorTests
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
 
         Assert.Null(SchemaExtractor.ExtractIndividual(document));
-        Assert.Null(SchemaExtractor.ExtractIndividualWithPolymorphism(document, polymorphicConfigs: null));
     }
 
     [Fact]
-    public void ExtractIndividualWithPolymorphism_VariantInheritsBaseAndBaseIsSkipped()
+    public void ExtractIndividual_VariantInheritsBaseAndBaseIsSkipped()
     {
         const string yaml = """
                             openapi: 3.0.0
@@ -1296,15 +1295,12 @@ public class SchemaExtractorTests
                             """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
-        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
-        Assert.NotNull(configs);
 
-        var withConfigs = SchemaExtractor.ExtractIndividualWithPolymorphism(document, configs);
-        var withoutConfigs = SchemaExtractor.ExtractIndividualWithPolymorphism(document, polymorphicConfigs: null);
+        var records = SchemaExtractor.ExtractIndividual(document);
 
-        // The oneOf base is handled by PolymorphicTypeExtractor; the variants inherit it only when told about it
-        Assert.Equal(["Circle : Shape", "Square : Shape"], withConfigs!.Select(r => r.Name), StringComparer.Ordinal);
-        Assert.Equal(["Circle", "Square"], withoutConfigs!.Select(r => r.Name), StringComparer.Ordinal);
+        // The oneOf base is handled by PolymorphicTypeExtractor; the variants derive from it
+        Assert.Equal(["Circle", "Square"], records!.Select(r => r.Name), StringComparer.Ordinal);
+        Assert.All(records!, r => Assert.Equal("Shape", r.BaseTypeName));
     }
 
     [Fact]
