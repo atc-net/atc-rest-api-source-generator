@@ -13,7 +13,7 @@ namespace NullableTypeArrays.Generated.Models;
 /// The profile status, or null when not set.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<ProfileStatus>))]
+[JsonConverter(typeof(global::NullableTypeArrays.Generated.EnumWireConverterFactory))]
 public enum ProfileStatus
 {
     [EnumMember(Value = "active")]

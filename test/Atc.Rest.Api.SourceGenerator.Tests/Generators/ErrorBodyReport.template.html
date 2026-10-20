@@ -240,6 +240,7 @@
     <button role="tab" aria-selected="false" data-tab="binding">Request binding</button>
     <button role="tab" aria-selected="false" data-tab="guard">Security &amp; rate limiting</button>
     <button role="tab" aria-selected="false" data-tab="feature">Features</button>
+    <button role="tab" aria-selected="false" data-tab="enumcase">Enum casing</button>
     <span class="div"></span>
     <button role="tab" aria-selected="false" data-tab="support">Feature support</button>
     <button role="tab" aria-selected="false" data-tab="diagnostics">Diagnostics</button>
@@ -355,6 +356,31 @@
   <section id="tab-feature31" role="tabpanel" hidden>
     <div class="panel" id="feature31-intro"></div>
     <div id="feature31"></div>
+  </section>
+
+  <section id="tab-enumcase" role="tabpanel" hidden>
+    <div class="panel" id="enumcase-intro"></div>
+    <div id="enumcase"></div>
+  </section>
+
+  <section id="tab-enumcaseplain" role="tabpanel" hidden>
+    <div class="panel" id="enumcaseplain-intro"></div>
+    <div id="enumcaseplain"></div>
+  </section>
+
+  <section id="tab-enumcaserdg" role="tabpanel" hidden>
+    <div class="panel" id="enumcaserdg-intro"></div>
+    <div id="enumcaserdg"></div>
+  </section>
+
+  <section id="tab-enumcaseconverter" role="tabpanel" hidden>
+    <div class="panel" id="enumcaseconverter-intro"></div>
+    <div id="enumcaseconverter"></div>
+  </section>
+
+  <section id="tab-enumcaseextensible" role="tabpanel" hidden>
+    <div class="panel" id="enumcaseextensible-intro"></div>
+    <div id="enumcaseextensible"></div>
   </section>
 
   <section id="tab-guard" role="tabpanel" hidden>
@@ -1297,6 +1323,30 @@ renderCaseMatrix('feature', 'feature', REPORT?.feature, `
   <p><b>Not exercised.</b> ${notExercisedHtml('feature')}</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientRunsEveryFeature"</code></p></div>`, 'feature');
 
+// An enum value in any casing, on each kind of host (the variants read against the Atc.Rest.MinimalApi host)
+renderCaseMatrix('enumCasing', 'enumcase', REPORT?.enumCasing, `
+  <h2>Enum casing</h2>
+  <p>The generated server with handlers that answer with the enum values they were given, and a raw HTTP request - what Postman or curl sends, typed by hand - with each listed value in another casing: as listed, in lower case, in upper case and with the first letter flipped. The specification writes its enums in each common casing (camelCase, PascalCase, kebab-case, snake_case, UPPER_SNAKE_CASE), and one lists two values that differ only in casing (<code>active</code>, <code>Active</code>). Each column is where the value arrives: the path, the query (alone, as a list, in a <code>deepObject</code>), a header, a cookie, and a JSON, URL-encoded, multipart and XML body.</p>
+  <p>A listed value is read in any casing and reaches the handler as the specification writes it (<code>OUTOFSTOCK</code> is <code>outOfStock</code>). An exact match always wins (<code>Active</code> is <code>Active</code>, not <code>active</code>), and a casing two listed values share names neither: <code>ACTIVE</code> is a 400.</p>
+  <p><b>Not exercised.</b> ${notExercisedHtml('enumCasing')}</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryEnumValueBindsInAnyCasing"</code></p></div>`, 'enumCasing');
+renderCaseMatrix('enumCasingPlain', 'enumcaseplain', REPORT?.enumCasingPlain, `
+  <h2>Enum casing &middot; the <code>MapEndpoints()</code> host</h2>
+  <p>The <b>Enum casing</b> matrix against the server generated without <code>Atc.Rest.MinimalApi</code> and hosted by hand (<code>AddProblemDetails</code>, <code>UseExceptionHandler</code>, <code>UseStatusCodePages</code>, <code>MapEndpoints</code>). The reading is the same generated code; the enums name their own JSON converter, so the host's JSON options need nothing. The one <span class="v known">known</span> cell is not casing: <code>UseExceptionHandler()</code> answers every XML body the generated reader rejects with a 500.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryEnumValueBindsInAnyCasing"</code></p></div>`, 'enumCasing', { cases: REPORT?.enumCasing?.cases, name: 'Atc.Rest.MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
+renderCaseMatrix('enumCasingRdg', 'enumcaserdg', REPORT?.enumCasingRdg, `
+  <h2>Enum casing &middot; the Request Delegate Generator</h2>
+  <p>The <b>Enum casing</b> matrix with the endpoints compiled by the Request Delegate Generator (RDG), as in a Native AOT or trimmed app: the binder parses a value before it looks at it, and every value binds the same.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryEnumValueBindsInAnyCasing"</code></p></div>`, 'enumCasing', { cases: REPORT?.enumCasing?.cases, name: 'Atc.Rest.MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
+renderCaseMatrix('enumCasingConverter', 'enumcaseconverter', REPORT?.enumCasingConverter, `
+  <h2>Enum casing &middot; a host-wide <code>JsonStringEnumConverter</code></h2>
+  <p>The <b>Enum casing</b> matrix on a host that registers <code>JsonStringEnumConverter</code> in its JSON options, as many apps (and the samples) do. The generated converter runs before it, so every value is read the same as without it.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryEnumValueBindsInAnyCasing"</code></p></div>`, 'enumCasing', { cases: REPORT?.enumCasing?.cases, name: 'Atc.Rest.MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
+renderCaseMatrix('enumCasingExtensible', 'enumcaseextensible', REPORT?.enumCasingExtensible, `
+  <h2>Enum casing &middot; <code>extensibleEnums: true</code></h2>
+  <p>The <b>Enum casing</b> matrix against a server marker with <code>"extensibleEnums": true</code>: each string enum is a <code>readonly record struct</code> that keeps any value. A listed value in another casing becomes the listed one, as on a strict server; a value no listed value is in one casing - <code>ACTIVE</code> - is kept as it was sent, with <code>IsKnown</code> false, instead of a 400.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryEnumValueBindsInAnyCasing"</code></p></div>`, 'enumCasing', { cases: REPORT?.enumCasing?.cases, name: 'Atc.Rest.MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
+
 // The twins from an OpenAPI 3.1 document: the case matrices (the error-body one is mounted with its matrix)
 for (const [key, tab, base, title, sameAs] of [
   ['bodyMedia31', 'media31', 'bodyMedia', 'Body media types', 'the <b>Body media types</b> tab'],
@@ -1406,9 +1456,9 @@ for (const [key, tab, base, title, sameAs] of [
 // The top of the Overview: the state of the run in one glance, a start for each reader, and what needs attention.
 // Everything here is computed from REPORT.summary (written by the test) and REPORT.ratchet.
 // ---------------------------------------------------------------------------------------------------------------
-const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', errorBodiesOff: 'Error bodies · filters switched off', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBindingOff: 'Request binding · filters switched off', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features', errorBodies31: 'Error bodies · OpenAPI 3.1', bodyMedia31: 'Body media types · OpenAPI 3.1', guard31: 'Security & rate limiting · OpenAPI 3.1', feature31: 'Features · OpenAPI 3.1' };
-const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', errorBodiesOff: 'matrixoff', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBindingOff: 'bindingoff', requestBinding31: 'binding31', guard: 'guard', feature: 'feature', errorBodies31: 'matrix31', bodyMedia31: 'media31', guard31: 'guard31', feature31: 'feature31' };
-const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', errorBodiesOff: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBindingOff: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix', errorBodies31: 'EndToEndMatrix', bodyMedia31: 'BodyMediaMatrix', guard31: 'SecurityAndRateLimit', feature31: 'FeatureMatrix' };
+const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', errorBodiesOff: 'Error bodies · filters switched off', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBindingOff: 'Request binding · filters switched off', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features', errorBodies31: 'Error bodies · OpenAPI 3.1', bodyMedia31: 'Body media types · OpenAPI 3.1', guard31: 'Security & rate limiting · OpenAPI 3.1', feature31: 'Features · OpenAPI 3.1', enumCasing: 'Enum casing', enumCasingPlain: 'Enum casing · MapEndpoints() host', enumCasingRdg: 'Enum casing · Request Delegate Generator', enumCasingConverter: 'Enum casing · host-wide JsonStringEnumConverter', enumCasingExtensible: 'Enum casing · extensibleEnums: true' };
+const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', errorBodiesOff: 'matrixoff', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBindingOff: 'bindingoff', requestBinding31: 'binding31', guard: 'guard', feature: 'feature', errorBodies31: 'matrix31', bodyMedia31: 'media31', guard31: 'guard31', feature31: 'feature31', enumCasing: 'enumcase', enumCasingPlain: 'enumcaseplain', enumCasingRdg: 'enumcaserdg', enumCasingConverter: 'enumcaseconverter', enumCasingExtensible: 'enumcaseextensible' };
+const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', errorBodiesOff: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBindingOff: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix', errorBodies31: 'EndToEndMatrix', bodyMedia31: 'BodyMediaMatrix', guard31: 'SecurityAndRateLimit', feature31: 'FeatureMatrix', enumCasing: 'EnumCasingMatrix', enumCasingPlain: 'EnumCasingMatrix', enumCasingRdg: 'EnumCasingMatrix', enumCasingConverter: 'EnumCasingMatrix', enumCasingExtensible: 'EnumCasingMatrix' };
 const MATRIX_TESTS = {
   errorBodies: 'EndToEnd_EveryClientReadsWhatTheServerWrites',
   errorBodiesPlain: 'EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost',
@@ -1424,6 +1474,11 @@ const MATRIX_TESTS = {
   bodyMedia31: 'EndToEnd_EveryClientReadsEveryBodyMediaType_WithAnOpenApi31Document',
   guard31: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays_WithAnOpenApi31Document',
   feature31: 'EndToEnd_EveryClientRunsEveryFeature_WithAnOpenApi31Document',
+  enumCasing: 'EndToEnd_EveryEnumValueBindsInAnyCasing',
+  enumCasingPlain: 'EndToEnd_EveryEnumValueBindsInAnyCasing',
+  enumCasingRdg: 'EndToEnd_EveryEnumValueBindsInAnyCasing',
+  enumCasingConverter: 'EndToEnd_EveryEnumValueBindsInAnyCasing',
+  enumCasingExtensible: 'EndToEnd_EveryEnumValueBindsInAnyCasing',
 };
 const REPORT_TEST = 'Report_EndToEndErrorBodyMatrix';
 const cmdFor = (test, explicit) => `dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*${test}"${explicit ? ' --explicit only' : ''}`;
@@ -1675,7 +1730,7 @@ document.addEventListener('click', (e) => {
 })();
 
 // Tabs. A matrix that runs against more than one host or document is one tab with a switch (its variants); each
-// variant has an address of its own (#matrixplain, #matrixoff, #bindingplain, #bindingoff, #binding31, #matrix31, #media31, #guard31, #feature31). The address names the tab and,
+// variant has an address of its own (#matrixplain, #matrixoff, #bindingplain, #bindingoff, #binding31, #matrix31, #media31, #guard31, #feature31, #enumcaseplain, …). The address names the tab and,
 // while a cell is open, the cell (#feature/<case>/<client>), so a link opens what its sender was looking at.
 const VARIANTS = {
   matrix: [['matrix', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['matrixplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['matrixoff', 'OpenAPI 3.0 · filters switched off'], ['matrix31', 'OpenAPI 3.1 document']],
@@ -1683,6 +1738,7 @@ const VARIANTS = {
   binding: [['binding', 'OpenAPI 3.0 · Atc.Rest.MinimalApi host'], ['bindingplain', 'OpenAPI 3.0 · MapEndpoints() host'], ['bindingoff', 'OpenAPI 3.0 · filters switched off'], ['binding31', 'OpenAPI 3.1 document']],
   guard: [['guard', 'OpenAPI 3.0 document'], ['guard31', 'OpenAPI 3.1 document']],
   feature: [['feature', 'OpenAPI 3.0 document'], ['feature31', 'OpenAPI 3.1 document']],
+  enumcase: [['enumcase', 'Atc.Rest.MinimalApi host'], ['enumcaseplain', 'MapEndpoints() host'], ['enumcaserdg', 'Request Delegate Generator'], ['enumcaseconverter', 'host-wide JsonStringEnumConverter'], ['enumcaseextensible', 'extensibleEnums: true']],
 };
 const PARENT = {};
 for (const [parent, list] of Object.entries(VARIANTS)) {

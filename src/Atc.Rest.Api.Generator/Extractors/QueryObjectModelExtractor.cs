@@ -172,7 +172,7 @@ public static class QueryObjectModelExtractor
             "Uri" => $"global::System.Uri.TryCreate(text, global::System.UriKind.RelativeOrAbsolute, out var {parsed})",
             _ when extensibleEnum => $"TryParseExtensible<{type}>(text, out var {parsed})",
             _ when ParsableTypes.Contains(simple) => $"{type}.TryParse(text, global::System.Globalization.CultureInfo.InvariantCulture, out var {parsed})",
-            _ => $"global::System.Enum.TryParse<{type}>(text, ignoreCase: true, out var {parsed})",
+            _ => $"global::System.Enum.TryParse<{type}>(text, ignoreCase: false, out var {parsed})",
         };
     }
 

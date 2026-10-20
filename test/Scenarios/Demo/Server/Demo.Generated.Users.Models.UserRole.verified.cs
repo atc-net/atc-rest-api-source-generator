@@ -12,7 +12,7 @@ namespace Demo.Generated.Users.Models;
 /// User's role in the system.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<UserRole>))]
+[JsonConverter(typeof(global::Demo.Generated.EnumWireConverterFactory))]
 public enum UserRole
 {
     Admin,

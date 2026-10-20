@@ -13,7 +13,7 @@ namespace SchemaSummaryFields.Generated.Models;
 /// Allowed values for a pet's adoption status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<PetStatus>))]
+[JsonConverter(typeof(global::SchemaSummaryFields.Generated.EnumWireConverterFactory))]
 public enum PetStatus
 {
     [EnumMember(Value = "available")]

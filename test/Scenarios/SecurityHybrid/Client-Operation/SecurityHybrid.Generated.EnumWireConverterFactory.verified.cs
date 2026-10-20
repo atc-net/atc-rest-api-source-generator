@@ -11,7 +11,8 @@ namespace SecurityHybrid.Generated;
 
 /// <summary>
 /// Reads and writes every generated enum as the specification writes it, whatever enum converter is
-/// registered after it: an integer enum as its number, a string enum as its values and never from a number.
+/// registered after it: an integer enum as its number, a string enum as its values - read in any casing
+/// only one value has - and never from a number.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class EnumWireConverterFactory : JsonConverterFactory

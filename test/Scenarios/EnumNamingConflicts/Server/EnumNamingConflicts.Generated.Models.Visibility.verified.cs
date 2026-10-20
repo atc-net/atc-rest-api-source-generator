@@ -12,7 +12,7 @@ namespace EnumNamingConflicts.Generated.Models;
 /// Enum with a value matching Object method names.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<Visibility>))]
+[JsonConverter(typeof(global::EnumNamingConflicts.Generated.EnumWireConverterFactory))]
 public enum Visibility
 {
     Public,

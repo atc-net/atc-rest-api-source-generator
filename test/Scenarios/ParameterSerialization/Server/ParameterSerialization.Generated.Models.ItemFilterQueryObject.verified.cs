@@ -46,7 +46,7 @@ public partial record ItemFilter
                     value1 = value1Parsed;
                     break;
                 case "status":
-                    if (!global::System.Enum.TryParse<ItemStatus>(text, ignoreCase: true, out var value2Parsed))
+                    if (!global::System.Enum.TryParse<ItemStatus>(text, ignoreCase: false, out var value2Parsed))
                     {
                         return false;
                     }

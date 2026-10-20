@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 namespace Demo.Generated.Users.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<ListUsersParametersRole>))]
+[JsonConverter(typeof(global::Demo.Generated.EnumWireConverterFactory))]
 public enum ListUsersParametersRole
 {
     Admin,

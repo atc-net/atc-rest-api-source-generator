@@ -66,22 +66,25 @@ public static class EnumExtractor
     /// <param name="stringOnTheWire">Whether a string enum carries its string converter even when no value needs
     /// <c>[EnumMember]</c> (the server: a host without a <c>JsonStringEnumConverter</c> would write the member's
     /// number; a converter the host registers still decides).</param>
-    /// <param name="memberNameEnumConverter">With <c>readEnumMemberNames</c>, the fully qualified
-    /// <c>EnumWireConverterFactory</c>: a string enum names it in its <c>[JsonConverter]</c>, so it is read by its member
-    /// name too in a host that builds its own JSON options; an extensible enum recognizes its member names.</param>
+    /// <param name="enumWireConverter">The fully qualified <c>EnumWireConverterFactory</c>: a string enum names it in
+    /// its <c>[JsonConverter]</c>, so it is read as the factory reads it (a value in any casing only one value has; with
+    /// <c>readEnumMemberNames</c> the member name too) also in a host that builds its own JSON options.</param>
+    /// <param name="readMemberNames">Whether a string enum is read by its member name too (<c>readEnumMemberNames</c>):
+    /// an extensible enum then recognizes its member names.</param>
     public static string GenerateEnumContent(
         EnumParameters parameters,
         bool extensible = false,
         bool stringOnTheWire = false,
-        string? memberNameEnumConverter = null)
+        string? enumWireConverter = null,
+        bool readMemberNames = false)
     {
         if (extensible && ExtensibleEnumContentGenerator.AppliesTo(parameters))
         {
-            return ExtensibleEnumContentGenerator.Generate(parameters, readMemberNames: memberNameEnumConverter is not null);
+            return ExtensibleEnumContentGenerator.Generate(parameters, readMemberNames);
         }
 
-        // Every string enum names the converter that also reads its member names
-        stringOnTheWire |= memberNameEnumConverter is not null;
+        // Every string enum names the converter that reads its values
+        stringOnTheWire |= enumWireConverter is not null;
 
         // An integer enum is its number on the wire: its own converter says so (a JsonStringEnumConverter the host or a
         // client registers would write the member's name; the generated EnumWireConverterFactory lets this one decide)
@@ -123,11 +126,11 @@ public static class EnumExtractor
                 "[JsonConverter(typeof(JsonStringEnumConverter))]",
                 $"[JsonConverter(typeof(JsonStringEnumConverter<{parameters.EnumTypeName}>))]");
 
-        return memberNameEnumConverter is null
+        return enumWireConverter is null
             ? content
             : content.Replace(
                 $"[JsonConverter(typeof(JsonStringEnumConverter<{parameters.EnumTypeName}>))]",
-                $"[JsonConverter(typeof({memberNameEnumConverter}))]");
+                $"[JsonConverter(typeof({enumWireConverter}))]");
     }
 
     /// <summary>

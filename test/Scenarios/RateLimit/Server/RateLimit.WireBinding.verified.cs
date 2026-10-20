@@ -24,11 +24,11 @@ namespace RateLimit.Generated;
 
 /// <summary>
 /// A parameter the wire-binding step reads: where it is (path, query, header, form), its wire name, whether a value
-/// parses (null: any text), the type a problem names, an enum's member names by wire value, and whether it is an
-/// array. Built from the parameter's type, without reflection.
+/// parses (null: any text), the type a problem names, an enum's member names by the values a request may send,
+/// and whether it is an array. Built from the parameter's type, without reflection.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false)
+public sealed record WireParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, EnumMembers? Members, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false)
 {
     /// <summary>
     /// Reads the value an object part of a multipart form carries from its text, with the app's JSON options
@@ -167,30 +167,105 @@ public sealed record WireParameter(string In, string Name, Func<string, bool>? P
         => new(@in, name, value => T.TryParse(value, CultureInfo.InvariantCulture, out _), typeof(T).Name, null, isArray);
 
     /// <summary>
-    /// An enum, by the wire value the specification writes or by its member name.
+    /// An enum, by the wire value the specification writes or by its member name - in any casing only one
+    /// member has.
     /// </summary>
     public static WireParameter EnumValue<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>(string @in, string name, bool isArray = false)
         where T : struct, Enum
     {
-        var members = MemberNames<T>();
-        return new(@in, name, value => members.ContainsKey(value) || (Enum.TryParse<T>(value, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed)), typeof(T).Name, members, isArray);
+        var members = EnumMembers.Of<T>();
+        return new(@in, name, value => members.TryGetValue(value, out _), typeof(T).Name, members, isArray);
     }
+}
 
-    // The wire values of an enum that differ from the member name, by wire value
-    private static Dictionary<string, string> MemberNames<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>()
-        where T : struct, Enum
+/// <summary>
+/// An enum's member names by the values a request may send: the value the specification writes, or the member
+/// name, as written - an exact match always wins - and failing that, in another casing when only one member has
+/// it (<c>OUTOFSTOCK</c> for <c>outOfStock</c>; <c>ACTIVE</c> names neither of <c>active</c> and <c>Active</c>).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class EnumMembers
+{
+    private readonly Dictionary<string, string> exact = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> ignoringCase = new(StringComparer.OrdinalIgnoreCase);
+
+    private EnumMembers(IReadOnlyList<(string Name, string WireValue)> members)
     {
-        var members = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
+        // The specification's values first: a member name another member's value is (Active for Active2's
+        // "Active") names that member
+        foreach (var (name, wireValue) in members)
         {
-            if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue &&
-                !string.Equals(wireValue, field.Name, StringComparison.Ordinal))
-            {
-                members[wireValue] = field.Name;
-            }
+            exact[wireValue] = name;
         }
 
-        return members;
+        foreach (var (name, _) in members)
+        {
+            exact.TryAdd(name, name);
+        }
+
+        foreach (var (name, wireValue) in members)
+        {
+            AddIgnoringCase(wireValue, name);
+            AddIgnoringCase(name, name);
+        }
+    }
+
+    /// <summary>
+    /// The number of values that name a member exactly.
+    /// </summary>
+    public int Count => exact.Count;
+
+    /// <summary>
+    /// The members of an enum: each by its name, and its wire value - from <c>[EnumMember]</c>, the number of an
+    /// integer enum (one its <c>JsonNumberEnumConverter</c> writes as a number), else the name.
+    /// </summary>
+    public static EnumMembers Of<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>()
+        where T : struct, Enum
+    {
+        var isInteger = typeof(T).GetCustomAttribute<System.Text.Json.Serialization.JsonConverterAttribute>()?.ConverterType is { IsGenericType: true } converter &&
+                        converter.GetGenericTypeDefinition() == typeof(System.Text.Json.Serialization.JsonNumberEnumConverter<>);
+        var members = new List<(string Name, string WireValue)>();
+        foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            var wireValue = field.GetCustomAttribute<EnumMemberAttribute>()?.Value ??
+                            (isInteger ? Convert.ToInt64(field.GetValue(null), CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture) : field.Name);
+            members.Add((field.Name, wireValue));
+        }
+
+        return new EnumMembers(members);
+    }
+
+    /// <summary>
+    /// The member name a value names, if it names one.
+    /// </summary>
+    public bool TryGetValue(string value, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string member)
+    {
+        if (exact.TryGetValue(value, out member))
+        {
+            return true;
+        }
+
+        if (ignoringCase.TryGetValue(value, out var named) && named is not null)
+        {
+            member = named;
+            return true;
+        }
+
+        member = null;
+        return false;
+    }
+
+    // A text two members share in another casing is no member's
+    private void AddIgnoringCase(string text, string name)
+    {
+        if (!ignoringCase.TryGetValue(text, out var current))
+        {
+            ignoringCase[text] = name;
+        }
+        else if (current is not null && !string.Equals(current, name, StringComparison.Ordinal))
+        {
+            ignoringCase[text] = null;
+        }
     }
 }
 
@@ -215,7 +290,7 @@ public static class WireBindingExtensions
 
     private const char ItemSeparator = '\u001F';
 
-    private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false, string? DefaultText = null);
+    private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, EnumMembers? Members, char? Delimiter, bool IsArray, IReadOnlyList<(WireParameter Property, bool Required)>? Properties = null, bool DeepObject = false, string? DefaultText = null);
 
     /// <summary>
     /// Adds the step for the parameters an endpoint binds (its <c>{Record}Wire.Parameters</c>); an array whose
@@ -371,7 +446,7 @@ public static class WireBindingExtensions
         return builder;
     }
 
-    private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray, Func<string, JsonSerializerOptions, object?>? ReadPart);
+    private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, EnumMembers? Members, bool IsArray, Func<string, JsonSerializerOptions, object?>? ReadPart);
 
     /// <summary>
     /// The value of a field the form step read from an object part - JSON, XML or URL-encoded (see
@@ -718,8 +793,9 @@ public static class WireBindingExtensions
                 continue;
             }
 
-            // An enum by its wire value: the member name the binder reads
-            if (parameter.Members is { Count: > 0 } members)
+            // An enum by its wire value: the member name the binder reads. A list's items stay as sent - its type
+            // reads each value itself, and a member name may be another member's value (Active, "active")
+            if (!parameter.IsArray && parameter.Members is { Count: > 0 } members)
             {
                 items = items.Select(item => members.TryGetValue(item, out var member) ? member : item).ToArray();
             }

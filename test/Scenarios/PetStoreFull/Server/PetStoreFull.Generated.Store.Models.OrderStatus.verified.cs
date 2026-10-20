@@ -13,7 +13,7 @@ namespace PetStoreFull.Generated.Store.Models;
 /// Order Status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<OrderStatus>))]
+[JsonConverter(typeof(global::PetStoreFull.Generated.EnumWireConverterFactory))]
 public enum OrderStatus
 {
     [EnumMember(Value = "placed")]

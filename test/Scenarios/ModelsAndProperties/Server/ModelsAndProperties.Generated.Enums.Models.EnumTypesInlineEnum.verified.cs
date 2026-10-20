@@ -12,7 +12,7 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// Inline enum definition.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<EnumTypesInlineEnum>))]
+[JsonConverter(typeof(global::ModelsAndProperties.Generated.EnumWireConverterFactory))]
 public enum EnumTypesInlineEnum
 {
     Option1,

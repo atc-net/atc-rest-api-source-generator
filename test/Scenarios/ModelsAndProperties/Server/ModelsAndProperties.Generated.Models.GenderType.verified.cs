@@ -12,7 +12,7 @@ namespace ModelsAndProperties.Generated.Models;
 /// Gender type enumeration.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<GenderType>))]
+[JsonConverter(typeof(global::ModelsAndProperties.Generated.EnumWireConverterFactory))]
 public enum GenderType
 {
     None,

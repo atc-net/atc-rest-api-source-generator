@@ -11,30 +11,31 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 /// <c>EnumWireConverterFactory</c> - is written from what was generated, after it.
 /// </para>
 /// <para>
-/// With <c>readEnumMemberNames</c> it names the <c>EnumWireConverterFactory</c> every string enum then names in its
-/// <c>[JsonConverter]</c> (<see cref="MemberNameEnumConverter"/>), so the enum is read by its member name too, also in
-/// a host that builds its own JSON options.
+/// It names the <c>EnumWireConverterFactory</c> every string enum names in its <c>[JsonConverter]</c>
+/// (<see cref="EnumWireConverter"/>), so the enum is read as the factory reads it - a value in any casing only one value
+/// has, and with <c>readEnumMemberNames</c> the member name too - also in a host that builds its own JSON options.
 /// </para>
 /// </summary>
 internal readonly struct GeneratedSourceContext(
     SourceProductionContext context,
     bool excludeFromCodeCoverage,
     bool suppressObsolete,
-    string? memberNameEnumConverter = null,
-    bool extensibleEnums = false)
+    string? enumWireConverter = null,
+    bool extensibleEnums = false,
+    bool readEnumMemberNames = false)
 {
     private readonly List<GeneratedEnumDeclaration> enums = [];
 
     /// <summary>
-    /// The fully qualified <c>EnumWireConverterFactory</c> a string enum names in its <c>[JsonConverter]</c> when the
-    /// marker sets <c>readEnumMemberNames</c>; <see langword="null"/> without it.
+    /// The fully qualified <c>EnumWireConverterFactory</c> a string enum names in its <c>[JsonConverter]</c>;
+    /// <see langword="null"/> for a project that writes no enums.
     /// </summary>
-    public string? MemberNameEnumConverter => memberNameEnumConverter;
+    public string? EnumWireConverter => enumWireConverter;
 
     /// <summary>
     /// Whether a string enum is also read by its member name (<c>readEnumMemberNames</c>).
     /// </summary>
-    public bool ReadEnumMemberNames => memberNameEnumConverter is not null;
+    public bool ReadEnumMemberNames => readEnumMemberNames;
 
     /// <summary>
     /// Whether a string enum is an extensible enum (the server marker's <c>extensibleEnums</c>; the clients pass it to

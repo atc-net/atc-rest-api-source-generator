@@ -47,13 +47,14 @@ public sealed class ParsableList<T> : List<T>, IParsable<ParsableList<T>>
 
 /// <summary>
 /// The same for a list of enum values: each value is read by its wire name (the value in the
-/// specification, kept on the member as [EnumMember]) or by its member name.
+/// specification, kept on the member as [EnumMember]) or by its member name - in any casing only one
+/// member has (see EnumMembers).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ParsableEnumList<T> : List<T>, IParsable<ParsableEnumList<T>>
+public sealed class ParsableEnumList<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)] T> : List<T>, IParsable<ParsableEnumList<T>>
     where T : struct, Enum
 {
-    private static readonly Dictionary<string, T> WireValues = BuildWireValues();
+    private static readonly EnumMembers Members = EnumMembers.Of<T>();
 
     /// <inheritdoc />
     public static ParsableEnumList<T> Parse(string s, IFormatProvider? provider)
@@ -76,22 +77,12 @@ public sealed class ParsableEnumList<T> : List<T>, IParsable<ParsableEnumList<T>
         return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
     }
 
+    // The member the item names; the wire-binding step has already put each item as its member name
     private static bool TryParseItem(string item, out T value)
-        => WireValues.TryGetValue(item, out value) ||
-           (Enum.TryParse(item, ignoreCase: true, out value) && Enum.IsDefined(value));
-
-    private static Dictionary<string, T> BuildWireValues()
     {
-        var values = new Dictionary<string, T>(StringComparer.Ordinal);
-        foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
-        {
-            if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue)
-            {
-                values[wireValue] = (T)field.GetValue(null)!;
-            }
-        }
-
-        return values;
+        value = default;
+        return Members.TryGetValue(item, out var member) &&
+               Enum.TryParse(member, ignoreCase: false, out value);
     }
 }
 

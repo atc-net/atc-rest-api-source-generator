@@ -1376,7 +1376,19 @@ public static class XmlModelMapperExtractor
         sb.AppendLine($"    private static {value.TypeName} Parse{suffix}(string raw)");
         sb.AppendLine("    {");
         sb.AppendLine("        var text = raw.Trim();");
+
+        // The value as written first; then in another casing, for a value no other value is in another casing
+        // (ACTIVE names neither of active and Active)
         foreach (var (member, wire) in members)
+        {
+            sb.AppendLine($"        if (string.Equals(text, {Literal(wire)}, global::System.StringComparison.Ordinal))");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            return {member};");
+            sb.AppendLine("        }");
+            sb.AppendLine();
+        }
+
+        foreach (var (member, wire) in members.Where(m => members.Count(o => string.Equals(o.Wire, m.Wire, StringComparison.OrdinalIgnoreCase)) == 1))
         {
             sb.AppendLine($"        if (string.Equals(text, {Literal(wire)}, global::System.StringComparison.OrdinalIgnoreCase))");
             sb.AppendLine("        {");

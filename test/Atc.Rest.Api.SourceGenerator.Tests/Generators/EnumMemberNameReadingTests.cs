@@ -4,7 +4,8 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <c>"readEnumMemberNames": true</c> in a server or client marker: a string enum is still written as the
 /// specification's value (<c>rtsp</c>), and is read by that value or by its C# member name (<c>Rtsp</c>, also in another
 /// casing when only one member matches). A client or server that writes the member name - as 2.x did for a value that
-/// is no member name - keeps working against one that writes the value. Without the key only the value is read.
+/// is no member name - keeps working against one that writes the value. Without the key only the value is read - in
+/// any casing only one value has, as with the key (<c>RTSP</c>), but never by a member name (<c>InProgress</c>).
 /// Both ways in: the converter the generated JSON options put first, and the enum's own <c>[JsonConverter]</c> (a host
 /// that builds its own options). Never from a number, a number as text or a list of names.
 /// </summary>
@@ -160,7 +161,7 @@ public sealed class EnumMemberNameReadingTests
 
     [Theory]
     [MemberData(nameof(SidesAndWaysIn))]
-    public void WithoutTheKey_OnlyTheValueIsRead(
+    public void WithoutTheKey_OnlyTheValueIsRead_InAnyCasing(
         string side,
         string wayIn)
     {
@@ -168,10 +169,13 @@ public sealed class EnumMemberNameReadingTests
         var assembly = Load(side, readEnumMemberNames: false);
         var options = OptionsFor(assembly, wayIn);
         var protocol = TypeOf(assembly, "Protocol");
+        var jobState = TypeOf(assembly, "JobState");
 
         // Act & Assert
         Assert.Equal("Rtsp", JsonSerializer.Deserialize("\"rtsp\"", protocol, options)!.ToString());
-        Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("\"Rtsp\"", protocol, options));
+        Assert.Equal("Rtsp", JsonSerializer.Deserialize("\"RTSP\"", protocol, options)!.ToString());
+        Assert.Equal("InProgress", JsonSerializer.Deserialize("\"IN-PROGRESS\"", jobState, options)!.ToString());
+        Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("\"InProgress\"", jobState, options));
     }
 
     // An extensible enum already takes a listed value in any casing; the key adds the member name of a value that

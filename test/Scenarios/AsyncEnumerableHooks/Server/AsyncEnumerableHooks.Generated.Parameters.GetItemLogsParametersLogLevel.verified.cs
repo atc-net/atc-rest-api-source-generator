@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace AsyncEnumerableHooks.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<GetItemLogsParametersLogLevel>))]
+[JsonConverter(typeof(global::AsyncEnumerableHooks.Generated.EnumWireConverterFactory))]
 public enum GetItemLogsParametersLogLevel
 {
     [EnumMember(Value = "debug")]

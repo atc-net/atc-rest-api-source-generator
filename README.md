@@ -33,7 +33,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🔄 **Resilience**                | Per-operation retry/circuit breaker from `x-retry-*`; POST/PATCH never resent unasked |
 |            | 📨 **Typed Response Headers**    | A declared response header is typed end to end - a parameter of the server's result factory, a property of the C# client's result, `headers` on the TypeScript result - enums, numbers, dates, arrays and `simple`-style objects |
 |            | 🔗 **URL Encoding**              | Automatic RFC 3986 compliant encoding - no more broken URLs                      |
-| **Models** | 🎯 **Enum Support**              | Strict C# enums on the server (or extensible, as an opt-in); **extensible enums** in the clients, so a value the server adds later is read instead of failing the response |
+| **Models** | 🎯 **Enum Support**              | Strict C# enums on the server (or extensible, as an opt-in), which read a listed value **in any casing** - `OUTOFSTOCK` is `outOfStock` in the path, query, a header, a cookie or any body; **extensible enums** in the clients, so a value the server adds later is read instead of failing the response |
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |
 | **Data**   | 📁 **Files**                     | Upload and download any file type (PDF, Excel, images) with its media type and file name; a response can be a model **or** a file |
 |            | 🧾 **XML**                       | XML bodies mapped by the `xml` keyword, negotiated by `Accept`; `application/problem+xml` on request |

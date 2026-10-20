@@ -272,7 +272,10 @@ public static class ExtensibleEnumContentGenerator
         sb.AppendLine("            return value;");
         sb.AppendLine("        }");
         sb.AppendLine();
-        foreach (var member in members)
+
+        // In another casing only a value no other value is in another casing: ACTIVE names neither of active and
+        // Active, and is kept as it was sent
+        foreach (var member in members.Where(m => members.Count(o => string.Equals(o.Literal, m.Literal, StringComparison.OrdinalIgnoreCase)) == 1))
         {
             sb.AppendLine($"        if (string.Equals(value, Names.{member.Name}, StringComparison.OrdinalIgnoreCase))");
             sb.AppendLine("        {");

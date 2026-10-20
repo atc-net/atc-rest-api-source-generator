@@ -164,6 +164,21 @@ public static class OrderXml
     private static OrderStatus ParseOrderStatus(string raw)
     {
         var text = raw.Trim();
+        if (string.Equals(text, "placed", global::System.StringComparison.Ordinal))
+        {
+            return OrderStatus.Placed;
+        }
+
+        if (string.Equals(text, "approved", global::System.StringComparison.Ordinal))
+        {
+            return OrderStatus.Approved;
+        }
+
+        if (string.Equals(text, "delivered", global::System.StringComparison.Ordinal))
+        {
+            return OrderStatus.Delivered;
+        }
+
         if (string.Equals(text, "placed", global::System.StringComparison.OrdinalIgnoreCase))
         {
             return OrderStatus.Placed;

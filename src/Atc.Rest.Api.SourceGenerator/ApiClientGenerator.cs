@@ -308,7 +308,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             context,
             config.ExcludeFromCodeCoverage,
             DeprecationDetector.HasDeprecatedMembers(openApiDoc),
-            config.ReadEnumMemberNames ? $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}" : null);
+            $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}",
+            readEnumMemberNames: config.ReadEnumMemberNames);
         if (config.ReadEnumMemberNames)
         {
             DiagnosticHelpers.ReportReadEnumMemberNamesOn(context, ".atc-rest-api-client");
@@ -763,7 +764,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate inline enum files first (before records that use them)
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -844,7 +845,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate each enum as a separate file
         foreach (var enumParams in enumParametersList)
         {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, extensibleEnums, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, extensibleEnums, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
 
             // File name mirrors the namespace the enum is emitted into
             var fileName = NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName);
@@ -2549,7 +2550,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // The inline enums first: the parameter records reference them
         foreach (var inlineEnum in parameterInlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));

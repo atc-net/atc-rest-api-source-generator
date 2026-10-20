@@ -6,8 +6,8 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// Atc.Rest.Client) registers. System.Text.Json takes a converter in the options before the one a type names, so a
 /// host-wide <c>JsonStringEnumConverter</c> would otherwise write an integer enum's member name and read a string
 /// enum from any integer. An integer enum is read and written by the <c>JsonNumberEnumConverter&lt;T&gt;</c> its
-/// <c>[JsonConverter]</c> names; a string enum by its member names (<c>[JsonStringEnumMemberName]</c>), never from a
-/// number.
+/// <c>[JsonConverter]</c> names; a string enum by its values (<c>[JsonStringEnumMemberName]</c>), never from a
+/// number - read in any casing only one value has (<see cref="ReadingClassName"/>).
 /// </summary>
 public static class EnumWireConverterExtractor
 {
@@ -17,9 +17,10 @@ public static class EnumWireConverterExtractor
     public const string ClassName = "EnumWireConverterFactory";
 
     /// <summary>
-    /// The class name of the converter that also reads a string enum by its member name (<c>readEnumMemberNames</c>).
+    /// The class name of the converter a string enum is read with: by its value, in any casing only one value has,
+    /// and with <c>readEnumMemberNames</c> by its member name too.
     /// </summary>
-    public const string MemberNameClassName = "EnumMemberNameReadingConverter";
+    public const string ReadingClassName = "EnumValueReadingConverter";
 
     /// <summary>
     /// The source of the factory, in the given namespace, for the enums the project generates: each with its generic
@@ -28,7 +29,7 @@ public static class EnumWireConverterExtractor
     /// <param name="namespaceName">The namespace of the generated file.</param>
     /// <param name="enums">The generated enums.</param>
     /// <param name="readMemberNames">Whether a string enum is also read by its C# member name (the marker's
-    /// <c>readEnumMemberNames</c>): the factory then wraps its string converter in <c>EnumMemberNameReadingConverter</c>.</param>
+    /// <c>readEnumMemberNames</c>).</param>
     /// <returns>The file content.</returns>
     public static string Generate(
         string namespaceName,
@@ -55,9 +56,9 @@ public static class EnumWireConverterExtractor
             var converter = e.IsInteger
                 ? $"new JsonNumberEnumConverter<{e.FullName}>()"
                 : $"new JsonStringEnumConverter<{e.FullName}>(namingPolicy: null, allowIntegerValues: false)";
-            var created = !e.IsInteger && readMemberNames
-                ? $"new {MemberNameClassName}<{e.FullName}>((JsonConverter<{e.FullName}>){converter}.CreateConverter(typeToConvert, options)!, options)"
-                : $"{converter}.CreateConverter(typeToConvert, options)";
+            var created = e.IsInteger
+                ? $"{converter}.CreateConverter(typeToConvert, options)"
+                : $"new {ReadingClassName}<{e.FullName}>((JsonConverter<{e.FullName}>){converter}.CreateConverter(typeToConvert, options)!, options, readMemberNames: {(readMemberNames ? "true" : "false")})";
             createConverter
                 .AppendLine($"        if (typeToConvert == typeof({e.FullName}))")
                 .AppendLine("        {")
@@ -77,7 +78,8 @@ public static class EnumWireConverterExtractor
 
                  /// <summary>
                  /// Reads and writes every generated enum as the specification writes it, whatever enum converter is
-                 /// registered after it: an integer enum as its number, a string enum as its values and never from a number.
+                 /// registered after it: an integer enum as its number, a string enum as its values - read in any casing
+                 /// only one value has - and never from a number.
                  /// </summary>
                  [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
                  public sealed class {{ClassName}} : JsonConverterFactory
@@ -95,7 +97,7 @@ public static class EnumWireConverterExtractor
 
                          return null;
                      }
-                 }{{(readMemberNames ? Environment.NewLine + Environment.NewLine + MemberNameConverter() : string.Empty)}}
+                 }{{(distinct.Exists(e => !e.IsInteger) ? Environment.NewLine + Environment.NewLine + ReadingConverter() : string.Empty)}}
                  """;
     }
 
@@ -111,46 +113,65 @@ public static class EnumWireConverterExtractor
             schema => schema.Enum is { Count: > 0 } values &&
                       values.Any(v => v is not null && !JsonNullSentinel.IsJsonNullSentinel(v)));
 
-    // Reads the specification's value first, then the member name, then the member name in another casing when only one
-    // member has it; writes the value. Its tables come from the enum's own values and from writing each value once, so
-    // nothing is found through reflection and a number, a number as text or a list of names is never read.
-    private static string MemberNameConverter()
+    // Reads the specification's value as written first, then (readEnumMemberNames) the member name; then either in
+    // another casing when only one member has it; writes the value. Its tables come from the enum's own values and from
+    // writing each value once, so nothing is found through reflection and a number, a number as text or a list of names
+    // is never read.
+    private static string ReadingConverter()
         => $$"""
              /// <summary>
-             /// Reads a string enum by the value in the specification and, failing that, by its member name - in another
-             /// casing when only one member has it (<c>readEnumMemberNames</c>: a client or server that writes member
-             /// names keeps working). Writes the value.
+             /// Reads a string enum by the value in the specification - as written, or in another casing only one value
+             /// has (<c>OUTOFSTOCK</c> for <c>outOfStock</c>; <c>ACTIVE</c> names neither of <c>active</c> and
+             /// <c>Active</c>) - and with <c>readEnumMemberNames</c> by its member name too, so a client or server that
+             /// writes member names keeps working. Writes the value.
              /// </summary>
              /// <typeparam name="T">The enum.</typeparam>
              [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-             public sealed class {{MemberNameClassName}}<T> : JsonConverter<T>
+             public sealed class {{ReadingClassName}}<T> : JsonConverter<T>
                  where T : struct, Enum
              {
                  private readonly JsonConverter<T> wire;
-                 private readonly System.Collections.Generic.Dictionary<string, T> byValue = new(StringComparer.Ordinal);
-                 private readonly System.Collections.Generic.Dictionary<string, T> byName = new(StringComparer.Ordinal);
-                 private readonly System.Collections.Generic.Dictionary<string, T?> byNameIgnoringCase = new(StringComparer.OrdinalIgnoreCase);
+                 private readonly System.Collections.Generic.Dictionary<string, T> exact = new(StringComparer.Ordinal);
+                 private readonly System.Collections.Generic.Dictionary<string, T?> ignoringCase = new(StringComparer.OrdinalIgnoreCase);
 
                  /// <summary>
-                 /// Initializes a new instance of the <see cref="{{MemberNameClassName}}{T}"/> class.
+                 /// Initializes a new instance of the <see cref="{{ReadingClassName}}{T}"/> class.
                  /// </summary>
                  /// <param name="wire">The converter of the values in the specification.</param>
                  /// <param name="options">The options the values are written with.</param>
-                 public {{MemberNameClassName}}(
+                 /// <param name="readMemberNames">Whether a value is read by its member name too.</param>
+                 public {{ReadingClassName}}(
                      JsonConverter<T> wire,
-                     JsonSerializerOptions options)
+                     JsonSerializerOptions options,
+                     bool readMemberNames)
                  {
                      this.wire = wire ?? throw new ArgumentNullException(nameof(wire));
 
                      var names = Enum.GetNames<T>();
                      var values = Enum.GetValues<T>();
+                     var texts = new System.Collections.Generic.List<(string Text, T Value)>();
                      for (var i = 0; i < values.Length; i++)
                      {
-                         byValue[ValueOf(values[i], options)] = values[i];
-                         byName[names[i]] = values[i];
+                         texts.Add((ValueOf(values[i], options), values[i]));
+                     }
 
-                         // A name two members share in another casing (FOO, Foo) is no member's
-                         byNameIgnoringCase[names[i]] = byNameIgnoringCase.ContainsKey(names[i]) ? null : values[i];
+                     if (readMemberNames)
+                     {
+                         for (var i = 0; i < values.Length; i++)
+                         {
+                             texts.Add((names[i], values[i]));
+                         }
+                     }
+
+                     // The values before the member names: a name another member's value is names that member
+                     foreach (var (text, value) in texts)
+                     {
+                         exact.TryAdd(text, value);
+
+                         // A text two members share in another casing is no member's
+                         ignoringCase[text] = ignoringCase.TryGetValue(text, out var other) && (other is null || !other.Value.Equals(value))
+                             ? null
+                             : value;
                      }
                  }
 
@@ -185,10 +206,9 @@ public static class EnumWireConverterExtractor
                      => wire.WriteAsPropertyName(writer, value, options);
 
                  private T Find(string text)
-                     => byValue.TryGetValue(text, out var value) ||
-                        byName.TryGetValue(text, out value)
+                     => exact.TryGetValue(text, out var value)
                          ? value
-                         : byNameIgnoringCase.TryGetValue(text, out var named) && named is { } member
+                         : ignoringCase.TryGetValue(text, out var named) && named is { } member
                              ? member
                              : throw new JsonException($"'{text}' is no value of {typeof(T).Name}.");
 

@@ -486,8 +486,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             context,
             config.ExcludeFromCodeCoverage,
             DeprecationDetector.HasDeprecatedMembers(openApiDoc),
-            config.ReadEnumMemberNames ? $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}" : null,
-            config.ExtensibleEnums);
+            $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}",
+            config.ExtensibleEnums,
+            config.ReadEnumMemberNames);
         if (config.ReadEnumMemberNames)
         {
             DiagnosticHelpers.ReportReadEnumMemberNamesOn(context, ".atc-rest-api-server");
@@ -911,7 +912,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate inline enum files first (before records that use them)
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -1065,7 +1066,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate each enum as a separate file
         foreach (var enumParams in enumParametersList)
         {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
 
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName),
@@ -1524,7 +1525,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Emit inline enum files first so the parameter record's type references resolve.
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(parametersNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -1599,7 +1600,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             if (InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, typeName, resultsNamespace) is { } enumParameters)
             {
-                var enumContent = InlineEnumExtractor.GenerateEnumContent(enumParameters, context.ExtensibleEnums, stringOnTheWire: true, memberNameEnumConverter: context.MemberNameEnumConverter);
+                var enumContent = InlineEnumExtractor.GenerateEnumContent(enumParameters, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(resultsNamespace, typeName),
                     SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -2152,13 +2153,14 @@ public class ApiServerGenerator : IIncrementalGenerator
 
             /// <summary>
             /// The same for a list of enum values: each value is read by its wire name (the value in the
-            /// specification, kept on the member as [EnumMember]) or by its member name.
+            /// specification, kept on the member as [EnumMember]) or by its member name - in any casing only one
+            /// member has (see EnumMembers).
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            public sealed class ParsableEnumList<T> : List<T>, IParsable<ParsableEnumList<T>>
+            public sealed class ParsableEnumList<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)] T> : List<T>, IParsable<ParsableEnumList<T>>
                 where T : struct, Enum
             {
-                private static readonly Dictionary<string, T> WireValues = BuildWireValues();
+                private static readonly EnumMembers Members = EnumMembers.Of<T>();
 
                 /// <inheritdoc />
                 public static ParsableEnumList<T> Parse(string s, IFormatProvider? provider)
@@ -2181,22 +2183,12 @@ public class ApiServerGenerator : IIncrementalGenerator
                     return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
                 }
 
+                // The member the item names; the wire-binding step has already put each item as its member name
                 private static bool TryParseItem(string item, out T value)
-                    => WireValues.TryGetValue(item, out value) ||
-                       (Enum.TryParse(item, ignoreCase: true, out value) && Enum.IsDefined(value));
-
-                private static Dictionary<string, T> BuildWireValues()
                 {
-                    var values = new Dictionary<string, T>(StringComparer.Ordinal);
-                    foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
-                    {
-                        if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue)
-                        {
-                            values[wireValue] = (T)field.GetValue(null)!;
-                        }
-                    }
-
-                    return values;
+                    value = default;
+                    return Members.TryGetValue(item, out var member) &&
+                           Enum.TryParse(member, ignoreCase: false, out value);
                 }
             }
 

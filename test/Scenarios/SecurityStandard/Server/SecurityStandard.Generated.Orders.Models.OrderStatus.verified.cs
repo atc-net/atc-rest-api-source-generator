@@ -13,7 +13,7 @@ namespace SecurityStandard.Generated.Orders.Models;
 /// Order status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<OrderStatus>))]
+[JsonConverter(typeof(global::SecurityStandard.Generated.EnumWireConverterFactory))]
 public enum OrderStatus
 {
     [EnumMember(Value = "pending")]

@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace ParameterSerialization.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<ItemStatus>))]
+[JsonConverter(typeof(global::ParameterSerialization.Generated.EnumWireConverterFactory))]
 public enum ItemStatus
 {
     [EnumMember(Value = "in-stock")]

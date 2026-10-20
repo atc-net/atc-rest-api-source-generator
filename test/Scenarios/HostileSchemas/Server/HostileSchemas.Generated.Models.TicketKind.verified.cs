@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace HostileSchemas.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<TicketKind>))]
+[JsonConverter(typeof(global::HostileSchemas.Generated.EnumWireConverterFactory))]
 public enum TicketKind
 {
     [EnumMember(Value = "bug")]

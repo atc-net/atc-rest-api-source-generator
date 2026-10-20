@@ -110,6 +110,13 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["bodyMedia31"] = await CollectBodyMediaMatrixAsync(openApi31: true);
         matrix["guard31"] = await CollectGuardMatrixAsync(openApi31: true);
         matrix["feature31"] = await CollectFeatureMatrixAsync(openApi31: true);
+
+        // An enum value in any casing, on each kind of host
+        foreach (var (key, _) in EnumCasingHosts)
+        {
+            matrix[key] = await CollectEnumCasingMatrixAsync(key);
+        }
+
         matrix["notExercised"] = new JsonObject
         {
             ["errorBodies"] = new JsonArray([.. EndToEndNotExercised.Select(s => (JsonNode)s)]),
@@ -117,6 +124,7 @@ public partial class ErrorResponseBodyRuntimeTests
             ["requestBinding"] = new JsonArray([.. RequestBindingNotExercised.Select(s => (JsonNode)s)]),
             ["guard"] = new JsonArray([.. GuardNotExercised.Select(s => (JsonNode)s)]),
             ["feature"] = new JsonArray([.. FeatureNotExercised.Select(s => (JsonNode)s)]),
+            ["enumCasing"] = new JsonArray([.. EnumCasingNotExercised.Select(s => (JsonNode)s)]),
         };
 
         var root = FindRepositoryRoot();
@@ -484,7 +492,8 @@ public partial class ErrorResponseBodyRuntimeTests
     /// fail on the page is either known (listed here, with the reason the matrix records) or a regression.
     /// </summary>
     private static JsonObject Ratchets()
-        => new()
+    {
+        var ratchets = new JsonObject
         {
             // The error-body and body-media matrices allow no failing cell at all (their tests assert none), so their
             // ratchet is empty by construction; the others list the cells their tests expect to fail
@@ -506,6 +515,14 @@ public partial class ErrorResponseBodyRuntimeTests
             ["feature31"] = new JsonArray([.. KnownFeatureFailures.Keys.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
         };
 
+        foreach (var (key, _) in EnumCasingHosts)
+        {
+            ratchets[key] = new JsonArray([.. (KnownEnumCasingFailures.GetValueOrDefault(key)?.Keys.AsEnumerable() ?? []).Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]);
+        }
+
+        return ratchets;
+    }
+
     /// <summary>
     /// Why each ratcheted cell is expected to fail, per matrix: <c>case [client]</c> to the reason its
     /// <c>Known…Failures</c> entry records.
@@ -521,7 +538,8 @@ public partial class ErrorResponseBodyRuntimeTests
             ("guard", KnownGuardFailures),
             ("feature", KnownFeatureFailures),
             ("guard31", KnownGuardFailures),
-            ("feature31", KnownFeatureFailures)])
+            ("feature31", KnownFeatureFailures),
+            .. EnumCasingHosts.Select(h => (h.Key, KnownEnumCasingFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal)))])
         {
             reasons[key] = new JsonObject(known.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => KeyValuePair.Create(k.Key, (JsonNode?)k.Value)));
         }
@@ -574,7 +592,7 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject matrix)
     {
         yield return ("errorBodies", matrix["cases"]!.AsArray().Select(c => c!.AsObject()));
-        foreach (var key in (string[])["errorBodiesPlain", "errorBodiesOff", "errorBodies31", "bodyMedia", "bodyMedia31", "requestBinding", "requestBindingPlain", "requestBindingOff", "requestBinding31", "guard", "guard31", "feature", "feature31"])
+        foreach (var key in (string[])["errorBodiesPlain", "errorBodiesOff", "errorBodies31", "bodyMedia", "bodyMedia31", "requestBinding", "requestBindingPlain", "requestBindingOff", "requestBinding31", "guard", "guard31", "feature", "feature31", .. EnumCasingHosts.Select(h => h.Key)])
         {
             if (matrix[key]?["cases"] is JsonArray cases)
             {

@@ -2,6 +2,9 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System;
 using System.CodeDom.Compiler;
 using System.Text.Json;
@@ -11,7 +14,8 @@ namespace AsyncEnumerableHooks.Generated;
 
 /// <summary>
 /// Reads and writes every generated enum as the specification writes it, whatever enum converter is
-/// registered after it: an integer enum as its number, a string enum as its values and never from a number.
+/// registered after it: an integer enum as its number, a string enum as its values - read in any casing
+/// only one value has - and never from a number.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class EnumWireConverterFactory : JsonConverterFactory
@@ -27,9 +31,118 @@ public sealed class EnumWireConverterFactory : JsonConverterFactory
     {
         if (typeToConvert == typeof(global::AsyncEnumerableHooks.Generated.Models.GetItemLogsParametersLogLevel))
         {
-            return new JsonStringEnumConverter<global::AsyncEnumerableHooks.Generated.Models.GetItemLogsParametersLogLevel>(namingPolicy: null, allowIntegerValues: false).CreateConverter(typeToConvert, options);
+            return new EnumValueReadingConverter<global::AsyncEnumerableHooks.Generated.Models.GetItemLogsParametersLogLevel>((JsonConverter<global::AsyncEnumerableHooks.Generated.Models.GetItemLogsParametersLogLevel>)new JsonStringEnumConverter<global::AsyncEnumerableHooks.Generated.Models.GetItemLogsParametersLogLevel>(namingPolicy: null, allowIntegerValues: false).CreateConverter(typeToConvert, options)!, options, readMemberNames: false);
         }
 
         return null;
+    }
+}
+
+/// <summary>
+/// Reads a string enum by the value in the specification - as written, or in another casing only one value
+/// has (<c>OUTOFSTOCK</c> for <c>outOfStock</c>; <c>ACTIVE</c> names neither of <c>active</c> and
+/// <c>Active</c>) - and with <c>readEnumMemberNames</c> by its member name too, so a client or server that
+/// writes member names keeps working. Writes the value.
+/// </summary>
+/// <typeparam name="T">The enum.</typeparam>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class EnumValueReadingConverter<T> : JsonConverter<T>
+    where T : struct, Enum
+{
+    private readonly JsonConverter<T> wire;
+    private readonly System.Collections.Generic.Dictionary<string, T> exact = new(StringComparer.Ordinal);
+    private readonly System.Collections.Generic.Dictionary<string, T?> ignoringCase = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EnumValueReadingConverter{T}"/> class.
+    /// </summary>
+    /// <param name="wire">The converter of the values in the specification.</param>
+    /// <param name="options">The options the values are written with.</param>
+    /// <param name="readMemberNames">Whether a value is read by its member name too.</param>
+    public EnumValueReadingConverter(
+        JsonConverter<T> wire,
+        JsonSerializerOptions options,
+        bool readMemberNames)
+    {
+        this.wire = wire ?? throw new ArgumentNullException(nameof(wire));
+
+        var names = Enum.GetNames<T>();
+        var values = Enum.GetValues<T>();
+        var texts = new System.Collections.Generic.List<(string Text, T Value)>();
+        for (var i = 0; i < values.Length; i++)
+        {
+            texts.Add((ValueOf(values[i], options), values[i]));
+        }
+
+        if (readMemberNames)
+        {
+            for (var i = 0; i < values.Length; i++)
+            {
+                texts.Add((names[i], values[i]));
+            }
+        }
+
+        // The values before the member names: a name another member's value is names that member
+        foreach (var (text, value) in texts)
+        {
+            exact.TryAdd(text, value);
+
+            // A text two members share in another casing is no member's
+            ignoringCase[text] = ignoringCase.TryGetValue(text, out var other) && (other is null || !other.Value.Equals(value))
+                ? null
+                : value;
+        }
+    }
+
+    /// <inheritdoc />
+    public override T Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options)
+        => reader.TokenType == JsonTokenType.String
+            ? Find(reader.GetString()!)
+            : wire.Read(ref reader, typeToConvert, options);
+
+    /// <inheritdoc />
+    public override void Write(
+        Utf8JsonWriter writer,
+        T value,
+        JsonSerializerOptions options)
+        => wire.Write(writer, value, options);
+
+    /// <inheritdoc />
+    public override T ReadAsPropertyName(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options)
+        => Find(reader.GetString()!);
+
+    /// <inheritdoc />
+    public override void WriteAsPropertyName(
+        Utf8JsonWriter writer,
+        T value,
+        JsonSerializerOptions options)
+        => wire.WriteAsPropertyName(writer, value, options);
+
+    private T Find(string text)
+        => exact.TryGetValue(text, out var value)
+            ? value
+            : ignoringCase.TryGetValue(text, out var named) && named is { } member
+                ? member
+                : throw new JsonException($"'{text}' is no value of {typeof(T).Name}.");
+
+    private string ValueOf(
+        T value,
+        JsonSerializerOptions options)
+    {
+        using var buffer = new System.IO.MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            wire.Write(writer, value, options);
+        }
+
+        var reader = new Utf8JsonReader(buffer.ToArray());
+        reader.Read();
+        return reader.GetString()!;
     }
 }

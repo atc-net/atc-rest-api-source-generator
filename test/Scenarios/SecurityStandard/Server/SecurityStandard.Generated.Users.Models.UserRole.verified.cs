@@ -13,7 +13,7 @@ namespace SecurityStandard.Generated.Users.Models;
 /// User role.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<UserRole>))]
+[JsonConverter(typeof(global::SecurityStandard.Generated.EnumWireConverterFactory))]
 public enum UserRole
 {
     [EnumMember(Value = "user")]

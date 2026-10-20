@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace PetStoreFull.Generated.Pet.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<FindPetsByStatusParametersStatus>))]
+[JsonConverter(typeof(global::PetStoreFull.Generated.EnumWireConverterFactory))]
 public enum FindPetsByStatusParametersStatus
 {
     [EnumMember(Value = "available")]

@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace SecurityHybrid.Generated.Orders.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<OrderStatus>))]
+[JsonConverter(typeof(global::SecurityHybrid.Generated.EnumWireConverterFactory))]
 public enum OrderStatus
 {
     [EnumMember(Value = "pending")]

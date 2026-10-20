@@ -13,7 +13,7 @@ namespace HostileSchemas.Generated.Models;
 /// An enum without a type - the values say it is a string enum.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<Status>))]
+[JsonConverter(typeof(global::HostileSchemas.Generated.EnumWireConverterFactory))]
 public enum Status
 {
     [EnumMember(Value = "active")]

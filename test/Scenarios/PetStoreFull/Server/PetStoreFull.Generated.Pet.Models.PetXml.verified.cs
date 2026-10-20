@@ -174,6 +174,21 @@ public static class PetXml
     private static PetStatus ParsePetStatus(string raw)
     {
         var text = raw.Trim();
+        if (string.Equals(text, "available", global::System.StringComparison.Ordinal))
+        {
+            return PetStatus.Available;
+        }
+
+        if (string.Equals(text, "pending", global::System.StringComparison.Ordinal))
+        {
+            return PetStatus.Pending;
+        }
+
+        if (string.Equals(text, "sold", global::System.StringComparison.Ordinal))
+        {
+            return PetStatus.Sold;
+        }
+
         if (string.Equals(text, "available", global::System.StringComparison.OrdinalIgnoreCase))
         {
             return PetStatus.Available;

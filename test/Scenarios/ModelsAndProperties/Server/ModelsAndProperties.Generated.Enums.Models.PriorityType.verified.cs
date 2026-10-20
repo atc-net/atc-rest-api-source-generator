@@ -13,7 +13,7 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// Priority enumeration with snake_case values.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<PriorityType>))]
+[JsonConverter(typeof(global::ModelsAndProperties.Generated.EnumWireConverterFactory))]
 public enum PriorityType
 {
     [EnumMember(Value = "very_low")]

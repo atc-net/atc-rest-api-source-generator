@@ -12,7 +12,7 @@ namespace ModelsAndProperties.Generated.Models;
 /// User role enumeration.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<RoleType>))]
+[JsonConverter(typeof(global::ModelsAndProperties.Generated.EnumWireConverterFactory))]
 public enum RoleType
 {
     Admin,

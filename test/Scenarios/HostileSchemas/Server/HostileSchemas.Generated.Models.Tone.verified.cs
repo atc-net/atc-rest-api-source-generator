@@ -13,7 +13,7 @@ namespace HostileSchemas.Generated.Models;
 /// A nullable string enum with a null member.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<Tone>))]
+[JsonConverter(typeof(global::HostileSchemas.Generated.EnumWireConverterFactory))]
 public enum Tone
 {
     [EnumMember(Value = "warm")]

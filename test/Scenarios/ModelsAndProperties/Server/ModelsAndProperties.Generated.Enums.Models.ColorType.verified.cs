@@ -13,7 +13,7 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// Color enumeration with kebab-case values.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter<ColorType>))]
+[JsonConverter(typeof(global::ModelsAndProperties.Generated.EnumWireConverterFactory))]
 public enum ColorType
 {
     [EnumMember(Value = "primary-blue")]
