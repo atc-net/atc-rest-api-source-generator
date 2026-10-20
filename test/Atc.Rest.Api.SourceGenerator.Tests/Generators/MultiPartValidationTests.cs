@@ -76,6 +76,32 @@ public sealed class MultiPartValidationTests : IDisposable
         Assert.Empty(multiPart);
     }
 
+    /// <summary>
+    /// The marker's <c>suppressRules</c> switch a rule off for a multi-part specification too - the handlers generator
+    /// reported every rule of a merged one.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Generators))]
+    public void MultiPartSpec_WithSuppressedRules_ReportsNone(
+        string generatorName,
+        string markerFileName)
+    {
+        var reported = ValidationIds(
+            Run(generatorName, markerFileName, """{ "validateSpecificationStrategy": "Strict" }""", ("Test.yaml", Header + "\n" + Paths)));
+        var suppressed = string.Join(", ", reported.Select(id => $"\"{id}\""));
+
+        var multiPart = ValidationIds(
+            Run(
+                generatorName,
+                markerFileName,
+                $$"""{ "validateSpecificationStrategy": "Strict", "suppressRules": [{{suppressed}}] }""",
+                ("Test.yaml", Header + "\npaths: {}"),
+                ("Test_Pets.yaml", "openapi: 3.0.0\n" + Paths)));
+
+        Assert.NotEmpty(reported);
+        Assert.Empty(multiPart);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(markerDirectory))

@@ -187,6 +187,9 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 return;
             }
 
+            // As the client generator reads it
+            SpecificationLoader.Normalize(openApiDoc);
+
             // Discover endpoints from OpenAPI spec, in the namespaces the client generator declares them in: the
             // attribute names the specification file, the root namespace follows the client's rule
             var endpoints = EndpointInjectionExtractor.DiscoverEndpointsFromOpenApi(

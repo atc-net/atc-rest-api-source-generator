@@ -176,26 +176,18 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
                 if (partFiles.Count > 0)
                 {
-                    // Multi-part mode: merge all files (and apply the overlays) before generating scaffolds
-                    var merged = SpecificationLoader.Merge(productionContext, baseFile.Value, partFiles, MultiPartConfiguration.Default, overlays);
-                    if (merged is null)
-                    {
-                        return;
-                    }
-
-                    // Validate the merged document according to the configured strategy, like a single file
-                    var validationDiagnostics = SpecificationLoader.WithUnbindableParametersAsErrors(OpenApiDocumentValidator.Validate(
+                    // Multi-part mode: merge all files (and apply the overlays), then validate and normalize the result
+                    // like a single file
+                    var merged = SpecificationLoader.MergeAndValidate(
+                        productionContext,
+                        baseFile.Value,
+                        partFiles,
+                        MultiPartConfiguration.Default,
                         config.ValidateSpecificationStrategy,
-                        merged,
-                        Array.Empty<OpenApiError>(),
-                        baseFile.Value.Path));
-
-                    foreach (var diagnostic in validationDiagnostics)
-                    {
-                        productionContext.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-                    }
-
-                    if (DiagnosticHelpers.HasErrors(validationDiagnostics))
+                        overlays,
+                        parametersMustBind: true,
+                        config.SuppressRules);
+                    if (merged is null)
                     {
                         return;
                     }

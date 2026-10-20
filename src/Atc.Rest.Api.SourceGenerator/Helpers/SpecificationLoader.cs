@@ -76,6 +76,18 @@ internal static class SpecificationLoader
     }
 
     /// <summary>
+    /// The document as every generator reads it, for a generator that does not validate it: canonical media types, a
+    /// status range (2XX) as its first status, and no content on a HEAD's responses.
+    /// </summary>
+    /// <param name="document">The document, normalized in place.</param>
+    /// <returns>The document.</returns>
+    public static OpenApiDocument Normalize(OpenApiDocument document)
+    {
+        MediaTypeNormalizer.WithCanonicalMediaTypes(document);
+        return HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(document));
+    }
+
+    /// <summary>
     /// The texts of a specification of several files, the base file first (see <see cref="SpecLocations"/>).
     /// </summary>
     /// <param name="baseFile">The base file.</param>
