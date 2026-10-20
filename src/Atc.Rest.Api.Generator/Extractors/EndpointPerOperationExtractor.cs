@@ -2050,107 +2050,29 @@ public static class EndpointPerOperationExtractor
         string? context,
         Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         bool isAsyncEnumerable)
-    {
-        if (schema is null)
-        {
-            return "object";
-        }
-
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refId = schemaRef.Reference.Id;
-
-            if (string.IsNullOrEmpty(refId))
+        => ClientSchemaTypeResolver.Resolve(
+            schema,
+            openApiDoc,
+            registry,
+            collection: "IEnumerable",
+            topCollection: isAsyncEnumerable ? "IAsyncEnumerable" : null,
+            context,
+            (inlineSchema, inlineContext) =>
             {
-                return "object";
-            }
-
-            if (openApiDoc.Components?.Schemas is not null &&
-                openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
-            {
-                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas, isAsyncEnumerable);
-            }
-
-            return OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
-        }
-
-        if (schema is OpenApiSchema actualSchema)
-        {
-            // Handle array type specially (GetPrimitiveCSharpTypeName returns null for arrays)
-            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
-            {
-                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas, isAsyncEnumerable);
-            }
-
-            // Handle allOf composition - look for PaginatedResult pattern
-            if (actualSchema.AllOf is { Count: > 0 })
-            {
-                var allOfType = PaginationTypeResolver.GetAllOfSchemaTypeName(actualSchema.AllOf, openApiDoc, registry, item => item.Type.ToPrimitiveCSharpTypeName(item.Format) ?? "object");
-                if (isAsyncEnumerable && allOfType != "object")
+                if (string.IsNullOrEmpty(operationId) || pathSegment is null || inlineSchemas is null)
                 {
-                    return $"IAsyncEnumerable<{allOfType}>";
+                    return null;
                 }
 
-                return allOfType;
-            }
-
-            // Handle inline object schemas with properties
-            if (InlineSchemaExtractor.IsInlineObjectSchema(actualSchema) &&
-                !string.IsNullOrEmpty(operationId) &&
-                pathSegment is not null &&
-                !string.IsNullOrEmpty(context) &&
-                inlineSchemas is not null)
-            {
-                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, context!);
-
-                // Extract and register the inline schema if not already registered
+                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, inlineContext);
                 if (!inlineSchemas.ContainsKey(typeName))
                 {
-                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(
-                        actualSchema, typeName, registry);
-                    inlineSchemas[typeName] = new InlineSchemaInfo(typeName, pathSegment!, recordParams);
+                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(inlineSchema, typeName, registry);
+                    inlineSchemas[typeName] = new InlineSchemaInfo(typeName, pathSegment, recordParams);
                 }
 
                 return typeName;
-            }
-
-            // Use centralized primitive type mapping
-            return actualSchema.Type.ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object";
-        }
-
-        return "object";
-    }
-
-    private static string GetArraySchemaType(
-        OpenApiSchema schema,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry,
-        string? operationId,
-        string? pathSegment,
-        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
-        bool isAsyncEnumerable)
-    {
-        if (schema.Items is null)
-        {
-            return isAsyncEnumerable ? "IAsyncEnumerable<object>" : "IEnumerable<object>";
-        }
-
-        // For array items, use "ResponseItem" context to distinguish from direct response objects
-        var itemType = GetSchemaTypeName(
-            schema.Items,
-            openApiDoc,
-            registry,
-            operationId,
-            pathSegment,
-            "ResponseItem",
-            inlineSchemas,
-            isAsyncEnumerable: false); // Item types don't get wrapped in IAsyncEnumerable
-
-        return isAsyncEnumerable
-            ? $"IAsyncEnumerable<{itemType}>"
-            : $"IEnumerable<{itemType}>";
-    }
+            });
 
     /// <summary>
     /// Normalizes HTTP status code names to proper PascalCase.

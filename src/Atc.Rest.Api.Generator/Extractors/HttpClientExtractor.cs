@@ -1919,101 +1919,29 @@ public static class HttpClientExtractor
         string? pathSegment,
         string? context,
         Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas)
-    {
-        if (schema is null)
-        {
-            return "object";
-        }
-
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refId = schemaRef.Reference.Id;
-
-            if (string.IsNullOrEmpty(refId))
+        => ClientSchemaTypeResolver.Resolve(
+            schema,
+            openApiDoc,
+            registry,
+            collection: "List",
+            topCollection: null,
+            context,
+            (inlineSchema, inlineContext) =>
             {
-                return "object";
-            }
-
-            // Check if this reference points to an array alias (type: array with items but no prefixItems)
-            // Array aliases like "Pets" (type: array, items: $ref Pet) should resolve to Pet[]
-            // But tuple types with prefixItems (like Coordinate) should keep their type name
-            if (openApiDoc.Components?.Schemas is not null &&
-                openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
-                arraySchema.Items is not null &&
-                !arraySchema.HasPrefixItems())
-            {
-                // This is a simple array alias - resolve to the underlying array type
-                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
-            }
-
-            // Return the resolved type name for schema references
-            return OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
-        }
-
-        if (schema is OpenApiSchema actualSchema)
-        {
-            // Handle allOf composition - look for PaginatedResult pattern
-            if (actualSchema.AllOf is { Count: > 0 })
-            {
-                return PaginationTypeResolver.GetAllOfSchemaTypeName(actualSchema.AllOf, openApiDoc, registry, item => GetSchemaTypeName(item, openApiDoc, registry));
-            }
-
-            // Handle array type specially (GetPrimitiveCSharpTypeName returns null for arrays)
-            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
-            {
-                // Check if this is a resolved schema reference (e.g., Coordinate tuple)
-                // If it's a component schema with prefixItems, return the schema name instead of recursing
-                var schemaName = SchemaLookup.FindSchemaNameByReference(openApiDoc, actualSchema);
-                if (!string.IsNullOrEmpty(schemaName))
+                if (string.IsNullOrEmpty(operationId) || pathSegment is null || inlineSchemas is null)
                 {
-                    return OpenApiSchemaExtensions.ResolveTypeName(schemaName!, registry);
+                    return null;
                 }
 
-                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
-            }
-
-            // Handle inline object schemas with properties
-            if (InlineSchemaExtractor.IsInlineObjectSchema(actualSchema) &&
-                !string.IsNullOrEmpty(operationId) &&
-                pathSegment is not null &&
-                !string.IsNullOrEmpty(context) &&
-                inlineSchemas is not null)
-            {
-                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, context!);
+                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, inlineContext);
                 if (!inlineSchemas.ContainsKey(typeName))
                 {
-                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(actualSchema, typeName, registry);
-                    inlineSchemas[typeName] = new HttpClientInlineSchemaInfo(typeName, pathSegment!, recordParams);
+                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(inlineSchema, typeName, registry);
+                    inlineSchemas[typeName] = new HttpClientInlineSchemaInfo(typeName, pathSegment, recordParams);
                 }
 
                 return typeName;
-            }
-
-            // Use centralized primitive type mapping
-            return actualSchema.Type.ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object";
-        }
-
-        return "object";
-    }
-
-    private static string GetArraySchemaType(
-        OpenApiSchema schema,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry,
-        string? operationId,
-        string? pathSegment,
-        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas)
-    {
-        if (schema.Items is null)
-        {
-            return "List<object>";
-        }
-
-        // For arrays of inline objects, use "ResponseItem" context
-        var itemType = GetSchemaTypeName(schema.Items, openApiDoc, registry, operationId, pathSegment, "ResponseItem", inlineSchemas);
-        return $"List<{itemType}>";
-    }
+            });
 
     /// <summary>
     /// Checks if the operation is a direct file upload (binary or array of binary schema).
