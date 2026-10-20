@@ -277,6 +277,9 @@ public class StreamingWireFramingTests
     [InlineData("ReadServerSentEventsAsync", ": a comment that never ends aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     [InlineData("ReadServerSentEventsAsync", "data: [1,\ndata: 2,\ndata: 3,\ndata: 4,\ndata: 5]\n\n")]
     [InlineData("ReadServerSentEventsAsync", "data: [1,\r\ndata: 2,\r\ndata: 3,\r\ndata: 4,\r\ndata: 5,\r\n")]
+    [InlineData("ReadJsonArrayAsync", "[{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]")]
+    [InlineData("ReadJsonArrayAsync", "[1, {\"id\":\"an element that never ends aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadJsonArrayAsync", "[\"a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r\"]")]
     public async Task Reader_ARecordPastTheMaximum_IsInvalidData(
         string readerName,
         string wire)
@@ -313,6 +316,8 @@ public class StreamingWireFramingTests
     [InlineData("ReadServerSentEventsAsync", "data: 1234567\r\n\r\ndata: 1234567\r\n\r\ndata: 1234567\r\n\r\ndata: 1234567\r\n\r\n")]
     [InlineData("ReadServerSentEventsAsync", "data: 1234567\r\rdata: 1234567\r\rdata: 1234567\r\rdata: 1234567\r\r")]
     [InlineData("ReadServerSentEventsAsync", ": keep-alive\n\nid:1\ndata:1234567\n\n: keep-alive\n\ndata: 1234567\n\ndata: 1234567\n\ndata: 1234567\n\n")]
+    [InlineData("ReadJsonArrayAsync", "[1234567,1234567,1234567,1234567]")]
+    [InlineData("ReadJsonArrayAsync", "[\n  1234567,\n  1234567,\n  1234567,\n  1234567\n]")]
     public async Task Reader_RecordsWithinTheMaximum_AreAllRead(
         string readerName,
         string wire)

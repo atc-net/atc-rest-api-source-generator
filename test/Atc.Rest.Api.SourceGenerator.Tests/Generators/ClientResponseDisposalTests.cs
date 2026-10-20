@@ -3,9 +3,9 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <summary>
 /// The generated C# clients dispose every response they do not hand to the caller: a buffered answer once it is read,
 /// a failed one once its error is thrown, and a stream response whose body cannot be opened. Before, only the streaming
-/// Throw-style methods disposed theirs. The specification's <c>x-return-stream</c> download also pins that a TypedClient
-/// (which reads such a download into memory) gets its <c>DownloadedFile</c>; it used to be left out, and the client did
-/// not compile.
+/// Throw-style methods disposed theirs. The specification's <c>x-return-stream</c> download pins that a TypedClient hands
+/// it over as a <c>StreamedFile</c> whose disposal (as the probe's caller does) disposes the response, and that a failed
+/// download is disposed by the client.
 /// </summary>
 public sealed class ClientResponseDisposalTests
 {
@@ -91,6 +91,11 @@ public sealed class ClientResponseDisposalTests
                     if (result is Task task)
                     {
                         await task;
+
+                        // A caller disposes what it owns: a StreamedFile, or the one in an EndpointResponse
+                        var value = task.GetType().GetProperty("Result")?.GetValue(task);
+                        var owned = value as IDisposable ?? value?.GetType().GetProperty("SuccessContent")?.GetValue(value);
+                        (owned as IDisposable)?.Dispose();
                     }
 
                     return;
@@ -158,6 +163,10 @@ public sealed class ClientResponseDisposalTests
             { "TypedClient Result", "GetThing", HttpStatusCode.OK, false },
             { "TypedClient Result", "GetThing", HttpStatusCode.InternalServerError, false },
             { "TypedClient Result", "StreamFeed", HttpStatusCode.OK, true },
+            { "TypedClient Throw", "DownloadFile", HttpStatusCode.OK, false },
+            { "TypedClient Throw", "DownloadFile", HttpStatusCode.InternalServerError, false },
+            { "TypedClient Result", "DownloadFile", HttpStatusCode.OK, false },
+            { "TypedClient Result", "DownloadFile", HttpStatusCode.InternalServerError, false },
             { "EndpointPerOperation", "StreamFeed", HttpStatusCode.OK, true },
             { "EndpointPerOperation", "DownloadFile", HttpStatusCode.OK, true },
         };

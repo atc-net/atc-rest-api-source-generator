@@ -569,6 +569,15 @@ public partial class ErrorResponseBodyRuntimeTests
                     return File((byte[])type.GetProperty("Content")!.GetValue(value)!, (string?)type.GetProperty("ContentType")!.GetValue(value), (string?)type.GetProperty("FileName")!.GetValue(value));
                 }
 
+                // A streamed download (x-return-stream): read from the open stream, then disposed - it owns the response
+                if (type.Name == "StreamedFile")
+                {
+                    using var file = (IDisposable)value!;
+                    using var buffer = new MemoryStream();
+                    ((Stream)type.GetProperty("Content")!.GetValue(value)!).CopyTo(buffer);
+                    return File(buffer.ToArray(), (string?)type.GetProperty("ContentType")!.GetValue(value), (string?)type.GetProperty("FileName")!.GetValue(value));
+                }
+
                 if (type.Name.StartsWith("ContentOrFile", StringComparison.Ordinal))
                 {
                     return Describe(type.GetProperty("File")!.GetValue(value) ?? type.GetProperty("Content")!.GetValue(value));

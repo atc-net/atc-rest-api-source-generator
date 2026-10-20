@@ -44,7 +44,7 @@ internal static class StreamReaders
             yield break;
         }
 
-        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(new PrefixedStream(first[0], stream), options.TypeInfo<T>(), cancellationToken).ConfigureAwait(false))
+        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(new ElementLimitedStream(new PrefixedStream(first[0], stream)), options.TypeInfo<T>(), cancellationToken).ConfigureAwait(false))
         {
             yield return item;
         }
@@ -397,19 +397,134 @@ internal static class StreamReaders
     /// ends at LF, CR or CRLF. With untilBlankLine the count runs on to the blank line that ends a Server-Sent Event,
     /// so an event of many short lines is limited as well. The stream read from is not this one's to close.
     /// </summary>
-    private sealed class LineLimitedStream : Stream
+    private sealed class LineLimitedStream : CountingStream
     {
-        private readonly Stream inner;
         private readonly bool untilBlankLine;
         private long length;
         private bool lineIsEmpty = true;
         private bool afterCarriageReturn;
 
         public LineLimitedStream(Stream inner, bool untilBlankLine = false)
+            : base(inner)
         {
-            this.inner = inner;
             this.untilBlankLine = untilBlankLine;
         }
+
+        protected override void Count(ReadOnlySpan<byte> bytes)
+        {
+            while (!bytes.IsEmpty)
+            {
+                var end = bytes.IndexOfAny((byte)'\n', (byte)'\r');
+                var taken = end < 0 ? bytes.Length : end;
+                if (taken > 0)
+                {
+                    length += taken;
+                    lineIsEmpty = false;
+                    afterCarriageReturn = false;
+                    if (length > MaxRecordLength)
+                    {
+                        throw new InvalidDataException(untilBlankLine
+                            ? $"An event of the stream is longer than {MaxRecordLength} bytes."
+                            : $"A line of the stream is longer than {MaxRecordLength} bytes.");
+                    }
+                }
+
+                if (end < 0)
+                {
+                    return;
+                }
+
+                // The LF of a CRLF ends no line of its own
+                var isLineFeedOfPair = bytes[end] == (byte)'\n' && afterCarriageReturn;
+                afterCarriageReturn = bytes[end] == (byte)'\r';
+                if (!isLineFeedOfPair)
+                {
+                    if (!untilBlankLine || lineIsEmpty)
+                    {
+                        length = 0;
+                    }
+
+                    lineIsEmpty = true;
+                }
+
+                bytes = bytes.Slice(end + 1);
+            }
+        }
+    }
+
+    /// <summary>
+    /// What the serializer reads a JSON array through: an element longer than MaxRecordLength is an
+    /// InvalidDataException before the serializer has buffered it. An element ends at the comma (or the bracket)
+    /// after it, outside a string. The stream read from is not this one's to close.
+    /// </summary>
+    private sealed class ElementLimitedStream : CountingStream
+    {
+        private long length;
+        private int depth;
+        private bool inString;
+        private bool escaped;
+
+        public ElementLimitedStream(Stream inner)
+            : base(inner)
+        {
+        }
+
+        protected override void Count(ReadOnlySpan<byte> bytes)
+        {
+            foreach (var b in bytes)
+            {
+                length++;
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                    }
+                    else if (b == (byte)'\\')
+                    {
+                        escaped = true;
+                    }
+                    else if (b == (byte)'"')
+                    {
+                        inString = false;
+                    }
+                }
+                else if (b == (byte)'"')
+                {
+                    inString = true;
+                }
+                else if (b is (byte)'{' or (byte)'[')
+                {
+                    depth++;
+                }
+                else if (b is (byte)'}' or (byte)']')
+                {
+                    depth--;
+                }
+
+                // Between two elements of the array (or at its end) a new element starts
+                if (!inString && depth <= 1 && b is (byte)',' or (byte)'[' or (byte)']')
+                {
+                    length = 0;
+                }
+                else if (length > MaxRecordLength)
+                {
+                    throw new InvalidDataException($"An element of the JSON array is longer than {MaxRecordLength} bytes.");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// A stream read through, its bytes counted as they arrive (see LineLimitedStream, ElementLimitedStream). The
+    /// stream read from is not this one's to close.
+    /// </summary>
+    private abstract class CountingStream : Stream
+    {
+        private readonly Stream inner;
+
+        protected CountingStream(Stream inner)
+            => this.inner = inner;
 
         public override bool CanRead => true;
 
@@ -452,45 +567,6 @@ internal static class StreamReaders
 
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
-        private void Count(ReadOnlySpan<byte> bytes)
-        {
-            while (!bytes.IsEmpty)
-            {
-                var end = bytes.IndexOfAny((byte)'\n', (byte)'\r');
-                var taken = end < 0 ? bytes.Length : end;
-                if (taken > 0)
-                {
-                    length += taken;
-                    lineIsEmpty = false;
-                    afterCarriageReturn = false;
-                    if (length > MaxRecordLength)
-                    {
-                        throw new InvalidDataException(untilBlankLine
-                            ? $"An event of the stream is longer than {MaxRecordLength} bytes."
-                            : $"A line of the stream is longer than {MaxRecordLength} bytes.");
-                    }
-                }
-
-                if (end < 0)
-                {
-                    return;
-                }
-
-                // The LF of a CRLF ends no line of its own
-                var isLineFeedOfPair = bytes[end] == (byte)'\n' && afterCarriageReturn;
-                afterCarriageReturn = bytes[end] == (byte)'\r';
-                if (!isLineFeedOfPair)
-                {
-                    if (!untilBlankLine || lineIsEmpty)
-                    {
-                        length = 0;
-                    }
-
-                    lineIsEmpty = true;
-                }
-
-                bytes = bytes.Slice(end + 1);
-            }
-        }
+        protected abstract void Count(ReadOnlySpan<byte> bytes);
     }
 }

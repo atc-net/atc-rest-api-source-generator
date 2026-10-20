@@ -262,6 +262,17 @@ public static class HttpClientExtractor
     }
 
     /// <summary>
+    /// Whether the typed client hands an operation's download over as it arrives: a file download (not a model or a
+    /// file) marked <c>x-return-stream</c>.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>True for a <c>StreamedFile</c>.</returns>
+    public static bool IsStreamedFileDownload(OpenApiOperation operation)
+        => operation is not null &&
+           operation.IsStreamedDownloadOperation() &&
+           operation.GetModelOrFileMediaTypes().Count == 0;
+
+    /// <summary>
     /// Determines if a type name is a pagination base type.
     /// Supports common naming conventions: PaginationResult, PaginatedResult, PagedResult.
     /// </summary>
@@ -464,6 +475,12 @@ public static class HttpClientExtractor
                 (m.ReturnTypeName?.Contains("DownloadedFile") ?? false) ||
                 (m.ReturnGenericTypeName?.Contains("DownloadedFile") ?? false));
             methods.AddRange(CreateResultStyleHelperMethods(hasFileDownload));
+
+            // The streamed-file builder only when an operation streams a download (it refers to StreamedFile)
+            if (methods.Any(m => (m.ReturnTypeName?.Contains("StreamedFile") ?? false) || (m.ReturnGenericTypeName?.Contains("StreamedFile") ?? false)))
+            {
+                methods.Add(CreateBuildStreamedFileResponseMethod());
+            }
         }
 
         // Build header content with only required usings
@@ -636,8 +653,9 @@ public static class HttpClientExtractor
         }
         else if (response?.Content is not null && IsBinaryResponseContent(response.Content))
         {
-            // A file download (the primary body is binary): the bytes, content type and file name as a DownloadedFile
-            returnType = "DownloadedFile";
+            // A file download (the primary body is binary): the bytes, content type and file name as a DownloadedFile -
+            // or, marked x-return-stream, the open content as a StreamedFile the caller disposes
+            returnType = IsStreamedFileDownload(operation) ? "StreamedFile" : "DownloadedFile";
         }
         else if (response?.Content is not null && IsTextResponseContent(response.Content))
         {
@@ -657,7 +675,7 @@ public static class HttpClientExtractor
         // the method asks for the model's and the file's media types
         if (!isAsyncEnumerable &&
             returnType != nameof(Task) &&
-            returnType != "DownloadedFile" &&
+            returnType is not ("DownloadedFile" or "StreamedFile") &&
             operation.GetModelOrFileMediaTypes() is { Count: > 0 } fileMediaTypes)
         {
             var xmlBodies = xmlRead?.ReadMethod is null
@@ -676,7 +694,7 @@ public static class HttpClientExtractor
         if (resultStyle == TypedClientResultStyleType.Throw &&
             !isAsyncEnumerable &&
             response is not null &&
-            returnType is not (nameof(Task) or "DownloadedFile" or "Uri" or "string") &&
+            returnType is not (nameof(Task) or "DownloadedFile" or "StreamedFile" or "Uri" or "string") &&
             !returnType.StartsWith("ContentOrFile<", StringComparison.Ordinal) &&
             !returnType.EndsWith("?", StringComparison.Ordinal) &&
             operation.Responses!.Any(r => r.Key.Length == 3 && r.Key[0] == '2' && r.Value != response && r.Value?.Content is not { Count: > 0 }))
@@ -1201,6 +1219,35 @@ public static class HttpClientExtractor
             builder.AppendLine(8, "yield return item;");
             builder.AppendLine(4, "}");
             builder.AppendLine("}");
+        }
+        else if (hasReturnType && returnType == "StreamedFile")
+        {
+            // A streamed download: read as far as the headers and handed over open - the StreamedFile owns the response
+            AppendSend(
+                builder,
+                "var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);",
+                resilienceStamp("requestMessage", false),
+                "HttpMethod.Get",
+                contentExpression: null,
+                responseHeadersRead: true);
+            if (resultStyle == TypedClientResultStyleType.Result)
+            {
+                builder.AppendLine("return await BuildStreamedFileResponseAsync(response, cancellationToken).ConfigureAwait(false);");
+            }
+            else
+            {
+                // On an error status the response is the exception's to describe, not the caller's to dispose
+                builder.AppendLine("try");
+                builder.AppendLine("{");
+                builder.AppendLine(4, "await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);");
+                builder.AppendLine(4, "return await StreamedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);");
+                builder.AppendLine("}");
+                builder.AppendLine("catch");
+                builder.AppendLine("{");
+                builder.AppendLine(4, "response.Dispose();");
+                builder.AppendLine(4, "throw;");
+                builder.AppendLine("}");
+            }
         }
         else if (hasReturnType && returnType == "DownloadedFile")
         {
@@ -2693,6 +2740,26 @@ public static class HttpClientExtractor
         sb.Append("return new EndpointResponse<DownloadedFile>(false, response.StatusCode, errorBody, null, ReadHeaders(response));");
 
         return CreateBuildResponseMethod("BuildBinaryResponseAsync", "EndpointResponse<DownloadedFile>", genericName: null, includeSerializerOptions: false, sb.ToString());
+    }
+
+    // The open file on success - the envelope's content owns the response; on an error status the error body, as text,
+    // in Content, and the response disposed
+    private static MethodParameters CreateBuildStreamedFileResponseMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("if (response.IsSuccessStatusCode)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "var file = await StreamedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine(4, "return new EndpointResponse<StreamedFile>(true, response.StatusCode, string.Empty, file, ReadHeaders(response));");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("using (response)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "var errorBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine(4, "return new EndpointResponse<StreamedFile>(false, response.StatusCode, errorBody, null, ReadHeaders(response));");
+        sb.Append('}');
+
+        return CreateBuildResponseMethod("BuildStreamedFileResponseAsync", "EndpointResponse<StreamedFile>", genericName: null, includeSerializerOptions: false, sb.ToString());
     }
 
     private static MethodParameters CreateBuildTextResponseMethod()
