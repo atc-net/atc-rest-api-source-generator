@@ -49,6 +49,23 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | ⚙️ **Options Management**        | `options create` / `options validate` for configuration files                    |
 |            | 🔄 **Migration**                 | `migrate validate` / `migrate execute` to migrate from old CLI generator         |
 
+## 🤖 Built for AI Agents - Spec-Driven, Deterministic
+
+Ask an AI agent (Claude Code, GitHub Copilot, Cursor) for the same endpoint twice and you get two different endpoints: other routes, other status codes, another error body, validation in one and not the other, a client that disagrees with the server in the corners. With this generator the agent does not make those choices:
+
+| | AI agent on its own | AI agent + this generator |
+|---|---|---|
+| **What the agent writes** | Endpoints, models, validation, error handling, clients - every time | A few lines of OpenAPI YAML and the handler's business logic |
+| **Same request, twice** | Two different implementations | The same code, byte for byte: same spec + same generator version = same output |
+| **Wrong status code** | Found in review - or in production | Does not compile: a handler can only return the responses the spec declares |
+| **Spec mistakes** | Silent | 163 `ATC_API_*` build diagnostics, each with an id the agent can look up and fix |
+| **Server ↔ C# / TypeScript client** | Written separately, drifting apart | Generated from one file; every client is run against the server in the [test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html) |
+| **What you review** | Hundreds of lines of plumbing per endpoint | The YAML diff and the handler diff |
+
+In this repository's PetStoreFull scenario, an 838-line specification with 19 operations builds 56 server files (6,104 lines) and a 46-file typed client (3,215 lines) - about 320 lines of server code per operation that no agent writes and no one reviews line by line. The price: the team designs the contract first, someone knows OpenAPI, and the generator is a dependency to upgrade with care.
+
+**[Spec-Driven Development with AI Agents](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Spec-Driven-Development-with-AI-Agents)** has the full case - the agent loop, what it saves and costs for a Scrum Master, and the instructions to give your agent.
+
 ## 📦 Quick Setup
 
 ### 1. Install the Package
