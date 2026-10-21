@@ -64,6 +64,20 @@ public static class WebhookParameterExtractor
         return parametersList.Count > 0 ? parametersList : null;
     }
 
+    /// <summary>
+    /// Whether the webhook gets a parameters class - a payload with a schema the generator types. The endpoint binds
+    /// it exactly when this is true.
+    /// </summary>
+    /// <param name="operation">The webhook operation.</param>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>True when <c>{Op}WebhookParameters</c> is emitted.</returns>
+    public static bool HasParameters(
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc)
+        => operation?.RequestBody?.Content is { Count: > 0 } &&
+           PayloadSchema(operation) is { } schema &&
+           schema.ResolveSchema(openApiDoc) is not null;
+
     private static (string ClassName, string Content)? ExtractWebhookParameters(
         string webhookName,
         OpenApiOperation operation,
@@ -170,20 +184,6 @@ public static class WebhookParameterExtractor
 
         return (className, sb.ToString());
     }
-
-    /// <summary>
-    /// Whether the webhook gets a parameters class - a payload with a schema the generator types. The endpoint binds
-    /// it exactly when this is true.
-    /// </summary>
-    /// <param name="operation">The webhook operation.</param>
-    /// <param name="openApiDoc">The OpenAPI document.</param>
-    /// <returns>True when <c>{Op}WebhookParameters</c> is emitted.</returns>
-    public static bool HasParameters(
-        OpenApiOperation operation,
-        OpenApiDocument openApiDoc)
-        => operation?.RequestBody?.Content is { Count: > 0 } &&
-           PayloadSchema(operation) is { } schema &&
-           schema.ResolveSchema(openApiDoc) is not null;
 
     private static IOpenApiSchema? PayloadSchema(OpenApiOperation operation)
     {

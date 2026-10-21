@@ -1185,6 +1185,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/PriceTick'
 
+  /streams/prices/import:
+    post:
+      summary: Import prices sent as JSON Lines
+      operationId: importPrices
+      tags:
+        - streams
+      description: |
+        The prices are sent as JSON Lines (application/jsonl): one price per line, written by the client as it has
+        them, read by the handler one at a time - an import of any size takes the memory of one price. Each price is
+        validated as it arrives: the first one that is not valid stops the import with a 400 that names it
+        ([3].price).
+      requestBody:
+        required: true
+        content:
+          application/jsonl:
+            schema:
+              $ref: '#/components/schemas/PriceTick'
+      responses:
+        '200':
+          description: What was imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceImportSummary'
+        '400':
+          description: A price is not valid
+
   /streams/prices/lines:
     # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
     x-retry-enabled: false
@@ -1515,15 +1542,42 @@ components:
       properties:
         symbol:
           type: string
+          minLength: 1
         price:
           type: number
           format: double
+          minimum: 0
         change:
           type: number
           format: double
         sequence:
           type: integer
           format: int64
+    PriceImportSummary:
+      title: PriceImportSummary
+      type: object
+      description: What an import of prices read
+      required:
+        - count
+        - symbols
+        - lowest
+        - highest
+      properties:
+        count:
+          type: integer
+          format: int32
+          description: The prices read
+        symbols:
+          type: array
+          description: The symbols, each once, in the order they first came
+          items:
+            type: string
+        lowest:
+          type: number
+          format: double
+        highest:
+          type: number
+          format: double
     Document:
       title: Document
       type: object

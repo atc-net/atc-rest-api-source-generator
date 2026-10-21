@@ -10,7 +10,8 @@ public sealed class JsonLinesClientTests
     private const string Records = """
         public static class ReadingSource
         {
-            public static async System.Collections.Generic.IAsyncEnumerable<Reading> Of(params string[] deviceIds)
+            public static async System.Collections.Generic.IAsyncEnumerable<Reading> Of(
+                params string[] deviceIds)
             {
                 foreach (var deviceId in deviceIds)
                 {
@@ -26,7 +27,8 @@ public sealed class JsonLinesClientTests
                 yield return new Reading("b", 500);
             }
 
-            public static async System.Threading.Tasks.Task<string> JoinAsync(System.Collections.Generic.IAsyncEnumerable<Reading> readings)
+            public static async System.Threading.Tasks.Task<string> JoinAsync(
+                System.Collections.Generic.IAsyncEnumerable<Reading> readings)
             {
                 var ids = new System.Collections.Generic.List<string>();
                 await foreach (var reading in readings)
@@ -46,7 +48,8 @@ public sealed class JsonLinesClientTests
 
         public static class JsonLinesProbe
         {
-            public static async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> RunAsync(System.Uri baseAddress)
+            public static async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> RunAsync(
+                System.Uri baseAddress)
             {
                 var client = new ErrorBodiesClient(new System.Net.Http.HttpClient { BaseAddress = baseAddress });
                 var rows = new System.Collections.Generic.List<string>
@@ -98,7 +101,8 @@ public sealed class JsonLinesClientTests
 
         public static class JsonLinesProbe
         {
-            public static async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> RunAsync(System.Uri baseAddress)
+            public static async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> RunAsync(
+                System.Uri baseAddress)
             {
                 var services = new ServiceCollection();
                 services.AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = baseAddress);
@@ -166,7 +170,9 @@ public sealed class JsonLinesClientTests
     [InlineData("TypedClient", "Throw")]
     [InlineData("TypedClient", "Result")]
     [InlineData("EndpointPerOperation", "Throw")]
-    public void Clients_CompileWithoutWarnings(string mode, string style)
+    public void Clients_CompileWithoutWarnings(
+        string mode,
+        string style)
     {
         var marker = mode == "EndpointPerOperation"
             ? ErrorResponseBodyRuntimeTests.ClientOperationMarker("ProblemDetails")
@@ -185,7 +191,7 @@ public sealed class JsonLinesClientTests
             JsonLinesRequestBodyTests.HandlerSource,
             "ErrorBodies.RuntimeTest.ReadingRegistration");
 
-    private static async Task<List<string>> RunAsync(
+    private static Task<List<string>> RunAsync(
         string marker,
         string probe,
         Uri baseAddress)
@@ -200,6 +206,6 @@ public sealed class JsonLinesClientTests
             .Select(ns => $"global using {ns};");
         sources.Add(("JsonLinesProbe.cs", string.Join(Environment.NewLine, usings) + Environment.NewLine + probe));
         var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
-        return await (Task<List<string>>)assembly.GetType("ErrorBodies.RuntimeTest.JsonLinesProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [baseAddress])!;
+        return (Task<List<string>>)assembly.GetType("ErrorBodies.RuntimeTest.JsonLinesProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [baseAddress])!;
     }
 }

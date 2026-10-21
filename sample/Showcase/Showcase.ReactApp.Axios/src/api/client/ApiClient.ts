@@ -67,6 +67,8 @@ export interface RequestOptions {
   modelOrFile?: boolean;
   /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */
   xml?: XmlOptions;
+  /** The body is a stream of records, written as JSON Lines or a JSON Text Sequence (the generated client passes it). */
+  sequence?: RequestSequence;
   /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
   retry?: RequestRetry;
 }
@@ -480,6 +482,28 @@ function withResponseHeaders<T>(result: ApiResult<T>, readers: ResponseHeaderRea
     : result;
 }
 
+/** How a request body of records is framed: JSON Lines (one JSON value per line) or a JSON Text Sequence (RFC 7464). */
+export type RequestSequence = 'json-lines' | 'json-seq';
+
+/** One record as it goes on the wire: its JSON on one line (after a record separator in a JSON Text Sequence). */
+function encodeRecord(record: unknown, sequence: RequestSequence): string {
+  return (sequence === 'json-seq' ? '\u001e' : '') + JSON.stringify(record) + '\n';
+}
+
+/** The records in one body: a list, or an async source that is not streamed. */
+async function bufferRecords(
+  records: AsyncIterable<unknown> | Iterable<unknown>,
+  sequence: RequestSequence,
+  toRecord: (record: unknown) => unknown,
+): Promise<string> {
+  let text = '';
+  for await (const record of records) {
+    text += encodeRecord(toRecord(record), sequence);
+  }
+
+  return text;
+}
+
 const httpErrorArms: readonly string[] = ['badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError'];
 const successArms = ['ok', 'created', 'accepted', 'noContent'] as const;
 
@@ -577,7 +601,11 @@ export class ApiClient {
     const headers: Record<string, string> = { ...this.requestHeaders };
 
     if (options?.body !== undefined) {
-      if (options.body instanceof FormData) {
+      if (options.sequence) {
+        const sequence = options.sequence ?? 'json-lines';
+        headers['Content-Type'] = options.contentType ?? (sequence === 'json-seq' ? 'application/json-seq' : 'application/jsonl');
+        data = new TextEncoder().encode(await bufferRecords(options.body as AsyncIterable<unknown> | Iterable<unknown>, sequence, (record: unknown) => record));
+      } else if (options.body instanceof FormData) {
         // Named, not left to the adapter: axios's fetch adapter in Node labels a FormData form-urlencoded.
         // Axios adds the boundary; in a browser it drops the header and the browser sets it.
         headers['Content-Type'] = 'multipart/form-data';
@@ -698,7 +726,11 @@ export class ApiClient {
     }
 
     let data: unknown;
-    if (options?.body !== undefined) {
+    if (options?.body !== undefined && options.sequence) {
+      const sequence = options.sequence ?? 'json-lines';
+      headers['Content-Type'] = options.contentType ?? (sequence === 'json-seq' ? 'application/json-seq' : 'application/jsonl');
+      data = new TextEncoder().encode(await bufferRecords(options.body as AsyncIterable<unknown> | Iterable<unknown>, sequence, (record: unknown) => record));
+    } else if (options?.body !== undefined) {
       headers['Content-Type'] = 'application/json';
       data = options.body;
     }

@@ -165,6 +165,7 @@ internal static class TypeScriptRequestRecords
             : "(record: unknown) => record";
         sb.Append(indent).AppendLine("const sequence = options.sequence ?? 'json-lines';");
         sb.Append(indent).AppendLine("headers['Content-Type'] = options.contentType ?? (sequence === 'json-seq' ? 'application/json-seq' : 'application/jsonl');");
+
         // As bytes: axios encodes a string again for any media type that names json (application/jsonl does)
         sb.Append(indent).Append("data = new TextEncoder().encode(await bufferRecords(options.body as AsyncIterable<unknown> | Iterable<unknown>, sequence, ").Append(toRecord).AppendLine("));");
     }

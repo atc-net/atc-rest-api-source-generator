@@ -92,7 +92,8 @@ public class StreamValidationTests
     [Theory]
     [InlineData("text/event-stream")]
     [InlineData("multipart/mixed")]
-    public void Validate_RequestBodyOnlyAsAnEventStreamOrMultipartMixed_ReportsSTREAM002(string mediaType)
+    public void Validate_RequestBodyOnlyAsAnEventStreamOrMultipartMixed_ReportsSTREAM002(
+        string mediaType)
     {
         // No generator sends or reads such a body: without the error it would be dropped
         var diagnostics = Validate(RequestBodyYaml($$"""
@@ -128,7 +129,8 @@ public class StreamValidationTests
     [InlineData("application/jsonl")]
     [InlineData("application/x-ndjson")]
     [InlineData("application/json-seq")]
-    public void Validate_StreamedRequestBodyWithoutASchema_ReportsSTREAM003(string mediaType)
+    public void Validate_StreamedRequestBodyWithoutASchema_ReportsSTREAM003(
+        string mediaType)
     {
         var diagnostics = Validate(RequestBodyYaml($$"""
                                                      {{mediaType}}: {}
@@ -142,7 +144,8 @@ public class StreamValidationTests
     [Theory]
     [InlineData("schema")]
     [InlineData("itemSchema")]
-    public void Validate_StreamedRequestBodyWithARecordSchema_NoSTREAM003OrSTREAM002(string keyword)
+    public void Validate_StreamedRequestBodyWithARecordSchema_NoSTREAM003OrSTREAM002(
+        string keyword)
     {
         var diagnostics = Validate(
             RequestBodyYaml($$"""

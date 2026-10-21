@@ -13,7 +13,8 @@ public class StreamedRequestBodyTests
     [InlineData("application/x-jsonlines")]
     [InlineData("application/json-seq")]
     [InlineData("application/geo+json-seq")]
-    public void GetStreamedRequestBody_ASchemaUnderASequentialMediaType_IsTheRecord(string mediaType)
+    public void GetStreamedRequestBody_ASchemaUnderASequentialMediaType_IsTheRecord(
+        string mediaType)
     {
         var operation = Parse($$"""
             requestBody:

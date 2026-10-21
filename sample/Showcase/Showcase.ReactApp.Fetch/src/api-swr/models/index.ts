@@ -17,6 +17,7 @@ export type * from './FilesAsFormDataRequest';
 export type * from './NotificationEvent';
 export type * from './NotificationEvents';
 export type * from './PaginatedResult';
+export type * from './PriceImportSummary';
 export type * from './PriceTick';
 export type * from './Subscription';
 export type * from './Subscriptions';

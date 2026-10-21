@@ -18,6 +18,9 @@ export class LiveStreamsPage {
   readonly failureRetry: Locator;
   readonly resumeButton: Locator;
   readonly resumeStatus: Locator;
+  readonly importButton: Locator;
+  readonly importInvalidButton: Locator;
+  readonly importStatus: Locator;
 
   constructor(private readonly page: Page) {
     this.heading = page.getByRole('heading', { name: 'Live Streams' });
@@ -34,6 +37,9 @@ export class LiveStreamsPage {
     this.failureRetry = page.getByTestId('stream-failure-retry');
     this.resumeButton = page.getByTestId('stream-resume');
     this.resumeStatus = page.getByTestId('stream-resume-status');
+    this.importButton = page.getByTestId('import-start');
+    this.importInvalidButton = page.getByTestId('import-invalid');
+    this.importStatus = page.getByTestId('import-status');
   }
 
   async goto() {

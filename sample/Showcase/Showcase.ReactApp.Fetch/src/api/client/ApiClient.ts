@@ -31,6 +31,13 @@ export interface ApiClientOptions {
   fetch?: typeof fetch;
   /** Retry policy for failed requests. Set to false to disable retry. Defaults to the spec-defined policy. */
   retryPolicy?: RetryPolicy | false;
+  /**
+   * How a body of records from an async source is sent: 'stream' writes each record as the source yields it (fetch with
+   * duplex: 'half' - a browser streams a request body only over HTTP/2), 'buffer' collects the records and sends them
+   * in one body, 'auto' (the default) streams outside a browser (Node, Deno, Bun) and buffers in one. A list is always
+   * sent whole.
+   */
+  requestStreaming?: 'auto' | 'stream' | 'buffer';
 }
 
 export interface RequestOptions {
@@ -56,6 +63,8 @@ export interface RequestOptions {
   modelOrFile?: boolean;
   /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */
   xml?: XmlOptions;
+  /** The body is a stream of records, written as JSON Lines or a JSON Text Sequence (the generated client passes it). */
+  sequence?: RequestSequence;
   /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
   retry?: RequestRetry;
 }
@@ -462,6 +471,58 @@ function withResponseHeaders<T>(result: ApiResult<T>, readers: ResponseHeaderRea
     : result;
 }
 
+/** How a request body of records is framed: JSON Lines (one JSON value per line) or a JSON Text Sequence (RFC 7464). */
+export type RequestSequence = 'json-lines' | 'json-seq';
+
+/** One record as it goes on the wire: its JSON on one line (after a record separator in a JSON Text Sequence). */
+function encodeRecord(record: unknown, sequence: RequestSequence): string {
+  return (sequence === 'json-seq' ? '\u001e' : '') + JSON.stringify(record) + '\n';
+}
+
+/** The records in one body: a list, or an async source that is not streamed. */
+async function bufferRecords(
+  records: AsyncIterable<unknown> | Iterable<unknown>,
+  sequence: RequestSequence,
+  toRecord: (record: unknown) => unknown,
+): Promise<string> {
+  let text = '';
+  for await (const record of records) {
+    text += encodeRecord(toRecord(record), sequence);
+  }
+
+  return text;
+}
+
+/** The records as a body written as the source yields them - each record is sent when it is read. */
+function recordStream(
+  records: AsyncIterable<unknown>,
+  sequence: RequestSequence,
+  toRecord: (record: unknown) => unknown,
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const iterator = records[Symbol.asyncIterator]();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const next = await iterator.next();
+      if (next.done) {
+        controller.close();
+        return;
+      }
+
+      controller.enqueue(encoder.encode(encodeRecord(toRecord(next.value), sequence)));
+    },
+    async cancel() {
+      await iterator.return?.();
+    },
+  });
+}
+
+/** Outside a browser (Node, Deno, Bun) fetch streams a request body over HTTP/1.1 too; a browser or a worker only over HTTP/2. */
+function canStreamRequestBodies(): boolean {
+  const scope = globalThis as { window?: unknown; WorkerGlobalScope?: unknown };
+  return typeof scope.window === 'undefined' && typeof scope.WorkerGlobalScope === 'undefined';
+}
+
 const httpErrorArms: readonly string[] = ['badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError'];
 const successArms = ['ok', 'created', 'accepted', 'noContent'] as const;
 
@@ -516,8 +577,13 @@ export class ApiClient {
     }
 
     let fetchBody: BodyInit | undefined;
+    let streamed = false;
     if (options?.body !== undefined) {
-      if (options.body instanceof FormData) {
+      if (options.sequence) {
+        const records = await this.recordsBody(options, headers);
+        fetchBody = records.body;
+        streamed = records.streamed;
+      } else if (options.body instanceof FormData) {
         fetchBody = options.body;
       } else if (options.body instanceof URLSearchParams) {
         headers.set('Content-Type', 'application/x-www-form-urlencoded');
@@ -540,13 +606,16 @@ export class ApiClient {
       body: fetchBody,
       signal: options?.signal,
     };
+    if (streamed) {
+      (init as RequestInit & { duplex: 'half' }).duplex = 'half';
+    }
 
     for (const interceptor of this.options.requestInterceptors ?? []) {
       init = await interceptor(url, init);
     }
 
     const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);
-    if (retryPolicy) {
+    if (retryPolicy && !streamed) {
       // Each attempt gets its own signal, so policy.timeoutMs cancels the in-flight fetch and a parent abort
       // reaches every attempt; the body is read inside the attempt, so both cover the body read too.
       return retryWithBackoff(
@@ -593,12 +662,32 @@ export class ApiClient {
     return withResponseHeaders(fitToArms(withResponse(serverResponse, await this.handleResponse<T>(response, options?.responseType)), options?.arms), options?.responseHeaders);
   }
 
+  /** A body of records: streamed as the source yields them, or buffered (a list; in a browser unless requestStreaming is 'stream'). */
+  private async recordsBody(options: RequestOptions, headers: Headers): Promise<{ body: BodyInit; streamed: boolean }> {
+    const sequence = options.sequence ?? 'json-lines';
+    headers.set('Content-Type', options.contentType ?? (sequence === 'json-seq' ? 'application/json-seq' : 'application/jsonl'));
+    const records = options.body as AsyncIterable<unknown> | Iterable<unknown>;
+    const toRecord = (record: unknown) => record;
+    const mode = this.options.requestStreaming ?? 'auto';
+    if (!Array.isArray(records) && Symbol.asyncIterator in Object(records) && (mode === 'stream' || (mode === 'auto' && canStreamRequestBodies()))) {
+      return { body: recordStream(records as AsyncIterable<unknown>, sequence, toRecord), streamed: true };
+    }
+
+    return { body: await bufferRecords(records, sequence, toRecord), streamed: false };
+  }
+
   async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {
     const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });
     const headers = await this.getHeaders(options?.headers, options?.security);
 
-    const streamBody = options?.body !== undefined ? JSON.stringify(options.body) : undefined;
-    if (streamBody !== undefined) {
+    let streamBody: BodyInit | undefined;
+    let streamed = false;
+    if (options?.body !== undefined && options.sequence) {
+      const records = await this.recordsBody(options, headers);
+      streamBody = records.body;
+      streamed = records.streamed;
+    } else if (options?.body !== undefined) {
+      streamBody = JSON.stringify(options.body);
       headers.set('Content-Type', 'application/json');
     }
 
@@ -608,6 +697,9 @@ export class ApiClient {
       body: streamBody,
       signal: options?.signal,
     };
+    if (streamed) {
+      (init as RequestInit & { duplex: 'half' }).duplex = 'half';
+    }
 
     for (const interceptor of this.options.requestInterceptors ?? []) {
       init = await interceptor(url, init);

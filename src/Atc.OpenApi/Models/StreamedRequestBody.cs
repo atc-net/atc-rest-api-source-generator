@@ -32,7 +32,8 @@ public sealed record StreamedRequestBody(
     /// <summary>
     /// The framing clients send.
     /// </summary>
-    public StreamingFraming PrimaryFraming => StreamingMediaType.Classify(PrimaryMediaType);
+    public StreamingFraming PrimaryFraming
+        => StreamingMediaType.Classify(PrimaryMediaType);
 
     /// <summary>
     /// Every media type the server takes for the body: the declared ones, every JSON Lines name when one is declared

@@ -79,4 +79,21 @@ test.describe('Live Streams', () => {
       await expect(streams.failureRetry).toHaveText('30');
     });
   }
+
+  // The other direction: the app sends the prices as JSON Lines (application/jsonl), one line per price, and the
+  // server's handler reads them one at a time
+  test('imports prices sent as JSON Lines', async () => {
+    await streams.importButton.click();
+
+    await expect(streams.importStatus).toHaveText('Imported 25 prices: MSFT, NOVO, MAERSK, ATC, from 101.00 to 125.00', { timeout: 30_000 });
+  });
+
+  test('stops an import at the first price that is not valid, with a 400 that names it', async ({ browserErrors }) => {
+    browserErrors.expectStatus(400, '/streams/prices/import', 'the test sends a negative price on purpose');
+
+    await streams.importInvalidButton.click();
+
+    // The fourth price (index 3) is negative: the server stops reading there and names it
+    await expect(streams.importStatus).toHaveText(/^400: \[3\]\.price /, { timeout: 30_000 });
+  });
 });

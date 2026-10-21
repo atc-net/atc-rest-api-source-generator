@@ -130,6 +130,31 @@
     </MudCardActions>
 </MudCard>
 
+<MudCard Elevation="2" Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Sending a stream: an import as JSON Lines</MudText>
+            <MudText Typo="Typo.body2">
+                The other direction: the page sends 25 prices as JSON Lines (<code>application/jsonl</code>), one line per
+                price, written as they are made. The server's handler reads them one at a time with
+                <code>await foreach</code>; each price is validated as it arrives, and the first one that is not valid
+                stops the import with a 400 that names it.
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText data-testid="import-status">@importStatus</MudText>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => ImportAsync(withAnInvalidPrice: false))" Disabled="isImporting" data-testid="import-start">
+            Import 25 prices
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ImportAsync(withAnInvalidPrice: true))" Disabled="isImporting" data-testid="import-invalid">
+            Import with a negative price
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
 <MudCard Elevation="2">
     <MudCardHeader>
         <CardHeaderContent>

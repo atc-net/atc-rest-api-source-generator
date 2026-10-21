@@ -28,6 +28,10 @@ public partial class LiveStreams : IDisposable
 
     private string resumeStatus = "Idle";
 
+    private string importStatus = "Idle";
+
+    private bool isImporting;
+
     private CancellationTokenSource? cts;
 
     [Inject]
@@ -234,6 +238,43 @@ public partial class LiveStreams : IDisposable
         finally
         {
             isStreaming = false;
+        }
+    }
+
+    // The prices an import sends: made one at a time, as a source that is still producing them would
+    private static async IAsyncEnumerable<PriceTick> PricesToImport(
+        bool withAnInvalidPrice,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        string[] symbols = ["ATC", "MSFT", "NOVO", "MAERSK"];
+        for (var i = 1; i <= 25; i++)
+        {
+            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            var price = withAnInvalidPrice && i == 4 ? -5 : 100 + i;
+            yield return new PriceTick(symbols[i % symbols.Length], price, 1, i);
+        }
+    }
+
+    private async Task ImportAsync(bool withAnInvalidPrice)
+    {
+        isImporting = true;
+        importStatus = "Importing...";
+        try
+        {
+            var result = await Gateway.ImportPricesAsync(PricesToImport(withAnInvalidPrice, CancellationToken.None), CancellationToken.None).ConfigureAwait(true);
+            importStatus = result.IsOk
+                ? $"Imported {result.OkContent.Count} prices: {string.Join(", ", result.OkContent.Symbols)}, from {result.OkContent.Lowest.ToString("0.00", CultureInfo.InvariantCulture)} to {result.OkContent.Highest.ToString("0.00", CultureInfo.InvariantCulture)}"
+                : result.IsBadRequest
+                    ? $"400: {string.Join(" ", (result.BadRequestContent.Errors ?? new Dictionary<string, string[]>(StringComparer.Ordinal)).Select(e => $"{e.Key} {string.Join(" ", e.Value)}"))}"
+                    : $"{(int)result.StatusCode}";
+        }
+        catch (HttpRequestException ex)
+        {
+            importStatus = "Failed: " + ex.Message;
+        }
+        finally
+        {
+            isImporting = false;
         }
     }
 

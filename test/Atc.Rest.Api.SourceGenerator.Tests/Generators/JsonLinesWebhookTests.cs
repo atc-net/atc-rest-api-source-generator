@@ -16,7 +16,8 @@ public sealed class JsonLinesWebhookTests
 
         public sealed class PingHandlerImpl : IPingHandler
         {
-            public System.Threading.Tasks.Task<PingResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+            public System.Threading.Tasks.Task<PingResult> ExecuteAsync(
+                System.Threading.CancellationToken cancellationToken = default)
                 => System.Threading.Tasks.Task.FromResult(PingResult.NoContent());
         }
 
@@ -59,7 +60,8 @@ public sealed class JsonLinesWebhookTests
 
     [Theory]
     [MemberData(nameof(Payloads))]
-    public void Server_TheWebhookPayloadIsAStreamedRequestBody_AndCompilesWithoutWarnings(string payload)
+    public void Server_TheWebhookPayloadIsAStreamedRequestBody_AndCompilesWithoutWarnings(
+        string payload)
     {
         var sources = Generate(payload);
         var parameters = string.Join(Environment.NewLine, sources.Where(s => s.HintName.Contains("WebhookParameters", StringComparison.Ordinal)).Select(s => s.Source));
@@ -106,7 +108,8 @@ public sealed class JsonLinesWebhookTests
             StringComparison.Ordinal);
     }
 
-    private static List<(string HintName, string Source)> Generate(string payload)
+    private static List<(string HintName, string Source)> Generate(
+        string payload)
         => ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml(payload));
 
     private static string Yaml(string payload)

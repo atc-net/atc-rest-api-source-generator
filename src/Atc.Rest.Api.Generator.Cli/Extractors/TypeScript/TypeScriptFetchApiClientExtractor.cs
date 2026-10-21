@@ -513,6 +513,7 @@ public static class TypeScriptFetchApiClientExtractor
         {
             AppendDuplex(sb);
         }
+
         sb.AppendLine();
         sb.AppendLine("    for (const interceptor of this.options.requestInterceptors ?? []) {");
         sb.AppendLine("      init = await interceptor(url, init);");

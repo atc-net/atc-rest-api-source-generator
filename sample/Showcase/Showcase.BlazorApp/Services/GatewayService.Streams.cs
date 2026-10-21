@@ -20,6 +20,14 @@ public sealed partial class GatewayService
             cancellationToken: cancellationToken);
 
     /// <summary>
+    /// Imports prices: the records are sent as JSON Lines, each written as the source yields it.
+    /// </summary>
+    public Task<ImportPricesEndpointResult> ImportPricesAsync(
+        IAsyncEnumerable<PriceTick> prices,
+        CancellationToken cancellationToken = default)
+        => importPricesEndpoint.ExecuteAsync(new ImportPricesParameters(prices), cancellationToken: cancellationToken);
+
+    /// <summary>
     /// Opens the price stream in one of the five formats. Each format is an operation with a result class of its
     /// own; all derive from <see cref="StreamingEndpointResponse{T}"/>, so the items are read the same way.
     /// </summary>

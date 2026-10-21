@@ -193,7 +193,8 @@ public sealed class JsonLinesRequestBodyTests
 
         public sealed class ListReadingsHandlerImpl : IListReadingsHandler
         {
-            public System.Threading.Tasks.Task<ListReadingsResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+            public System.Threading.Tasks.Task<ListReadingsResult> ExecuteAsync(
+                System.Threading.CancellationToken cancellationToken = default)
                 => System.Threading.Tasks.Task.FromResult(ListReadingsResult.Ok(Two()));
 
             private static async System.Collections.Generic.IAsyncEnumerable<Reading> Two()
@@ -270,7 +271,8 @@ public sealed class JsonLinesRequestBodyTests
 
     [Theory]
     [MemberData(nameof(Hosts))]
-    public async Task LiveHost_EveryJsonLinesNameIsAccepted_WhereverOneIsDeclared(bool rdg)
+    public async Task LiveHost_EveryJsonLinesNameIsAccepted_WhereverOneIsDeclared(
+        bool rdg)
     {
         await using var host = await StartAsync(rdg);
 
@@ -295,7 +297,8 @@ public sealed class JsonLinesRequestBodyTests
 
     [Theory]
     [MemberData(nameof(Hosts))]
-    public async Task LiveHost_ALineThatIsNotJsonIsA400NamingTheRecordAndTheLine(bool rdg)
+    public async Task LiveHost_ALineThatIsNotJsonIsA400NamingTheRecordAndTheLine(
+        bool rdg)
     {
         await using var host = await StartAsync(rdg);
 
@@ -307,7 +310,8 @@ public sealed class JsonLinesRequestBodyTests
 
     [Theory]
     [MemberData(nameof(Hosts))]
-    public async Task LiveHost_AValueOfTheWrongTypeIsA400NamingTheMember(bool rdg)
+    public async Task LiveHost_AValueOfTheWrongTypeIsA400NamingTheMember(
+        bool rdg)
     {
         await using var host = await StartAsync(rdg);
 
@@ -338,7 +342,8 @@ public sealed class JsonLinesRequestBodyTests
 
     [Theory]
     [MemberData(nameof(Hosts))]
-    public async Task LiveHost_ARequiredBodyThatIsMissingIs400_AnOptionalOneIsNoRecords(bool rdg)
+    public async Task LiveHost_ARequiredBodyThatIsMissingIs400_AnOptionalOneIsNoRecords(
+        bool rdg)
     {
         await using var host = await StartAsync(rdg);
 
@@ -351,7 +356,8 @@ public sealed class JsonLinesRequestBodyTests
 
     [Theory]
     [MemberData(nameof(Hosts))]
-    public async Task LiveHost_AJsonTextSequence_IsReadRecordByRecord_WithinItsCount(bool rdg)
+    public async Task LiveHost_AJsonTextSequence_IsReadRecordByRecord_WithinItsCount(
+        bool rdg)
     {
         await using var host = await StartAsync(rdg);
 
@@ -366,7 +372,8 @@ public sealed class JsonLinesRequestBodyTests
 
     [Theory]
     [MemberData(nameof(Hosts))]
-    public async Task LiveHost_ABodyOfferedAsJsonLinesOrAJsonArray_IsTheSameStreamToTheHandler(bool rdg)
+    public async Task LiveHost_ABodyOfferedAsJsonLinesOrAJsonArray_IsTheSameStreamToTheHandler(
+        bool rdg)
     {
         await using var host = await StartAsync(rdg);
 
@@ -387,12 +394,13 @@ public sealed class JsonLinesRequestBodyTests
 
         Assert.Equal(200, answer.Status);
         Assert.Equal("application/jsonl", answer.MediaType);
-        Assert.Equal(["A", "B"], answer.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => JsonNode.Parse(l)!["deviceId"]!.GetValue<string>()));
+        Assert.Equal(["A", "B"], answer.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => JsonNode.Parse(l)!["deviceId"]!.GetValue<string>()), StringComparer.Ordinal);
     }
 
     [Theory]
     [MemberData(nameof(Hosts))]
-    public async Task LiveHost_AResponseDeclaredByItsMediaTypeAlone_StreamsWithThatMediaType(bool rdg)
+    public async Task LiveHost_AResponseDeclaredByItsMediaTypeAlone_StreamsWithThatMediaType(
+        bool rdg)
     {
         await using var host = await StartAsync(rdg);
 

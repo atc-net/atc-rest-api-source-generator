@@ -515,7 +515,8 @@ public static class StreamedRequestBodyExtractor
             }
             """;
 
-    private static IEnumerable<OpenApiOperation> Operations(OpenApiDocument openApiDoc)
+    private static IEnumerable<OpenApiOperation> Operations(
+        OpenApiDocument openApiDoc)
     {
         if (openApiDoc is null)
         {

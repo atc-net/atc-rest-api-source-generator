@@ -69,6 +69,44 @@ export default function LiveStreamsPage() {
   const api = useApiService();
   const [resumeStatus, setResumeStatus] = useState('Idle');
   const [resuming, setResuming] = useState(false);
+  const [importStatus, setImportStatus] = useState('Idle');
+  const [importing, setImporting] = useState(false);
+
+  // The prices an import sends: made one at a time, as a source that is still producing them would. The client
+  // writes them as JSON Lines - one line per price - and the server reads them one at a time
+  async function* pricesToImport(withANegativePrice: boolean): AsyncGenerator<PriceTick> {
+    const symbols = ['ATC', 'MSFT', 'NOVO', 'MAERSK'];
+    for (let i = 1; i <= 25; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      yield { symbol: symbols[i % symbols.length], price: withANegativePrice && i === 4 ? -5 : 100 + i, change: 1, sequence: i };
+    }
+  }
+
+  const importPrices = async (withANegativePrice: boolean) => {
+    setImporting(true);
+    setImportStatus('Importing…');
+    try {
+      const result = await api.streams.importPrices(pricesToImport(withANegativePrice));
+      if (result.status === 'ok') {
+        const summary = result.data;
+        setImportStatus(
+          `Imported ${summary.count} prices: ${summary.symbols.join(', ')}, from ${summary.lowest.toFixed(2)} to ${summary.highest.toFixed(2)}`,
+        );
+      } else if (result.status === 'badRequest') {
+        setImportStatus(
+          `400: ${Object.entries(result.error.errors ?? {})
+            .map(([key, messages]) => `${key} ${messages.join(' ')}`)
+            .join(' ')}`,
+        );
+      } else {
+        setImportStatus(`${result.response.status}`);
+      }
+    } catch (e) {
+      setImportStatus(`Failed: ${(e as Error).message}`);
+    } finally {
+      setImporting(false);
+    }
+  };
   const openedAt = useRef(0);
   const arrivedAt = useRef<number[]>([]);
 
@@ -340,6 +378,27 @@ for await (const tick of api.streams.${selected.hook.replace(/^use/, '').replace
           </Typography>
           <Button variant="outlined" onClick={streamWithADrop} disabled={isStreaming || resuming} data-testid="stream-resume">
             Stream with a drop
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6">Sending a stream: an import as JSON Lines</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            The other direction: the page sends 25 prices as JSON Lines (<code>application/jsonl</code>), one line per
+            price, from an async generator. The server's handler reads them one at a time with{' '}
+            <code>await foreach</code>; each price is validated as it arrives, and the first one that is not valid stops
+            the import with a 400 that names it.
+          </Typography>
+          <Typography sx={{ mb: 2 }} data-testid="import-status">
+            {importStatus}
+          </Typography>
+          <Button variant="outlined" onClick={() => importPrices(false)} disabled={importing} data-testid="import-start" sx={{ mr: 1 }}>
+            Import 25 prices
+          </Button>
+          <Button variant="outlined" color="warning" onClick={() => importPrices(true)} disabled={importing} data-testid="import-invalid">
+            Import with a negative price
           </Button>
         </CardContent>
       </Card>

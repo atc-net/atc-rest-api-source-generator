@@ -92,24 +92,6 @@ public static class ResponseBodyClassifier
         IDictionary<string, IOpenApiMediaType>? content)
         => FileMediaTypesBesideAModel(ClassifyContent(content));
 
-    private static IReadOnlyList<string> FileMediaTypesBesideAModel(
-        IReadOnlyList<ResponseBodyMedia> bodies)
-        => bodies.Any(IsTypedModel)
-            ? bodies.Where(b => b.Kind == ResponseBodyKind.Binary).Select(b => b.MediaType).ToList()
-            : [];
-
-    /// <summary>
-    /// Whether a body is a model the generator types: JSON with a schema, or XML of a component model (or a list of
-    /// one). A file beside anything else (JSON without a schema, an inline XML object) stays a file download.
-    /// </summary>
-    private static bool IsTypedModel(ResponseBodyMedia body)
-        => body.Kind switch
-        {
-            ResponseBodyKind.Json => body.Schema is not null,
-            ResponseBodyKind.Xml => body.Schema is OpenApiSchemaReference || body.Schema?.Items is OpenApiSchemaReference,
-            _ => false,
-        };
-
     /// <summary>
     /// Whether a schema describes a model (an object, an array, or a reference to one) rather than a string.
     /// </summary>
@@ -132,6 +114,24 @@ public static class ResponseBodyClassifier
                target.OneOf is { Count: > 0 } ||
                target.AnyOf is { Count: > 0 };
     }
+
+    private static IReadOnlyList<string> FileMediaTypesBesideAModel(
+        IReadOnlyList<ResponseBodyMedia> bodies)
+        => bodies.Any(IsTypedModel)
+            ? bodies.Where(b => b.Kind == ResponseBodyKind.Binary).Select(b => b.MediaType).ToList()
+            : [];
+
+    /// <summary>
+    /// Whether a body is a model the generator types: JSON with a schema, or XML of a component model (or a list of
+    /// one). A file beside anything else (JSON without a schema, an inline XML object) stays a file download.
+    /// </summary>
+    private static bool IsTypedModel(ResponseBodyMedia body)
+        => body.Kind switch
+        {
+            ResponseBodyKind.Json => body.Schema is not null,
+            ResponseBodyKind.Xml => body.Schema is OpenApiSchemaReference || body.Schema?.Items is OpenApiSchemaReference,
+            _ => false,
+        };
 
     /// <summary>
     /// Whether a schema marks the body as binary: <c>format: binary</c> (OpenAPI 3.0).
