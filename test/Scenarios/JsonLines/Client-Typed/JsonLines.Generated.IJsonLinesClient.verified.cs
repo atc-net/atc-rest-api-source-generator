@@ -3,9 +3,9 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -37,6 +37,10 @@ public interface IJsonLinesClient
 
     Task UpdateReadingsAsync(
         UpdateReadingsParameters parameters,
+        CancellationToken cancellationToken = default);
+
+    IAsyncEnumerable<Reading> SearchReadingsAsync(
+        SearchReadingsParameters parameters,
         CancellationToken cancellationToken = default);
 
     IAsyncEnumerable<Reading> NormalizeReadingsAsync(

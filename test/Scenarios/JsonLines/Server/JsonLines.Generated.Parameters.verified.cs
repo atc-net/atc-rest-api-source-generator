@@ -51,6 +51,15 @@ public sealed record UpdateReadingsParameters(
 
 /// <summary>
 /// Parameters for operation request.
+/// Description: The readings of one device - a form in, NDJSON out.
+/// Operation: SearchReadings.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record SearchReadingsParameters(
+    [property: Required] ReadingQuery Request);
+
+/// <summary>
+/// Parameters for operation request.
 /// Description: Normalize readings - a stream in, a stream out.
 /// Operation: NormalizeReadings.
 /// </summary>

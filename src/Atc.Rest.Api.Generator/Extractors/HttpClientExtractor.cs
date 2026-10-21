@@ -1123,9 +1123,7 @@ public static class HttpClientExtractor
         // with its body, read as far as the headers, then the items as they arrive - as for a GET
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType) && !string.Equals(httpMethod, "GET", StringComparison.Ordinal))
         {
-            var requestAccess = hasParameters ? "parameters.Request" : "request";
-            var content = hasParameters ? StreamedBodyContent(operation, requestAccess) : null;
-            content ??= hasParameters && operation.GetJsonRequestBodyMediaType() is not null ? JsonBodyContent(operation, requestAccess) : null;
+            var content = AppendRequestContent(builder, operation, openApiDoc, hasParameters, xmlRead);
             GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), operation.GetServerSentEventItemNames(), hasReturnType, builder, resultStyle, Stamp, xmlRead, EndpointMapHelper.BuildHttpMethodExpression(httpMethod), content);
             return builder
                 .ToString()
@@ -1501,6 +1499,116 @@ public static class HttpClientExtractor
             xmlRead: xmlRead);
     }
 
+    /// <summary>
+    /// The content of a direct file upload, into a <c>content</c> local: the file(s) as multipart/form-data parts, or
+    /// the raw file with its media type.
+    /// </summary>
+    private static void AppendDirectFileUploadContent(
+        StringBuilder builder,
+        OpenApiOperation operation,
+        string? fileUploadContentType)
+    {
+        // Check if this is a multi-file upload (array of binary)
+        var isMultiFileUpload = IsMultiFileUpload(operation);
+
+        // Generate file upload code (use null-forgiving operator since File is optional in spec but required for upload)
+        if (fileUploadContentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            builder.AppendLine("using var content = new MultipartFormDataContent();");
+
+            if (isMultiFileUpload)
+            {
+                // Multi-file upload - iterate over the array
+                builder.AppendLine();
+                builder.AppendLine("for (var i = 0; i < parameters.File!.Length; i++)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, "var fileItem = parameters.File[i];");
+                builder.AppendLine(4, "var streamContent = new StreamContent(fileItem.OpenReadStream());");
+                builder.AppendLine();
+                builder.AppendLine(4, "if (fileItem.ContentType is not null)");
+                builder.AppendLine(4, "{");
+                builder.AppendLine(8, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);");
+                builder.AppendLine(4, "}");
+                builder.AppendLine();
+                builder.AppendLine(4, "content.Add(streamContent, \"files\", fileItem.FileName);");
+                builder.AppendLine("}");
+            }
+            else
+            {
+                // Single file upload
+                builder.AppendLine("var streamContent = new StreamContent(parameters.File!.OpenReadStream());");
+                builder.AppendLine();
+                builder.AppendLine("if (parameters.File!.ContentType is not null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType);");
+                builder.AppendLine("}");
+                builder.AppendLine();
+                builder.AppendLine("content.Add(streamContent, \"file\", parameters.File.FileName);");
+            }
+        }
+        else
+        {
+            // application/octet-stream or image/* content types
+            builder.AppendLine("using var content = new StreamContent(parameters.File!.OpenReadStream());");
+            builder.AppendLine($"content.Headers.ContentType = new MediaTypeHeaderValue({RawFileBodyHelper.ContentTypeExpression(operation, "parameters.File", fileUploadContentType ?? "application/octet-stream")});");
+        }
+    }
+
+    /// <summary>
+    /// The request body of an operation as content, for a send built as a request message (a streamed answer on any
+    /// verb): a stream of records, a file, a form, XML or JSON - with the statements that build it emitted first;
+    /// <see langword="null"/> when there is no body.
+    /// </summary>
+    private static string? AppendRequestContent(
+        StringBuilder builder,
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
+        bool hasParameters,
+        XmlReadPlan? xmlRead)
+    {
+        if (!hasParameters || !operation.HasRequestBody())
+        {
+            return null;
+        }
+
+        const string requestAccess = "parameters.Request";
+        if (StreamedBodyContent(operation, requestAccess) is { } streamed)
+        {
+            return streamed;
+        }
+
+        if (IsDirectFileUpload(operation))
+        {
+            builder.AppendLine();
+            AppendDirectFileUploadContent(builder, operation, operation.GetFileUploadContentType());
+            builder.AppendLine();
+            return "content";
+        }
+
+        if (GetSchemaBasedMultipartSchema(operation, openApiDoc) is { } multipartSchema)
+        {
+            GenerateSchemaBasedMultipartFormData(builder, multipartSchema, FormBodyHelper.FindMultipartFormData(operation), requestAccess);
+            builder.AppendLine();
+            return "content";
+        }
+
+        if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema)
+        {
+            builder.AppendLine();
+            GenerateUrlEncodedForm(builder, formSchema, requestAccess);
+            return "content";
+        }
+
+        if (xmlRead?.RequestContent is { } xmlContent)
+        {
+            return xmlContent;
+        }
+
+        return operation.GetJsonRequestBodyMediaType() is not null
+            ? JsonBodyContent(operation, requestAccess)
+            : null;
+    }
+
     private static void GeneratePostMethodBody(
         OpenApiOperation operation,
         OpenApiDocument openApiDoc,
@@ -1529,52 +1637,8 @@ public static class HttpClientExtractor
 
         if (isDirectFileUpload && hasParameters)
         {
-            // Check if this is a multi-file upload (array of binary)
-            var isMultiFileUpload = IsMultiFileUpload(operation);
-
             builder.AppendLine();
-
-            // Generate file upload code (use null-forgiving operator since File is optional in spec but required for upload)
-            if (fileUploadContentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                builder.AppendLine("using var content = new MultipartFormDataContent();");
-
-                if (isMultiFileUpload)
-                {
-                    // Multi-file upload - iterate over the array
-                    builder.AppendLine();
-                    builder.AppendLine("for (var i = 0; i < parameters.File!.Length; i++)");
-                    builder.AppendLine("{");
-                    builder.AppendLine(4, "var fileItem = parameters.File[i];");
-                    builder.AppendLine(4, "var streamContent = new StreamContent(fileItem.OpenReadStream());");
-                    builder.AppendLine();
-                    builder.AppendLine(4, "if (fileItem.ContentType is not null)");
-                    builder.AppendLine(4, "{");
-                    builder.AppendLine(8, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);");
-                    builder.AppendLine(4, "}");
-                    builder.AppendLine();
-                    builder.AppendLine(4, "content.Add(streamContent, \"files\", fileItem.FileName);");
-                    builder.AppendLine("}");
-                }
-                else
-                {
-                    // Single file upload
-                    builder.AppendLine("var streamContent = new StreamContent(parameters.File!.OpenReadStream());");
-                    builder.AppendLine();
-                    builder.AppendLine("if (parameters.File!.ContentType is not null)");
-                    builder.AppendLine("{");
-                    builder.AppendLine(4, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType);");
-                    builder.AppendLine("}");
-                    builder.AppendLine();
-                    builder.AppendLine("content.Add(streamContent, \"file\", parameters.File.FileName);");
-                }
-            }
-            else
-            {
-                // application/octet-stream or image/* content types
-                builder.AppendLine("using var content = new StreamContent(parameters.File!.OpenReadStream());");
-                builder.AppendLine($"content.Headers.ContentType = new MediaTypeHeaderValue({RawFileBodyHelper.ContentTypeExpression(operation, "parameters.File", fileUploadContentType ?? "application/octet-stream")});");
-            }
+            AppendDirectFileUploadContent(builder, operation, fileUploadContentType);
 
             builder.AppendLine();
             AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");

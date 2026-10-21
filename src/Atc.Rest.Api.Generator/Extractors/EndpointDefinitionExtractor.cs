@@ -2029,8 +2029,14 @@ using Microsoft.AspNetCore.Builder;
             // validation of each record) are set before the handler runs; a body of another media type or a missing one
             // is answered here
             var validateRecords = useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamed.ItemSchema);
+            var recordAttributes = useValidationFilter ? StreamedRequestBodyExtractor.RecordAttributeExpressions(streamed.ItemSchema) : [];
+            var expect = StreamedRequestBodyExtractor.ExpectStatement(
+                streamed,
+                validateRecords,
+                recordAttributes: recordAttributes,
+                nullRecords: StreamedRequestBodyExtractor.RecordsMayBeNull(streamed.ItemSchema));
             content = $"""
-                       {StreamedRequestBodyExtractor.ExpectStatement(streamed, validateRecords)}
+                       {expect}
 
                        return (await handler.ExecuteAsync(
                                parameters,

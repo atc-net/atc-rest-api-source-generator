@@ -47,6 +47,7 @@ public static class EndpointsServiceCollectionExtensions
         services.AddTransient<IImportReadingSequenceEndpoint, ImportReadingSequenceEndpoint>();
         services.AddTransient<IImportReadingsAnyFormatEndpoint, ImportReadingsAnyFormatEndpoint>();
         services.AddTransient<IUpdateReadingsEndpoint, UpdateReadingsEndpoint>();
+        services.AddTransient<ISearchReadingsEndpoint, SearchReadingsEndpoint>();
         services.AddTransient<INormalizeReadingsEndpoint, NormalizeReadingsEndpoint>();
 
         return services;

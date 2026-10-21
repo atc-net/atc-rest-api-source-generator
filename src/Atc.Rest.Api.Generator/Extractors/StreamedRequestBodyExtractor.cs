@@ -45,11 +45,16 @@ public static class StreamedRequestBodyExtractor
     /// <param name="validateRecords">Whether each record is validated (the validation filter is on and a record is a
     /// model).</param>
     /// <param name="accessor">The body expression, e.g. <c>parameters.Request</c>.</param>
+    /// <param name="recordAttributes">The validation attributes of a record of a primitive type (a string with a
+    /// <c>maxLength</c>, a number with a <c>minimum</c>), as construction expressions; empty for a model.</param>
+    /// <param name="nullRecords">Whether a record may be <c>null</c> (the record's schema is nullable).</param>
     /// <returns>The statement, ending with the early return of the rejection.</returns>
     public static string ExpectStatement(
         StreamedRequestBody streamed,
         bool validateRecords,
-        string accessor = "parameters.Request")
+        string accessor = "parameters.Request",
+        IReadOnlyList<string>? recordAttributes = null,
+        bool nullRecords = false)
     {
         if (streamed is null)
         {
@@ -57,9 +62,9 @@ public static class StreamedRequestBodyExtractor
         }
 
         var mediaTypes = streamed.MediaTypes.ToList();
-        if (streamed.AcceptsJsonArray)
+        if (streamed.JsonMediaType is { } jsonMediaType)
         {
-            mediaTypes.Add("application/json");
+            mediaTypes.Add(jsonMediaType);
         }
 
         var arguments = new List<string>
@@ -83,12 +88,84 @@ public static class StreamedRequestBodyExtractor
             arguments.Add("validate: static async (record, context) => (await RequestValidation.ValidateAsync(record, context, isParametersWrapper: false))?.ProblemDetails");
         }
 
+        if (streamed.JsonMediaType is not null && !streamed.JsonIsArray)
+        {
+            arguments.Add("jsonArray: false");
+        }
+
+        if (nullRecords)
+        {
+            arguments.Add("nullRecords: true");
+        }
+
+        if (recordAttributes is { Count: > 0 })
+        {
+            arguments.Add($"recordAttributes: [{string.Join(", ", recordAttributes)}]");
+        }
+
         return $$"""
                  if ({{accessor}}.Expect({{string.Join(", ", arguments)}}) is { } rejected)
                  {
                      return rejected;
                  }
                  """;
+    }
+
+    /// <summary>
+    /// The validation attributes of a record of a primitive type - what the generator writes on a property of that
+    /// schema (<c>ApiMaxLength(3)</c>, <c>Range(0, 10)</c>, a pattern) - as construction expressions; empty for a model
+    /// (validated by its own attributes) and for a record without constraints.
+    /// </summary>
+    /// <param name="itemSchema">The schema of one record.</param>
+    /// <returns>The expressions, e.g. <c>new ApiMaxLengthAttribute(3)</c>.</returns>
+    public static IReadOnlyList<string> RecordAttributeExpressions(
+        IOpenApiSchema itemSchema)
+    {
+        if (itemSchema is null || ResponseBodyClassifier.IsModelSchema(itemSchema))
+        {
+            return [];
+        }
+
+        var expressions = new List<string>();
+        foreach (var attribute in itemSchema.GetValidationAttributes(isRequired: false))
+        {
+            var open = attribute.IndexOf('(');
+            var name = open < 0 ? attribute : attribute.Substring(0, open);
+            if (string.Equals(name, "Required", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var arguments = open < 0 ? string.Empty : attribute.Substring(open + 1, attribute.Length - open - 2);
+            var initializers = new List<string>();
+            if (string.Equals(name, "Range", StringComparison.Ordinal))
+            {
+                // The bounds are positional; an exclusive bound is a property (MinimumIsExclusive = true)
+                var parts = arguments.Split(',').Select(part => part.Trim()).ToList();
+                initializers.AddRange(parts.Where(part => part.Contains('=')));
+                arguments = string.Join(", ", parts.Where(part => !part.Contains('=')));
+            }
+
+            var type = name.StartsWith("Api", StringComparison.Ordinal)
+                ? name + "Attribute"
+                : "global::System.ComponentModel.DataAnnotations." + name + "Attribute";
+            expressions.Add(initializers.Count == 0
+                ? $"new {type}({arguments})"
+                : $"new {type}({arguments}) {{ {string.Join(", ", initializers)} }}");
+        }
+
+        return expressions;
+    }
+
+    /// <summary>
+    /// Whether a record may be <c>null</c>: the record's schema is nullable.
+    /// </summary>
+    /// <param name="itemSchema">The schema of one record.</param>
+    /// <returns>True when a <c>null</c> record is a record.</returns>
+    public static bool RecordsMayBeNull(IOpenApiSchema itemSchema)
+    {
+        var schema = itemSchema is OpenApiSchemaReference { Target: { } target } ? target : itemSchema;
+        return schema?.Type?.HasFlag(JsonSchemaType.Null) == true;
     }
 
     /// <summary>
@@ -131,6 +208,9 @@ public static class StreamedRequestBodyExtractor
                 private int? minItems;
                 private int? maxItems;
                 private global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate;
+                private global::System.ComponentModel.DataAnnotations.ValidationAttribute[]? recordAttributes;
+                private bool jsonArray = true;
+                private bool nullRecords;
                 private int read;
                 private bool expected;
 
@@ -143,6 +223,7 @@ public static class StreamedRequestBodyExtractor
                     Lines,
                     Sequence,
                     Array,
+                    Single,
                 }
 
                 /// <summary>
@@ -166,19 +247,29 @@ public static class StreamedRequestBodyExtractor
                     string[] mediaTypes,
                     int? minItems = null,
                     int? maxItems = null,
-                    global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate = null)
+                    global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate = null,
+                    bool jsonArray = true,
+                    bool nullRecords = false,
+                    global::System.ComponentModel.DataAnnotations.ValidationAttribute[]? recordAttributes = null)
                 {
                     global::System.ArgumentNullException.ThrowIfNull(mediaTypes);
                     expected = true;
                     this.minItems = minItems;
                     this.maxItems = maxItems;
                     this.validate = validate;
+                    this.jsonArray = jsonArray;
+                    this.nullRecords = nullRecords;
+                    this.recordAttributes = recordAttributes;
 
                     var request = context.Request;
                     var contentType = request.ContentType;
                     if (string.IsNullOrWhiteSpace(contentType))
                     {
-                        if (request.ContentLength is null or 0 && !request.Headers.ContainsKey("Transfer-Encoding"))
+                        // Whether the request has a body at all: the server knows (HTTP/2 and HTTP/3 send neither a length
+                        // nor Transfer-Encoding)
+                        var canHaveBody = context.Features.Get<global::Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>()?.CanHaveBody
+                                          ?? (request.ContentLength is > 0 || request.Headers.ContainsKey("Transfer-Encoding"));
+                        if (!canHaveBody)
                         {
                             if (required)
                             {
@@ -195,7 +286,7 @@ public static class StreamedRequestBodyExtractor
                     }
 
                     var mediaType = contentType.Split(';')[0].Trim();
-                    framing = FramingOf(mediaType, mediaTypes);
+                    framing = FramingOf(mediaType, mediaTypes, jsonArray);
                     return framing == Framing.None
                         ? Unsupported(mediaType, mediaTypes)
                         : null;
@@ -210,13 +301,13 @@ public static class StreamedRequestBodyExtractor
                         throw new global::System.InvalidOperationException("A streamed request body can be read once.");
                     }
 
-                    // Read without the endpoint's rules (a hand-written endpoint): any framing this type reads
+                    // Read without the endpoint's rules (a hand-written endpoint): whatever framing this type reads that arrived
                     if (!expected &&
-                        Expect(required: false, mediaTypes: ["application/jsonl", "application/json-seq", "application/json"]) is not null)
+                        Expect(required: false, mediaTypes: [context.Request.ContentType ?? string.Empty]) is not null)
                     {
                         throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(
                             context,
-                            $"The request body must be application/jsonl, application/json-seq or application/json, not '{context.Request.ContentType}'.",
+                            $"The request body must be JSON Lines, a JSON Text Sequence or JSON, not '{context.Request.ContentType}'.",
                             global::Microsoft.AspNetCore.Http.StatusCodes.Status415UnsupportedMediaType);
                     }
 
@@ -233,9 +324,12 @@ public static class StreamedRequestBodyExtractor
                     using var linked = global::System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
                     var options = {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.SerializerOptionsOf(context);
                     var typeInfo = (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
-                    var records = framing == Framing.Array
-                        ? ReadArrayAsync(typeInfo, linked.Token)
-                        : ReadRecordsAsync(typeInfo, linked.Token);
+                    var records = framing switch
+                    {
+                        Framing.Array => ReadArrayAsync(typeInfo, linked.Token),
+                        Framing.Single => ReadSingleAsync(typeInfo, linked.Token),
+                        _ => ReadRecordsAsync(typeInfo, linked.Token),
+                    };
 
                     var index = 0;
                     await foreach (var record in records.ConfigureAwait(false))
@@ -250,7 +344,7 @@ public static class StreamedRequestBodyExtractor
                                 });
                         }
 
-                        if (record is null)
+                        if (record is null && !nullRecords)
                         {
                             throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(
                                 context,
@@ -261,7 +355,7 @@ public static class StreamedRequestBodyExtractor
                         }
 
                         if (validate is not null &&
-                            await validate(record, context).ConfigureAwait(false) is { Errors.Count: > 0 } problem)
+                            await validate(record!, context).ConfigureAwait(false) is { Errors.Count: > 0 } problem)
                         {
                             var errors = new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal);
                             foreach (var error in problem.Errors)
@@ -272,7 +366,30 @@ public static class StreamedRequestBodyExtractor
                             throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(context, errors);
                         }
 
-                        yield return record;
+                        // A record of a primitive type: the constraints its schema declares
+                        if (recordAttributes is { Length: > 0 })
+                        {
+                            var messages = new global::System.Collections.Generic.List<string>();
+                            foreach (var attribute in recordAttributes)
+                            {
+                                if (!attribute.IsValid(record))
+                                {
+                                    messages.Add(attribute.FormatErrorMessage("record"));
+                                }
+                            }
+
+                            if (messages.Count > 0)
+                            {
+                                throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(
+                                    context,
+                                    new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal)
+                                    {
+                                        [$"[{index}]"] = [.. messages],
+                                    });
+                            }
+                        }
+
+                        yield return record!;
                         index++;
                     }
 
@@ -287,18 +404,19 @@ public static class StreamedRequestBodyExtractor
 
                 private static Framing FramingOf(
                     string mediaType,
-                    string[] declared)
+                    string[] declared,
+                    bool jsonArray)
                 {
                     foreach (var candidate in declared)
                     {
                         var declaredType = candidate.Split(';')[0].Trim();
                         if (string.Equals(mediaType, declaredType, global::System.StringComparison.OrdinalIgnoreCase))
                         {
-                            return Classify(mediaType);
+                            return Classify(mediaType, jsonArray);
                         }
 
                         // Every JSON Lines name is the same body: one declared takes the others
-                        if (Classify(declaredType) == Framing.Lines && Classify(mediaType) == Framing.Lines)
+                        if (Classify(declaredType, jsonArray) == Framing.Lines && Classify(mediaType, jsonArray) == Framing.Lines)
                         {
                             return Framing.Lines;
                         }
@@ -307,13 +425,17 @@ public static class StreamedRequestBodyExtractor
                     return Framing.None;
                 }
 
-                private static Framing Classify(string mediaType)
+                // JSON beside a stream (application/json, a +json type) is an array of the records, or one record
+                private static Framing Classify(
+                    string mediaType,
+                    bool jsonArray)
                     => mediaType.ToLowerInvariant() switch
                     {
                         "application/jsonl" or "application/x-ndjson" or "application/x-jsonlines" => Framing.Lines,
                         "application/json-seq" => Framing.Sequence,
                         var type when type.EndsWith("+json-seq", global::System.StringComparison.Ordinal) => Framing.Sequence,
-                        "application/json" => Framing.Array,
+                        "application/json" => jsonArray ? Framing.Array : Framing.Single,
+                        var type when type.EndsWith("+json", global::System.StringComparison.Ordinal) => jsonArray ? Framing.Array : Framing.Single,
                         _ => Framing.None,
                     };
 
@@ -402,6 +524,13 @@ public static class StreamedRequestBodyExtractor
                     }
 
                     var bytes = global::System.Buffers.BuffersExtensions.ToArray(record);
+
+                    // A UTF-8 byte order mark before the first record is no part of it
+                    if (index == 0 && line == 1 && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+                    {
+                        bytes = bytes[3..];
+                    }
+
                     foreach (var b in bytes)
                     {
                         if (b is not ((byte)' ' or (byte)'\t' or (byte)'\r' or LineFeed))
@@ -428,6 +557,28 @@ public static class StreamedRequestBodyExtractor
                     {
                         throw NotReadable(ex, index, framing == Framing.Lines ? line : null);
                     }
+                }
+
+                // One record as JSON (offered beside JSON Lines): the body, read whole
+                private async global::System.Collections.Generic.IAsyncEnumerable<T?> ReadSingleAsync(
+                    global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+                    [global::System.Runtime.CompilerServices.EnumeratorCancellation] global::System.Threading.CancellationToken cancellationToken)
+                {
+                    T? record;
+                    try
+                    {
+                        record = await global::System.Text.Json.JsonSerializer.DeserializeAsync(context.Request.Body, typeInfo, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (global::System.Text.Json.JsonException ex)
+                    {
+                        throw NotReadable(ex, 0, line: null);
+                    }
+                    catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (!context.Items.ContainsKey(RejectedMarker))
+                    {
+                        throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(context, ex.Message, ex.StatusCode, ex);
+                    }
+
+                    yield return record;
                 }
 
                 // A JSON array (offered beside JSON Lines): its elements, streamed; an element that cannot be read is named

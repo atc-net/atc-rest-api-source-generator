@@ -31,7 +31,7 @@ public class StreamedRequestBodyTests
         Assert.Equal([mediaType], streamed.MediaTypes);
         Assert.Equal("Reading", ((OpenApiSchemaReference)streamed.ItemSchema).Reference.Id);
         Assert.True(streamed.IsRequired);
-        Assert.False(streamed.AcceptsJsonArray);
+        Assert.Null(streamed.JsonMediaType);
         Assert.Null(streamed.MinItems);
         Assert.Null(streamed.MaxItems);
     }
@@ -97,10 +97,60 @@ public class StreamedRequestBodyTests
         var (schema, contentType) = operation.GetRequestBodySchemaWithContentType();
 
         Assert.NotNull(streamed);
-        Assert.True(streamed.AcceptsJsonArray);
+        Assert.Equal("application/json", streamed.JsonMediaType);
+        Assert.True(streamed.JsonIsArray);
         Assert.Equal(["application/jsonl", "application/x-ndjson", "application/x-jsonlines", "application/json"], streamed.AcceptedMediaTypes);
         Assert.Equal("application/jsonl", contentType);
         Assert.Same(streamed.ItemSchema, schema);
+    }
+
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/vnd.readings+json")]
+    public void GetStreamedRequestBody_JsonLinesBesideOneRecordAsJson_TakesTheJsonAsOneRecord(
+        string jsonMediaType)
+    {
+        var operation = Parse($$"""
+            requestBody:
+              content:
+                application/jsonl:
+                  schema:
+                    $ref: '#/components/schemas/Reading'
+                {{jsonMediaType}}:
+                  schema:
+                    $ref: '#/components/schemas/Reading'
+            """);
+
+        var streamed = operation.GetStreamedRequestBody();
+
+        Assert.NotNull(streamed);
+        Assert.Equal(jsonMediaType, streamed.JsonMediaType);
+        Assert.False(streamed.JsonIsArray);
+        Assert.Contains(jsonMediaType, streamed.AcceptedMediaTypes, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void GetStreamedRequestBody_JsonLinesBesideAnotherJsonBody_IsNoStream_TheJsonBodyIsTheBody()
+    {
+        // A JSON body of another schema is not a record: the JSON body stays the body, as before JSON Lines was read
+        var operation = Parse("""
+            requestBody:
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      batch:
+                        type: string
+                application/jsonl:
+                  schema:
+                    $ref: '#/components/schemas/Reading'
+            """);
+
+        var (_, contentType) = operation.GetRequestBodySchemaWithContentType();
+
+        Assert.Null(operation.GetStreamedRequestBody());
+        Assert.Equal("application/json", contentType);
     }
 
     [Fact]

@@ -1868,9 +1868,8 @@ public partial class ErrorResponseBodyRuntimeTests
               return failure ? { kind: 'error', status: failure.status ?? 0, error: String(failure.message ?? failure).slice(0, 300) } : { kind: 'value', value: data };
             }
             case 'transform': {
-              // The source is made once: the hook restarts its stream for another source
-              const body = things(c.count);
-              const { result } = renderHook(() => H['use' + c.operation + 'Stream'](body), { wrapper });
+              // The hook takes a function that makes the records, and calls it for each run of the stream
+              const { result } = renderHook(() => H['use' + c.operation + 'Stream'](() => things(c.count)), { wrapper });
               await waitFor(() => { if (result.current.status !== 'success' && result.current.status !== 'error') throw new Error('waiting ' + result.current.status); }, WAIT);
               return { kind: 'items', items: names(result.current.items), error: result.current.error ? String(result.current.error.message ?? result.current.error).slice(0, 300) : null };
             }

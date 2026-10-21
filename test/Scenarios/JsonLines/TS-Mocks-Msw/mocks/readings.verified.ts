@@ -21,6 +21,9 @@ export const readingsHandlers = [
   http.put('*/readings/import-optional', () => {
     return new HttpResponse(null, { status: 204 });
   }),
+  http.post('*/readings/search', () => {
+    return new HttpResponse([{ deviceId: 'sample-deviceId', value: 0.0, takenAt: '2024-01-15T10:30:00Z' }, { deviceId: 'sample-deviceId', value: 0.0, takenAt: '2024-01-15T10:30:00Z' }].map((record) => '' + JSON.stringify(record) + '\n').join(''), { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } });
+  }),
   http.post('*/readings/normalize', () => {
     return new HttpResponse([{ deviceId: 'sample-deviceId', value: 0.0, takenAt: '2024-01-15T10:30:00Z' }, { deviceId: 'sample-deviceId', value: 0.0, takenAt: '2024-01-15T10:30:00Z' }].map((record) => '' + JSON.stringify(record) + '\n').join(''), { status: 200, headers: { 'Content-Type': 'application/jsonl' } });
   })

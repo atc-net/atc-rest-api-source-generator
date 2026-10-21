@@ -30,6 +30,7 @@ public static class ApiHandlerServiceCollectionExtensions
         services.AddScoped<IListReadingSequenceHandler, global::JsonLines.ApiHandlers.ListReadingSequenceHandler>();
         services.AddScoped<IListReadingsHandler, global::JsonLines.ApiHandlers.ListReadingsHandler>();
         services.AddScoped<INormalizeReadingsHandler, global::JsonLines.ApiHandlers.NormalizeReadingsHandler>();
+        services.AddScoped<ISearchReadingsHandler, global::JsonLines.ApiHandlers.SearchReadingsHandler>();
         services.AddScoped<IUpdateReadingsHandler, global::JsonLines.ApiHandlers.UpdateReadingsHandler>();
 
         return services;

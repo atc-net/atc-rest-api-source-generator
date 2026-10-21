@@ -1067,11 +1067,14 @@ public static class ResultClassExtractor
             Content: body);
 
     /// <summary>
-    /// The sequential media type a response declares (its first), as written - <c>application/x-ndjson</c>,
+    /// The sequential media type a response streams in (the first with a schema, as the framing is chosen), as written - <c>application/x-ndjson</c>,
     /// <c>application/geo+json-seq</c> - or <see langword="null"/>.
     /// </summary>
     private static string? StreamingMediaTypeOf(IOpenApiResponse response)
-        => response.Content?.Keys.FirstOrDefault(StreamingMediaType.IsSequential);
+        => response.Content?
+            .Where(entry => StreamingMediaType.IsSequential(entry.Key) && (entry.Value?.Schema is not null || entry.Value?.ItemSchema is not null))
+            .Select(entry => entry.Key)
+            .FirstOrDefault();
 
     /// <summary>
     /// The writer's content-type argument when the declared media type is not the writer's default; empty otherwise.

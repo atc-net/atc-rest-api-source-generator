@@ -74,12 +74,13 @@ internal static class TypeScriptHookModel
             hookParams.Add(paramName + ": " + paramType);
         }
 
-        // A body of records is read once and cannot be serialized: the stream restarts when another source is passed. A
-        // JSON body restarts it when its value changes
+        // A body of records is read once: the hook takes a function that makes the records, and calls it for every run
+        // of the stream (a remount, enabled again, another path parameter) - a source is never sent twice. A JSON body
+        // restarts the stream when its value changes
         var isRecordsBody = info.HasBody && info.BodyType.StartsWith("AsyncIterable<", StringComparison.Ordinal);
         if (info.HasBody)
         {
-            hookParams.Add("body: " + info.BodyType);
+            hookParams.Add(isRecordsBody ? "body: () => " + info.BodyType : "body: " + info.BodyType);
         }
 
         if (info.QueryParams.Count > 0)
@@ -106,7 +107,7 @@ internal static class TypeScriptHookModel
 
         if (info.HasBody)
         {
-            clientCallParts.Add("body");
+            clientCallParts.Add(isRecordsBody ? "bodyRef.current()" : "body");
         }
 
         if (info.QueryParams.Count > 0)
@@ -132,11 +133,6 @@ internal static class TypeScriptHookModel
             depParts.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
-        if (isRecordsBody)
-        {
-            depParts.Add("body");
-        }
-
         var hasJsonBody = info.HasBody && !isRecordsBody;
         var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0 || hasJsonBody;
         if (needsKeyDep)
@@ -153,6 +149,13 @@ internal static class TypeScriptHookModel
         sb.AppendLine("  const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');");
         sb.AppendLine("  const [error, setError] = useState<Error | null>(null);");
         sb.AppendLine("  const controllerRef = useRef<AbortController | null>(null);");
+        if (isRecordsBody)
+        {
+            // The latest function that makes the records: a new function on every render does not restart the stream
+            sb.AppendLine("  const bodyRef = useRef(body);");
+            sb.AppendLine("  bodyRef.current = body;");
+        }
+
         sb.AppendLine();
         sb.AppendLine("  const cancel = useCallback(() => {");
         sb.AppendLine("    controllerRef.current?.abort();");

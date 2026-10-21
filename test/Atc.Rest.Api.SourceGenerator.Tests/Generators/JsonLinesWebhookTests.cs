@@ -68,7 +68,8 @@ public sealed class JsonLinesWebhookTests
 
         Assert.Contains("public StreamedRequestBody<Reading> Payload", parameters, StringComparison.Ordinal);
         Assert.DoesNotContain("[FromBody]", parameters, StringComparison.Ordinal);
-        Assert.Empty(CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(sources, includeMinimalApi: true));
+        var warnings = CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(sources, includeMinimalApi: true);
+        Assert.True(warnings.Count == 0, string.Join(Environment.NewLine, warnings));
     }
 
     public static TheoryData<string, bool> PayloadsOnEveryHost()

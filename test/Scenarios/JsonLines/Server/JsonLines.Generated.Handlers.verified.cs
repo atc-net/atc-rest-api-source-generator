@@ -76,6 +76,17 @@ public interface IUpdateReadingsHandler
 }
 
 /// <summary>
+/// The readings of one device - a form in, NDJSON out.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface ISearchReadingsHandler
+{
+    Task<SearchReadingsResult> ExecuteAsync(
+        SearchReadingsParameters parameters,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Normalize readings - a stream in, a stream out.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

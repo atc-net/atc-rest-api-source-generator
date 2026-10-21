@@ -13,15 +13,17 @@ namespace Atc.OpenApi.Models;
 /// <see langword="null"/>.</param>
 /// <param name="MaxItems">The most records the body may have (the array schema's <c>maxItems</c>), or
 /// <see langword="null"/>.</param>
-/// <param name="AcceptsJsonArray">Whether the body is offered as a JSON array (<c>application/json</c>) too: the
-/// server then streams the array's elements as the same records.</param>
+/// <param name="JsonMediaType">The JSON media type the body is offered as too (<c>application/json</c>, a <c>+json</c>
+/// type) - the records as a JSON array, or one record - or <see langword="null"/>.</param>
+/// <param name="JsonIsArray">Whether that JSON body is an array of the records (else it is one record).</param>
 /// <param name="IsRequired">Whether the request body is required.</param>
 public sealed record StreamedRequestBody(
     IReadOnlyList<string> MediaTypes,
     IOpenApiSchema ItemSchema,
     int? MinItems,
     int? MaxItems,
-    bool AcceptsJsonArray,
+    string? JsonMediaType,
+    bool JsonIsArray,
     bool IsRequired)
 {
     /// <summary>
@@ -38,7 +40,7 @@ public sealed record StreamedRequestBody(
     /// <summary>
     /// Every media type the server takes for the body: the declared ones, every JSON Lines name when one is declared
     /// (<c>application/jsonl</c>, <c>application/x-ndjson</c>, <c>application/x-jsonlines</c> are the same body), and
-    /// <c>application/json</c> when the body is offered as a JSON array too.
+    /// the JSON media type the body is offered as too.
     /// </summary>
     public IReadOnlyList<string> AcceptedMediaTypes
     {
@@ -56,9 +58,9 @@ public sealed record StreamedRequestBody(
                 }
             }
 
-            if (AcceptsJsonArray)
+            if (JsonMediaType is not null)
             {
-                accepted.Add("application/json");
+                accepted.Add(JsonMediaType);
             }
 
             return accepted;

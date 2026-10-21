@@ -265,7 +265,9 @@ public static class WebhookEndpointExtractor
             var expect = StreamedRequestBodyExtractor.ExpectStatement(
                 streamedBody,
                 useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamedBody.ItemSchema),
-                "parameters.Payload");
+                "parameters.Payload",
+                useValidationFilter ? StreamedRequestBodyExtractor.RecordAttributeExpressions(streamedBody.ItemSchema) : [],
+                StreamedRequestBodyExtractor.RecordsMayBeNull(streamedBody.ItemSchema));
             foreach (var line in expect.Split('\n'))
             {
                 builder.AppendLine(12, line.TrimEnd('\r'));

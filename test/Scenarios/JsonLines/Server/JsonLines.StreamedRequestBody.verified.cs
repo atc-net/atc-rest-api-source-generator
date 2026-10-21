@@ -39,6 +39,9 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
     private int? minItems;
     private int? maxItems;
     private global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate;
+    private global::System.ComponentModel.DataAnnotations.ValidationAttribute[]? recordAttributes;
+    private bool jsonArray = true;
+    private bool nullRecords;
     private int read;
     private bool expected;
 
@@ -51,6 +54,7 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
         Lines,
         Sequence,
         Array,
+        Single,
     }
 
     /// <summary>
@@ -74,19 +78,29 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
         string[] mediaTypes,
         int? minItems = null,
         int? maxItems = null,
-        global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate = null)
+        global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate = null,
+        bool jsonArray = true,
+        bool nullRecords = false,
+        global::System.ComponentModel.DataAnnotations.ValidationAttribute[]? recordAttributes = null)
     {
         global::System.ArgumentNullException.ThrowIfNull(mediaTypes);
         expected = true;
         this.minItems = minItems;
         this.maxItems = maxItems;
         this.validate = validate;
+        this.jsonArray = jsonArray;
+        this.nullRecords = nullRecords;
+        this.recordAttributes = recordAttributes;
 
         var request = context.Request;
         var contentType = request.ContentType;
         if (string.IsNullOrWhiteSpace(contentType))
         {
-            if (request.ContentLength is null or 0 && !request.Headers.ContainsKey("Transfer-Encoding"))
+            // Whether the request has a body at all: the server knows (HTTP/2 and HTTP/3 send neither a length
+            // nor Transfer-Encoding)
+            var canHaveBody = context.Features.Get<global::Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>()?.CanHaveBody
+                              ?? (request.ContentLength is > 0 || request.Headers.ContainsKey("Transfer-Encoding"));
+            if (!canHaveBody)
             {
                 if (required)
                 {
@@ -103,7 +117,7 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
         }
 
         var mediaType = contentType.Split(';')[0].Trim();
-        framing = FramingOf(mediaType, mediaTypes);
+        framing = FramingOf(mediaType, mediaTypes, jsonArray);
         return framing == Framing.None
             ? Unsupported(mediaType, mediaTypes)
             : null;
@@ -118,13 +132,13 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
             throw new global::System.InvalidOperationException("A streamed request body can be read once.");
         }
 
-        // Read without the endpoint's rules (a hand-written endpoint): any framing this type reads
+        // Read without the endpoint's rules (a hand-written endpoint): whatever framing this type reads that arrived
         if (!expected &&
-            Expect(required: false, mediaTypes: ["application/jsonl", "application/json-seq", "application/json"]) is not null)
+            Expect(required: false, mediaTypes: [context.Request.ContentType ?? string.Empty]) is not null)
         {
             throw RequestBodyProblems.Rejected(
                 context,
-                $"The request body must be application/jsonl, application/json-seq or application/json, not '{context.Request.ContentType}'.",
+                $"The request body must be JSON Lines, a JSON Text Sequence or JSON, not '{context.Request.ContentType}'.",
                 global::Microsoft.AspNetCore.Http.StatusCodes.Status415UnsupportedMediaType);
         }
 
@@ -141,9 +155,12 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
         using var linked = global::System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
         var options = RequestBodyProblems.SerializerOptionsOf(context);
         var typeInfo = (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
-        var records = framing == Framing.Array
-            ? ReadArrayAsync(typeInfo, linked.Token)
-            : ReadRecordsAsync(typeInfo, linked.Token);
+        var records = framing switch
+        {
+            Framing.Array => ReadArrayAsync(typeInfo, linked.Token),
+            Framing.Single => ReadSingleAsync(typeInfo, linked.Token),
+            _ => ReadRecordsAsync(typeInfo, linked.Token),
+        };
 
         var index = 0;
         await foreach (var record in records.ConfigureAwait(false))
@@ -158,7 +175,7 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
                     });
             }
 
-            if (record is null)
+            if (record is null && !nullRecords)
             {
                 throw RequestBodyProblems.Invalid(
                     context,
@@ -169,7 +186,7 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
             }
 
             if (validate is not null &&
-                await validate(record, context).ConfigureAwait(false) is { Errors.Count: > 0 } problem)
+                await validate(record!, context).ConfigureAwait(false) is { Errors.Count: > 0 } problem)
             {
                 var errors = new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal);
                 foreach (var error in problem.Errors)
@@ -180,7 +197,30 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
                 throw RequestBodyProblems.Invalid(context, errors);
             }
 
-            yield return record;
+            // A record of a primitive type: the constraints its schema declares
+            if (recordAttributes is { Length: > 0 })
+            {
+                var messages = new global::System.Collections.Generic.List<string>();
+                foreach (var attribute in recordAttributes)
+                {
+                    if (!attribute.IsValid(record))
+                    {
+                        messages.Add(attribute.FormatErrorMessage("record"));
+                    }
+                }
+
+                if (messages.Count > 0)
+                {
+                    throw RequestBodyProblems.Invalid(
+                        context,
+                        new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal)
+                        {
+                            [$"[{index}]"] = [.. messages],
+                        });
+                }
+            }
+
+            yield return record!;
             index++;
         }
 
@@ -195,18 +235,19 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
 
     private static Framing FramingOf(
         string mediaType,
-        string[] declared)
+        string[] declared,
+        bool jsonArray)
     {
         foreach (var candidate in declared)
         {
             var declaredType = candidate.Split(';')[0].Trim();
             if (string.Equals(mediaType, declaredType, global::System.StringComparison.OrdinalIgnoreCase))
             {
-                return Classify(mediaType);
+                return Classify(mediaType, jsonArray);
             }
 
             // Every JSON Lines name is the same body: one declared takes the others
-            if (Classify(declaredType) == Framing.Lines && Classify(mediaType) == Framing.Lines)
+            if (Classify(declaredType, jsonArray) == Framing.Lines && Classify(mediaType, jsonArray) == Framing.Lines)
             {
                 return Framing.Lines;
             }
@@ -215,13 +256,17 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
         return Framing.None;
     }
 
-    private static Framing Classify(string mediaType)
+    // JSON beside a stream (application/json, a +json type) is an array of the records, or one record
+    private static Framing Classify(
+        string mediaType,
+        bool jsonArray)
         => mediaType.ToLowerInvariant() switch
         {
             "application/jsonl" or "application/x-ndjson" or "application/x-jsonlines" => Framing.Lines,
             "application/json-seq" => Framing.Sequence,
             var type when type.EndsWith("+json-seq", global::System.StringComparison.Ordinal) => Framing.Sequence,
-            "application/json" => Framing.Array,
+            "application/json" => jsonArray ? Framing.Array : Framing.Single,
+            var type when type.EndsWith("+json", global::System.StringComparison.Ordinal) => jsonArray ? Framing.Array : Framing.Single,
             _ => Framing.None,
         };
 
@@ -310,6 +355,13 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
         }
 
         var bytes = global::System.Buffers.BuffersExtensions.ToArray(record);
+
+        // A UTF-8 byte order mark before the first record is no part of it
+        if (index == 0 && line == 1 && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            bytes = bytes[3..];
+        }
+
         foreach (var b in bytes)
         {
             if (b is not ((byte)' ' or (byte)'\t' or (byte)'\r' or LineFeed))
@@ -336,6 +388,28 @@ public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.
         {
             throw NotReadable(ex, index, framing == Framing.Lines ? line : null);
         }
+    }
+
+    // One record as JSON (offered beside JSON Lines): the body, read whole
+    private async global::System.Collections.Generic.IAsyncEnumerable<T?> ReadSingleAsync(
+        global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+        [global::System.Runtime.CompilerServices.EnumeratorCancellation] global::System.Threading.CancellationToken cancellationToken)
+    {
+        T? record;
+        try
+        {
+            record = await global::System.Text.Json.JsonSerializer.DeserializeAsync(context.Request.Body, typeInfo, cancellationToken).ConfigureAwait(false);
+        }
+        catch (global::System.Text.Json.JsonException ex)
+        {
+            throw NotReadable(ex, 0, line: null);
+        }
+        catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (!context.Items.ContainsKey(RejectedMarker))
+        {
+            throw RequestBodyProblems.Rejected(context, ex.Message, ex.StatusCode, ex);
+        }
+
+        yield return record;
     }
 
     // A JSON array (offered beside JSON Lines): its elements, streamed; an element that cannot be read is named

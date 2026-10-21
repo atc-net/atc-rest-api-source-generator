@@ -231,6 +231,39 @@ public sealed class UpdateReadingsResult : IResult, INestedHttpResult
 }
 
 /// <summary>
+/// The readings of one device - a form in, NDJSON out.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class SearchReadingsResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private SearchReadingsResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The readings of the device, one per line.
+    /// </summary>
+    public static SearchReadingsResult Ok(IAsyncEnumerable<Reading> response)
+        => new(new JsonLines.Generated.Streaming.JsonLinesResult<Reading>(response, "application/x-ndjson"));
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts SearchReadingsResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(SearchReadingsResult result)
+        => result.Result;
+}
+
+/// <summary>
 /// Normalize readings - a stream in, a stream out.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

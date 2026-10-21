@@ -5,7 +5,7 @@ import { useSWRConfig } from 'swr';
 import useSWRMutation, { type SWRMutationConfiguration } from 'swr/mutation';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
-import type { Reading } from '../models';
+import type { Reading, ReadingQuery } from '../models';
 
 const readingsKeys = {
   all: ['readings'] as const,
@@ -267,13 +267,79 @@ export function useUpdateReadings(config?: SWRMutationConfiguration<void, ApiErr
   );
 }
 
-/** Normalize readings - a stream in, a stream out */
-export function useNormalizeReadingsStream(body: AsyncIterable<Reading> | Iterable<Reading>, options?: { enabled?: boolean }) {
+/** The readings of one device - a form in, NDJSON out */
+export function useSearchReadingsStream(body: ReadingQuery, options?: { enabled?: boolean }) {
   const api = useApiService();
   const [items, setItems] = useState<readonly Reading[]>([]);
   const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');
   const [error, setError] = useState<Error | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+
+  const cancel = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    setStatus('idle');
+  }, []);
+
+  const reset = useCallback(() => {
+    cancel();
+    setItems([]);
+    setError(null);
+  }, [cancel]);
+
+  const enabled = options?.enabled !== false;
+  const keyDep = JSON.stringify({ body });
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStatus('streaming');
+    setItems([]);
+    setError(null);
+
+    let buffer: Reading[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };
+    (async () => {
+      try {
+        for await (const item of api.readings.searchReadings(body, controller.signal)) {
+          if (controller.signal.aborted) return;
+          buffer.push(item);
+          if (flushTimer === null) flushTimer = setTimeout(flush, 200);
+        }
+        if (!controller.signal.aborted) {
+          if (flushTimer !== null) clearTimeout(flushTimer);
+          setItems(buffer.slice());
+          setStatus('success');
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (flushTimer !== null) clearTimeout(flushTimer);
+        setItems(buffer.slice());
+        setError(err as Error);
+        setStatus('error');
+      }
+    })();
+
+    return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, api, keyDep]);
+
+  return { items, status, error, cancel, reset };
+}
+
+/** Normalize readings - a stream in, a stream out */
+export function useNormalizeReadingsStream(body: () => AsyncIterable<Reading> | Iterable<Reading>, options?: { enabled?: boolean }) {
+  const api = useApiService();
+  const [items, setItems] = useState<readonly Reading[]>([]);
+  const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');
+  const [error, setError] = useState<Error | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
 
   const cancel = useCallback(() => {
     controllerRef.current?.abort();
@@ -303,7 +369,7 @@ export function useNormalizeReadingsStream(body: AsyncIterable<Reading> | Iterab
     const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };
     (async () => {
       try {
-        for await (const item of api.readings.normalizeReadings(body, controller.signal)) {
+        for await (const item of api.readings.normalizeReadings(bodyRef.current(), controller.signal)) {
           if (controller.signal.aborted) return;
           buffer.push(item);
           if (flushTimer === null) flushTimer = setTimeout(flush, 200);
@@ -325,7 +391,7 @@ export function useNormalizeReadingsStream(body: AsyncIterable<Reading> | Iterab
 
     return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, api, body]);
+  }, [enabled, api]);
 
   return { items, status, error, cancel, reset };
 }

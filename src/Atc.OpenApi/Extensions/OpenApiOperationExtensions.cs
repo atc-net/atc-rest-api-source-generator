@@ -165,16 +165,34 @@ public static class OpenApiOperationExtensions
                 return null;
             }
 
-            var acceptsJsonArray = content.TryGetValue("application/json", out var json) &&
-                                   json?.Schema is { } jsonSchema &&
-                                   jsonSchema.Type?.HasFlag(JsonSchemaType.Array) == true;
+            // A JSON body beside it (application/json, a +json type) is the same records - a JSON array of them, or one
+            // record. A JSON body of another schema is no record: then the JSON body is the body and nothing streams
+            string? jsonMediaType = null;
+            var jsonIsArray = false;
+            if (operation.GetJsonRequestBodyMediaType() is { } json && content[json]?.Schema is { } jsonSchema)
+            {
+                if (IsSameSchema(jsonSchema, itemSchema))
+                {
+                    jsonMediaType = json;
+                }
+                else if (jsonSchema.Type?.HasFlag(JsonSchemaType.Array) == true && IsSameSchema(jsonSchema.Items, itemSchema))
+                {
+                    jsonMediaType = json;
+                    jsonIsArray = true;
+                }
+                else
+                {
+                    return null;
+                }
+            }
 
             return new StreamedRequestBody(
                 mediaTypes,
                 itemSchema,
                 collectionSchema?.MinItems > 0 ? collectionSchema.MinItems : null,
                 collectionSchema?.MaxItems,
-                acceptsJsonArray,
+                jsonMediaType,
+                jsonIsArray,
                 operation.RequestBody.Required);
         }
 
@@ -908,5 +926,27 @@ public static class OpenApiOperationExtensions
 
             return false;
         }
+    }
+
+    /// <summary>
+    /// Whether two schemas are the same record: the same instance, or references to the same component.
+    /// </summary>
+    private static bool IsSameSchema(
+        IOpenApiSchema? first,
+        IOpenApiSchema? second)
+    {
+        if (first is null || second is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(first, second))
+        {
+            return true;
+        }
+
+        var firstId = first is OpenApiSchemaReference firstReference ? firstReference.Reference.Id ?? firstReference.Id : null;
+        var secondId = second is OpenApiSchemaReference secondReference ? secondReference.Reference.Id ?? secondReference.Id : null;
+        return firstId is not null && string.Equals(firstId, secondId, StringComparison.Ordinal);
     }
 }

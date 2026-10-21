@@ -118,6 +118,25 @@ paths:
       responses:
         '204':
           description: The readings were replaced
+  /readings/search:
+    post:
+      operationId: searchReadings
+      summary: The readings of one device - a form in, NDJSON out
+      tags:
+        - readings
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReadingQuery'
+      responses:
+        '200':
+          description: The readings of the device, one per line
+          content:
+            application/x-ndjson:
+              schema:
+                $ref: '#/components/schemas/Reading'
   /readings/normalize:
     post:
       operationId: normalizeReadings
@@ -174,6 +193,14 @@ components:
         takenAt:
           type: string
           format: date-time
+    ReadingQuery:
+      title: ReadingQuery
+      type: object
+      required:
+        - deviceId
+      properties:
+        deviceId:
+          type: string
     ImportSummary:
       title: ImportSummary
       type: object

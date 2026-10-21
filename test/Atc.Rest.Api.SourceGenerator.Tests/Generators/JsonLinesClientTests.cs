@@ -51,7 +51,7 @@ public sealed class JsonLinesClientTests
             public static async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> RunAsync(
                 System.Uri baseAddress)
             {
-                var client = new ErrorBodiesClient(new System.Net.Http.HttpClient { BaseAddress = baseAddress });
+                var client = new ReadingsClient(new System.Net.Http.HttpClient { BaseAddress = baseAddress });
                 var rows = new System.Collections.Generic.List<string>
                 {
                     "import " + await client.ImportReadingsAsync(new ImportReadingsParameters(ReadingSource.Of("a", "b", "c"))),
@@ -166,6 +166,78 @@ public sealed class JsonLinesClientTests
             rows);
     }
 
+    private const string FailingSendProbe = """
+        namespace ErrorBodies.RuntimeTest;
+
+        public sealed class FailingFlushStream : System.IO.MemoryStream
+        {
+            public override System.Threading.Tasks.Task FlushAsync(System.Threading.CancellationToken cancellationToken)
+                => throw new System.IO.IOException("the connection is closed");
+        }
+
+        public static class JsonLinesProbe
+        {
+            private static readonly System.Threading.Tasks.TaskCompletionSource Release = new(System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            private static volatile bool sourceDisposed;
+
+            // A live source: the second record comes later - the send fails while the source is still making it
+            private static async System.Collections.Generic.IAsyncEnumerable<Reading> Live()
+            {
+                try
+                {
+                    yield return new Reading("a", 1);
+                    await Release.Task;
+                    yield return new Reading("b", 1);
+                }
+                finally
+                {
+                    sourceDisposed = true;
+                }
+            }
+
+            public static async System.Threading.Tasks.Task<System.Collections.Generic.List<string>> RunAsync(System.Uri baseAddress)
+            {
+                _ = baseAddress;
+                var rows = new System.Collections.Generic.List<string>();
+                var content = global::ErrorBodies.Generated.Streaming.StreamedRequestContent.Create(Live(), new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web), "application/jsonl");
+                try
+                {
+                    await content.CopyToAsync(new FailingFlushStream());
+                    rows.Add("no error");
+                }
+                catch (System.Exception ex)
+                {
+                    var cause = ex is System.Net.Http.HttpRequestException { InnerException: { } inner } ? inner : ex;
+                    rows.Add($"{cause.GetType().Name}: {cause.Message}");
+                }
+
+                rows.Add($"disposed while the source is still busy: {sourceDisposed}");
+                Release.SetResult();
+                for (var i = 0; i < 200 && !sourceDisposed; i++)
+                {
+                    await System.Threading.Tasks.Task.Delay(10);
+                }
+
+                rows.Add($"disposed once its record came: {sourceDisposed}");
+                return rows;
+            }
+        }
+        """;
+
+    [Fact]
+    public async Task StreamedRequestContent_AFailedSendWhileTheSourceIsBusy_IsTheSendsOwnError_AndTheSourceIsDisposedAfter()
+    {
+        var rows = await RunAsync(JsonLinesClientMarker("TypedClient"), FailingSendProbe, new Uri("http://unused/"));
+
+        Assert.Equal(
+            [
+                "IOException: the connection is closed",
+                "disposed while the source is still busy: False",
+                "disposed once its record came: True",
+            ],
+            rows);
+    }
+
     [Theory]
     [InlineData("TypedClient", "Throw")]
     [InlineData("TypedClient", "Result")]
@@ -179,7 +251,8 @@ public sealed class JsonLinesClientTests
             : $$"""{ "generationMode": "TypedClient", "typedClientResultStyle": "{{style}}" }""";
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiClientGenerator(), ".atc-rest-api-client", marker, includeMinimalApi: false, JsonLinesRequestBodyTests.Yaml);
 
-        Assert.Empty(CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(sources));
+        var warnings = CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(sources);
+        Assert.True(warnings.Count == 0, string.Join(Environment.NewLine, warnings));
     }
 
     private static string JsonLinesClientMarker(string mode)

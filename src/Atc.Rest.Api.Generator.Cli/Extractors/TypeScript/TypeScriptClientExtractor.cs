@@ -601,7 +601,7 @@ public static class TypeScriptClientExtractor
             };
 
             var streamBodyType = !isFileUpload && bodySchema is not null ? BodyTypeOf(bodySchema, writableSchemas, bodyContentType) : null;
-            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, bodyContentType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption, securityOption);
+            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, bodyContentType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption, securityOption, bodyOptional: operation.GetStreamedRequestBody() is { IsRequired: false });
         }
         else
         {
@@ -934,7 +934,8 @@ public static class TypeScriptClientExtractor
         bool brandedIds,
         string? streamFramingArg = null,
         string? wireOption = null,
-        string? securityOption = null)
+        string? securityOption = null,
+        bool bodyOptional = false)
     {
         // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
@@ -949,7 +950,8 @@ public static class TypeScriptClientExtractor
         // A streamed search (POST or QUERY) sends its criteria as the body.
         if (bodyType is not null)
         {
-            paramParts.Add("body: " + bodyType);
+            // An optional stream of records may be left out: no body
+            paramParts.Add((bodyOptional ? "body?: " : "body: ") + bodyType);
         }
 
         if (queryParams.Count > 0)

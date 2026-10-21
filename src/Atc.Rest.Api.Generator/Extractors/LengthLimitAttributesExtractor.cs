@@ -311,7 +311,7 @@ public static class LengthLimitAttributesExtractor
 
         return operations.Any(o =>
             (o.PathItem.Parameters ?? []).Concat(o.Operation.Parameters ?? []).Any(p => predicate(p?.Schema)) ||
-            (o.Operation.RequestBody?.Content?.Values ?? Enumerable.Empty<IOpenApiMediaType>()).Any(m => predicate(m?.Schema)));
+            (o.Operation.RequestBody?.Content?.Values ?? Enumerable.Empty<IOpenApiMediaType>()).Any(m => predicate(m?.Schema) || predicate(m?.ItemSchema)));
     }
 
     // As OpenApiSchemaExtensions.GetValidationAttributes writes them: the name alone, or with its arguments

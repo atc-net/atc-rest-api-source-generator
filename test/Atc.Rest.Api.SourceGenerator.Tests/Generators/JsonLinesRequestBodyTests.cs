@@ -104,6 +104,58 @@ public sealed class JsonLinesRequestBodyTests
                     application/jsonl:
                       schema:
                         $ref: '#/components/schemas/Reading'
+          /readings/one-or-lines:
+            post:
+              operationId: importReadingOrLines
+              requestBody:
+                required: true
+                content:
+                  application/jsonl:
+                    schema:
+                      $ref: '#/components/schemas/Reading'
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Reading'
+              responses:
+                '200':
+                  description: Imported
+                  content:
+                    text/plain:
+                      schema:
+                        type: string
+          /tags:
+            post:
+              operationId: importTags
+              requestBody:
+                required: true
+                content:
+                  application/jsonl:
+                    schema:
+                      type: string
+                      maxLength: 3
+              responses:
+                '200':
+                  description: Imported
+                  content:
+                    text/plain:
+                      schema:
+                        type: string
+          /notes:
+            post:
+              operationId: importNotes
+              requestBody:
+                required: true
+                content:
+                  application/jsonl:
+                    schema:
+                      type: [string, 'null']
+              responses:
+                '200':
+                  description: Imported
+                  content:
+                    text/plain:
+                      schema:
+                        type: string
           /readings/export:
             get:
               operationId: listReadings
@@ -205,10 +257,47 @@ public sealed class JsonLinesRequestBodyTests
             }
         }
 
+        public sealed class ImportReadingOrLinesHandlerImpl : IImportReadingOrLinesHandler
+        {
+            public async System.Threading.Tasks.Task<ImportReadingOrLinesResult> ExecuteAsync(ImportReadingOrLinesParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => ImportReadingOrLinesResult.Ok(await ReadingLog.ReadAsync(parameters.Request, cancellationToken));
+        }
+
+        public sealed class ImportTagsHandlerImpl : IImportTagsHandler
+        {
+            public async System.Threading.Tasks.Task<ImportTagsResult> ExecuteAsync(ImportTagsParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+            {
+                var tags = new System.Collections.Generic.List<string>();
+                await foreach (var tag in parameters.Request.WithCancellation(cancellationToken))
+                {
+                    tags.Add(tag);
+                }
+
+                return ImportTagsResult.Ok(string.Join(",", tags));
+            }
+        }
+
+        public sealed class ImportNotesHandlerImpl : IImportNotesHandler
+        {
+            public async System.Threading.Tasks.Task<ImportNotesResult> ExecuteAsync(ImportNotesParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+            {
+                var notes = new System.Collections.Generic.List<string>();
+                await foreach (var note in parameters.Request.WithCancellation(cancellationToken))
+                {
+                    notes.Add(note ?? "(null)");
+                }
+
+                return ImportNotesResult.Ok(string.Join(",", notes));
+            }
+        }
+
         public static class ReadingRegistration
         {
             public static void Register(IServiceCollection services)
             {
+                services.AddScoped<IImportReadingOrLinesHandler, ImportReadingOrLinesHandlerImpl>();
+                services.AddScoped<IImportTagsHandler, ImportTagsHandlerImpl>();
+                services.AddScoped<IImportNotesHandler, ImportNotesHandlerImpl>();
                 services.AddScoped<IImportReadingsHandler, ImportReadingsHandlerImpl>();
                 services.AddScoped<IImportReadingSequenceHandler, ImportReadingSequenceHandlerImpl>();
                 services.AddScoped<IImportReadingsAnyFormatHandler, ImportReadingsAnyFormatHandlerImpl>();
@@ -251,7 +340,8 @@ public sealed class JsonLinesRequestBodyTests
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml);
 
-        Assert.Empty(CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(sources, includeMinimalApi: true));
+        var warnings = CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(sources, includeMinimalApi: true);
+        Assert.True(warnings.Count == 0, string.Join(Environment.NewLine, warnings));
     }
 
     [Theory]
@@ -409,6 +499,48 @@ public sealed class JsonLinesRequestBodyTests
         Assert.Equal(200, answer.Status);
         Assert.Equal("application/x-ndjson", answer.MediaType);
         Assert.Equal(2, answer.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public async Task LiveHost_AJsonBodyOfferedBesideJsonLines_IsOneRecord(
+        bool rdg)
+    {
+        await using var host = await StartAsync(rdg);
+
+        Assert.Equal("200 text/plain 1 a", await Post(host, "/readings/one-or-lines", "application/json", "{\n  \"deviceId\": \"a\",\n  \"value\": 1\n}"));
+        Assert.Equal("200 text/plain 2 a,b", await Post(host, "/readings/one-or-lines", "application/jsonl", Lines("a", "b")));
+        Assert.Equal("400 application/problem+json errors=[0].value", await Post(host, "/readings/one-or-lines", "application/json", "{\"deviceId\":\"a\",\"value\":500}"));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public async Task LiveHost_RecordsOfAPrimitiveType_AreValidatedToo(bool rdg)
+    {
+        await using var host = await StartAsync(rdg);
+
+        Assert.Equal("200 text/plain a,bc", await Post(host, "/tags", "application/jsonl", "\"a\"\n\"bc\"\n"));
+        Assert.Equal("400 application/problem+json errors=[1]", await Post(host, "/tags", "application/jsonl", "\"a\"\n\"toolong\"\n"));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public async Task LiveHost_ANullRecordOfANullableRecordType_IsARecord(
+        bool rdg)
+    {
+        await using var host = await StartAsync(rdg);
+
+        Assert.Equal("200 text/plain (null),ab", await Post(host, "/notes", "application/jsonl", "null\n\"ab\"\n"));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public async Task LiveHost_AByteOrderMarkBeforeTheFirstRecord_IsSkipped(
+        bool rdg)
+    {
+        await using var host = await StartAsync(rdg);
+
+        Assert.Equal("200 text/plain 1 a", await Post(host, "/readings", "application/jsonl", "\uFEFF" + Lines("a")));
     }
 
     [Fact]

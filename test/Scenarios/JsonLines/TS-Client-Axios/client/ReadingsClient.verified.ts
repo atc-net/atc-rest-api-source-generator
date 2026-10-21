@@ -2,7 +2,7 @@
 // atc-rest-api-gen 1.0.0
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
-import type { ImportSummary, Reading } from '../models';
+import type { ImportSummary, Reading, ReadingQuery } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
 export type ImportReadingsResult =
@@ -96,6 +96,14 @@ export class ReadingsClient {
       arms: ['noContent', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateReadingsResult>;
+  }
+
+  /** The readings of one device - a form in, NDJSON out */
+  async *searchReadings(body: ReadingQuery, signal?: AbortSignal): AsyncGenerator<Reading> {
+    yield* this.api.requestStream<Reading>('POST', '/readings/search', {
+      body,
+      signal,
+    }, 'json-lines');
   }
 
   /** Normalize readings - a stream in, a stream out */

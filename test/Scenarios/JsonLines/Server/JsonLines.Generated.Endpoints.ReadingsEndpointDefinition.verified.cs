@@ -96,6 +96,19 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
             .Accepts<Reading>("application/x-ndjson", "application/jsonl", "application/x-jsonlines");
 
         readings
+            .MapPost("search", SearchReadings)
+            .WithName("SearchReadings")
+            .WithSummary("The readings of one device - a form in, NDJSON out")
+            .Produces<Reading>(StatusCodes.Status200OK, "application/x-ndjson")
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireFormBinding((WireParameter.Text("form", "deviceId"), true, false))
+            .Accepts<ReadingQuery>("application/x-www-form-urlencoded")
+            .DisableAntiforgery();
+
+        readings
             .MapPost("normalize", NormalizeReadings)
             .WithName("NormalizeReadings")
             .WithSummary("Normalize readings - a stream in, a stream out")
@@ -180,6 +193,19 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
             return rejected;
         }
 
+        return (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
+    }
+
+    internal async Task<IResult> SearchReadings(
+        [FromServices] ISearchReadingsHandler handler,
+        [FromForm(Name = "deviceId")] string? deviceId,
+        CancellationToken cancellationToken)
+    {
+        var request = new ReadingQuery(DeviceId: deviceId ?? string.Empty);
+        var parameters = new SearchReadingsParameters(request);
         return (await handler.ExecuteAsync(
                 parameters,
                 cancellationToken))

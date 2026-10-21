@@ -2,3 +2,4 @@
 // atc-rest-api-gen 1.0.0
 export type * from './ImportSummary';
 export type * from './Reading';
+export type * from './ReadingQuery';

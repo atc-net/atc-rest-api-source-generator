@@ -3,9 +3,9 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -118,6 +118,36 @@ public sealed class JsonLinesClient : IJsonLinesClient
         var url = "readings/import-optional";
         using var response = await httpClient.PutAsync(url, (parameters.Request is null ? null : StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/x-ndjson")), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async IAsyncEnumerable<Reading> SearchReadingsAsync(
+        SearchReadingsParameters parameters,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var url = "readings/search";
+
+        var fields = new List<KeyValuePair<string, string>>();
+        if (parameters.Request?.DeviceId is { } deviceId)
+        {
+            fields.Add(new KeyValuePair<string, string>("deviceId", deviceId));
+        }
+
+        using var content = new FormUrlEncodedContent(fields);
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = content;
+        using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+        await foreach (var item in StreamReaders.ReadJsonLinesAsync<Reading>(stream, jsonSerializerOptions, cancellationToken).ConfigureAwait(false))
+        {
+            if (item is not null)
+            {
+                yield return item;
+            }
+        }
     }
 
     public async IAsyncEnumerable<Reading> NormalizeReadingsAsync(

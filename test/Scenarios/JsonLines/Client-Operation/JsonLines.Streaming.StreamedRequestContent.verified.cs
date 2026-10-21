@@ -99,13 +99,18 @@ internal sealed class StreamedRequestContent<T> : global::System.Net.Http.HttpCo
         if (global::System.Threading.Interlocked.Exchange(ref sent, 1) == 1)
         {
             throw new global::System.InvalidOperationException(
-                "A streamed request body is sent once: its records are read as they are written, so the request cannot be sent again (a retry or a redirect).");
+                "A streamed request body is sent once: its records are read as they are written, so a retry or a redirect cannot send them again. " +
+                "The first attempt's failure is the cause - turn off the retries of an HttpClient resilience handler for this request.");
         }
 
         var enumerator = records.GetAsyncEnumerator(cancellationToken);
+        var next = default(global::System.Threading.Tasks.ValueTask<bool>);
+        var pending = false;
+        var disposeLater = false;
         try
         {
-            var next = enumerator.MoveNextAsync();
+            next = enumerator.MoveNextAsync();
+            pending = true;
             while (true)
             {
                 // The source makes the request wait: what is written goes to the server now
@@ -114,6 +119,7 @@ internal sealed class StreamedRequestContent<T> : global::System.Net.Http.HttpCo
                     await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
 
+                pending = false;
                 if (!await next.ConfigureAwait(false))
                 {
                     break;
@@ -127,11 +133,29 @@ internal sealed class StreamedRequestContent<T> : global::System.Net.Http.HttpCo
                 await write(stream, enumerator.Current, cancellationToken).ConfigureAwait(false);
                 await stream.WriteAsync(LineFeed, cancellationToken).ConfigureAwait(false);
                 next = enumerator.MoveNextAsync();
+                pending = true;
             }
+        }
+        catch when (pending)
+        {
+            // The send failed while the source was still making its next record: the source is disposed once
+            // that record has come (an iterator cannot be disposed while it runs), and the send's own error
+            // goes to the caller - not one about the disposal
+            disposeLater = true;
+            var source = enumerator;
+            _ = next.AsTask().ContinueWith(
+                _ => source.DisposeAsync().AsTask(),
+                global::System.Threading.CancellationToken.None,
+                global::System.Threading.Tasks.TaskContinuationOptions.None,
+                global::System.Threading.Tasks.TaskScheduler.Default).Unwrap();
+            throw;
         }
         finally
         {
-            await enumerator.DisposeAsync().ConfigureAwait(false);
+            if (!disposeLater)
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
