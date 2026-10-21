@@ -50,6 +50,20 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(ListProductsParametersWire.Parameters, requireParameters: true);
+
+        products
+            .MapGet("codes/next", GetNextProductCode)
+            .WithName("GetNextProductCode")
+            .Produces<string>()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+
+        products
+            .MapGet("codes", ListProductCodes)
+            .WithName("ListProductCodes")
+            .Produces<List<string>>()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetProduct(
@@ -67,6 +81,20 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
         CancellationToken cancellationToken)
         => (await handler.ExecuteAsync(
                 parameters,
+                cancellationToken))
+            .Result;
+
+    internal async Task<IResult> GetNextProductCode(
+        [FromServices] IGetNextProductCodeHandler handler,
+        CancellationToken cancellationToken)
+        => (await handler.ExecuteAsync(
+                cancellationToken))
+            .Result;
+
+    internal async Task<IResult> ListProductCodes(
+        [FromServices] IListProductCodesHandler handler,
+        CancellationToken cancellationToken)
+        => (await handler.ExecuteAsync(
                 cancellationToken))
             .Result;
 }

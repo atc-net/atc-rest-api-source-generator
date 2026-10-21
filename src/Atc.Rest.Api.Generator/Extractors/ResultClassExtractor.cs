@@ -1647,6 +1647,12 @@ public static class ResultClassExtractor
                 return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
             }
 
+            // A primitive alias (ProductCode: a string with a pattern) is no generated type: it is the primitive
+            if (schemaRef.GetAliasTarget() is { } aliasTarget)
+            {
+                return GetSchemaTypeName(aliasTarget, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
+            }
+
             // Return the resolved type name for schema references
             return OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
         }

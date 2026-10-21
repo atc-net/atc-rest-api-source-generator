@@ -34,3 +34,21 @@ public interface IListProductsHandler
         ListProductsParameters parameters,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Handler for operation: getNextProductCode.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IGetNextProductCodeHandler
+{
+    Task<GetNextProductCodeResult> ExecuteAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Handler for operation: listProductCodes.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IListProductCodesHandler
+{
+    Task<ListProductCodesResult> ExecuteAsync(CancellationToken cancellationToken = default);
+}

@@ -47,7 +47,7 @@ public sealed class ProductsClient : IProductsClient
         GetProductParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        var url = $"products/{Uri.EscapeDataString($"{parameters.ProductCode}")}";
+        var url = $"products/{Uri.EscapeDataString(parameters.ProductCode)}";
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -65,7 +65,7 @@ public sealed class ProductsClient : IProductsClient
         {
             foreach (var item in parameters.Codes)
             {
-                queryParams.Add($"codes={Uri.EscapeDataString($"{item}")}");
+                queryParams.Add($"codes={Uri.EscapeDataString(item)}");
             }
         }
 
@@ -103,6 +103,23 @@ public sealed class ProductsClient : IProductsClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Product>>())!;
+    }
+
+    public async Task<string> GetNextProductCodeAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "products/codes/next";
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<List<string>> ListProductCodesAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "products/codes";
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<string>>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

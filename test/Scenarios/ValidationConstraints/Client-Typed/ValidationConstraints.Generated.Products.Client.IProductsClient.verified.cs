@@ -24,4 +24,8 @@ public interface IProductsClient
     Task<List<Product>> ListProductsAsync(
         ListProductsParameters parameters,
         CancellationToken cancellationToken = default);
+
+    Task<string> GetNextProductCodeAsync(CancellationToken cancellationToken = default);
+
+    Task<List<string>> ListProductCodesAsync(CancellationToken cancellationToken = default);
 }

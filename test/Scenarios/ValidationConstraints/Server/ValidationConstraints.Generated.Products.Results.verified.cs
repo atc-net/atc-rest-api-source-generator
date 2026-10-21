@@ -88,3 +88,78 @@ public sealed class ListProductsResult : IResult, INestedHttpResult
     public static IResult ToIResult(ListProductsResult result)
         => result.Result;
 }
+
+/// <summary>
+/// Result for operation: getNextProductCode.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class GetNextProductCodeResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private GetNextProductCodeResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The next free product code.
+    /// </summary>
+    public static GetNextProductCodeResult Ok(string message)
+        => new(TypedResults.Ok(message));
+
+    public static implicit operator GetNextProductCodeResult(string message)
+        => Ok(message);
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts GetNextProductCodeResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(GetNextProductCodeResult result)
+        => result.Result;
+}
+
+/// <summary>
+/// Result for operation: listProductCodes.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class ListProductCodesResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private ListProductCodesResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The product codes in use.
+    /// </summary>
+    public static ListProductCodesResult Ok(List<string> response)
+        => new(TypedResults.Ok(response));
+
+    public static implicit operator ListProductCodesResult(List<string> response)
+        => Ok(response);
+
+    public static implicit operator ListProductCodesResult(string[] response)
+        => Ok(response.ToList());
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts ListProductCodesResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(ListProductCodesResult result)
+        => result.Result;
+}

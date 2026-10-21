@@ -5,6 +5,7 @@ import type { Product, ProductCode } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 import { z } from 'zod';
 import { ProductSchema } from '../models/Product.zod';
+import { ProductCodeSchema } from '../models/ProductCode.zod';
 
 export type GetProductResult =
   | { status: 'ok'; data: Product; response: Response }
@@ -17,6 +18,18 @@ export type GetProductResult =
 export type ListProductsResult =
   | { status: 'ok'; data: Product[]; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
+export type GetNextProductCodeResult =
+  | { status: 'ok'; data: ProductCode; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
+export type ListProductCodesResult =
+  | { status: 'ok'; data: ProductCode[]; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -53,5 +66,25 @@ export class ProductsClient {
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ListProductsResult>;
+  }
+
+  /** A response that is the string component itself. */
+  async getNextProductCode(signal?: AbortSignal): Promise<GetNextProductCodeResult> {
+    return this.api.request<ProductCode>('GET', '/products/codes/next', {
+      responseType: 'json',
+      parseSchema: ProductCodeSchema,
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<GetNextProductCodeResult>;
+  }
+
+  /** A response that is a list of the string component. */
+  async listProductCodes(signal?: AbortSignal): Promise<ListProductCodesResult> {
+    return this.api.request<ProductCode[]>('GET', '/products/codes', {
+      responseType: 'json',
+      parseSchema: z.array(ProductCodeSchema),
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<ListProductCodesResult>;
   }
 }

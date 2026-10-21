@@ -43,6 +43,8 @@ public static class EndpointsServiceCollectionExtensions
 
         services.AddTransient<IGetProductEndpoint, GetProductEndpoint>();
         services.AddTransient<IListProductsEndpoint, ListProductsEndpoint>();
+        services.AddTransient<IGetNextProductCodeEndpoint, GetNextProductCodeEndpoint>();
+        services.AddTransient<IListProductCodesEndpoint, ListProductCodesEndpoint>();
 
         return services;
     }

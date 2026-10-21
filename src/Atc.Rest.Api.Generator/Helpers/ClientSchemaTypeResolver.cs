@@ -52,6 +52,12 @@ public static class ClientSchemaTypeResolver
                 return CollectionOf(arraySchema, openApiDoc, registry, topCollection ?? collection, collection, context, inlineTypeName);
             }
 
+            // A primitive alias (ProductCode: a string with a pattern) is no generated type: it is the primitive
+            if (schemaRef.GetAliasTarget() is { } aliasTarget)
+            {
+                return Resolve(aliasTarget, openApiDoc, registry, collection, topCollection, context, inlineTypeName);
+            }
+
             return OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
         }
 

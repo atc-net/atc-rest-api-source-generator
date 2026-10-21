@@ -64,6 +64,30 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Product'
+  /products/codes/next:
+    get:
+      operationId: getNextProductCode
+      description: A response that is the string component itself.
+      responses:
+        '200':
+          description: The next free product code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductCode'
+  /products/codes:
+    get:
+      operationId: listProductCodes
+      description: A response that is a list of the string component.
+      responses:
+        '200':
+          description: The product codes in use
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductCode'
   /orders:
     post:
       operationId: createOrder
