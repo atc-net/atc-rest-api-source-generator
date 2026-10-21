@@ -360,6 +360,19 @@ public static class RuleIdentifiers
     /// </summary>
     public const string StreamingPrefixEncodingUnsupported = "ATC_API_STREAM001";
 
+    /// <summary>
+    /// ATC_API_STREAM002: A request body declared only as Server-Sent Events (<c>text/event-stream</c>) or
+    /// <c>multipart/mixed</c>. No generated client sends such a body and the server does not read it, so it would be
+    /// dropped; a stream of records is sent as JSON Lines (<c>application/jsonl</c>) or a JSON Text Sequence.
+    /// </summary>
+    public const string StreamingRequestBodyFramingUnsupported = "ATC_API_STREAM002";
+
+    /// <summary>
+    /// ATC_API_STREAM003: A request body declared as JSON Lines or a JSON Text Sequence without the schema of its
+    /// records (no <c>schema</c>, no <c>itemSchema</c>). The records cannot be typed, so the body would be dropped.
+    /// </summary>
+    public const string StreamedRequestBodyWithoutRecordSchema = "ATC_API_STREAM003";
+
     // ========== Rate Limiting Rules (RL) ==========
 
     /// <summary>

@@ -37,7 +37,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |
 | **Data**   | 📁 **Files**                     | Upload and download any file type (PDF, Excel, images) with its media type and file name; a response can be a model **or** a file |
 |            | 🧾 **XML**                       | XML bodies mapped by the `xml` keyword, negotiated by `Accept`; `application/problem+xml` on request |
-|            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` in five formats: JSON array, JSON Lines, JSON Text Sequence, Server-Sent Events, multipart - read by every C# and TypeScript client; a Server-Sent Events stream can resume with `Last-Event-ID` |
+|            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` in five formats: JSON array, JSON Lines, JSON Text Sequence, Server-Sent Events, multipart - read by every C# and TypeScript client; a Server-Sent Events stream can resume with `Last-Event-ID`; JSON Lines and JSON Text Sequence **request bodies** stream from every client to the handler, each record validated as it arrives |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
 |            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios (or your own fetch / axios instance), interceptors, retry, MSW handlers |
 |            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — `queryOptions` factories for loaders and prefetching, cancellation through `AbortSignal`, streaming hooks for `IAsyncEnumerable` |
@@ -58,7 +58,7 @@ Ask an AI agent (Claude Code, GitHub Copilot, Cursor) for the same endpoint twic
 | **What the agent writes** | Endpoints, models, validation, error handling, clients - every time | A few lines of OpenAPI YAML and the handler's business logic |
 | **Same request, twice** | Two different implementations | The same code, byte for byte: same spec + same generator version = same output |
 | **Wrong status code** | Found in review - or in production | Does not compile: a handler can only return the responses the spec declares |
-| **Spec mistakes** | Silent | 164 `ATC_API_*` build diagnostics, each with an id the agent can look up and fix |
+| **Spec mistakes** | Silent | 166 `ATC_API_*` build diagnostics, each with an id the agent can look up and fix |
 | **Server ↔ C# / TypeScript client** | Written separately, drifting apart | Generated from one file; every client is run against the server in the [test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html) |
 | **What you review** | Hundreds of lines of plumbing per endpoint | The YAML diff and the handler diff |
 
@@ -281,6 +281,7 @@ Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-ap
 | [💾 Working with Caching](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Caching) | Output caching and HybridCache configuration |
 | [🔢 Working with Versioning](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Versioning) | API versioning strategies |
 | [📣 Working with Server Push](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Server-Push) | Streams, SignalR hubs, webhooks or polling with ETag - which one to use |
+| [📜 Working with JSON Lines](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-JSON-Lines) | Streamed responses and request bodies as JSON Lines or JSON Text Sequences - an import read record by record |
 | [📡 Working with SignalR Hubs](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-SignalR-Hubs) | `x-signalr-hubs`: typed hub contract, C# and TypeScript hub clients |
 | [🪝 Working with Webhooks](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Webhooks) | Receive OpenAPI 3.1 webhooks: endpoints, handlers, results |
 | [🗺️ Working with Endpoint Definitions](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Endpoint-Definitions) | How endpoints are grouped and mapped |

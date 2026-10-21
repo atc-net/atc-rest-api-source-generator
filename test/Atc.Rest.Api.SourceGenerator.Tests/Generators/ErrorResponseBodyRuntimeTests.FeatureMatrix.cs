@@ -85,6 +85,41 @@ public partial class ErrorResponseBodyRuntimeTests
                 - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
               responses:
                 '200': { description: Things, content: { application/json-seq: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/stream/ndjson:
+            get:
+              operationId: featureNdjson
+              parameters:
+                - { name: count, in: query, required: true, schema: { type: integer, format: int32 } }
+                - { name: failAfter, in: query, schema: { type: integer, format: int32 } }
+              responses:
+                '200': { description: Things - a stream by its media type alone (no x-return-async-enumerable), content: { application/x-ndjson: { schema: { $ref: '#/components/schemas/Thing' } } } }
+          /feature/upload/lines:
+            post:
+              operationId: featureUpload
+              requestBody:
+                required: true
+                content:
+                  application/jsonl: { schema: { $ref: '#/components/schemas/Thing' } }
+              responses:
+                '200': { description: The names the handler read, content: { text/plain: { schema: { type: string } } } }
+          /feature/upload/seq:
+            post:
+              operationId: featureUploadSeq
+              requestBody:
+                required: true
+                content:
+                  application/json-seq: { schema: { $ref: '#/components/schemas/Thing' } }
+              responses:
+                '200': { description: The names the handler read, content: { text/plain: { schema: { type: string } } } }
+          /feature/upload/transform:
+            post:
+              operationId: featureTransform
+              requestBody:
+                required: true
+                content:
+                  application/jsonl: { schema: { $ref: '#/components/schemas/Thing' } }
+              responses:
+                '200': { description: The things back as they are read, content: { application/jsonl: { schema: { $ref: '#/components/schemas/Thing' } } } }
           /feature/stream/mixed:
             get:
               operationId: featureMixed
@@ -328,6 +363,17 @@ public partial class ErrorResponseBodyRuntimeTests
             public static string Probe(IHttpContextAccessor accessor)
                 => accessor.HttpContext?.Request.Headers["X-Probe"].ToString() ?? string.Empty;
 
+            public static async System.Threading.Tasks.Task<string> NamesAsync(IAsyncEnumerable<Thing> records, System.Threading.CancellationToken cancellationToken)
+            {
+                var names = new List<string>();
+                await foreach (var record in records.WithCancellation(cancellationToken))
+                {
+                    names.Add(record.Name);
+                }
+
+                return string.Join(",", names);
+            }
+
             public static async IAsyncEnumerable<Thing> Stream(int count, int? failAfter, string probe, [EnumeratorCancellation] System.Threading.CancellationToken cancellationToken)
             {
                 try
@@ -390,6 +436,32 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             public System.Threading.Tasks.Task<FeatureLinesResult> ExecuteAsync(FeatureLinesParameters parameters, System.Threading.CancellationToken cancellationToken = default)
                 => System.Threading.Tasks.Task.FromResult(FeatureLinesResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
+        }
+
+        public sealed class FeatureNdjsonHandlerImpl(IHttpContextAccessor accessor) : IFeatureNdjsonHandler
+        {
+            public System.Threading.Tasks.Task<FeatureNdjsonResult> ExecuteAsync(FeatureNdjsonParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(FeatureNdjsonResult.Ok(FeatureLog.Stream(parameters.Count, parameters.FailAfter, FeatureLog.Probe(accessor), cancellationToken)));
+        }
+
+        // A streamed request body: the names of the records, read one at a time as they arrive
+        public sealed class FeatureUploadHandlerImpl : IFeatureUploadHandler
+        {
+            public async System.Threading.Tasks.Task<FeatureUploadResult> ExecuteAsync(FeatureUploadParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => FeatureUploadResult.Ok(await FeatureLog.NamesAsync(parameters.Request, cancellationToken));
+        }
+
+        public sealed class FeatureUploadSeqHandlerImpl : IFeatureUploadSeqHandler
+        {
+            public async System.Threading.Tasks.Task<FeatureUploadSeqResult> ExecuteAsync(FeatureUploadSeqParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => FeatureUploadSeqResult.Ok(await FeatureLog.NamesAsync(parameters.Request, cancellationToken));
+        }
+
+        // A stream in and a stream out: each record is written back as it is read
+        public sealed class FeatureTransformHandlerImpl : IFeatureTransformHandler
+        {
+            public System.Threading.Tasks.Task<FeatureTransformResult> ExecuteAsync(FeatureTransformParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(FeatureTransformResult.Ok(parameters.Request));
         }
 
         public sealed class FeatureArrayHandlerImpl(IHttpContextAccessor accessor) : IFeatureArrayHandler
@@ -616,6 +688,10 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IFeatureSseResumeHandler, FeatureSseResumeHandlerImpl>();
                 services.AddScoped<IFeatureSseNamedHandler, FeatureSseNamedHandlerImpl>();
                 services.AddScoped<IFeatureLinesHandler, FeatureLinesHandlerImpl>();
+                services.AddScoped<IFeatureNdjsonHandler, FeatureNdjsonHandlerImpl>();
+                services.AddScoped<IFeatureUploadHandler, FeatureUploadHandlerImpl>();
+                services.AddScoped<IFeatureUploadSeqHandler, FeatureUploadSeqHandlerImpl>();
+                services.AddScoped<IFeatureTransformHandler, FeatureTransformHandlerImpl>();
                 services.AddScoped<IFeatureArrayHandler, FeatureArrayHandlerImpl>();
                 services.AddScoped<IFeatureSeqHandler, FeatureSeqHandlerImpl>();
                 services.AddScoped<IFeatureMixedHandler, FeatureMixedHandlerImpl>();
@@ -800,6 +876,16 @@ public partial class ErrorResponseBodyRuntimeTests
                 }
 
                 return new JsonObject { ["kind"] = "value", ["value"] = value };
+            }
+
+            // The records a streamed request body sends: t1..tN, the one at invalidAt without its required name
+            private static async IAsyncEnumerable<Thing> Things(int count, int? invalidAt)
+            {
+                for (var i = 1; i <= count; i++)
+                {
+                    await System.Threading.Tasks.Task.Yield();
+                    yield return JsonSerializer.Deserialize<Thing>(i == invalidAt ? "{\"name\":null}" : "{\"name\":\"t" + i + "\"}", Json)!;
+                }
             }
 
             // The names streamed until the end, the handler's failure, or the client's own stop; the stop is what a
@@ -1003,12 +1089,31 @@ public partial class ErrorResponseBodyRuntimeTests
                                 "FeatureSse" => async ct => await provider.GetRequiredService<IFeatureSseEndpoint>().ExecuteAsync(new FeatureSseParameters(count, failAfter), httpClientName, ct),
                                 "FeatureSseNamed" => async ct => await provider.GetRequiredService<IFeatureSseNamedEndpoint>().ExecuteAsync(new FeatureSseNamedParameters(count, failAfter), httpClientName, ct),
                                 "FeatureLines" => async ct => await provider.GetRequiredService<IFeatureLinesEndpoint>().ExecuteAsync(new FeatureLinesParameters(count, failAfter), httpClientName, ct),
+                                "FeatureNdjson" => async ct => await provider.GetRequiredService<IFeatureNdjsonEndpoint>().ExecuteAsync(new FeatureNdjsonParameters(count, failAfter), httpClientName, ct),
                                 "FeatureSeq" => async ct => await provider.GetRequiredService<IFeatureSeqEndpoint>().ExecuteAsync(new FeatureSeqParameters(count, failAfter), httpClientName, ct),
                                 "FeatureMixed" => async ct => await provider.GetRequiredService<IFeatureMixedEndpoint>().ExecuteAsync(new FeatureMixedParameters(count, failAfter), httpClientName, ct),
                                 _ => async ct => await provider.GetRequiredService<IFeatureArrayEndpoint>().ExecuteAsync(new FeatureArrayParameters(count, failAfter), httpClientName, ct),
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
                     }
+
+                    case "upload":
+                    {
+                        var things = Things((int)c["count"]!, c["invalidAt"] is { } at ? (int)at : null);
+                        if (operation == "FeatureUploadSeq")
+                        {
+                            var seq = await provider.GetRequiredService<IFeatureUploadSeqEndpoint>().ExecuteAsync(new FeatureUploadSeqParameters(things), httpClientName);
+                            return seq.IsSuccess ? Value(seq.OkContent) : Error((int)seq.StatusCode, seq.Content);
+                        }
+
+                        var lines = await provider.GetRequiredService<IFeatureUploadEndpoint>().ExecuteAsync(new FeatureUploadParameters(things), httpClientName);
+                        return lines.IsSuccess ? Value(lines.OkContent) : Error((int)lines.StatusCode, lines.Content);
+                    }
+
+                    case "transform":
+                        return await StreamAsync(
+                            async ct => await provider.GetRequiredService<IFeatureTransformEndpoint>().ExecuteAsync(new FeatureTransformParameters(Things((int)c["count"]!, null)), httpClientName, ct),
+                            null);
 
                     case "resume":
                     {
@@ -1190,12 +1295,29 @@ public partial class ErrorResponseBodyRuntimeTests
                                 "FeatureSse" => ct => client.FeatureSseAsync(new FeatureSseParameters(count, failAfter), ct),
                                 "FeatureSseNamed" => ct => client.FeatureSseNamedAsync(new FeatureSseNamedParameters(count, failAfter), ct),
                                 "FeatureLines" => ct => client.FeatureLinesAsync(new FeatureLinesParameters(count, failAfter), ct),
+                                "FeatureNdjson" => ct => client.FeatureNdjsonAsync(new FeatureNdjsonParameters(count, failAfter), ct),
                                 "FeatureSeq" => ct => client.FeatureSeqAsync(new FeatureSeqParameters(count, failAfter), ct),
                                 "FeatureMixed" => ct => client.FeatureMixedAsync(new FeatureMixedParameters(count, failAfter), ct),
                                 _ => ct => client.FeatureArrayAsync(new FeatureArrayParameters(count, failAfter), ct),
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
                     }
+
+                    case "upload":
+                    {
+                        var things = Things((int)c["count"]!, c["invalidAt"] is { } at ? (int)at : null);
+                        if (operation == "FeatureUploadSeq")
+                        {
+                            var seq = await client.FeatureUploadSeqAsync(new FeatureUploadSeqParameters(things));
+                            return seq.IsSuccess ? Value(seq.SuccessContent) : Error((int)seq.StatusCode, seq.Content);
+                        }
+
+                        var lines = await client.FeatureUploadAsync(new FeatureUploadParameters(things));
+                        return lines.IsSuccess ? Value(lines.SuccessContent) : Error((int)lines.StatusCode, lines.Content);
+                    }
+
+                    case "transform":
+                        return await StreamAsync(ct => client.FeatureTransformAsync(new FeatureTransformParameters(Things((int)c["count"]!, null)), ct), null);
 
                     case "resume":
                     {
@@ -1380,12 +1502,31 @@ public partial class ErrorResponseBodyRuntimeTests
                                 "FeatureSse" => ct => client.FeatureSseAsync(new FeatureSseParameters(count, failAfter), ct),
                                 "FeatureSseNamed" => ct => client.FeatureSseNamedAsync(new FeatureSseNamedParameters(count, failAfter), ct),
                                 "FeatureLines" => ct => client.FeatureLinesAsync(new FeatureLinesParameters(count, failAfter), ct),
+                                "FeatureNdjson" => ct => client.FeatureNdjsonAsync(new FeatureNdjsonParameters(count, failAfter), ct),
                                 "FeatureSeq" => ct => client.FeatureSeqAsync(new FeatureSeqParameters(count, failAfter), ct),
                                 "FeatureMixed" => ct => client.FeatureMixedAsync(new FeatureMixedParameters(count, failAfter), ct),
                                 _ => ct => client.FeatureArrayAsync(new FeatureArrayParameters(count, failAfter), ct),
                             },
                             c["cancelAfter"] is { } ca ? (int)ca : null);
                     }
+
+                    case "upload":
+                    {
+                        var things = Things((int)c["count"]!, c["invalidAt"] is { } at ? (int)at : null);
+                        try
+                        {
+                            return Value(operation == "FeatureUploadSeq"
+                                ? await client.FeatureUploadSeqAsync(new FeatureUploadSeqParameters(things))
+                                : await client.FeatureUploadAsync(new FeatureUploadParameters(things)));
+                        }
+                        catch (HttpRequestException ex) when (ex.StatusCode is { } status)
+                        {
+                            return Error((int)status, ex.Message);
+                        }
+                    }
+
+                    case "transform":
+                        return await StreamItemsAsync(ct => client.FeatureTransformAsync(new FeatureTransformParameters(Things((int)c["count"]!, null)), ct), null);
 
                     case "resume":
                         return new JsonObject { ["kind"] = "na", ["why"] = "the Throw style returns the items only: it has no place for an event's id" };
@@ -1646,6 +1787,14 @@ public partial class ErrorResponseBodyRuntimeTests
               } while (continuation && pages < 10);
               return { kind: 'items', items: got, pages };
             }
+            case 'upload': return valueOf(await f[m](things(c.count, c.invalidAt)));
+            case 'transform': {
+              const got: string[] = []; let error: string | null = null;
+              try {
+                for await (const t of f[m](things(c.count))) got.push(t.name);
+              } catch (e: any) { error = `${e?.name ?? 'Error'}${e?.status ? ' ' + e.status : ''}: ${String(e?.message ?? e).slice(0, 300)}`; }
+              return { kind: 'items', items: got, error };
+            }
             case 'shape': return valueOf(await f.featureShape(c.body));
             case 'nested': return valueOf(await f.featureNested(c.body));
             case 'color': return valueOf(await f.featureColor({ color: c.color }));
@@ -1705,6 +1854,26 @@ public partial class ErrorResponseBodyRuntimeTests
               return { kind: 'items', items: names(result.current.items), error: result.current.error ? ((result.current.error as any).status ? 'ApiError ' + (result.current.error as any).status + ': ' : '') + String(result.current.error.message ?? result.current.error).slice(0, 300) : null };
             }
             case 'resume': return { kind: 'na', why: 'a stream hook gives the items; it does not hand out an event\'s id' };
+            case 'upload': {
+              const hook = H['use' + c.operation];
+              const { result } = renderHook(() => hook(), { wrapper });
+              let data: any; let failure: any = null;
+              await act(async () => {
+                try {
+                  data = hooks === 'reactquery' ? await result.current.mutateAsync(things(c.count, c.invalidAt)) : await result.current.trigger(things(c.count, c.invalidAt));
+                } catch (e) {
+                  failure = e;
+                }
+              });
+              return failure ? { kind: 'error', status: failure.status ?? 0, error: String(failure.message ?? failure).slice(0, 300) } : { kind: 'value', value: data };
+            }
+            case 'transform': {
+              // The source is made once: the hook restarts its stream for another source
+              const body = things(c.count);
+              const { result } = renderHook(() => H['use' + c.operation + 'Stream'](body), { wrapper });
+              await waitFor(() => { if (result.current.status !== 'success' && result.current.status !== 'error') throw new Error('waiting ' + result.current.status); }, WAIT);
+              return { kind: 'items', items: names(result.current.items), error: result.current.error ? String(result.current.error.message ?? result.current.error).slice(0, 300) : null };
+            }
             case 'page': {
               const { result } = renderHook(() => H.useFeaturePageInfinite({ pageSize: c.pageSize }), { wrapper });
               if (hooks === 'reactquery') {
@@ -1786,6 +1955,14 @@ public partial class ErrorResponseBodyRuntimeTests
           throw new Error('unknown kind ' + c.kind);
         }
 
+        // The records a streamed request body sends: t1..tN, the one at invalidAt without its required name
+        async function* things(count: number, invalidAt?: number): AsyncGenerator<{ name: string }> {
+          for (let i = 1; i <= count; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 1));
+            yield { name: i === invalidAt ? (null as unknown as string) : 't' + i };
+          }
+        }
+
         const errorOf = (r: any) => ({ kind: r.status === 'schemaMismatch' ? 'schemaMismatch' : 'error', status: r.error?.status ?? r.response?.status ?? 0, error: (r.status + ': ' + (r.issues ? JSON.stringify(r.issues) : JSON.stringify(r.error?.body ?? r.error?.message ?? null))).slice(0, 300), value: r.data ?? null });
         const valueOf = (r: any) => r.status === 'ok' ? { kind: 'value', value: r.data } : errorOf(r);
 
@@ -1857,6 +2034,17 @@ public partial class ErrorResponseBodyRuntimeTests
             cases.Add(new($"stream: {label}, the handler fails after two items", "streaming", operation, "stream", new JsonObject { ["count"] = 5, ["failAfter"] = 2 }));
             cases.Add(new($"stream: {label}, cancelled by the client after two items", "streaming", operation, "stream", new JsonObject { ["count"] = 0, ["cancelAfter"] = 2 }));
         }
+
+        // A stream declared by its media type alone (application/x-ndjson, no x-return-async-enumerable)
+        cases.Add(new("stream: NDJSON declared by its media type alone, five items", "streaming", "FeatureNdjson", "stream", new JsonObject { ["count"] = 5 }));
+        cases.Add(new("stream: NDJSON declared by its media type alone, the handler fails after two items", "streaming", "FeatureNdjson", "stream", new JsonObject { ["count"] = 5, ["failAfter"] = 2 }));
+
+        // A streamed request body: the records the client yields, read by the handler one at a time
+        cases.Add(new("upload: JSON Lines, three records", "streamed request bodies", "FeatureUpload", "upload", new JsonObject { ["count"] = 3 }));
+        cases.Add(new("upload: JSON Lines, no records", "streamed request bodies", "FeatureUpload", "upload", new JsonObject { ["count"] = 0 }));
+        cases.Add(new("upload: JSON Text Sequence, three records", "streamed request bodies", "FeatureUploadSeq", "upload", new JsonObject { ["count"] = 3 }));
+        cases.Add(new("upload: JSON Lines, the second record has no name - a 400", "streamed request bodies", "FeatureUpload", "upload", new JsonObject { ["count"] = 3, ["invalidAt"] = 2 }));
+        cases.Add(new("upload: JSON Lines in, JSON Lines out - each record back as it is read", "streamed request bodies", "FeatureTransform", "transform", new JsonObject { ["count"] = 3 }));
 
         // What a stream carries on the wire besides its items, written by a stub in front of the generated endpoint
         // (the generated server writes none of it): every client reads the three items and nothing else
@@ -2124,6 +2312,23 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(cancelled, client, Items(null, "t1", "t2"), cancelled: true)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(cancelled, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
 
+        // A streamed request body: the handler read every record, in order; an invalid record is a 400, nothing else
+        var upload = cases.Single(c => c.Name == "upload: JSON Lines, three records");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t2,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t2,t3,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "error", ["status"] = 415, ["error"] = "Unsupported Media Type" }, cancelled: false)["verdict"]);
+        var empty = cases.Single(c => c.Name == "upload: JSON Lines, no records");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(empty, client, new JsonObject { ["kind"] = "value", ["value"] = string.Empty }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(empty, client, new JsonObject { ["kind"] = "value", ["value"] = null }, cancelled: false)["verdict"]);
+        var invalidRecord = cases.Single(c => c.Name.StartsWith("upload: JSON Lines, the second record", StringComparison.Ordinal));
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "error", ["status"] = 400, ["error"] = "[1].name" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "error", ["status"] = 500, ["error"] = "boom" }, cancelled: false)["verdict"]);
+        var transform = cases.Single(c => c.Kind == "transform");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(transform, client, Items(null, "t1", "t2", "t3"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(transform, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
+
         var page = cases.Single(c => c.Kind == "page");
         var pages = Items(null, "t1", "t2", "t3", "t4", "t5");
         pages["pages"] = 2;
@@ -2327,6 +2532,25 @@ public partial class ErrorResponseBodyRuntimeTests
         var arguments = featureCase.Arguments;
         switch (featureCase.Kind)
         {
+            case "upload":
+            {
+                var text = (string?)observed["error"] ?? string.Empty;
+                if (arguments["invalidAt"] is { } invalidAt)
+                {
+                    // The record without its name stops the read: a 400, as the client's typed error or exception
+                    return kind == "error" && (int?)observed["status"] == 400
+                        ? Cell(VerdictPass, $"record {(int)invalidAt} is not valid: 400", "400")
+                        : Cell(VerdictFail, $"expected a 400 for record {(int)invalidAt}; {kind} {(int?)observed["status"]}: {text}", text.Length == 0 ? "-" : text);
+                }
+
+                var expected = string.Join(",", Enumerable.Range(1, (int)arguments["count"]!).Select(i => "t" + i));
+                var value = observed["value"] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+                return kind == "value" && value == expected
+                    ? Cell(VerdictPass, $"the handler read {(int)arguments["count"]!} records", expected.Length == 0 ? "no records" : expected)
+                    : Cell(VerdictFail, $"expected the handler to read [{expected}]; {kind}: {value ?? text}", value ?? text);
+            }
+
+            case "transform":
             case "stream":
             {
                 if (arguments["status"] is { } failed)

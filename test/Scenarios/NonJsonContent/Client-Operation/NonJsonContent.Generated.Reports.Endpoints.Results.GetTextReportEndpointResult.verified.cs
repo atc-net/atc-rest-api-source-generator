@@ -65,7 +65,9 @@ public partial class GetTextReportEndpointResult : EndpointResponse, IGetTextRep
     public string OkContent
         => IsOk && ContentObject is string result
             ? result
-            : throw InvalidContentAccessException<string>(HttpStatusCode.OK, "OkContent");
+            : IsOk
+                ? Content
+                : throw InvalidContentAccessException<string>(HttpStatusCode.OK, "OkContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

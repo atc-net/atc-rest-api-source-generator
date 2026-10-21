@@ -411,6 +411,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_STREAM001: Info when a streaming media type has unsupported prefixEncoding
         ValidateStreamingEncodings(diagnostics, sourceFilePath, document);
 
+        // ATC_API_STREAM002 / ATC_API_STREAM003: a request body sent as a stream that would be dropped
+        ValidateStreamedRequestBodies(diagnostics, sourceFilePath, document);
+
         // ATC_API_RL001/RL002: Warn on rate-limit partitioning that is silently ignored
         ValidateRateLimitPartitioning(diagnostics, sourceFilePath, document);
 
@@ -4600,6 +4603,65 @@ public static class OpenApiDocumentValidator
                      $"Set '{RateLimitExtensionNameConstants.Partition}: user' to partition by claim.",
             Severity: DiagnosticSeverity.Warning,
             FilePath: sourceFilePath));
+    }
+
+    /// <summary>
+    /// Emits ATC_API_STREAM002 (Error) for a request body declared only as Server-Sent Events or
+    /// <c>multipart/mixed</c>, and ATC_API_STREAM003 (Error) for a JSON Lines or JSON Text Sequence request body without
+    /// the schema of its records - bodies no generator would send or read. Operations and webhooks.
+    /// </summary>
+    private static void ValidateStreamedRequestBodies(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document)
+    {
+        var pathItems = (document.Paths ?? new OpenApiPaths())
+            .Select(p => (Name: p.Key, Item: p.Value))
+            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (Name: w.Key, Item: w.Value)));
+        foreach (var (name, pathItem) in pathItems)
+        {
+            if (pathItem?.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (var operationEntry in pathItem.Operations)
+            {
+                var operation = operationEntry.Value;
+                if (operation?.RequestBody?.Content is not { Count: > 0 } content)
+                {
+                    continue;
+                }
+
+                var location = $"{operationEntry.Key.ToString().ToUpperInvariant()} {name}";
+                foreach (var entry in content)
+                {
+                    var framing = StreamingMediaType.Classify(entry.Key);
+                    if (framing is StreamingFraming.JsonLines or StreamingFraming.JsonSequence &&
+                        entry.Value?.Schema is null &&
+                        entry.Value?.ItemSchema is null)
+                    {
+                        diagnostics.Add(new DiagnosticMessage(
+                            RuleId: RuleIdentifiers.StreamedRequestBodyWithoutRecordSchema,
+                            Message: $"The request body of {location} is '{entry.Key}' without the schema of its records: the records cannot be typed, so the body would be dropped. " +
+                                     "Declare a 'schema' (one record, or an array of them) or an OpenAPI 3.2 'itemSchema'.",
+                            Severity: DiagnosticSeverity.Error,
+                            FilePath: sourceFilePath));
+                    }
+                }
+
+                // Only an event stream or multipart/mixed: nothing sends it - a JSON (or other) body beside it is sent
+                if (content.Keys.All(key => StreamingMediaType.Classify(key) is StreamingFraming.ServerSentEvents or StreamingFraming.MultipartMixed))
+                {
+                    diagnostics.Add(new DiagnosticMessage(
+                        RuleId: RuleIdentifiers.StreamingRequestBodyFramingUnsupported,
+                        Message: $"The request body of {location} is only '{string.Join("', '", content.Keys)}': no generated client sends it and the server does not read it, so it would be dropped. " +
+                                 "Send a stream of records as JSON Lines ('application/jsonl') or a JSON Text Sequence ('application/json-seq').",
+                        Severity: DiagnosticSeverity.Error,
+                        FilePath: sourceFilePath));
+                }
+            }
+        }
     }
 
     /// <summary>

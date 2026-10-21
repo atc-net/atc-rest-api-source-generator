@@ -1952,6 +1952,14 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine(20, "? Content");
                 sb.AppendLine(20, $": throw InvalidContentAccessException<string>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
             }
+            else if (response.IsSuccess && response.ContentType == "string" && response.TextMediaType is not null)
+            {
+                // A text answer is its raw text: Atc.Rest.Client reads an empty (or whitespace-only) text body as no
+                // content, but an empty text is a text
+                sb.AppendLine(12, $": Is{response.PropertyName}");
+                sb.AppendLine(16, "? Content");
+                sb.AppendLine(16, $": throw InvalidContentAccessException<string>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+            }
             else
             {
                 sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
