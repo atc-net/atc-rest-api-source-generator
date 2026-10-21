@@ -49,7 +49,9 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<Account>("application/json");
     }
 
     internal async Task<IResult> ListAccounts(

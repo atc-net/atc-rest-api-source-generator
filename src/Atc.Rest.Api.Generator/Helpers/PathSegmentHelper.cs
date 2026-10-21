@@ -374,6 +374,16 @@ public static class PathSegmentHelper
 
         AddUnreferencedComponents(openApiDoc, schemaSegmentMap, webhookSchemas, sharedSchemas);
 
+        // An alias component (only a primitive or an array: ProductCode, a string with a pattern) is no generated
+        // type, so used by several segments it is no shared model either - nothing must import a shared Models
+        // namespace for it
+        if (openApiDoc.Components?.Schemas is { } componentSchemas)
+        {
+            sharedSchemas.RemoveWhere(name =>
+                componentSchemas.TryGetValue(name, out var schema) &&
+                !TypeConflictRegistry.IsGeneratedType(schema));
+        }
+
         return sharedSchemas;
     }
 

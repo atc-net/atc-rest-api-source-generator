@@ -11,7 +11,7 @@ using System.Text.Json.Serialization;
 namespace Demo.Generated.Accounts.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Account(
+public sealed partial record Account(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] long Id,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     string? Tag = null);

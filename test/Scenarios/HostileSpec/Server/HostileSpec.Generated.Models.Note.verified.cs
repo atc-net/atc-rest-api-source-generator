@@ -29,7 +29,7 @@ namespace HostileSpec.Generated.Models;
 /// <param name="Model">A schema whose name starts with a digit.</param>
 /// <param name="Quota">An enum whose values need 64 bits.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Note(
+public sealed partial record Note(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] string Id,
     string Title = "Untitled \"note\" \\ draft",
     string Path = "C:\\notes\\new",

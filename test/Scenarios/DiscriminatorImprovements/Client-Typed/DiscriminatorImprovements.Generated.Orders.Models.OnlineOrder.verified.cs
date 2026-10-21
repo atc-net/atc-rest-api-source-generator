@@ -16,4 +16,4 @@ namespace DiscriminatorImprovements.Generated.Orders.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record OnlineOrder(
     [property: Required] string OrderType,
-    [property: Required] Uri Url) : Order;
+    [property: Required, ApiAbsoluteUri] Uri Url) : Order;

@@ -30,8 +30,8 @@ public sealed record CreateUserRequest(
     [property: Required] DateOnly DateOfBirth,
     [property: Required] UserRole Role,
     [property: Required] AddressRequest Address,
-    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
-    Uri? Website = null,
+    [property: ApiRegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
+    [property: ApiAbsoluteUri] Uri? Website = null,
     [property: ApiMaxLength(1000)] string? Bio = null,
-    Uri? AvatarUrl = null,
+    [property: ApiAbsoluteUri] Uri? AvatarUrl = null,
     bool IsActive = true);

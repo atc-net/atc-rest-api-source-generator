@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace AllOfMultiLevel.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public record Person(
+public partial record Person(
     Guid Id,
     string Name,
     [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,

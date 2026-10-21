@@ -20,4 +20,4 @@ namespace RateLimit.Generated.Webhooks.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReceiveWebhookParameters(
-    [property: FromBody, Required] WebhookPayload Request);
+    [property: Required] WebhookPayload Request);

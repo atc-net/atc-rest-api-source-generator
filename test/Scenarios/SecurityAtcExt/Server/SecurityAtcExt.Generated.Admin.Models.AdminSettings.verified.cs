@@ -11,7 +11,7 @@ using System.Text.Json.Serialization;
 namespace SecurityAtcExt.Generated.Admin.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record AdminSettings(
+public sealed partial record AdminSettings(
     bool? MaintenanceMode = null,
     int? MaxOrdersPerDay = null,
     List<string>? AllowedOrigins = null);

@@ -22,5 +22,5 @@ public sealed record UserProfile(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
     [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     string? DisplayName = null,
-    Uri? Picture = null,
+    [property: ApiAbsoluteUri, global::System.ComponentModel.DataAnnotations.Display(Name = "picture")] Uri? Picture = null,
     bool? EmailVerified = null);

@@ -20,4 +20,4 @@ namespace HostileTypeScript.Generated.Files.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateFileParameters(
-    [property: FromBody, Required] HostileTypeScript.Generated.Files.Models.File Request);
+    [property: Required] HostileTypeScript.Generated.Files.Models.File Request);

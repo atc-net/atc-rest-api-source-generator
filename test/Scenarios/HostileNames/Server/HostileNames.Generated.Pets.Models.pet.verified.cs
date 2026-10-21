@@ -11,6 +11,6 @@ using HostileNames.Generated.Models;
 namespace HostileNames.Generated.Pets.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record pet(
+public sealed partial record pet(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     long? Id = null);

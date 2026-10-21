@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace Retry.Generated.Notifications.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Notification(
+public sealed partial record Notification(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "recipient")] string Recipient,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "message")] string Message,
     string? Priority = null);

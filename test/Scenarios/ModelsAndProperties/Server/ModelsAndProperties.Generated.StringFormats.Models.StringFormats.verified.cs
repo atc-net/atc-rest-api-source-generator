@@ -32,7 +32,7 @@ public sealed record StringFormats(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "dateTimeValue")] DateTimeOffset DateTimeValue,
     DateOnly? DateValue = null,
     string? TimeValue = null,
-    Uri? UriValue = null,
+    [property: ApiAbsoluteUri, global::System.ComponentModel.DataAnnotations.Display(Name = "uriValue")] Uri? UriValue = null,
     [property: EmailAddress, global::System.ComponentModel.DataAnnotations.Display(Name = "emailValue")] string? EmailValue = null,
     byte[]? ByteValue = null,
     string? PasswordValue = null,

@@ -37,13 +37,13 @@ namespace ModelsAndProperties.Generated.Models.Models;
 /// <param name="Roles">List of assigned roles.</param>
 /// <param name="Metadata">Key-value metadata.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record ComprehensiveModel(
+public sealed partial record ComprehensiveModel(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
     [property: Required, ApiMinLength(2), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "createdAt")] DateTimeOffset CreatedAt,
     [property: ApiMaxLength(500), global::System.ComponentModel.DataAnnotations.Display(Name = "description")] string? Description = null,
-    Uri? Website = null,
+    [property: ApiAbsoluteUri, global::System.ComponentModel.DataAnnotations.Display(Name = "website")] Uri? Website = null,
     DateTimeOffset? UpdatedAt = null,
     DateOnly? BirthDate = null,
     string? PreferredTime = null,
@@ -53,7 +53,7 @@ public sealed record ComprehensiveModel(
     [property: Range(0, long.MaxValue), global::System.ComponentModel.DataAnnotations.Display(Name = "viewCount")] long? ViewCount = null,
     bool IsActive = true,
     bool? IsVerified = null,
-    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phoneNumber")] string? PhoneNumber = null,
+    [property: ApiRegularExpression(@"^\+?[1-9]\d{6,14}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phoneNumber")] string? PhoneNumber = null,
     Address? Address = null,
     GenderType? Gender = null,
     StatusType? Status = null,

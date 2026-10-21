@@ -10,6 +10,6 @@ using System.Text.Json.Serialization;
 namespace RateLimit.Generated.Webhooks.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record WebhookPayload(
+public sealed partial record WebhookPayload(
     string? Event = null,
     WebhookData? Data = null);

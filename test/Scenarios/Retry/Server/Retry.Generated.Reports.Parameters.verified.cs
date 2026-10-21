@@ -20,4 +20,4 @@ namespace Retry.Generated.Reports.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GenerateReportParameters(
-    [property: FromBody, Required] ReportRequest Request);
+    [property: Required] ReportRequest Request);

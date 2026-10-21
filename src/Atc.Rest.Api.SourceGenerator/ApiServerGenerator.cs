@@ -749,6 +749,14 @@ public class ApiServerGenerator : IIncrementalGenerator
                 SourceText.From(LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
+        // The attributes a pattern (on a value or on the items of an array) and a format: uri are written with
+        if (LengthLimitAttributesExtractor.NeededValueAttributes(openApiDoc) is { Count: > 0 } valueAttributes)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.ValueAttributes.g.cs",
+                SourceText.From(LengthLimitAttributesExtractor.GenerateValueAttributes(NamespaceBuilder.BuildBase(projectName), valueAttributes).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Generate the server-side SequentialResults helper (the writer-based sequential-streaming
         // writers + their IResult wrappers for JSON Lines, JSON Text Sequence and multipart/mixed)
         // when an operation uses one of those framings. Uses the shared CodeGenerationService
@@ -947,7 +955,19 @@ public class ApiServerGenerator : IIncrementalGenerator
         // so its record is partial
         var boundSources = xmlSources
             .Where(x => boundRequestModels?.ContainsKey(x.SchemaKey) == true)
+            .Select(x => (x.SchemaKey, x.TypeName))
             .ToList();
+
+        // A model only JSON bodies carry has no XML mapping, but its record reads the body too
+        foreach (var jsonOnly in (boundRequestModels ?? []).Where(m => !m.Value.AcceptsXml && boundSources.All(b => b.SchemaKey != m.Key)))
+        {
+            var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(jsonOnly.Key);
+            if (recordsParameters.Parameters.Any(r => string.Equals(r.Name.Split(' ')[0], typeName, StringComparison.Ordinal)))
+            {
+                boundSources.Add((jsonOnly.Key, typeName));
+            }
+        }
+
         var queryObjectModels = QueryObjectHelper.Models(openApiDoc);
         var boundTypeNames = new HashSet<string>(boundSources.Select(x => x.TypeName), StringComparer.Ordinal);
         boundTypeNames.UnionWith(queryObjectModels.Keys);

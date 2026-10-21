@@ -59,10 +59,12 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
                 .RequireAuthenticatedUser())
-            .RequireAuthorization(SecurityPolicies.OidcOpenidAndProfile);
+            .RequireAuthorization(SecurityPolicies.OidcOpenidAndProfile)
+            .Accepts<CreateResourceRequest>("application/json");
 
         resources
             .MapGet("{resourceId}", GetResourceById)

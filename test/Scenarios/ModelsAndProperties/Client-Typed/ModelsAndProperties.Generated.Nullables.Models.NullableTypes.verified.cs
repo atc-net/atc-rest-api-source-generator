@@ -42,7 +42,7 @@ public sealed record NullableTypes(
     Guid? NullableUuid = null,
     DateTimeOffset? NullableDateTime = null,
     DateOnly? NullableDate = null,
-    Uri? NullableUri = null,
+    [property: ApiAbsoluteUri] Uri? NullableUri = null,
     [property: EmailAddress] string? NullableEmail = null,
     [property: Range(0, 100)] int? NullableIntegerWithRange = null,
     [property: ApiMinLength(1), ApiMaxLength(255)] string? NullableStringWithLength = null,

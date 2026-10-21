@@ -21,6 +21,6 @@ namespace Polymorphism.Generated.Payments.Models;
 public sealed record CreditCard(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "type")] string Type,
     [property: Required, ApiMinLength(13), ApiMaxLength(19), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "cardNumber")] string CardNumber,
-    [property: Required, RegularExpression(@"^\d{2}/\d{2}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "expiryDate")] string ExpiryDate,
+    [property: Required, ApiRegularExpression(@"^\d{2}/\d{2}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "expiryDate")] string ExpiryDate,
     [property: ApiMinLength(3), ApiMaxLength(4), global::System.ComponentModel.DataAnnotations.Display(Name = "cvv")] string? Cvv = null,
     [property: ApiMaxLength(100), global::System.ComponentModel.DataAnnotations.Display(Name = "cardholderName")] string? CardholderName = null) : PaymentMethod;

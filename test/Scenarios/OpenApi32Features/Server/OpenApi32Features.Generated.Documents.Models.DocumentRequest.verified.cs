@@ -18,7 +18,7 @@ namespace OpenApi32Features.Generated.Documents.Models;
 /// <param name="Content">Base64 encoded document content.</param>
 /// <param name="Metadata">The metadata property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record DocumentRequest(
+public sealed partial record DocumentRequest(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "content")] string Content,
     Dictionary<string, string>? Metadata = null);

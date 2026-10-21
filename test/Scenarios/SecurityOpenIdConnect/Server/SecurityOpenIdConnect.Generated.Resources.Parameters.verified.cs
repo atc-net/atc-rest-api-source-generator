@@ -20,7 +20,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateResourceParameters(
-    [property: FromBody, Required] CreateResourceRequest Request);
+    [property: Required] CreateResourceRequest Request);
 
 /// <summary>
 /// Parameters for operation request.

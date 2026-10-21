@@ -20,7 +20,7 @@ namespace MediaTypeParameters.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePetParameters(
-    [property: FromBody, Required] Pet Request);
+    [property: Required] Pet Request);
 
 /// <summary>
 /// Parameters for operation request.

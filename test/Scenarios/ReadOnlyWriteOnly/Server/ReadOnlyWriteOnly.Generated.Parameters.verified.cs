@@ -20,7 +20,7 @@ namespace ReadOnlyWriteOnly.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserParameters(
-    [property: FromBody, Required] User Request);
+    [property: Required] User Request);
 
 /// <summary>
 /// Parameters for operation request.

@@ -50,7 +50,9 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<CreatePetRequest>("application/json");
 
         pets
             .MapGet("{petId}", GetPetById)
@@ -73,7 +75,9 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(UpdatePetParametersWire.Parameters, requireParameters: true);
+            .WithWireBinding(UpdatePetParametersWire.Parameters, requireParameters: true)
+            .WithRequestBodyProblems()
+            .Accepts<UpdatePetRequest>("application/json");
 
         pets
             .MapDelete("{petId}", DeletePet)

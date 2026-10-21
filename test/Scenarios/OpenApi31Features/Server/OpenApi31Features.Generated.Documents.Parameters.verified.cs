@@ -21,4 +21,4 @@ namespace OpenApi31Features.Generated.Documents.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateDocumentParameters(
-    [property: FromBody, Required] DocumentRequest Request);
+    [property: Required] DocumentRequest Request);

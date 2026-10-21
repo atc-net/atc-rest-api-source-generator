@@ -17,5 +17,5 @@ namespace Polymorphism.Generated.Notifications.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SmsNotification(
     [property: Required] string Kind,
-    [property: Required, RegularExpression(@"^\+?[1-9]\d{6,14}$")] string PhoneNumber,
+    [property: Required, ApiRegularExpression(@"^\+?[1-9]\d{6,14}$")] string PhoneNumber,
     [property: Required, ApiMaxLength(160)] string Message) : Notification;

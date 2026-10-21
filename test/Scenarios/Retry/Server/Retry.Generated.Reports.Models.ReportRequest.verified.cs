@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace Retry.Generated.Reports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record ReportRequest(
+public sealed partial record ReportRequest(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "reportType")] string ReportType,
     DateOnly? DateFrom = null,
     DateOnly? DateTo = null);

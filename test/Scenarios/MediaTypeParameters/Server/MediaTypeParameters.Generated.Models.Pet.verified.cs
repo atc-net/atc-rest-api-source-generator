@@ -10,6 +10,6 @@ using System.Text.Json.Serialization;
 namespace MediaTypeParameters.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Pet(
+public sealed partial record Pet(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     long? Id = null);

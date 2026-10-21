@@ -20,4 +20,4 @@ namespace HttpMethods.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record QueryResourcesParameters(
-    [property: FromBody, Required] ResourceQuery Request);
+    [property: Required] ResourceQuery Request);

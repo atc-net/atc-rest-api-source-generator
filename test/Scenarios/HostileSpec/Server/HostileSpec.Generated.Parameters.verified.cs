@@ -47,4 +47,4 @@ public sealed record ListNotesParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateNoteParameters(
-    [property: FromBody, Required] Note Request);
+    [property: Required] Note Request);

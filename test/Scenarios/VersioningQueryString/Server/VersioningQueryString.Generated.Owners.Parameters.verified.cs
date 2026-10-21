@@ -20,7 +20,7 @@ namespace VersioningQueryString.Generated.Owners.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOwnerParameters(
-    [property: FromBody, Required] CreateOwnerRequest Request);
+    [property: Required] CreateOwnerRequest Request);
 
 /// <summary>
 /// Parameters for operation request.

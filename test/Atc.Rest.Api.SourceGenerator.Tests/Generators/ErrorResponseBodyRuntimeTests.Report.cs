@@ -117,6 +117,12 @@ public partial class ErrorResponseBodyRuntimeTests
             matrix[key] = await CollectEnumCasingMatrixAsync(key);
         }
 
+        // Every constraint the generator writes a validation attribute for, valid and invalid, wherever a value arrives
+        foreach (var (key, _) in ValidationHosts)
+        {
+            matrix[key] = await CollectValidationMatrixAsync(key);
+        }
+
         matrix["notExercised"] = new JsonObject
         {
             ["errorBodies"] = new JsonArray([.. EndToEndNotExercised.Select(s => (JsonNode)s)]),
@@ -125,6 +131,7 @@ public partial class ErrorResponseBodyRuntimeTests
             ["guard"] = new JsonArray([.. GuardNotExercised.Select(s => (JsonNode)s)]),
             ["feature"] = new JsonArray([.. FeatureNotExercised.Select(s => (JsonNode)s)]),
             ["enumCasing"] = new JsonArray([.. EnumCasingNotExercised.Select(s => (JsonNode)s)]),
+            ["validation"] = new JsonArray([.. ValidationNotExercised.Select(s => (JsonNode)s)]),
         };
 
         var root = FindRepositoryRoot();
@@ -520,6 +527,11 @@ public partial class ErrorResponseBodyRuntimeTests
             ratchets[key] = new JsonArray([.. (KnownEnumCasingFailures.GetValueOrDefault(key)?.Keys.AsEnumerable() ?? []).Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]);
         }
 
+        foreach (var (key, _) in ValidationHosts)
+        {
+            ratchets[key] = new JsonArray([.. (KnownValidationFailures.GetValueOrDefault(key)?.Keys.AsEnumerable() ?? []).Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]);
+        }
+
         return ratchets;
     }
 
@@ -539,7 +551,8 @@ public partial class ErrorResponseBodyRuntimeTests
             ("feature", KnownFeatureFailures),
             ("guard31", KnownGuardFailures),
             ("feature31", KnownFeatureFailures),
-            .. EnumCasingHosts.Select(h => (h.Key, KnownEnumCasingFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal)))])
+            .. EnumCasingHosts.Select(h => (h.Key, KnownEnumCasingFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal))),
+            .. ValidationHosts.Select(h => (h.Key, KnownValidationFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal)))])
         {
             reasons[key] = new JsonObject(known.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => KeyValuePair.Create(k.Key, (JsonNode?)k.Value)));
         }
@@ -592,7 +605,7 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject matrix)
     {
         yield return ("errorBodies", matrix["cases"]!.AsArray().Select(c => c!.AsObject()));
-        foreach (var key in (string[])["errorBodiesPlain", "errorBodiesOff", "errorBodies31", "bodyMedia", "bodyMedia31", "requestBinding", "requestBindingPlain", "requestBindingOff", "requestBinding31", "guard", "guard31", "feature", "feature31", .. EnumCasingHosts.Select(h => h.Key)])
+        foreach (var key in (string[])["errorBodiesPlain", "errorBodiesOff", "errorBodies31", "bodyMedia", "bodyMedia31", "requestBinding", "requestBindingPlain", "requestBindingOff", "requestBinding31", "guard", "guard31", "feature", "feature31", .. EnumCasingHosts.Select(h => h.Key), .. ValidationHosts.Select(h => h.Key)])
         {
             if (matrix[key]?["cases"] is JsonArray cases)
             {

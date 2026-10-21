@@ -20,7 +20,7 @@ namespace SecurityHybrid.Generated.Orders.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderParameters(
-    [property: FromBody, Required] CreateOrderRequest Request);
+    [property: Required] CreateOrderRequest Request);
 
 /// <summary>
 /// Parameters for operation request.

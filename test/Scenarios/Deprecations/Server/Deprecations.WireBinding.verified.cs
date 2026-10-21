@@ -362,6 +362,28 @@ public static class WireBindingExtensions
     }
 
     /// <summary>
+    /// Names a cookie in the validation filter's 400 by the cookie's own name: the filter, which runs inside
+    /// this step, sees only the header the cookie is bound from ("x-cookie-{name}").
+    /// </summary>
+    public static TBuilder WithCookieValidationNames<TBuilder>(this TBuilder builder)
+        where TBuilder : IEndpointConventionBuilder
+        => builder.AddEndpointFilter(async (context, next) =>
+        {
+            var result = await next(context).ConfigureAwait(false);
+            if (result is global::Microsoft.AspNetCore.Http.HttpResults.ValidationProblem { ProblemDetails.Errors: { } errors })
+            {
+                foreach (var key in errors.Keys.Where(k => k.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal)).ToList())
+                {
+                    var name = key[CookieHeaderPrefix.Length..];
+                    errors[name] = errors.TryGetValue(name, out var existing) ? [.. existing, .. errors[key]] : errors[key];
+                    errors.Remove(key);
+                }
+            }
+
+            return result;
+        });
+
+    /// <summary>
     /// Adds the step for a form bound field by field (multipart/form-data, application/x-www-form-urlencoded):
     /// a required field that is missing, or a value that does not parse, is answered with a problem naming
     /// the field, and an enum's wire value is rewritten to the member name the binder reads.
@@ -789,8 +811,12 @@ public static class WireBindingExtensions
 
             if (parameter.Parses is { } parses && Array.Find(items, item => item.Length > 0 && !parses(item)) is { } invalid)
             {
+                // Named as the specification names it: a cookie by its own name, not by its header
+                var name = parameter.In == "header" && parameter.Name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal)
+                    ? parameter.Name[CookieHeaderPrefix.Length..]
+                    : parameter.Name;
                 errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
-                errors[parameter.Name] = [$"'{invalid}' is not a valid {parameter.TypeName}."];
+                errors[name] = [$"'{invalid}' is not a valid {parameter.TypeName}."];
                 continue;
             }
 

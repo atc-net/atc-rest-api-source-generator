@@ -37,4 +37,4 @@ public sealed record ListAccountsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateAccountParameters(
-    [property: FromBody, Required] Account Request);
+    [property: Required] Account Request);

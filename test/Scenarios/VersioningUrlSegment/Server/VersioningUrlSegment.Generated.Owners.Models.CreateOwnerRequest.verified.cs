@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace VersioningUrlSegment.Generated.Owners.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record CreateOwnerRequest(
+public sealed partial record CreateOwnerRequest(
     [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     string? Phone = null);

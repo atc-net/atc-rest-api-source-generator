@@ -14,5 +14,5 @@ namespace SecurityOpenIdConnect.Generated.Resources.Models;
 /// </summary>
 /// <param name="Name">Resource name.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record CreateResourceRequest(
+public sealed partial record CreateResourceRequest(
     [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name);

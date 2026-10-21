@@ -716,6 +716,120 @@ public class OpenApiSchemaExtensionsTests
     }
 
     [Fact]
+    public void GetValidationAttributes_EmailFormatAndPattern_IncludesBoth()
+    {
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.String,
+            Format = "email",
+            Pattern = @"^.+@contoso\.com$",
+        };
+        var attrs = schema.GetValidationAttributes(isRequired: false);
+        Assert.Contains("EmailAddress", attrs, StringComparer.Ordinal);
+        Assert.Contains(@"ApiRegularExpression(@""^.+@contoso\.com$"")", attrs, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void ReferenceToAStringComponent_IsTheString_WithTheComponentsConstraints()
+    {
+        var document = ParseYaml(ProductCodeYaml);
+        Assert.NotNull(document);
+        var properties = document!.Components!.Schemas!["Order"].Properties!;
+
+        Assert.Equal("string", properties["productCode"].ToCSharpType(isRequired: true));
+        Assert.Equal("string?", properties["productCode"].ToCSharpType(isRequired: false));
+        Assert.Equal(
+            ["Required", @"ApiMinLength(6)", @"ApiMaxLength(6)", @"ApiRegularExpression(@""^[A-Z]{2}\d{4}$"")"],
+            properties["productCode"].GetValidationAttributes(isRequired: true));
+    }
+
+    [Fact]
+    public void ArrayOfAStringComponent_IsAListOfStrings_EachItemMatchingItsPattern()
+    {
+        var document = ParseYaml(ProductCodeYaml);
+        Assert.NotNull(document);
+        var codes = document!.Components!.Schemas!["Order"].Properties!["codes"];
+
+        Assert.Equal("string", ((OpenApiSchema)codes).GetArrayItemType());
+        Assert.Equal("List<string>", codes.ToCSharpType(isRequired: true));
+        Assert.Equal(
+            [@"ApiMaxLength(3)", @"ApiItemsRegularExpression(@""^[A-Z]{2}\d{4}$"")"],
+            codes.GetValidationAttributes(isRequired: false));
+    }
+
+    [Fact]
+    public void GetValidationAttributes_ArrayItemsPattern_IncludesItemsRegularExpression()
+    {
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Array,
+            MaxItems = 10,
+            Items = new OpenApiSchema { Type = JsonSchemaType.String, Pattern = "^[^:]+:.+$" },
+        };
+        var attrs = schema.GetValidationAttributes(isRequired: false);
+        Assert.Equal(["ApiMaxLength(10)", @"ApiItemsRegularExpression(@""^[^:]+:.+$"")"], attrs);
+    }
+
+    [Fact]
+    public void GetValidationAttributes_StringPattern_IsTheGeneratedRegularExpression()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.String, Pattern = "^[a-z]+$" };
+        Assert.Equal([@"ApiRegularExpression(@""^[a-z]+$"")"], schema.GetValidationAttributes(isRequired: false));
+    }
+
+    [Theory]
+    [InlineData("uri", true)]
+    [InlineData("uri-reference", false)]
+    [InlineData("email", false)]
+    public void GetValidationAttributes_UriFormat_IsAbsolute(
+        string format,
+        bool absolute)
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = format };
+        Assert.Equal(absolute, schema.GetValidationAttributes(isRequired: false).Contains("ApiAbsoluteUri"));
+    }
+
+    [Fact]
+    public void GetValidationAttributes_ArrayOfUris_EachIsAbsolute()
+    {
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Array,
+            Items = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uri" },
+        };
+        Assert.Equal(["ApiAbsoluteUri"], schema.GetValidationAttributes(isRequired: false));
+    }
+
+    [Fact]
+    public void GetValidationAttributes_ArrayItemsWithoutPattern_NoItemsRegularExpression()
+    {
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Array,
+            Items = new OpenApiSchema { Type = JsonSchemaType.String },
+        };
+        Assert.Empty(schema.GetValidationAttributes(isRequired: false));
+    }
+
+    private const string ProductCodeYaml = """
+        openapi: 3.0.3
+        info: { title: T, version: 1.0.0 }
+        paths: {}
+        components:
+          schemas:
+            ProductCode:
+              type: string
+              minLength: 6
+              maxLength: 6
+              pattern: '^[A-Z]{2}\d{4}$'
+            Order:
+              type: object
+              properties:
+                productCode: { $ref: '#/components/schemas/ProductCode' }
+                codes: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/ProductCode' } }
+        """;
+
+    [Fact]
     public void GetValidationAttributes_UriFormat_NoLengthAttributes()
     {
         var schema = new OpenApiSchema

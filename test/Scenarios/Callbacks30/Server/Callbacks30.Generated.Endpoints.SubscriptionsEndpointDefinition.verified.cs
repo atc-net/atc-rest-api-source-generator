@@ -39,7 +39,9 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<SubscriptionRequest>("application/json");
 
         subscriptions
             .MapDelete("{subscriptionId}", DeleteSubscription)

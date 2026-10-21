@@ -21,4 +21,4 @@ namespace HostileNames.Generated.Pets.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePetParameters(
-    [property: FromBody, Required] pet Request);
+    [property: Required] pet Request);

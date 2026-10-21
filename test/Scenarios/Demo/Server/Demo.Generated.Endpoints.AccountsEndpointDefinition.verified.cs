@@ -50,7 +50,9 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<Account>("application/json");
 
         accounts
             .MapGet("{accountId}", GetAccountById)
@@ -84,7 +86,9 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(UpdateAccountByIdParametersWire.Parameters, requireParameters: true);
+            .WithWireBinding(UpdateAccountByIdParametersWire.Parameters, requireParameters: true)
+            .WithRequestBodyProblems()
+            .Accepts<Account>("application/json");
 
         accounts
             .MapGet("paginated", ListPaginatedAccounts)

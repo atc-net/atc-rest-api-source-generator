@@ -24,15 +24,15 @@ namespace Demo.Generated.Users.Models;
 /// <param name="AvatarUrl">The avatarUrl property.</param>
 /// <param name="IsActive">The isActive property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record CreateUserRequest(
+public sealed partial record CreateUserRequest(
     [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "firstName")] string FirstName,
     [property: Required, ApiMinLength(2), ApiMaxLength(50), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "lastName")] string LastName,
     [property: Required, ApiMaxLength(254), EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "dateOfBirth")] DateOnly DateOfBirth,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "role")] UserRole Role,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "address")] AddressRequest Address,
-    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phone")] string? Phone = null,
-    Uri? Website = null,
+    [property: ApiRegularExpression(@"^\+?[1-9]\d{6,14}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phone")] string? Phone = null,
+    [property: ApiAbsoluteUri, global::System.ComponentModel.DataAnnotations.Display(Name = "website")] Uri? Website = null,
     [property: ApiMaxLength(1000), global::System.ComponentModel.DataAnnotations.Display(Name = "bio")] string? Bio = null,
-    Uri? AvatarUrl = null,
+    [property: ApiAbsoluteUri, global::System.ComponentModel.DataAnnotations.Display(Name = "avatarUrl")] Uri? AvatarUrl = null,
     bool IsActive = true);

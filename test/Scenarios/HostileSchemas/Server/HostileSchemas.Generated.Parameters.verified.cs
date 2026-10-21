@@ -30,4 +30,4 @@ public sealed record ListTicketsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateTicketParameters(
-    [property: FromBody, Required] Ticket Request);
+    [property: Required] Ticket Request);

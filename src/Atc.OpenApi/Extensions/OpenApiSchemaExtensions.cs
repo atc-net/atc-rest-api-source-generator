@@ -1052,6 +1052,16 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// The component a reference names when that component is an alias - only a primitive or an array (no enum, no
+        /// composition): the generators emit no type for it, so the value takes the aliased type and its constraints.
+        /// </summary>
+        /// <returns>The aliased schema, or null when this is no reference to an alias.</returns>
+        public OpenApiSchema? GetAliasTarget()
+            => schema is OpenApiSchemaReference { Target: OpenApiSchema target } && IsAliasSchema(target)
+                ? target
+                : null;
+
+        /// <summary>
         /// Resolves a schema reference to the actual schema from the document.
         /// </summary>
         /// <param name="document">The OpenAPI document containing schema definitions.</param>
@@ -1093,6 +1103,13 @@ public static class OpenApiSchemaExtensions
                 attributes.Add("Required");
             }
 
+            // A reference to an alias (a component that is only a primitive or an array, ProductCode: a string with a
+            // pattern) is no generated type: the value is the aliased type, so the component's constraints are its own
+            if (schema is OpenApiSchemaReference { Target: OpenApiSchema aliasTarget } && IsAliasSchema(aliasTarget))
+            {
+                return aliasTarget.GetValidationAttributes(isRequired);
+            }
+
             // Handle actual schemas (not references)
             if (schema is not OpenApiSchema actualSchema)
             {
@@ -1132,7 +1149,6 @@ public static class OpenApiSchemaExtensions
             }
 
             // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
-
             // project declares (LengthLimitAttributesExtractor)
             // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[])
             if (schemaType.HasFlag(JsonSchemaType.String))
@@ -1152,25 +1168,26 @@ public static class OpenApiSchemaExtensions
                         attributes.Add($"ApiMaxLength({actualSchema.MaxLength})");
                     }
 
-                    // Regular expression validation
+                    // Regular expression validation: ApiRegularExpression, the generated RegularExpression that matches an
+                    // empty string against the pattern too (the base counts "" as valid; the specification's pattern
+                    // applies to it). A verbatim literal keeps the backslashes; a double quote is doubled
                     if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
                     {
-                        // Use verbatim string literal (@"...") to handle backslashes in regex patterns
-                        // In verbatim strings, double quotes are escaped by doubling them
                         var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
-                        attributes.Add($"RegularExpression(@\"{escapedPattern}\")");
+                        attributes.Add($"ApiRegularExpression(@\"{escapedPattern}\")");
                     }
                 }
 
-                // Format-based validation attributes
-                if (!string.IsNullOrEmpty(actualSchema.Format))
+                // Format-based validation attributes: an email address; a uri is absolute (a relative reference is
+                // format: uri-reference), which the Uri it binds to does not check
+                switch (format)
                 {
-                    switch (actualSchema.Format.ToLowerInvariant())
-                    {
-                        case "email":
-                            attributes.Add("EmailAddress");
-                            break;
-                    }
+                    case "email":
+                        attributes.Add("EmailAddress");
+                        break;
+                    case "uri":
+                        attributes.Add("ApiAbsoluteUri");
+                        break;
                 }
             }
 
@@ -1189,10 +1206,35 @@ public static class OpenApiSchemaExtensions
                 {
                     attributes.Add($"ApiMaxLength({actualSchema.MaxItems})");
                 }
+
+                // A pattern on the items (in place, or on the string component they reference): RegularExpression
+                // validates one string, so each item is matched by the generated ApiItemsRegularExpression
+                if (ItemPattern(actualSchema.Items) is { } itemPattern)
+                {
+                    attributes.Add($"ApiItemsRegularExpression(@\"{itemPattern.Replace("\"", "\"\"")}\")");
+                }
+
+                // Items of format: uri are absolute, as one is
+                var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.GetAliasTarget() : actualSchema.Items as OpenApiSchema;
+                if (items is { Type: { } itemType } && itemType.HasFlag(JsonSchemaType.String) &&
+                    string.Equals(items.Format, "uri", StringComparison.OrdinalIgnoreCase))
+                {
+                    attributes.Add("ApiAbsoluteUri");
+                }
             }
 
             return attributes;
         }
+
+        /// <summary>
+        /// The pattern every item of this array must match: the <c>pattern</c> of a string <c>items</c> schema, declared
+        /// in place or on the string component the items reference; null when there is none.
+        /// </summary>
+        /// <returns>The pattern, or null.</returns>
+        public string? GetItemPattern()
+            => schema is OpenApiSchema { Type: { } type } actual && type.HasFlag(JsonSchemaType.Array)
+                ? ItemPattern(actual.Items)
+                : null;
 
         /// <summary>
         /// Checks if schema represents a file or collection of files.
@@ -1235,6 +1277,13 @@ public static class OpenApiSchemaExtensions
             // Handle schema references
             if (schema is OpenApiSchemaReference schemaRef)
             {
+                // An alias (a component that is only an array or a primitive) is no generated type: the parameter
+                // takes the aliased type itself (string, List<string>, Guid, ...)
+                if (schemaRef.Target is OpenApiSchema aliasTarget && IsAliasSchema(aliasTarget))
+                {
+                    return aliasTarget.ToCSharpType(isRequired, registry);
+                }
+
                 // Try Reference.Id first (Microsoft.OpenApi v3.0+), fall back to Id
                 var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
                 refName = ResolveTypeName(refName, registry);
@@ -1432,6 +1481,24 @@ public static class OpenApiSchemaExtensions
             }
 
             return withoutNull != default && withoutNull != JsonSchemaType.Object;
+        }
+
+        // The pattern of an array's string items: declared in place, or on the string component they reference
+        private static string? ItemPattern(IOpenApiSchema? items)
+        {
+            var item = items switch
+            {
+                OpenApiSchemaReference { Target: OpenApiSchema target } when IsAliasSchema(target) => target,
+                OpenApiSchema inPlace => inPlace,
+                _ => null,
+            };
+
+            return item is { Type: { } type } &&
+                   type.HasFlag(JsonSchemaType.String) &&
+                   !string.IsNullOrWhiteSpace(item.Pattern) &&
+                   item.Format?.ToLowerInvariant() is not ("uri" or "uuid" or "date" or "date-time" or "byte")
+                ? item.Pattern
+                : null;
         }
 
         /// <summary>
@@ -2131,6 +2198,11 @@ public static class OpenApiSchemaExtensions
             {
                 case null:
                     return "object";
+
+                // An item that names a primitive alias (ProductCode: a string) is that primitive; an array alias keeps
+                // its name, which the callers unwrap to its own items (ResolveArrayAliasType)
+                case OpenApiSchemaReference { Target: OpenApiSchema aliasTarget } when IsAliasSchema(aliasTarget) && !aliasTarget.IsOfType(JsonSchemaType.Array):
+                    return aliasTarget.ToCSharpType(true, registry);
                 case OpenApiSchemaReference itemRef:
                 {
                     var itemRefName = itemRef.Reference.Id ?? "object";

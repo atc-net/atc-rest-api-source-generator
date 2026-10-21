@@ -23,7 +23,7 @@ public sealed record ListItemsParameters(
     string? Q = null,
     List<string>? Legacy = null,
     List<string>? Ids = null,
-    Uri? Callback = null,
+    [property: ApiAbsoluteUri] Uri? Callback = null,
     string? Anything = null,
     ItemFilter? Filter = null,
     Paging? Paging = null,

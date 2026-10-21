@@ -15,8 +15,8 @@ namespace HostileTypeScript.Generated.Repos.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Response(
-    [property: Required, RegularExpression(@"(?i)^[a-z0-9-]+$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] string Id,
-    [property: RegularExpression(@"\A[a-z]+\z"), global::System.ComponentModel.DataAnnotations.Display(Name = "slug")] string? Slug = null,
+    [property: Required, ApiRegularExpression(@"(?i)^[a-z0-9-]+$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] string Id,
+    [property: ApiRegularExpression(@"\A[a-z]+\z"), global::System.ComponentModel.DataAnnotations.Display(Name = "slug")] string? Slug = null,
     Headers? Headers = null,
     Blob? Blob = null,
     FormData? Form = null,

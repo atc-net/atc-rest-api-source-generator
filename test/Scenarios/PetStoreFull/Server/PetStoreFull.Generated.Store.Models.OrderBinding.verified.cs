@@ -13,7 +13,7 @@ namespace PetStoreFull.Generated.Store.Models;
 public partial record Order
 {
     /// <summary>
-    /// Reads the request body: XML by the model's XML mapping, JSON by the host's JSON options.
+    /// Reads the request body: XML by the model's XML mapping, JSON by the host's JSON options (a value that does not parse is a 400 naming it).
     /// A malformed body is a 400, another media type a 415.
     /// </summary>
     public static async global::System.Threading.Tasks.ValueTask<Order?> BindAsync(
@@ -43,14 +43,7 @@ public partial record Order
 
         if (global::Microsoft.AspNetCore.Http.HttpRequestJsonExtensions.HasJsonContentType(request))
         {
-            try
-            {
-                return await global::Microsoft.AspNetCore.Http.HttpRequestJsonExtensions.ReadFromJsonAsync<Order>(request, context.RequestAborted).ConfigureAwait(false);
-            }
-            catch (global::System.Text.Json.JsonException ex)
-            {
-                throw global::PetStoreFull.Generated.RequestBodyProblems.Rejected(context, $"The JSON request body is invalid: {ex.Message}", global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, ex);
-            }
+            return await global::PetStoreFull.Generated.RequestBodyProblems.ReadJsonAsync<Order>(context).ConfigureAwait(false);
         }
 
         throw global::PetStoreFull.Generated.RequestBodyProblems.Rejected(context, $"The request body must be application/json or XML, not '{mediaType}'.", global::Microsoft.AspNetCore.Http.StatusCodes.Status415UnsupportedMediaType);

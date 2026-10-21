@@ -17,7 +17,7 @@ namespace SecurityStandard.Generated.Admin.Models;
 /// <param name="MaxUsersPerTenant">Maximum users per tenant.</param>
 /// <param name="Features">Feature flags.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record AdminSettings(
+public sealed partial record AdminSettings(
     bool? MaintenanceMode = null,
     int? MaxUsersPerTenant = null,
     Dictionary<string, bool>? Features = null);

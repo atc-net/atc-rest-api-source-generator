@@ -23,7 +23,7 @@ namespace NullableTypeArrays.Generated.Models;
 /// <param name="Tags">A list of tags, or null.</param>
 /// <param name="ExternalId">An id in another system, or null.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Profile(
+public sealed partial record Profile(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] string Id,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     string? Nickname = null,

@@ -43,7 +43,7 @@ public sealed record NullableTypes(
     Guid? NullableUuid = null,
     DateTimeOffset? NullableDateTime = null,
     DateOnly? NullableDate = null,
-    Uri? NullableUri = null,
+    [property: ApiAbsoluteUri, global::System.ComponentModel.DataAnnotations.Display(Name = "nullableUri")] Uri? NullableUri = null,
     [property: EmailAddress, global::System.ComponentModel.DataAnnotations.Display(Name = "nullableEmail")] string? NullableEmail = null,
     [property: Range(0, 100), global::System.ComponentModel.DataAnnotations.Display(Name = "nullableIntegerWithRange")] int? NullableIntegerWithRange = null,
     [property: ApiMinLength(1), ApiMaxLength(255), global::System.ComponentModel.DataAnnotations.Display(Name = "nullableStringWithLength")] string? NullableStringWithLength = null,

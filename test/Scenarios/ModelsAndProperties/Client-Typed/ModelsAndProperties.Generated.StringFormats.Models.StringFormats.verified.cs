@@ -31,7 +31,7 @@ public sealed record StringFormats(
     [property: Required] DateTimeOffset DateTimeValue,
     DateOnly? DateValue = null,
     string? TimeValue = null,
-    Uri? UriValue = null,
+    [property: ApiAbsoluteUri] Uri? UriValue = null,
     [property: EmailAddress] string? EmailValue = null,
     byte[]? ByteValue = null,
     string? PasswordValue = null,

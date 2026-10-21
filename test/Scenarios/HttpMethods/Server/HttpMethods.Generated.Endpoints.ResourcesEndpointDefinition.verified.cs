@@ -48,7 +48,9 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .Produces<List<Resource>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<ResourceQuery>("application/json");
 
         resources
             .MapMethods("/", new[] { "HEAD" }, ProbeResources)

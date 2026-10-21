@@ -40,7 +40,9 @@ public sealed class DocumentsEndpointDefinition : IEndpointDefinition
             .Produces<Error>(StatusCodes.Status400BadRequest, contentType: "application/json")
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<DocumentRequest>("application/json");
     }
 
     internal async Task<IResult> CreateDocument(

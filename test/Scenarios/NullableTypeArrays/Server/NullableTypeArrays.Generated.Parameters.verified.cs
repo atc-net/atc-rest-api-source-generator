@@ -20,7 +20,7 @@ namespace NullableTypeArrays.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateProfileParameters(
-    [property: FromBody, Required] Profile Request);
+    [property: Required] Profile Request);
 
 /// <summary>
 /// Parameters for operation request.

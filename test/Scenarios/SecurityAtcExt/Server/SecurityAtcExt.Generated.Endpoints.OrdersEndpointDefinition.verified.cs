@@ -52,7 +52,9 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .RequireAuthorization();
+            .WithRequestBodyProblems()
+            .RequireAuthorization()
+            .Accepts<CreateOrderRequest>("application/json");
 
         orders
             .MapGet("{orderId}", GetOrderById)

@@ -19,7 +19,7 @@ namespace ModelsAndProperties.Generated.Models;
 /// <param name="StreetNumber">Street/house number.</param>
 /// <param name="State">State or region.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Address(
+public sealed partial record Address(
     [property: Required, ApiMaxLength(255), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "streetName")] string StreetName,
     [property: Required, ApiMinLength(2), ApiMaxLength(20), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "postalCode")] string PostalCode,
     [property: Required, ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "cityName")] string CityName,

@@ -56,9 +56,11 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
             .RequireAuthorization(policy => policy
                 .RequireRole("admin")
-                .AddAuthenticationSchemes("Bearer"));
+                .AddAuthenticationSchemes("Bearer"))
+            .Accepts<AdminSettings>("application/json");
     }
 
     internal async Task<IResult> GetAdminSettings(

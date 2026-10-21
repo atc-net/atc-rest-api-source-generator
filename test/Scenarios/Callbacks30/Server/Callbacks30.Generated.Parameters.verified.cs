@@ -20,7 +20,7 @@ namespace Callbacks30.Generated.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateSubscriptionParameters(
-    [property: FromBody, Required] SubscriptionRequest Request);
+    [property: Required] SubscriptionRequest Request);
 
 /// <summary>
 /// Parameters for operation request.

@@ -39,7 +39,7 @@ public sealed record ListProductsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateProductParameters(
-    [property: FromBody, Required] CreateProductRequest Request);
+    [property: Required] CreateProductRequest Request);
 
 /// <summary>
 /// Parameters for operation request.

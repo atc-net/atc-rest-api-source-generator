@@ -1014,7 +1014,7 @@ using Microsoft.AspNetCore.Builder;
         {
             var mediaTypes = boundBody.IsAlternative
                 ? new[] { "application/json" }.Concat(boundBody.AlternativeMediaTypes!)
-                : [boundBody.MediaType];
+                : boundBody.JsonOnlyMediaTypes ?? [boundBody.MediaType];
             builder.AppendLine();
             builder.Append($"    .Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody, registry)}>({string.Join(", ", mediaTypes.Select(m => $"\"{m}\""))})");
         }
@@ -1297,6 +1297,17 @@ using Microsoft.AspNetCore.Builder;
         }
 
         var parameterClassName = $"{methodName}Parameters";
+
+        // A cookie is validated through the header it is bound from: the step around the filter names it by its own
+        // name in the 400
+        var hasCookie = (operation.Parameters ?? [])
+            .Concat(pathItem?.Parameters ?? [])
+            .Any(p => p?.In == ParameterLocation.Cookie);
+        if (hasCookie)
+        {
+            builder.AppendLine();
+            builder.Append("    .WithCookieValidationNames()");
+        }
 
         builder.AppendLine();
         builder.Append($"    .AddEndpointFilter<ValidationFilter<{parameterClassName}>>()");
@@ -2052,6 +2063,12 @@ using Microsoft.AspNetCore.Builder;
             return $"List<{itemType}>";
         }
 
+        // A $ref to a primitive alias (a string component with a pattern) is that primitive: no type is generated for it
+        if (schema.GetAliasTarget() is { } aliasTarget)
+        {
+            return aliasTarget.ToCSharpType(isRequired: true, registry);
+        }
+
         // Handle schema reference ($ref)
         if (schema is OpenApiSchemaReference schemaRef)
         {
@@ -2118,6 +2135,12 @@ using Microsoft.AspNetCore.Builder;
         TypeConflictRegistry? registry,
         string itemContext = "ResponseItem")
     {
+        // An item that names a primitive alias is that primitive
+        if (itemSchema.GetAliasTarget() is { } itemAlias && !itemAlias.IsOfType(JsonSchemaType.Array))
+        {
+            return itemAlias.ToCSharpType(isRequired: true, registry);
+        }
+
         // Handle reference
         if (itemSchema is OpenApiSchemaReference itemRef)
         {

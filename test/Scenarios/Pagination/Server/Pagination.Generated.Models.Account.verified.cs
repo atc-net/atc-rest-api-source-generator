@@ -11,6 +11,6 @@ using System.Text.Json.Serialization;
 namespace Pagination.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Account(
+public sealed partial record Account(
     string? Id = null,
     string? Name = null);

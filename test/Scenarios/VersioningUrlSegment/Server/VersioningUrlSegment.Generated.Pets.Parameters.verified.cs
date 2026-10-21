@@ -30,7 +30,7 @@ public sealed record ListPetsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePetParameters(
-    [property: FromBody, Required] CreatePetRequest Request);
+    [property: Required] CreatePetRequest Request);
 
 /// <summary>
 /// Parameters for operation request.
@@ -49,7 +49,7 @@ public sealed record GetPetByIdParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetParameters(
     [property: FromRoute(Name = "petId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "petId")] Guid PetId,
-    [property: FromBody, Required] UpdatePetRequest Request);
+    [property: Required] UpdatePetRequest Request);
 
 /// <summary>
 /// Parameters for operation request.

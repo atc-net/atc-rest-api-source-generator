@@ -19,7 +19,11 @@ public class MediaTypeParametersTests
         Assert.Contains(".Produces<List<Pet>>()", endpoints, StringComparison.Ordinal); // charset parameter
         Assert.Contains(".Produces<Pet>(StatusCodes.Status201Created)", endpoints, StringComparison.Ordinal); // */* with a model
         Assert.Contains(".Produces<Pet>()", endpoints, StringComparison.Ordinal); // application/*
-        Assert.Contains("[property: FromBody, Required] Pet Request", Source(sources, "Generated.Parameters"), StringComparison.Ordinal); // Application/JSON
+
+        // Application/JSON: a model body is read by the model's generated reader, which names a value it cannot read
+        Assert.Contains("[property: Required] Pet Request", Source(sources, "Generated.Parameters"), StringComparison.Ordinal);
+        Assert.Contains(".Accepts<Pet>(\"application/json\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains("RequestBodyProblems.ReadJsonAsync<Pet>(context)", Source(sources, "PetBinding"), StringComparison.Ordinal);
 
         var results = Source(sources, "Generated.Results");
         Assert.Contains("ListPetsResult Ok(List<Pet>", results, StringComparison.Ordinal);

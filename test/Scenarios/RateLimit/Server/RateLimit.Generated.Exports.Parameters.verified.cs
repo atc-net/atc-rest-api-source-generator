@@ -20,4 +20,4 @@ namespace RateLimit.Generated.Exports.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateExportParameters(
-    [property: FromBody, Required] ExportRequest Request);
+    [property: Required] ExportRequest Request);

@@ -30,7 +30,7 @@ public sealed record ListAccountsParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateAccountParameters(
-    [property: FromBody, Required] Account Request);
+    [property: Required] Account Request);
 
 /// <summary>
 /// Parameters for operation request.
@@ -58,7 +58,7 @@ public sealed record DeleteAccountByIdParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateAccountByIdParameters(
     [property: FromRoute(Name = "accountId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "accountId")] string AccountId,
-    [property: FromBody, Required] Account Request);
+    [property: Required] Account Request);
 
 /// <summary>
 /// Parameters for operation request.

@@ -21,6 +21,6 @@ namespace Polymorphism.Generated.Payments.Models;
 public sealed record BankTransfer(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "type")] string Type,
     [property: Required, ApiMinLength(5), ApiMaxLength(17), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "accountNumber")] string AccountNumber,
-    [property: Required, ApiMinLength(9), ApiMaxLength(9), RegularExpression(@"^\d{9}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "routingNumber")] string RoutingNumber,
+    [property: Required, ApiMinLength(9), ApiMaxLength(9), ApiRegularExpression(@"^\d{9}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "routingNumber")] string RoutingNumber,
     [property: ApiMaxLength(100), global::System.ComponentModel.DataAnnotations.Display(Name = "bankName")] string? BankName = null,
     [property: ApiMaxLength(100), global::System.ComponentModel.DataAnnotations.Display(Name = "accountHolderName")] string? AccountHolderName = null) : PaymentMethod;

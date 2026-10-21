@@ -50,7 +50,9 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<CreateUserRequest>("application/json");
 
         users
             .MapGet("{userId}", GetUserById)
@@ -73,7 +75,9 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(UpdateUserByIdParametersWire.Parameters, requireParameters: true);
+            .WithWireBinding(UpdateUserByIdParametersWire.Parameters, requireParameters: true)
+            .WithRequestBodyProblems()
+            .Accepts<UpdateUserRequest>("application/json");
 
         users
             .MapDelete("{userId}", DeleteUserById)

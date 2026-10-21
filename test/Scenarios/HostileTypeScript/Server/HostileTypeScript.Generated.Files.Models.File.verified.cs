@@ -11,6 +11,6 @@ using System.Text.Json.Serialization;
 namespace HostileTypeScript.Generated.Files.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record File(
+public sealed partial record File(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     byte[]? Content = null);

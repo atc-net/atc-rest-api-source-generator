@@ -50,7 +50,9 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<Demo.Generated.Tasks.Models.Task>("application/json");
 
         tasks
             .MapGet("{taskId}", GetTaskById)
@@ -84,7 +86,9 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(UpdateTaskByIdParametersWire.Parameters, requireParameters: true);
+            .WithWireBinding(UpdateTaskByIdParametersWire.Parameters, requireParameters: true)
+            .WithRequestBodyProblems()
+            .Accepts<Demo.Generated.Tasks.Models.Task>("application/json");
     }
 
     internal async System.Threading.Tasks.Task<IResult> ListTasks(

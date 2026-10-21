@@ -39,7 +39,9 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<CreateTestItemRequest>("application/json");
 
         tests
             .MapPost("create-location-header", CreateTestItemWithLocationHeader)
@@ -49,7 +51,9 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<CreateTestItemRequest>("application/json");
 
         tests
             .MapPost("create-location-body", CreateTestItemWithLocationInBody)
@@ -59,7 +63,9 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<CreateTestItemRequest>("application/json");
 
         tests
             .MapPost("create-empty", CreateTestItemEmpty)
@@ -69,7 +75,9 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithRequestBodyProblems()
+            .Accepts<CreateTestItemRequest>("application/json");
     }
 
     internal async System.Threading.Tasks.Task<IResult> CreateTestItemWithModel(

@@ -22,4 +22,16 @@ public sealed record XmlBody(
     /// </summary>
     public bool IsAlternative
         => AlternativeMediaTypes is not null;
+
+    /// <summary>
+    /// The JSON media types of a model body that is offered as JSON only, which the generated server reads with its own
+    /// reader too (a value that does not parse is a 400 naming the member); <see langword="null"/> for an XML body.
+    /// </summary>
+    public IReadOnlyList<string>? JsonOnlyMediaTypes { get; init; }
+
+    /// <summary>
+    /// Whether the body is a model offered as JSON only (no XML media type).
+    /// </summary>
+    public bool IsJsonOnly
+        => JsonOnlyMediaTypes is not null;
 }

@@ -13,6 +13,6 @@ namespace Callbacks30.Generated.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Subscription(
     Guid? Id = null,
-    Uri? CallbackUrl = null,
+    [property: ApiAbsoluteUri, global::System.ComponentModel.DataAnnotations.Display(Name = "callbackUrl")] Uri? CallbackUrl = null,
     List<string>? Events = null,
     DateTimeOffset? CreatedAt = null);

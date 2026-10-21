@@ -223,31 +223,48 @@ public static class XmlModelMapperExtractor
         var listInterface = $"global::{projectName}.Generated.{XmlRequestBodyInterfaceName}<{typeName}>";
         var http = "global::Microsoft.AspNetCore.Http";
         var acceptsJson = bound.AcceptsJson;
-        var expected = acceptsJson ? "application/json or XML" : "XML";
+        var acceptsXml = bound.AcceptsXml;
+        var expected = (acceptsJson, acceptsXml) switch
+        {
+            (true, true) => "application/json or XML",
+            (true, false) => "application/json",
+            _ => "XML",
+        };
+        var xml = acceptsXml
+            ? $$"""
+                        if ({{support}}.IsXmlMediaType(mediaType))
+                        {
+                            try
+                            {
+                                return {{typeName}}Xml.Read(await {{support}}.LoadAsync(request.Body, context.RequestAborted).ConfigureAwait(false));
+                            }
+                            catch (global::System.Exception ex) when (ex is global::System.Xml.XmlException or global::System.FormatException or global::System.NotSupportedException)
+                            {
+                                throw global::{{projectName}}.Generated.RequestBodyProblems.Rejected(context, $"The XML request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
+                            }
+                        }
+                """
+            : string.Empty;
         var json = acceptsJson
             ? $$"""
 
                     if ({{http}}.HttpRequestJsonExtensions.HasJsonContentType(request))
                     {
-                        try
-                        {
-                            return await {{http}}.HttpRequestJsonExtensions.ReadFromJsonAsync<{{typeName}}>(request, context.RequestAborted).ConfigureAwait(false);
-                        }
-                        catch (global::System.Text.Json.JsonException ex)
-                        {
-                            throw global::{{projectName}}.Generated.RequestBodyProblems.Rejected(context, $"The JSON request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
-                        }
+                        return await global::{{projectName}}.Generated.RequestBodyProblems.ReadJsonAsync<{{typeName}}>(context).ConfigureAwait(false);
                     }
 
             """
             : string.Empty;
+
+        // The XML branch, then the JSON one after a blank line; a model read as JSON only has the JSON branch alone
+        var xmlThenJson = acceptsXml ? xml + "\n" + json : json;
 
         var members = new List<string>();
         if (bound.BoundAlone)
         {
             members.Add($$"""
                     /// <summary>
-                    /// Reads the request body: XML by the model's XML mapping{{(acceptsJson ? ", JSON by the host's JSON options" : string.Empty)}}.
+                    /// Reads the request body: {{(acceptsXml ? "XML by the model's XML mapping" : string.Empty)}}{{(acceptsXml && acceptsJson ? ", " : string.Empty)}}{{(acceptsJson ? "JSON by the host's JSON options (a value that does not parse is a 400 naming it)" : string.Empty)}}.
                     /// A malformed body is a 400, another media type a 415.
                     /// </summary>
                     public static async global::System.Threading.Tasks.ValueTask<{{typeName}}?> BindAsync(
@@ -263,18 +280,7 @@ public static class XmlModelMapperExtractor
                         var mediaType = global::Microsoft.Net.Http.Headers.MediaTypeHeaderValue.TryParse(request.ContentType, out var parsed)
                             ? parsed.MediaType.Value
                             : null;
-                        if ({{support}}.IsXmlMediaType(mediaType))
-                        {
-                            try
-                            {
-                                return {{typeName}}Xml.Read(await {{support}}.LoadAsync(request.Body, context.RequestAborted).ConfigureAwait(false));
-                            }
-                            catch (global::System.Exception ex) when (ex is global::System.Xml.XmlException or global::System.FormatException or global::System.NotSupportedException)
-                            {
-                                throw global::{{projectName}}.Generated.RequestBodyProblems.Rejected(context, $"The XML request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
-                            }
-                        }
-                {{json}}
+                {{xmlThenJson}}
                         throw global::{{projectName}}.Generated.RequestBodyProblems.Rejected(context, $"The request body must be {{expected}}, not '{mediaType}'.", {{http}}.StatusCodes.Status415UnsupportedMediaType);
                     }
                 """);
@@ -345,6 +351,11 @@ public static class XmlModelMapperExtractor
                 // The request item the reader sets before it throws; the key no request can name
                 private const string RejectedKey = "\u001Frequest-body-rejected";
 
+                // The request item that names the member a value could not be read for
+                private const string RejectedMemberKey = "\u001Frequest-body-rejected-member";
+
+                private static readonly global::System.Text.Json.JsonSerializerOptions FallbackJsonOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
                 /// <summary>
                 /// The exception for a body the reader cannot read; the request is marked, so the endpoint answers it.
                 /// </summary>
@@ -360,6 +371,54 @@ public static class XmlModelMapperExtractor
                         ? new global::Microsoft.AspNetCore.Http.BadHttpRequestException(message, statusCode)
                         : new global::Microsoft.AspNetCore.Http.BadHttpRequestException(message, statusCode, innerException);
                 }
+
+                /// <summary>
+                /// Reads a JSON request body with the host's JSON options. A value that does not convert to its member's type
+                /// (an invalid uuid or date) is a 400 that names the member by its JSON path; JSON that is not well formed is a
+                /// 400 for the body.
+                /// </summary>
+                public static async global::System.Threading.Tasks.ValueTask<T?> ReadJsonAsync<T>(
+                    global::Microsoft.AspNetCore.Http.HttpContext context)
+                {
+                    global::System.ArgumentNullException.ThrowIfNull(context);
+                    var options = (context.RequestServices?.GetService(typeof(global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>)) as global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>)?.Value.SerializerOptions
+                                  ?? FallbackJsonOptions;
+                    try
+                    {
+                        return await global::Microsoft.AspNetCore.Http.HttpRequestJsonExtensions.ReadFromJsonAsync(
+                            context.Request,
+                            (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T)),
+                            context.RequestAborted).ConfigureAwait(false);
+                    }
+                    catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (!context.Items.ContainsKey(RejectedKey))
+                    {
+                        // The server's own answer to the body (larger than it allows: 413), with its status
+                        throw Rejected(context, ex.Message, ex.StatusCode, ex);
+                    }
+                    catch (global::System.Text.Json.JsonException ex)
+                    {
+                        // A value the converter rejects is a JsonException itself, with the path of its member; JSON that is
+                        // not well formed comes from the reader (a type derived from it)
+                        if (ex.GetType() == typeof(global::System.Text.Json.JsonException) && MemberOf(ex.Path) is { } member)
+                        {
+                            context.Items[RejectedMemberKey] = member;
+                            var message = ex.Message.IndexOf(" Path:", global::System.StringComparison.Ordinal) is var end and > 0 ? ex.Message[..end] : ex.Message;
+                            throw Rejected(context, message, global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, ex);
+                        }
+
+                        throw Rejected(context, $"The JSON request body is invalid: {ex.Message}", global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, ex);
+                    }
+                }
+
+                // A member by its JSON path as a validation key: $.address.zip is address.zip, $.tags[1] is tags[1]; the root
+                // is no member
+                private static string? MemberOf(string? path)
+                    => path switch
+                    {
+                        { Length: > 2 } when path.StartsWith("$.", global::System.StringComparison.Ordinal) => path[2..],
+                        { Length: > 1 } when path.StartsWith("$[", global::System.StringComparison.Ordinal) => path[1..],
+                        _ => null,
+                    };
 
                 /// <summary>
                 /// Answers a body the generated reader rejected as a problem with its status. Any other exception - one a
@@ -383,9 +442,15 @@ public static class XmlModelMapperExtractor
                             }
                             catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (context.Items.ContainsKey(RejectedKey) && !context.Response.HasStarted)
                             {
-                                await global::Microsoft.AspNetCore.Http.Results.Problem(
-                                    detail: ex.Message,
-                                    statusCode: ex.StatusCode).ExecuteAsync(context).ConfigureAwait(false);
+                                // A value of one member: a validation problem naming it, as a value the validation filter rejects
+                                var result = context.Items[RejectedMemberKey] is string member
+                                    ? global::Microsoft.AspNetCore.Http.Results.ValidationProblem(
+                                        new global::System.Collections.Generic.Dictionary<string, string[]> { [member] = [ex.Message] },
+                                        statusCode: ex.StatusCode)
+                                    : global::Microsoft.AspNetCore.Http.Results.Problem(
+                                        detail: ex.Message,
+                                        statusCode: ex.StatusCode);
+                                await result.ExecuteAsync(context).ConfigureAwait(false);
                             }
                         };
                     });

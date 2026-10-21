@@ -412,6 +412,14 @@ public class ApiClientGenerator : IIncrementalGenerator
                 SourceText.From(LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
+        // The attributes a pattern (on a value or on the items of an array) and a format: uri are written with
+        if (LengthLimitAttributesExtractor.NeededValueAttributes(openApiDoc) is { Count: > 0 } valueAttributes)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.ValueAttributes.g.cs",
+                SourceText.From(LengthLimitAttributesExtractor.GenerateValueAttributes(NamespaceBuilder.BuildBase(projectName), valueAttributes).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // The SignalR hubs of the specification (x-signalr-hubs): a typed client per hub, where the project has the
         // SignalR client to build it on
         var hubClients = SignalRHubExtractor.ExtractClient(

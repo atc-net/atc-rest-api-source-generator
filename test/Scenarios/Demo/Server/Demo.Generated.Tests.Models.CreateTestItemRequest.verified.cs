@@ -15,6 +15,6 @@ namespace Demo.Generated.Tests.Models;
 /// <param name="Name">Name of the test item.</param>
 /// <param name="Description">Optional description.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record CreateTestItemRequest(
+public sealed partial record CreateTestItemRequest(
     [property: Required, ApiMinLength(1), ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     [property: ApiMaxLength(500), global::System.ComponentModel.DataAnnotations.Display(Name = "description")] string? Description = null);

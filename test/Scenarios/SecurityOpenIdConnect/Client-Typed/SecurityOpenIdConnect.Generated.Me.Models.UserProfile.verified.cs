@@ -21,5 +21,5 @@ public sealed record UserProfile(
     [property: Required] Guid Id,
     [property: Required, EmailAddress] string Email,
     string? DisplayName = null,
-    Uri? Picture = null,
+    [property: ApiAbsoluteUri] Uri? Picture = null,
     bool? EmailVerified = null);

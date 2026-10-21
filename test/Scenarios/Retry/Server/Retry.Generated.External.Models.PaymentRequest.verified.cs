@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace Retry.Generated.External.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record PaymentRequest(
+public sealed partial record PaymentRequest(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "orderId")] Guid OrderId,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "amount")] double Amount,
     string? Currency = null);

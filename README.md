@@ -16,7 +16,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 | **Core**   | 🔧 **Zero Configuration**        | Add the NuGet package, drop your YAML file, build                                |
 |            | 🏗️ **Minimal API**               | Generates modern ASP.NET Core minimal API endpoints                              |
 |            | 🔒 **Contract-Enforced Results** | Handlers can **only** return responses defined in OpenAPI - compile-time safety! |
-|            | ✅ **Validation**                | Automatic `[Required]`, `[Range]`, length limits from OpenAPI constraints     |
+|            | ✅ **Validation**                | Automatic `[Required]`, `[Range]`, lengths, patterns (also on a `$ref` component and on array items), `email` and absolute `uri` from OpenAPI constraints; a value that breaks one - or a JSON value that does not parse - is a 400 naming it |
 |            | 🚨 **ProblemDetails Errors**     | Every error is RFC 9457 `application/problem+json` - server, C# and TS clients agree |
 |            | 🔎 **HTTP `QUERY` (OAS 3.2)**    | `query:` operations - a read with a request body, for criteria too big for a URL |
 |            | 🩹 **OpenAPI Overlays**          | Patch a specification you do not own - names, `required`, formats, removed paths - with an [OpenAPI Overlay](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Overlays) (1.0 to 1.2, full RFC 9535 JSONPath), applied by the build and the CLI |

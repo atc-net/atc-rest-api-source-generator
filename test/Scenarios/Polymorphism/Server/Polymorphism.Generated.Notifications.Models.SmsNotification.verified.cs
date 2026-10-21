@@ -18,5 +18,5 @@ namespace Polymorphism.Generated.Notifications.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SmsNotification(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "kind")] string Kind,
-    [property: Required, RegularExpression(@"^\+?[1-9]\d{6,14}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "phoneNumber")] string PhoneNumber,
+    [property: Required, ApiRegularExpression(@"^\+?[1-9]\d{6,14}$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "phoneNumber")] string PhoneNumber,
     [property: Required, ApiMaxLength(160), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "message")] string Message) : Notification;

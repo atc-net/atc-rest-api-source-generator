@@ -42,7 +42,9 @@ public sealed class WebhooksEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .DisableRateLimiting();
+            .WithRequestBodyProblems()
+            .DisableRateLimiting()
+            .Accepts<WebhookPayload>("application/json");
     }
 
     internal async Task<IResult> ReceiveWebhook(

@@ -103,13 +103,38 @@ public static class XmlBodyHelper
     /// <summary>
     /// The request body a generated server binds by its <c>Content-Type</c>: a model offered as XML - only, or as an
     /// alternative to JSON - is bound by a generated <c>BindAsync</c> on the record, a list of one by a generated
-    /// <c>RequestBodyList&lt;T&gt;</c>.
+    /// <c>RequestBodyList&lt;T&gt;</c>; a model offered as JSON only by the record's <c>BindAsync</c> too, so a value
+    /// that does not parse is a 400 naming the member (<c>[FromBody]</c> answers it with a 400 that names nothing).
     /// </summary>
     /// <param name="content">The request body content.</param>
-    /// <returns>The XML body, or <see langword="null"/> when the body is bound as JSON (<c>[FromBody]</c>).</returns>
+    /// <returns>The bound body, or <see langword="null"/> when the body is bound otherwise (<c>[FromBody]</c>, a form).</returns>
     public static XmlBody? ServerBoundRequestBody(
         IDictionary<string, IOpenApiMediaType>? content)
-        => FindXmlOnlyBody(content) ?? FindXmlAlternative(content);
+        => FindXmlOnlyBody(content) ?? FindXmlAlternative(content) ?? FindJsonOnlyModelBody(content);
+
+    /// <summary>
+    /// Finds a request body that is one component model offered as JSON only: every media type is JSON
+    /// (<c>application/json</c>, <c>*+json</c>) and carries the same model.
+    /// </summary>
+    /// <param name="content">The request body content.</param>
+    /// <returns>The body, or <see langword="null"/> when it is no JSON-only model body.</returns>
+    public static XmlBody? FindJsonOnlyModelBody(
+        IDictionary<string, IOpenApiMediaType>? content)
+    {
+        if (content is null || content.Count == 0 ||
+            !content.All(entry => ResponseBodyClassifier.Classify(entry.Key, entry.Value.Schema) == ResponseBodyKind.Json))
+        {
+            return null;
+        }
+
+        var identities = content.Values
+            .Select(media => media.Schema is OpenApiSchemaReference reference && IsMappedModel(reference) ? reference.Reference?.Id ?? reference.Id : null)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return identities.Count == 1 && identities[0] is not null
+            ? new XmlBody(content.Keys.First(), IsList: false, ListRootName: null) { JsonOnlyMediaTypes = [.. content.Keys] }
+            : null;
+    }
 
     /// <summary>
     /// The models a generated server binds by <c>Content-Type</c>: alone (with whether any operation also accepts them
@@ -136,10 +161,15 @@ public static class XmlBodyHelper
                 continue;
             }
 
-            var known = models.TryGetValue(name, out var existing) ? existing : new ServerBoundModel(AcceptsJson: false, BoundAlone: false, BoundInList: false);
+            var known = models.TryGetValue(name, out var existing) ? existing : new ServerBoundModel(AcceptsJson: false, BoundAlone: false, BoundInList: false, AcceptsXml: false);
             models[name] = body.IsList
-                ? known with { BoundInList = true }
-                : known with { BoundAlone = true, AcceptsJson = known.AcceptsJson || body.IsAlternative };
+                ? known with { BoundInList = true, AcceptsXml = true }
+                : known with
+                {
+                    BoundAlone = true,
+                    AcceptsJson = known.AcceptsJson || body.IsAlternative || body.IsJsonOnly,
+                    AcceptsXml = known.AcceptsXml || !body.IsJsonOnly,
+                };
         }
 
         return models;

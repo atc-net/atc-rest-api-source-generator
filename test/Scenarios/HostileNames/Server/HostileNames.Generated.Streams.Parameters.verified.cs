@@ -21,4 +21,4 @@ namespace HostileNames.Generated.Streams.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateStreamParameters(
-    [property: FromBody, Required] Class Request);
+    [property: Required] Class Request);

@@ -19,7 +19,7 @@ namespace ReadOnlyWriteOnly.Generated.Models;
 /// <param name="Secret">Internal secret, never exposed in responses.</param>
 /// <param name="DisplayName">Regular read-write property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record User(
+public sealed partial record User(
     [property: Required, EmailAddress, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "email")] string Email,
     Guid? Id = null,
     string? Password = null,

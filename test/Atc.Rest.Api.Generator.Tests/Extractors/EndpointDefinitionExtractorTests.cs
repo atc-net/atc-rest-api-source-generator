@@ -286,6 +286,57 @@ public class EndpointDefinitionExtractorTests
         Assert.Equal("/api/v1/charge-points", result);
     }
 
+    // ========== Validation: cookie names, the JSON-only body reader ==========
+    private const string ValidationYaml = """
+                                          openapi: 3.0.3
+                                          info: { title: Shop, version: 1.0.0 }
+                                          paths:
+                                            /carts:
+                                              get:
+                                                operationId: getCart
+                                                parameters:
+                                                  - { name: session, in: cookie, schema: { type: string, minLength: 8 } }
+                                                responses: { '204': { description: OK } }
+                                            /products:
+                                              get:
+                                                operationId: listProducts
+                                                parameters:
+                                                  - { name: code, in: query, schema: { $ref: '#/components/schemas/ProductCode' } }
+                                                responses: { '204': { description: OK } }
+                                            /orders:
+                                              post:
+                                                operationId: createOrder
+                                                requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
+                                                responses: { '204': { description: OK } }
+                                          components:
+                                            schemas:
+                                              ProductCode: { type: string, pattern: '^[A-Z]{2}\d{4}$' }
+                                              Order:
+                                                type: object
+                                                properties:
+                                                  productCode: { $ref: '#/components/schemas/ProductCode' }
+                                          """;
+
+    [Fact]
+    public void Extract_ACookieParameter_NamesTheCookieInTheValidationProblem()
+    {
+        var bodies = EndpointBodies(ValidationYaml);
+
+        Assert.Contains(".WithCookieValidationNames()\n    .AddEndpointFilter<ValidationFilter<GetCartParameters>>()", bodies["GetCart"], StringComparison.Ordinal);
+        Assert.DoesNotContain("WithCookieValidationNames", bodies["ListProducts"], StringComparison.Ordinal);
+        Assert.DoesNotContain("WithCookieValidationNames", bodies["CreateOrder"], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_AJsonOnlyModelBody_IsReadByTheGeneratedReader()
+    {
+        var bodies = EndpointBodies(ValidationYaml);
+
+        Assert.Contains(".WithRequestBodyProblems()", bodies["CreateOrder"], StringComparison.Ordinal);
+        Assert.Contains(".Accepts<Order>(\"application/json\")", bodies["CreateOrder"], StringComparison.Ordinal);
+        Assert.DoesNotContain("WithRequestBodyProblems", bodies["ListProducts"], StringComparison.Ordinal);
+    }
+
     // ========== Namespace Segment Conflict Tests ==========
     [Fact]
     public void Extract_SchemaNameMatchingNamespaceSegment_ProducesFullyQualifiedType()
@@ -666,5 +717,34 @@ public class EndpointDefinitionExtractorTests
         Assert.True(start >= 0, $"no registration for {methodName}");
         var end = content.IndexOf("\n\n", start, StringComparison.Ordinal);
         return end < 0 ? content[start..] : content[start..end];
+    }
+
+    private static Dictionary<string, string> EndpointBodies(string yaml)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var registry = TypeConflictRegistry.Build(document, "Shop", "Shop");
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "Shop",
+            registry,
+            new SystemTypeConflictResolver(document.Components?.Schemas?.Keys ?? []),
+            useMinimalApiPackage: true,
+            useValidationFilter: true);
+
+        Assert.NotNull(classes);
+        var content = string.Join("\n", classes.SelectMany(c => c.Methods ?? []).Select(m => (m.Content ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal)));
+
+        // Each operation's registration, from its Map call to the next one
+        return new[] { "GetCart", "ListProducts", "CreateOrder" }.ToDictionary(
+            name => name,
+            name =>
+            {
+                var start = content.IndexOf($"{name}Parameters", StringComparison.Ordinal);
+                Assert.True(start >= 0, $"{name} is not mapped:\n{content}");
+                var mapStart = content.LastIndexOf(".Map", start, StringComparison.Ordinal);
+                var next = content.IndexOf(".Map", start, StringComparison.Ordinal);
+                return content[mapStart..(next < 0 ? content.Length : next)];
+            },
+            StringComparer.Ordinal);
     }
 }

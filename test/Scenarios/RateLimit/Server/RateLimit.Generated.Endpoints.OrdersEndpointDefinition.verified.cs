@@ -53,7 +53,9 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .RequireRateLimiting(RateLimitPolicies.OrdersStandard);
+            .WithRequestBodyProblems()
+            .RequireRateLimiting(RateLimitPolicies.OrdersStandard)
+            .Accepts<CreateOrderRequest>("application/json");
 
         orders
             .MapGet("{orderId}", GetOrderById)

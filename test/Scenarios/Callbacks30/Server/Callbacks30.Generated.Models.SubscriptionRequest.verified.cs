@@ -11,6 +11,6 @@ using System.Text.Json.Serialization;
 namespace Callbacks30.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record SubscriptionRequest(
-    [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "callbackUrl")] Uri CallbackUrl,
+public sealed partial record SubscriptionRequest(
+    [property: Required, ApiAbsoluteUri, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "callbackUrl")] Uri CallbackUrl,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "events")] List<string> Events);

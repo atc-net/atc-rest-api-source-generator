@@ -777,6 +777,13 @@ public static class OperationParameterExtractor
                 return !isRequired || isNullableArray ? $"{arrayType}?" : arrayType;
             }
 
+            // A $ref to a primitive alias (ProductCode: a string with a pattern) has no named C# type either: the
+            // parameter is the primitive
+            if (schemaRef.GetAliasTarget() is { } aliasTarget)
+            {
+                return MapOpenApiTypeToCSharp(aliasTarget, isRequired, registry);
+            }
+
             // Use Reference.Id first (Microsoft.OpenApi v3.0+), fall back to Id
             var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
             refName = OpenApiSchemaExtensions.ResolveTypeName(refName, registry);
@@ -881,6 +888,11 @@ public static class OperationParameterExtractor
         if (schema.Items is null)
         {
             return "List<object>";
+        }
+
+        if (schema.Items.GetAliasTarget() is { } itemAlias && !itemAlias.IsOfType(JsonSchemaType.Array))
+        {
+            return $"List<{MapOpenApiTypeToCSharp(itemAlias, true, registry)}>";
         }
 
         if (schema.Items is OpenApiSchemaReference itemRef)

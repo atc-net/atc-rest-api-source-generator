@@ -42,7 +42,7 @@ public sealed record ListUsersParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserParameters(
-    [property: FromBody, Required] CreateUserRequest Request);
+    [property: Required] CreateUserRequest Request);
 
 /// <summary>
 /// Parameters for operation request.
@@ -61,7 +61,7 @@ public sealed record GetUserByIdParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserParameters(
     [property: FromRoute(Name = "userId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "userId")] Guid UserId,
-    [property: FromBody, Required] UpdateUserRequest Request);
+    [property: Required] UpdateUserRequest Request);
 
 /// <summary>
 /// Parameters for operation request.

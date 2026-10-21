@@ -14,5 +14,5 @@ namespace HostileNames.Generated.Streams.Models;
 /// A schema named with a C# keyword.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Class(
+public sealed partial record Class(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "level")] int Level);

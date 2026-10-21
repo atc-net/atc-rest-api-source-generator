@@ -22,6 +22,9 @@ internal static class WireDisplayNameHelper
         "Length",
         "Range",
         "RegularExpression",
+        "ApiRegularExpression",
+        "ApiItemsRegularExpression",
+        "ApiAbsoluteUri",
         "EmailAddress",
         "Url",
     };

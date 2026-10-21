@@ -10,5 +10,5 @@ using System.Text.Json.Serialization;
 namespace HttpMethods.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record ResourceQuery(
+public sealed partial record ResourceQuery(
     string? Filter = null);

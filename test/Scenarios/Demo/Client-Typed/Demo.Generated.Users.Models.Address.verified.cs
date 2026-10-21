@@ -26,6 +26,6 @@ public sealed record Address(
     [property: Required, ApiMinLength(2), ApiMaxLength(20)] string PostalCode,
     [property: Required, ApiMinLength(2), ApiMaxLength(100)] string Country,
     [property: ApiMaxLength(100)] string? State = null,
-    [property: ApiMinLength(2), ApiMaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
+    [property: ApiMinLength(2), ApiMaxLength(3), ApiRegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
     [property: Range(-90, 90)] double? Latitude = null,
     [property: Range(-180, 180)] double? Longitude = null);

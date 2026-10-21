@@ -47,6 +47,8 @@ public sealed record ListItemsParameters(
     public ParsableList<string>? Ids { get; init; } = Ids;
 
     [FromQuery(Name = "callback")]
+    [ApiAbsoluteUri]
+    [global::System.ComponentModel.DataAnnotations.Display(Name = "callback")]
     public Uri? Callback { get; init; } = Callback;
 
     [FromQuery(Name = "anything")]
