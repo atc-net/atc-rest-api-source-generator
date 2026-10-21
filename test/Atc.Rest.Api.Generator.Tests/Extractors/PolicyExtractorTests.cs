@@ -1121,7 +1121,9 @@ public class PolicyExtractorTests
         var (className, content) = result[0];
         Assert.Equal("OnNewPetWebhookParameters", className);
         Assert.Contains("Pet Payload", content, StringComparison.Ordinal);
-        Assert.Contains("[FromBody]", content, StringComparison.Ordinal);
+
+        // A JSON model payload is read by the model's generated reader, not [FromBody]
+        Assert.DoesNotContain("[FromBody]", content, StringComparison.Ordinal);
         Assert.Contains("[Required]", content, StringComparison.Ordinal);
         Assert.Contains("sealed class OnNewPetWebhookParameters", content, StringComparison.Ordinal);
     }

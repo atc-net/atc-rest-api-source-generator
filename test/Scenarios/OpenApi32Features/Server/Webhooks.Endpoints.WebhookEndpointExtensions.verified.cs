@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using OpenApi32Features.Generated.Models;
 using OpenApi32Features.Generated.Webhooks.Handlers;
 using OpenApi32Features.Generated.Webhooks.Parameters;
 using OpenApi32Features.Generated.Webhooks.Results;
@@ -51,6 +52,8 @@ public static class WebhookEndpointExtensions
                 })
             .WithSummary("A new pet was added")
             .WithName("onNewPet")
+            .WithRequestBodyProblems()
+            .Accepts<Pet>("application/json")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem();
 
@@ -69,6 +72,8 @@ public static class WebhookEndpointExtensions
                 })
             .WithSummary("A pet was updated")
             .WithName("onPetUpdated")
+            .WithRequestBodyProblems()
+            .Accepts<Pet>("application/json")
             .Produces(StatusCodes.Status200OK);
 
         return endpoints;

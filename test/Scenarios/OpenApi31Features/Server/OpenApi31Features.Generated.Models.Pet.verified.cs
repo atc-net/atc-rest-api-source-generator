@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace OpenApi31Features.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Pet(
+public sealed partial record Pet(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] long Id,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
     string? Tag = null);

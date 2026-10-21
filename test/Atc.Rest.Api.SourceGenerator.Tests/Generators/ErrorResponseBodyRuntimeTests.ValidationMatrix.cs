@@ -38,6 +38,7 @@ public partial class ErrorResponseBodyRuntimeTests
         "An empty string or an empty array where the wire cannot tell it from no value (the query, a header, a cookie, a form field).",
         "A format: uri path parameter: ASP.NET Core keeps %2F encoded in a route value, so a URL in one path segment does not arrive as it was sent.",
         "Compare, Remote, ValidateNever, CreditCard and Phone: MVC and DataAnnotations attributes with no OpenAPI keyword to generate them from (a phone number is a pattern here).",
+        "A request body that is a bare primitive, a dictionary or untyped JSON: it stays [FromBody], so a value that does not convert is the framework's 400 that names nothing (a model, a oneOf, a list and a webhook payload are read by the generated reader).",
     ];
 
     // The places a value arrives: the column id, its group and its label
@@ -48,6 +49,9 @@ public partial class ErrorResponseBodyRuntimeTests
         ("header", "Parameter", "header"),
         ("cookie", "Parameter", "cookie"),
         ("json", "Body", "JSON"),
+        ("json-list", "Body", "JSON list"),
+        ("json-oneof", "Body", "JSON oneOf"),
+        ("webhook", "Body", "webhook payload"),
         ("form", "Body", "URL-encoded form"),
         ("multipart", "Body", "multipart"),
         ("xml", "Body", "XML"),
@@ -64,7 +68,7 @@ public partial class ErrorResponseBodyRuntimeTests
         ("contact", "{ type: string, format: email, pattern: '^.+@contoso\\.com$' }", false, ["ada@contoso.com"]),
         ("name", "{ type: string, minLength: 2, maxLength: 5 }", false, ["Ada"]),
         ("quantity", "{ type: integer, minimum: 1, maximum: 10 }", false, ["5"]),
-        ("price", "{ type: number, minimum: 0.5, maximum: 100, exclusiveMaximum: true }", false, ["9.5"]),
+        ("price", "{ type: number, minimum: 0.5, exclusiveMaximum: 100 }", false, ["9.5"]),
         ("labels", "{ type: array, minItems: 1, maxItems: 3, items: { type: string } }", true, ["a"]),
 
         // Common form-field patterns
@@ -214,7 +218,7 @@ public partial class ErrorResponseBodyRuntimeTests
     internal static string ValidationYaml()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("openapi: 3.0.3");
+        sb.AppendLine("openapi: 3.1.0");
         sb.AppendLine("info:");
         sb.AppendLine("  title: ErrorBodies");
         sb.AppendLine("  version: 1.0.0");
@@ -225,7 +229,8 @@ public partial class ErrorResponseBodyRuntimeTests
             string method,
             string operationId,
             IEnumerable<string> parameters,
-            string? bodyMediaType)
+            string? bodyMediaType,
+            string bodySchema = "{ $ref: '#/components/schemas/Order' }")
         {
             sb.AppendLine(CultureInfo.InvariantCulture, $"  {path}:");
             sb.AppendLine(CultureInfo.InvariantCulture, $"    {method}:");
@@ -242,7 +247,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
             if (bodyMediaType is not null)
             {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"      requestBody: {{ required: true, content: {{ {bodyMediaType}: {{ schema: {{ $ref: '#/components/schemas/Order' }} }} }} }}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"      requestBody: {{ required: true, content: {{ {bodyMediaType}: {{ schema: {bodySchema} }} }} }}");
             }
 
             sb.AppendLine("      responses:");
@@ -274,12 +279,37 @@ public partial class ErrorResponseBodyRuntimeTests
             [.. scalars.Select(f => $"{{ name: {f.Key}, in: cookie, schema: {f.Schema} }}"), $"{{ name: requiredName, in: cookie, required: true, schema: {requiredName} }}"],
             null);
         Operation("/json", "post", "byJson", [], "application/json");
+        Operation("/json-list", "post", "byJsonList", [], "application/json", "{ type: array, items: { $ref: '#/components/schemas/Order' } }");
+        Operation("/json-oneof", "post", "byJsonOneOf", [], "application/json", "{ $ref: '#/components/schemas/AnyOrder' }");
         Operation("/form", "post", "byForm", [], "application/x-www-form-urlencoded");
         Operation("/multipart", "post", "byMultipart", [], "multipart/form-data");
         Operation("/xml", "post", "byXml", [], "application/xml");
 
+        // A webhook the server receives, its payload the same model
+        sb.AppendLine("webhooks:");
+        sb.AppendLine("  byWebhook:");
+        sb.AppendLine("    post:");
+        sb.AppendLine("      operationId: byWebhook");
+        sb.AppendLine("      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }");
+        sb.AppendLine("      responses:");
+        sb.AppendLine("        '204': { description: Valid }");
+
         sb.AppendLine("components:");
         sb.AppendLine("  schemas:");
+        sb.AppendLine("    AnyOrder:");
+        sb.AppendLine("      oneOf:");
+        sb.AppendLine("        - $ref: '#/components/schemas/Order'");
+        sb.AppendLine("        - $ref: '#/components/schemas/GiftCard'");
+        sb.AppendLine("      discriminator:");
+        sb.AppendLine("        propertyName: kind");
+        sb.AppendLine("        mapping:");
+        sb.AppendLine("          order: '#/components/schemas/Order'");
+        sb.AppendLine("          gift: '#/components/schemas/GiftCard'");
+        sb.AppendLine("    GiftCard:");
+        sb.AppendLine("      type: object");
+        sb.AppendLine("      properties:");
+        sb.AppendLine("        kind: { type: string }");
+        sb.AppendLine("        amount: { type: integer }");
         sb.AppendLine("    ProductCode:");
         sb.AppendLine("      type: string");
         sb.AppendLine("      description: A product code - two capital letters and four digits.");
@@ -295,12 +325,15 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         sb.AppendLine(CultureInfo.InvariantCulture, $"        requiredName: {requiredName}");
+
+        // The discriminator of AnyOrder, which a variant declares
+        sb.AppendLine("        kind: { type: string }");
         return sb.ToString();
     }
 
     internal static string ValidationHandlers()
     {
-        string[] operations = ["ByPath", "ByQuery", "ByHeader", "ByCookie", "ByJson", "ByForm", "ByMultipart", "ByXml"];
+        string[] operations = ["ByPath", "ByQuery", "ByHeader", "ByCookie", "ByJson", "ByJsonList", "ByJsonOneOf", "ByForm", "ByMultipart", "ByXml"];
         var sb = new StringBuilder();
         sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
         sb.AppendLine();
@@ -316,6 +349,13 @@ public partial class ErrorResponseBodyRuntimeTests
             sb.AppendLine();
         }
 
+        const string webhooks = "global::ErrorBodies.Generated.Webhooks";
+        sb.AppendLine(CultureInfo.InvariantCulture, $"public sealed class ByWebhookHandlerImpl : {webhooks}.Handlers.IByWebhookWebhookHandler");
+        sb.AppendLine("{");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"    public System.Threading.Tasks.Task<{webhooks}.Results.ByWebhookWebhookResult> ExecuteAsync({webhooks}.Parameters.ByWebhookWebhookParameters p, System.Threading.CancellationToken cancellationToken = default)");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"        => System.Threading.Tasks.Task.FromResult({webhooks}.Results.ByWebhookWebhookResult.NoContent());");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("public static class ValidationRegistration");
         sb.AppendLine("{");
         sb.AppendLine("    public static void Register(IServiceCollection services)");
@@ -325,6 +365,7 @@ public partial class ErrorResponseBodyRuntimeTests
             sb.AppendLine(CultureInfo.InvariantCulture, $"        services.AddScoped<I{operation}Handler, {operation}HandlerImpl>();");
         }
 
+        sb.AppendLine(CultureInfo.InvariantCulture, $"        services.AddScoped<{webhooks}.Handlers.IByWebhookWebhookHandler, ByWebhookHandlerImpl>();");
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb.ToString();
@@ -339,6 +380,10 @@ public partial class ErrorResponseBodyRuntimeTests
             ValidationYaml(),
             ValidationHandlers(),
             "ErrorBodies.RuntimeTest.ValidationRegistration",
+            configureWithAssembly: (app, assembly) => assembly
+                .GetType("ErrorBodies.Generated.Webhooks.Endpoints.WebhookEndpointExtensions", throwOnError: true)!
+                .GetMethod("MapErrorBodiesWebhooks")!
+                .Invoke(null, [app]),
             useRequestDelegateGenerator: hostKey == "validationRdg");
 
         using var client = new HttpClient { BaseAddress = host.BaseAddress };
@@ -371,7 +416,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 using var request = ValidationRequest(row.Key, row.Sent, location.Id);
                 using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
                 var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-                var wireName = location.Id == "header" ? ValidationHeaderName(row.Key) : row.Key;
+                var wireName = location.Id switch
+                {
+                    "header" => ValidationHeaderName(row.Key),
+                    "json-list" => "[0]." + row.Key,
+                    _ => row.Key,
+                };
                 cells[location.Id] = ValidationVerdict(wireName, row.Valid, (int)response.StatusCode, body);
             }
 
@@ -455,7 +505,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 var cookie = new HttpRequestMessage(HttpMethod.Get, "/cookie");
                 cookie.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", pairs.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}")));
                 return cookie;
-            case "json":
+            case "json" or "json-list" or "json-oneof" or "webhook":
                 var json = new JsonObject();
                 foreach (var (k, v) in values)
                 {
@@ -464,9 +514,18 @@ public partial class ErrorResponseBodyRuntimeTests
                         : ValidationJsonScalar(k, v[0]);
                 }
 
-                return new HttpRequestMessage(HttpMethod.Post, "/json")
+                // The model alone, as the one item of a list, as the variant of a oneOf (the discriminator first), or as a
+                // webhook's payload
+                var (url, payload) = location switch
                 {
-                    Content = new StringContent(json.ToJsonString(), Encoding.UTF8, "application/json"),
+                    "json-list" => ("/json-list", (JsonNode)new JsonArray(json)),
+                    "json-oneof" => ("/json-oneof", new JsonObject([new KeyValuePair<string, JsonNode?>("kind", "order"), .. json.Select(p => new KeyValuePair<string, JsonNode?>(p.Key, p.Value?.DeepClone()))])),
+                    "webhook" => ("/webhooks/by-webhook", json),
+                    _ => ("/json", json),
+                };
+                return new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json"),
                 };
             case "form":
                 return new HttpRequestMessage(HttpMethod.Post, "/form") { Content = new FormUrlEncodedContent(pairs) };
@@ -562,7 +621,7 @@ public partial class ErrorResponseBodyRuntimeTests
             return "the matrix sends arrays in the query and the bodies";
         }
 
-        if (isEmpty && location is not ("json" or "xml"))
+        if (isEmpty && location is not ("json" or "json-list" or "json-oneof" or "webhook" or "xml"))
         {
             return "the wire cannot tell an empty value from no value here";
         }

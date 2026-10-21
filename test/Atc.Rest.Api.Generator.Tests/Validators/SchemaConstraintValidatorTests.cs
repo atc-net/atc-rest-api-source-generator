@@ -53,6 +53,56 @@ public class SchemaConstraintValidatorTests
         }
     }
 
+    /// <summary>
+    /// A <c>pattern</c> without <c>^...$</c>: the generated server and clients match the whole value, where JSON Schema
+    /// matches anywhere in it - <c>ATC_API_SCH028</c> (Info) says so, on a property and on an inline parameter alike.
+    /// An anchored pattern says nothing.
+    /// </summary>
+    [Theory]
+    [InlineData("[A-Z]{2}\\d{4}", true)]
+    [InlineData("^[A-Z]{2}\\d{4}", true)]
+    [InlineData("[A-Z]{2}\\d{4}$", true)]
+    [InlineData("^[A-Z]{2}\\d{4}$", false)]
+    [InlineData("^[^:]+:.+$", false)]
+    public void Validate_APatternWithoutAnchors_IsAnInformationNamingIt(
+        string pattern,
+        bool reported)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.3
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /things:
+                get:
+                  parameters:
+                    - name: code
+                      in: query
+                      schema: { type: string, pattern: '{{pattern}}' }
+                  responses: { '204': { description: OK } }
+            components:
+              schemas:
+                Thing:
+                  type: object
+                  properties:
+                    code: { type: string, pattern: '{{pattern}}' }
+            """);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath)
+            .Where(d => d.RuleId == RuleIdentifiers.PatternNotAnchored)
+            .ToList();
+
+        if (!reported)
+        {
+            Assert.Empty(diagnostics);
+            return;
+        }
+
+        Assert.Equal(2, diagnostics.Count);
+        Assert.All(diagnostics, d => Assert.Equal(DiagnosticSeverity.Info, d.Severity));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Thing", StringComparison.Ordinal) && d.Message.Contains(pattern, StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("code", StringComparison.Ordinal) && d.Message.Contains("GET /things", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Validate_EnumValuesDifferingInCaseOnly_AreNoDuplicates()
     {

@@ -653,8 +653,12 @@ public static class OperationParameterExtractor
                         operation.RequestBody?.Content is { } boundContent &&
                         XmlBodyHelper.ServerBoundRequestBody(boundContent) is { IsList: true } boundList)
                     {
+                        // A list offered as JSON only: the generated JsonRequestBodyList<T>, which names a value that
+                        // does not parse
                         var nullable = bodyType.EndsWith("?", StringComparison.Ordinal) ? "?" : string.Empty;
-                        bodyType = $"{XmlModelMapperExtractor.RequestBodyListTypeName}<{XmlBodyHelper.ItemTypeName(boundContent, boundList)}>{nullable}";
+                        bodyType = boundList.IsJsonOnly
+                            ? XmlBodyHelper.JsonListBodyTypeName(bodyType)
+                            : $"{XmlModelMapperExtractor.RequestBodyListTypeName}<{XmlBodyHelper.ItemTypeName(boundContent, boundList)}>{nullable}";
                     }
 
                     // Add binding attribute only for server-side parameters

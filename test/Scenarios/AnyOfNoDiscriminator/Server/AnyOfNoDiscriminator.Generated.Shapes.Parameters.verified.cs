@@ -20,4 +20,4 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateShapeParameters(
-    [property: FromBody, Required] Shape Request);
+    [property: Required] Shape Request);

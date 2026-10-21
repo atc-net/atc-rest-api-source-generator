@@ -265,6 +265,7 @@ public static class TypeScriptZodModelExtractor
     /// is translated where JavaScript has an equivalent: the inline options <c>(?i)</c>, <c>(?m)</c>, <c>(?s)</c>
     /// at the start become the literal's flags (JavaScript has no inline options - a syntax error), <c>\A</c> is
     /// <c>^</c>, and <c>\Z</c> / <c>\z</c> are <c>$</c> (in JavaScript they are identity escapes matching a letter).
+    /// A pattern without <c>^...$</c> is anchored: the value matches as a whole, as on the generated server.
     /// </summary>
     internal static string ToRegexLiteral(string pattern)
     {
@@ -284,6 +285,13 @@ public static class TypeScriptZodModelExtractor
         // \A, \Z and \z outside an escape (a preceding backslash escapes the backslash)
         body = Regex.Replace(body, @"(?<!\\)(?<pairs>(?:\\\\)*)\\A", "${pairs}^", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
         body = Regex.Replace(body, @"(?<!\\)(?<pairs>(?:\\\\)*)\\[Zz]", "${pairs}$$", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+
+        // The whole value, as the generated server matches it (ApiRegularExpression): a pattern without ^...$ is anchored
+        // (ATC_API_SCH028 tells the specification's author)
+        if (!(body.StartsWith("^", StringComparison.Ordinal) && body.EndsWith("$", StringComparison.Ordinal) && !body.EndsWith("\\$", StringComparison.Ordinal)))
+        {
+            body = "^(?:" + body + ")$";
+        }
 
         return "/" + ToRegexLiteralBody(body) + "/" + flags;
     }

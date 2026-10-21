@@ -15,4 +15,4 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonConverter(typeof(NotificationJsonConverter))]
-public abstract record Notification;
+public abstract partial record Notification;

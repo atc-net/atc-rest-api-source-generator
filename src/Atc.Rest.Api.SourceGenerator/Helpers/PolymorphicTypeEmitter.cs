@@ -34,12 +34,15 @@ internal static class PolymorphicTypeEmitter
     /// <param name="projectName">The root namespace.</param>
     /// <param name="schemaNames">The schema names owned by this namespace.</param>
     /// <param name="pathSegment">The path segment, or <see langword="null"/> for shared models.</param>
+    /// <param name="boundRequestModels">The server's models bound by their own reader: a base among them (a JSON-only request
+    /// body) is partial and gets the generated <c>BindAsync</c>. Null for a client.</param>
     public static void Emit(
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
-        string? pathSegment)
+        string? pathSegment,
+        Dictionary<string, ServerBoundModel>? boundRequestModels = null)
     {
         var polymorphicConfigs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc);
 
@@ -66,6 +69,17 @@ internal static class PolymorphicTypeEmitter
             var baseContent = config.UsesCustomConverter
                 ? PolymorphicTypeExtractor.GenerateUnionBaseType(config, projectName, pathSegment, additionalUsings)
                 : PolymorphicTypeExtractor.GeneratePolymorphicBaseType(config, projectName, pathSegment, additionalUsings);
+
+            // A base a JSON-only request body is: partial, with the generated reader that names a value it cannot read
+            if (boundRequestModels?.TryGetValue(polymorphicConfig.Key, out var bound) == true)
+            {
+                baseContent = baseContent
+                    .Replace($"public abstract record {config.BaseTypeName};", $"public abstract partial record {config.BaseTypeName};")
+                    .Replace($"public sealed record {config.BaseTypeName}(", $"public sealed partial record {config.BaseTypeName}(");
+                context.AddGeneratedSource(
+                    NamespaceBuilder.ToFileName(modelsNamespace, config.BaseTypeName + "Binding"),
+                    SourceText.From(XmlModelMapperExtractor.GenerateBinding(config.BaseTypeName, modelsNamespace, projectName, bound).NormalizeForSourceOutput(), Encoding.UTF8));
+            }
 
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, config.BaseTypeName),

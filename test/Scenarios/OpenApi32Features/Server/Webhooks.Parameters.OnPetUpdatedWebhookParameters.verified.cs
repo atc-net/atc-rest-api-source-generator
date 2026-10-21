@@ -19,7 +19,6 @@ public sealed class OnPetUpdatedWebhookParameters
     /// <summary>
     /// The webhook payload.
     /// </summary>
-    [FromBody]
     [Required]
     public Pet Payload { get; init; } = default!;
 }

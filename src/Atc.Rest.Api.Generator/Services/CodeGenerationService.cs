@@ -610,14 +610,15 @@ public static class CodeGenerationService
     public static GeneratedType? GenerateWebhookEndpoints(
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useValidationFilter = false)
     {
         if (!openApiDoc.HasWebhooks())
         {
             return null;
         }
 
-        var classParams = WebhookEndpointExtractor.Extract(openApiDoc, projectName, config);
+        var classParams = WebhookEndpointExtractor.Extract(openApiDoc, projectName, config, useValidationFilter);
 
         if (classParams is null)
         {
@@ -635,6 +636,13 @@ public static class CodeGenerationService
             NamespaceBuilder.ForWebhookParameters(projectName),
             NamespaceBuilder.ForWebhookResults(projectName),
         };
+
+        // The payload models the endpoints name in Accepts<T>, and the ValidationFilter that validates the payload
+        usings.AddRange(WebhookEndpointExtractor.BoundPayloadModelUsings(openApiDoc, projectName));
+        if (useValidationFilter)
+        {
+            usings.Add("Atc.Rest.MinimalApi.Filters.Endpoints");
+        }
 
         return new GeneratedType(
             TypeName: classParams.ClassTypeName,

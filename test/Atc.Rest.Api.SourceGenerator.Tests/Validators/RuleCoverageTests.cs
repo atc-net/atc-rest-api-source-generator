@@ -65,6 +65,7 @@ public class RuleCoverageTests
         ["ATC_API_SCH025"] = "SchemaConstraintNotGeneratable - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
         ["ATC_API_SCH026"] = "EnumValueListedTwice - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
         ["ATC_API_SCH027"] = "UnsupportedReferenceForm - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaReferenceValidatorTests",
+        ["ATC_API_SCH028"] = "PatternNotAnchored - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaConstraintValidatorTests",
         ["ATC_API_VAL003"] = "OpenApiCoreWarning - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaReferenceValidatorTests",
 
         // ========== Client Rules (CLT) ==========

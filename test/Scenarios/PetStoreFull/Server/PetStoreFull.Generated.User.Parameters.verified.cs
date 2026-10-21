@@ -3,7 +3,6 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Collections.Generic;
 using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -30,7 +29,7 @@ public sealed record CreateUserParameters(
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUsersWithListInputParameters(
-    [property: FromBody, Required] List<PetStoreFull.Generated.User.Models.User> Request);
+    [property: Required] JsonRequestBodyList<PetStoreFull.Generated.User.Models.User> Request);
 
 /// <summary>
 /// Parameters for operation request.

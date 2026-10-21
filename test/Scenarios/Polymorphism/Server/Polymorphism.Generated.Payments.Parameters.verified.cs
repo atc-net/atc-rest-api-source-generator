@@ -20,7 +20,7 @@ namespace Polymorphism.Generated.Payments.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePaymentParameters(
-    [property: FromBody, Required] PaymentMethod Request);
+    [property: Required] PaymentMethod Request);
 
 /// <summary>
 /// Parameters for operation request.

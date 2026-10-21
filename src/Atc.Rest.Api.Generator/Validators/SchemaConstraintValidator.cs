@@ -21,6 +21,25 @@ internal static class SchemaConstraintValidator
             Walk(schema.Value, schema.Key, $"Schema '{schema.Key}'", diagnostics, sourceFilePath, visited);
         }
 
+        // The schemas an operation declares in place: its parameters and its request body (a reference is a component,
+        // walked above)
+        foreach (var path in document.Paths ?? new OpenApiPaths())
+        {
+            foreach (var operation in path.Value.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
+            {
+                var name = $"{operation.Key.Method.ToUpperInvariant()} {path.Key}";
+                foreach (var parameter in (path.Value.Parameters ?? []).Concat(operation.Value.Parameters ?? []))
+                {
+                    Walk(parameter?.Schema, name, $"Operation '{name}' parameter '{parameter?.Name}'", diagnostics, sourceFilePath, visited);
+                }
+
+                foreach (var content in operation.Value.RequestBody?.Content ?? new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal))
+                {
+                    Walk(content.Value.Schema, name, $"Operation '{name}' request body", diagnostics, sourceFilePath, visited);
+                }
+            }
+        }
+
         return diagnostics;
     }
 
@@ -57,6 +76,18 @@ internal static class SchemaConstraintValidator
                 sourceFilePath,
                 Context: $"Schema: {schemaName}",
                 Suggestions: ["List each enum value once"]));
+        }
+
+        // A pattern that is not anchored: JSON Schema matches it anywhere, the generated code against the whole value
+        if (!string.IsNullOrEmpty(actual.Pattern) && IsRegularExpression(actual.Pattern!) && !IsAnchored(actual.Pattern!))
+        {
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.PatternNotAnchored,
+                $"{where}: pattern '{actual.Pattern}' is not anchored (^...$). The generated server and clients match the whole value; JSON Schema matches the pattern anywhere in it.",
+                DiagnosticSeverity.Info,
+                sourceFilePath,
+                Context: $"Schema: {schemaName}",
+                Suggestions: [$"Anchor the pattern: '^{actual.Pattern!.TrimStart('^').TrimEnd('$')}$'", "Or widen it ('.*...') where a match inside the value is meant"]));
         }
 
         foreach (var property in actual.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
@@ -157,6 +188,12 @@ internal static class SchemaConstraintValidator
             .GroupBy(json => json, StringComparer.Ordinal)
             .Where(group => group.Count() > 1)
             .Select(group => group.Key);
+
+    // Starts with ^ and ends with an unescaped $
+    private static bool IsAnchored(string pattern)
+        => pattern.StartsWith("^", StringComparison.Ordinal) &&
+           pattern.EndsWith("$", StringComparison.Ordinal) &&
+           !pattern.EndsWith("\\$", StringComparison.Ordinal);
 
     private static bool IsRegularExpression(string pattern)
     {

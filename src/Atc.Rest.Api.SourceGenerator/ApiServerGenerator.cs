@@ -506,11 +506,19 @@ public class ApiServerGenerator : IIncrementalGenerator
         var boundRequestModels = XmlBodyHelper.ServerBoundRequestModels(openApiDoc);
 
         // A body the generated reader cannot read is a problem with its status on every host
-        if (boundRequestModels.Count > 0)
+        if (boundRequestModels.Count > 0 || XmlBodyHelper.HasServerBoundBody(openApiDoc))
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.{XmlModelMapperExtractor.RequestBodyProblemsTypeName}.g.cs",
                 SourceText.From(XmlModelMapperExtractor.GenerateRequestBodyProblems(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
+        // A list body offered as JSON only is read into the generated JsonRequestBodyList<T>
+        if (XmlBodyHelper.HasJsonOnlyListBody(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{XmlBodyHelper.JsonRequestBodyListTypeName}.g.cs",
+                SourceText.From(XmlModelMapperExtractor.GenerateJsonRequestBodyList(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
         // A list body offered as XML is bound into the generated RequestBodyList<T>
@@ -575,7 +583,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 openApiDoc,
                 projectName,
                 sharedSchemas,
-                pathSegment: null);
+                pathSegment: null,
+                boundRequestModels);
         }
 
         // Generate shared IEndpointDefinition interface once (unless using Atc.Rest.MinimalApi package)
@@ -650,7 +659,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                     openApiDoc,
                     projectName,
                     segmentSchemas,
-                    effectiveSegment);
+                    effectiveSegment,
+                    boundRequestModels);
             }
 
             // Determine if this segment has its own models namespace. Inline (anonymous) request/response
@@ -829,7 +839,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateWebhookHandlerInterfaces(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookParameterClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookResultClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateWebhookEndpoints(generatedContext, openApiDoc, projectName, config);
+            GenerateWebhookEndpoints(generatedContext, openApiDoc, projectName, config, useValidationFilter);
         }
 
         // Generate health check endpoints (if configured in marker file)
@@ -2088,9 +2098,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useValidationFilter)
     {
-        var generatedType = CodeGenerationService.GenerateWebhookEndpoints(openApiDoc, projectName, config);
+        var generatedType = CodeGenerationService.GenerateWebhookEndpoints(openApiDoc, projectName, config, useValidationFilter);
         if (generatedType is not null)
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);

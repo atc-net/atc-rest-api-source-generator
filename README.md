@@ -58,7 +58,7 @@ Ask an AI agent (Claude Code, GitHub Copilot, Cursor) for the same endpoint twic
 | **What the agent writes** | Endpoints, models, validation, error handling, clients - every time | A few lines of OpenAPI YAML and the handler's business logic |
 | **Same request, twice** | Two different implementations | The same code, byte for byte: same spec + same generator version = same output |
 | **Wrong status code** | Found in review - or in production | Does not compile: a handler can only return the responses the spec declares |
-| **Spec mistakes** | Silent | 163 `ATC_API_*` build diagnostics, each with an id the agent can look up and fix |
+| **Spec mistakes** | Silent | 164 `ATC_API_*` build diagnostics, each with an id the agent can look up and fix |
 | **Server ↔ C# / TypeScript client** | Written separately, drifting apart | Generated from one file; every client is run against the server in the [test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html) |
 | **What you review** | Hundreds of lines of plumbing per endpoint | The YAML diff and the handler diff |
 

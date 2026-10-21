@@ -8,6 +8,14 @@ namespace Atc.Rest.Api.Generator.Helpers;
 public static class XmlBodyHelper
 {
     /// <summary>
+    /// The generated list type a JSON-only array body is read into.
+    /// </summary>
+    public const string JsonRequestBodyListTypeName = "JsonRequestBodyList";
+
+    // The polymorphic bases of each document, found once per document
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<OpenApiDocument, HashSet<string>> PolymorphicBases = new();
+
+    /// <summary>
     /// Finds the XML body of a content map that declares no JSON media type: a component model, or an array of one.
     /// </summary>
     /// <param name="content">The request or response content.</param>
@@ -113,11 +121,12 @@ public static class XmlBodyHelper
         => FindXmlOnlyBody(content) ?? FindXmlAlternative(content) ?? FindJsonOnlyModelBody(content);
 
     /// <summary>
-    /// Finds a request body that is one component model offered as JSON only: every media type is JSON
-    /// (<c>application/json</c>, <c>*+json</c>) and carries the same model.
+    /// Finds a request body offered as JSON only (every media type is JSON: <c>application/json</c>, <c>*+json</c>) that
+    /// the generated server reads with its own reader: one component model or polymorphic base (its generated
+    /// <c>BindAsync</c>), or an array (the generated <c>JsonRequestBodyList&lt;T&gt;</c>).
     /// </summary>
     /// <param name="content">The request body content.</param>
-    /// <returns>The body, or <see langword="null"/> when it is no JSON-only model body.</returns>
+    /// <returns>The body (<see cref="XmlBody.IsList"/> for an array), or <see langword="null"/> when it is none of these.</returns>
     public static XmlBody? FindJsonOnlyModelBody(
         IDictionary<string, IOpenApiMediaType>? content)
     {
@@ -128,13 +137,70 @@ public static class XmlBodyHelper
         }
 
         var identities = content.Values
-            .Select(media => media.Schema is OpenApiSchemaReference reference && IsMappedModel(reference) ? reference.Reference?.Id ?? reference.Id : null)
+            .Select(media => media.Schema is OpenApiSchemaReference reference && (IsMappedModel(reference) || IsPolymorphicBase(reference))
+                ? reference.Reference?.Id ?? reference.Id
+                : null)
             .Distinct(StringComparer.Ordinal)
             .ToList();
-        return identities.Count == 1 && identities[0] is not null
-            ? new XmlBody(content.Keys.First(), IsList: false, ListRootName: null) { JsonOnlyMediaTypes = [.. content.Keys] }
+        if (identities.Count == 1 && identities[0] is not null)
+        {
+            return new XmlBody(content.Keys.First(), IsList: false, ListRootName: null) { JsonOnlyMediaTypes = [.. content.Keys] };
+        }
+
+        // An array of anything JSON carries, the same under every media type
+        var lists = content.Values
+            .Select(media => media.Schema is { } schema && schema.IsOfType(JsonSchemaType.Array) && !schema.HasPrefixItems() && schema.Items is not null
+                ? schema.ToCSharpType(isRequired: true)
+                : null)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return lists.Count == 1 && lists[0] is { } list && list.StartsWith("List<", StringComparison.Ordinal)
+            ? new XmlBody(content.Keys.First(), IsList: true, ListRootName: null) { JsonOnlyMediaTypes = [.. content.Keys] }
             : null;
     }
+
+    /// <summary>
+    /// The request body of a webhook the generated server reads with its own reader: a JSON-only body
+    /// (<see cref="FindJsonOnlyModelBody"/>). A webhook payload offered as XML stays <c>[FromBody]</c>.
+    /// </summary>
+    /// <param name="operation">The webhook operation.</param>
+    /// <returns>The body, or <see langword="null"/>.</returns>
+    public static XmlBody? ServerBoundWebhookBody(OpenApiOperation? operation)
+        => FindJsonOnlyModelBody(operation?.RequestBody?.Content);
+
+    /// <summary>
+    /// The C# type a JSON-only list body is read into: <c>JsonRequestBodyList&lt;T&gt;</c> for the body's
+    /// <c>List&lt;T&gt;</c>, nullable as it is.
+    /// </summary>
+    /// <param name="listType">The body's type (<c>List&lt;T&gt;</c> or <c>List&lt;T&gt;?</c>).</param>
+    /// <returns>The type the server binds.</returns>
+    public static string JsonListBodyTypeName(string listType)
+        => listType is not null && listType.StartsWith("List<", StringComparison.Ordinal)
+            ? JsonRequestBodyListTypeName + listType.Substring("List".Length)
+            : listType!;
+
+    /// <summary>
+    /// Whether any operation or webhook of the document has a JSON-only array body (the server then declares
+    /// <c>JsonRequestBodyList&lt;T&gt;</c>).
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>True when one does.</returns>
+    public static bool HasJsonOnlyListBody(OpenApiDocument openApiDoc)
+        => AllOperations(openApiDoc).Any(o => FindJsonOnlyModelBody(o.RequestBody?.Content) is { IsList: true, IsJsonOnly: true });
+
+    /// <summary>
+    /// Whether any operation or webhook of the document has a body the generated server reads itself (so it declares
+    /// <c>RequestBodyProblems</c>).
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>True when one does.</returns>
+    public static bool HasServerBoundBody(OpenApiDocument openApiDoc)
+        => (openApiDoc?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+               .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>())
+               .Any(o => ServerBoundRequestBody(o.RequestBody?.Content) is not null) ||
+           (openApiDoc?.Webhooks?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+               .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>())
+               .Any(o => ServerBoundWebhookBody(o) is not null);
 
     /// <summary>
     /// The models a generated server binds by <c>Content-Type</c>: alone (with whether any operation also accepts them
@@ -146,10 +212,18 @@ public static class XmlBodyHelper
         OpenApiDocument openApiDoc)
     {
         var models = new Dictionary<string, ServerBoundModel>(StringComparer.Ordinal);
-        foreach (var operation in (openApiDoc?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>()).SelectMany(p => p.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>()))
+        var operations = (openApiDoc?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+            .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>())
+            .Select(o => (Operation: o, Body: ServerBoundRequestBody(o.RequestBody?.Content)))
+            .Concat((openApiDoc?.Webhooks?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+                .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>())
+                .Select(o => (Operation: o, Body: ServerBoundWebhookBody(o))));
+        foreach (var (operation, bound) in operations)
         {
             var content = operation.RequestBody?.Content;
-            if (ServerBoundRequestBody(content) is not { } body)
+
+            // A JSON-only array is read by the generated JsonRequestBodyList<T>: its items need no reader of their own
+            if (bound is not { } body || body is { IsList: true, IsJsonOnly: true })
             {
                 continue;
             }
@@ -186,6 +260,12 @@ public static class XmlBodyHelper
         XmlBody body,
         TypeConflictRegistry? registry = null)
     {
+        // A JSON-only array is the list of what its items are
+        if (body is { IsList: true, IsJsonOnly: true })
+        {
+            return content[body.MediaType].Schema!.ToCSharpType(isRequired: true, registry);
+        }
+
         // A model named like a namespace in scope (Pet under ...Generated.Pet) is written fully qualified
         var name = ItemTypeName(content, body);
         name = registry?.ResolveTypeName(name) ?? name;
@@ -329,4 +409,18 @@ public static class XmlBodyHelper
 
         return model + "Xml";
     }
+
+    // A component with oneOf/anyOf the generator emits a polymorphic base for (an abstract record)
+    private static bool IsPolymorphicBase(OpenApiSchemaReference reference)
+        => reference.Target is OpenApiSchema target &&
+           target.HasPolymorphicComposition() &&
+           reference.Reference?.HostDocument is { } document &&
+           (reference.Reference.Id ?? reference.Id) is { } id &&
+           PolymorphicBases.GetValue(document, d => new HashSet<string>(PolymorphicTypeExtractor.ExtractPolymorphicConfigs(d)?.Keys ?? Enumerable.Empty<string>(), StringComparer.Ordinal)).Contains(id);
+
+    private static IEnumerable<OpenApiOperation> AllOperations(
+        OpenApiDocument openApiDoc)
+        => (openApiDoc?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+            .Concat(openApiDoc?.Webhooks?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+            .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>());
 }

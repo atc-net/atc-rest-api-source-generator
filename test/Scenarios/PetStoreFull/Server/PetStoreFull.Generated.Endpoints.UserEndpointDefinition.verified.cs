@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System;
+using System.Collections.Generic;
 using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,7 +51,9 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .Produces<PetStoreFull.Generated.User.Models.User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithRequestBodyProblems()
+            .Accepts<List<PetStoreFull.Generated.User.Models.User>>("application/json");
 
         user
             .MapGet("login", LoginUser)

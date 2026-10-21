@@ -100,6 +100,13 @@ public static class WebhookParameterExtractor
         var bodyTypeName = GetBodyTypeName(schema, resolvedSchema, systemTypeResolver);
         var isRequired = operation.RequestBody.Required;
 
+        // A payload the generated reader reads: no [FromBody], and a list is the generated JsonRequestBodyList<T>
+        var boundBody = XmlBodyHelper.ServerBoundWebhookBody(operation);
+        if (boundBody is { IsList: true })
+        {
+            bodyTypeName = XmlBodyHelper.JsonListBodyTypeName(bodyTypeName);
+        }
+
         var propertyType = isRequired ? bodyTypeName : $"{bodyTypeName}?";
 
         // Get the correct model usings for this webhook's schemas
@@ -132,7 +139,10 @@ public static class WebhookParameterExtractor
         sb.AppendLine(4, "/// <summary>");
         sb.AppendLine(4, "/// The webhook payload.");
         sb.AppendLine(4, "/// </summary>");
-        sb.AppendLine(4, "[FromBody]");
+        if (boundBody is null)
+        {
+            sb.AppendLine(4, "[FromBody]");
+        }
 
         if (isRequired)
         {

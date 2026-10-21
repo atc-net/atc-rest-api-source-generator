@@ -15,4 +15,4 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonConverter(typeof(ShapeJsonConverter))]
-public abstract record Shape;
+public abstract partial record Shape;

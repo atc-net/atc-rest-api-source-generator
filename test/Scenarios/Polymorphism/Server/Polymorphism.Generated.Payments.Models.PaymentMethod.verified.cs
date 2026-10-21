@@ -14,4 +14,4 @@ namespace Polymorphism.Generated.Payments.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonConverter(typeof(PaymentMethodJsonConverter))]
-public abstract record PaymentMethod;
+public abstract partial record PaymentMethod;

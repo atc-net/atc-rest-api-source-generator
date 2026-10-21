@@ -241,7 +241,7 @@ public class XmlModelMapperExtractorTests
         Assert.Contains("public sealed class RequestBodyList<T> : global::System.Collections.Generic.List<T>\n    where T : IXmlRequestBody<T>", content, StringComparison.Ordinal);
         Assert.Contains("public static async global::System.Threading.Tasks.ValueTask<RequestBodyList<T>?> BindAsync(", content, StringComparison.Ordinal);
         Assert.Contains($"return new RequestBodyList<T>(T.ReadXmlList(await {Support}.LoadAsync(request.Body, context.RequestAborted).ConfigureAwait(false)));", content, StringComparison.Ordinal);
-        Assert.Contains("ReadFromJsonAsync<global::System.Collections.Generic.List<T>>(request, context.RequestAborted)", content, StringComparison.Ordinal);
+        Assert.Contains("RequestBodyProblems.ReadJsonAsync<global::System.Collections.Generic.List<T>>(context)", content, StringComparison.Ordinal);
     }
 
     [Fact]

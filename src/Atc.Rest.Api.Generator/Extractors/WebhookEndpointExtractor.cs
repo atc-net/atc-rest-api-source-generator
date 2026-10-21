@@ -14,11 +14,14 @@ public static class WebhookEndpointExtractor
     /// <param name="openApiDoc">The OpenAPI document containing webhook definitions.</param>
     /// <param name="projectName">The name of the project (used for namespace).</param>
     /// <param name="config">The server configuration (used for webhook base path).</param>
+    /// <param name="useValidationFilter">Whether a webhook's payload is validated by the ValidationFilter, as the
+    /// operations' parameters and bodies are.</param>
     /// <returns>ClassParameters for the webhook endpoint registration class, or null if no webhooks exist.</returns>
     public static ClassParameters? Extract(
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useValidationFilter = false)
     {
         if (openApiDoc is null)
         {
@@ -37,7 +40,7 @@ public static class WebhookEndpointExtractor
 
         // Generate method content
         var webhookBasePath = config.WebhookBasePath ?? "/webhooks";
-        var methodContent = GenerateMethodContent(openApiDoc, config.IncludeDeprecated, webhookBasePath);
+        var methodContent = GenerateMethodContent(openApiDoc, config.IncludeDeprecated, webhookBasePath, useValidationFilter);
         if (string.IsNullOrEmpty(methodContent))
         {
             return null;
@@ -103,6 +106,25 @@ public static class WebhookEndpointExtractor
             GenerateToStringMethod: false);
     }
 
+    /// <summary>
+    /// The model namespaces of the webhook payloads the generated reader reads, which the endpoints name in
+    /// <c>Accepts&lt;T&gt;</c>.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The project name.</param>
+    /// <returns>The namespaces, in order.</returns>
+    public static IReadOnlyList<string> BoundPayloadModelUsings(
+        OpenApiDocument openApiDoc,
+        string projectName)
+        => openApiDoc is null
+            ? []
+            : openApiDoc.GetAllWebhookOperations()
+                .Where(w => XmlBodyHelper.ServerBoundWebhookBody(w.Operation) is not null)
+                .SelectMany(w => PathSegmentHelper.GetWebhookModelUsings(openApiDoc, projectName, w.Operation))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(u => u, StringComparer.Ordinal)
+                .ToList();
+
     private static string GenerateHeaderContent(string projectName)
     {
         var builder = new StringBuilder();
@@ -124,7 +146,8 @@ public static class WebhookEndpointExtractor
     private static string GenerateMethodContent(
         OpenApiDocument openApiDoc,
         bool includeDeprecated,
-        string webhookBasePath)
+        string webhookBasePath,
+        bool useValidationFilter)
     {
         var builder = new StringBuilder();
 
@@ -143,7 +166,7 @@ public static class WebhookEndpointExtractor
                 continue;
             }
 
-            GenerateWebhookEndpoint(builder, webhookName, httpMethod, operation, isFirst);
+            GenerateWebhookEndpoint(builder, webhookName, httpMethod, operation, isFirst, useValidationFilter);
             isFirst = false;
         }
 
@@ -158,7 +181,8 @@ public static class WebhookEndpointExtractor
         string webhookName,
         string httpMethod,
         OpenApiOperation operation,
-        bool isFirst)
+        bool isFirst,
+        bool useValidationFilter)
     {
         // Get operation ID or generate from webhook name
         var operationId = operation.OperationId ?? $"On{webhookName.EnsureFirstCharacterToUpper()}";
@@ -248,6 +272,20 @@ public static class WebhookEndpointExtractor
         }
 
         builder.AppendLine(4, $".WithName(\"{operationId}\")");
+
+        // The payload is validated as an operation's body is: its constraints, keyed by its wire names
+        if (useValidationFilter && hasParameters)
+        {
+            builder.AppendLine(4, $".AddEndpointFilter<ValidationFilter<{parameterTypeName}>>()");
+        }
+
+        // A payload the generated reader reads (a JSON model, a polymorphic base or a list): a value it cannot read is
+        // a problem naming it, and Accepts names the body for the runtime OpenAPI document
+        if (XmlBodyHelper.ServerBoundWebhookBody(operation) is { } boundBody)
+        {
+            builder.AppendLine(4, ".WithRequestBodyProblems()");
+            builder.AppendLine(4, $".Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody)}>({string.Join(", ", boundBody.JsonOnlyMediaTypes!.Select(m => $"\"{m}\""))})");
+        }
 
         // Add Produces metadata based on responses
         GenerateProducesMetadata(builder, operation);

@@ -27,6 +27,10 @@ public class TypeScriptZodExtractorTests
     [InlineData(@"^\\A$", @"/^\\A$/")]
     [InlineData(@"^\d{2}/\d{2}$", @"/^\d{2}\/\d{2}$/")]
     [InlineData(@"^[A-Z]{3}$", @"/^[A-Z]{3}$/")]
+    [InlineData(@"[A-Z]{2}\d{4}", @"/^(?:[A-Z]{2}\d{4})$/")]
+    [InlineData(@"^[A-Z]{2}", @"/^(?:^[A-Z]{2})$/")]
+    [InlineData(@"(?i)[a-z]+", @"/^(?:[a-z]+)$/i")]
+    [InlineData(@"^a\$", @"/^(?:^a\$)$/")]
     public void ToRegexLiteral_IsAJavaScriptRegex(
         string pattern,
         string expected)

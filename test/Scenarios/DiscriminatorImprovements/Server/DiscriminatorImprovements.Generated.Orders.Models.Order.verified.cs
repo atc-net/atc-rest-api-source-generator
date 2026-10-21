@@ -14,4 +14,4 @@ namespace DiscriminatorImprovements.Generated.Orders.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonConverter(typeof(OrderJsonConverter))]
-public abstract record Order;
+public abstract partial record Order;

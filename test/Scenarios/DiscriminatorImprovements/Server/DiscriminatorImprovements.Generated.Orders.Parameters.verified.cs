@@ -20,7 +20,7 @@ namespace DiscriminatorImprovements.Generated.Orders.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderParameters(
-    [property: FromBody, Required] Order Request);
+    [property: Required] Order Request);
 
 /// <summary>
 /// Parameters for operation request.

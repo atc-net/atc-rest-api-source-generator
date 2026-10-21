@@ -615,6 +615,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string UnsupportedReferenceForm = "ATC_API_SCH027";
 
+    /// <summary>
+    /// ATC_API_SCH028: A 'pattern' without '^...$'. JSON Schema matches a pattern anywhere in the value; the generated
+    /// server (ApiRegularExpression) and clients (Zod) match the whole value, as a form-field pattern means. Anchor the
+    /// pattern to say so, or widen it ('.*...' ) where a match inside the value is meant. Information, every strategy.
+    /// </summary>
+    public const string PatternNotAnchored = "ATC_API_SCH028";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>
