@@ -1056,7 +1056,7 @@ if (!REPORT) {
     </ul>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only</code> writes this page (<code>docs/test-suite-report.html</code>) and its data (<code>docs/test-suite-report.json</code>).</p></div>
     <div id="review"></div>`;
-  $('#review').innerHTML = REPORT.review ? `<h3>Independent review</h3>${REPORT.review}` : '';
+  $('#review').innerHTML = REPORT.review ? `<h3>Independent review of the error-body matrix (2026-10-04)</h3>${REPORT.review}` : '';
 
   // Readiness: hand-written notes, shown only when they were embedded
   $('#readiness').innerHTML = REPORT.readiness ?? '';
