@@ -1298,12 +1298,16 @@ const STREAM_FORMATS = [
   ['FeatureSseNamed', 'Server-Sent Events, items in named events', 'text/event-stream + x-sse-item-events'],
   ['FeatureSseResume', 'Server-Sent Events, dropped and resumed', 'text/event-stream + Last-Event-ID'],
   ['FeatureLines', 'JSON Lines', 'application/jsonl'],
+  ['FeatureNdjson', 'NDJSON, a stream by its media type alone', 'application/x-ndjson'],
   ['FeatureArray', 'JSON array', 'application/json + x-return-async-enumerable'],
   ['FeatureSeq', 'JSON Text Sequence', 'application/json-seq'],
   ['FeatureMixed', 'Multipart', 'multipart/mixed'],
+  ['FeatureUpload', 'JSON Lines request body', 'application/jsonl (sent)'],
+  ['FeatureUploadSeq', 'JSON Text Sequence request body', 'application/json-seq (sent)'],
+  ['FeatureTransform', 'JSON Lines in, JSON Lines out', 'application/jsonl (sent and read)'],
 ];
 function streamFormatsHtml(data) {
-  const cases = (data?.cases ?? []).filter((c) => c.group === 'streaming' || c.group === 'stream formats on the wire');
+  const cases = (data?.cases ?? []).filter((c) => c.group === 'streaming' || c.group === 'stream formats on the wire' || c.group === 'streamed request bodies');
   if (cases.length === 0) return '';
   const families = [...new Set(data.clients.map((c) => c.group))];
   const cell = (operation, family) => {
@@ -1323,14 +1327,14 @@ function streamFormatsHtml(data) {
     .filter(([operation]) => cases.some((c) => c.operation === operation))
     .map(([operation, name, mediaType]) => `<tr><td><b>${esc(name)}</b><br><code>${esc(mediaType)}</code></td><td class="num">${cases.filter((c) => c.operation === operation).length}</td>${families.map((f) => cell(operation, f)).join('')}</tr>`);
   return `<h3>Stream formats</h3>
-  <p>A streamed response in each format the generator knows, read by every client: the generated server streaming to the end, failing mid-stream and cancelled by the client, and - written by a stub as another server may write it - comments, heartbeats and named events in an event stream, blank lines, pretty-printed records, padded multipart boundaries, a body of nothing, and a 503 with a problem before the first item. Each cell is the client cells that passed, of those judged, in the matrix below.</p>
+  <p>A streamed response in each format the generator knows, read by every client: the generated server streaming to the end, failing mid-stream and cancelled by the client, and - written by a stub as another server may write it - comments, heartbeats and named events in an event stream, blank lines, pretty-printed records, padded multipart boundaries, a body of nothing, and a 503 with a problem before the first item; and a request body streamed by the client - records it yields, read by the handler one at a time, an invalid one answered with a 400 that names it. Each cell is the client cells that passed, of those judged, in the matrix below.</p>
   <div class="table-wrap"><table class="glance"><thead><tr><th>Format</th><th class="num">Cases</th>${families.map((f) => `<th class="num">${esc(f)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
 renderCaseMatrix('feature', 'feature', REPORT?.feature, `
   <h2>Features</h2>
   ${streamFormatsHtml(REPORT?.feature)}
-  <p>The generated server with handlers that stream, page, echo and version, and every generated client - the C# EndpointPerOperation and typed clients, the TypeScript Fetch and Axios clients, the Fetch client with Zod runtime validation, and the React Query and SWR hooks rendered with React - running each feature against it over HTTP: Server-Sent Events, JSON Lines and a JSON array streamed as <code>IAsyncEnumerable</code>, each to the end, with the handler failing mid-stream, and cancelled by the client (the server must see the cancellation); a paginated read walked by its continuation (the infinite hooks walk it); a <code>oneOf</code> with a discriminator and a three-level <code>allOf</code> round-tripped through the client; an enum by its value and an unknown value from the server; a date and a date-time; a conditional 304; and the calls that get no response - a connection that resets mid-body, a server that never answers, a body that stalls, a port no server listens on and a host name that does not resolve - each of which must reject with the transport's own error, never an <code>ApiError</code>.</p>
+  <p>The generated server with handlers that stream, page, echo and version, and every generated client - the C# EndpointPerOperation and typed clients, the TypeScript Fetch and Axios clients, the Fetch client with Zod runtime validation, and the React Query and SWR hooks rendered with React - running each feature against it over HTTP: Server-Sent Events, JSON Lines and a JSON array streamed as <code>IAsyncEnumerable</code>, each to the end, with the handler failing mid-stream, and cancelled by the client (the server must see the cancellation); records the client streams as JSON Lines or a JSON Text Sequence, read by the handler one at a time (an invalid record is a 400), and a stream in and a stream out; a paginated read walked by its continuation (the infinite hooks walk it); a <code>oneOf</code> with a discriminator and a three-level <code>allOf</code> round-tripped through the client; an enum by its value and an unknown value from the server; a date and a date-time; a conditional 304; and the calls that get no response - a connection that resets mid-body, a server that never answers, a body that stalls, a port no server listens on and a host name that does not resolve - each of which must reject with the transport's own error, never an <code>ApiError</code>.</p>
   <p><b>Not exercised.</b> ${notExercisedHtml('feature')}</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientRunsEveryFeature"</code></p></div>`, 'feature');
 

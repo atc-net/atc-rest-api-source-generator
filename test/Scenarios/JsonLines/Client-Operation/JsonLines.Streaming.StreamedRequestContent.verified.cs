@@ -102,29 +102,36 @@ internal sealed class StreamedRequestContent<T> : global::System.Net.Http.HttpCo
                 "A streamed request body is sent once: its records are read as they are written, so the request cannot be sent again (a retry or a redirect).");
         }
 
-        await using var enumerator = records.GetAsyncEnumerator(cancellationToken);
-        var next = enumerator.MoveNextAsync();
-        while (true)
+        var enumerator = records.GetAsyncEnumerator(cancellationToken);
+        try
         {
-            // The source makes the request wait: what is written goes to the server now
-            if (!next.IsCompleted)
+            var next = enumerator.MoveNextAsync();
+            while (true)
             {
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
+                // The source makes the request wait: what is written goes to the server now
+                if (!next.IsCompleted)
+                {
+                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
 
-            if (!await next.ConfigureAwait(false))
-            {
-                break;
-            }
+                if (!await next.ConfigureAwait(false))
+                {
+                    break;
+                }
 
-            if (isSequence)
-            {
-                await stream.WriteAsync(RecordSeparator, cancellationToken).ConfigureAwait(false);
-            }
+                if (isSequence)
+                {
+                    await stream.WriteAsync(RecordSeparator, cancellationToken).ConfigureAwait(false);
+                }
 
-            await write(stream, enumerator.Current, cancellationToken).ConfigureAwait(false);
-            await stream.WriteAsync(LineFeed, cancellationToken).ConfigureAwait(false);
-            next = enumerator.MoveNextAsync();
+                await write(stream, enumerator.Current, cancellationToken).ConfigureAwait(false);
+                await stream.WriteAsync(LineFeed, cancellationToken).ConfigureAwait(false);
+                next = enumerator.MoveNextAsync();
+            }
+        }
+        finally
+        {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
