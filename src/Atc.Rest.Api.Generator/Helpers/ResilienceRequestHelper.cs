@@ -34,6 +34,33 @@ public static class ResilienceRequestHelper
         }
 
         var retry = operation.ResolveOperationRetry(pathItem, document, httpMethod);
+
+        // A request body sent as a stream of records is read once, as it is written: it is never retried (its policy's
+        // timeout still applies)
+        if (operation.GetStreamedRequestBody() is not null)
+        {
+            if (retry.Mode != OperationRetryMode.Retry &&
+                retry.PolicyName is null &&
+                retry.TimeoutSeconds is null &&
+                OpenApiRetryExtensions.IsRetryUnsafeHttpMethod(httpMethod))
+            {
+                return null;
+            }
+
+            var streamedArguments = new List<string> { requestVariable };
+            if (retry.PolicyName is not null)
+            {
+                streamedArguments.Add("ResiliencePolicies." + ResiliencePoliciesExtractor.GenerateConstantName(retry.PolicyName));
+            }
+
+            if (retry.TimeoutSeconds is { } streamedTimeoutSeconds)
+            {
+                streamedArguments.Add("timeoutSeconds: " + streamedTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
+            }
+
+            return $"ApiResilienceRequest.DisableRetry({string.Join(", ", streamedArguments)});";
+        }
+
         if (retry.IsClientDefault(httpMethod))
         {
             return null;

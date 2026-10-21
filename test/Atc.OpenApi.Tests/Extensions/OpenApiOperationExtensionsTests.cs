@@ -742,10 +742,35 @@ public class OpenApiOperationExtensionsTests
         Assert.Same(item, operation.GetStreamingItemSchema());
     }
 
-    [Fact]
-    public void GetStreamingResponse_SchemaOnAStreamingMediaTypeWithoutAnnotation_IsNotAStream()
+    [Theory]
+    [InlineData("text/event-stream", StreamingFraming.ServerSentEvents)]
+    [InlineData("application/jsonl", StreamingFraming.JsonLines)]
+    [InlineData("application/x-ndjson", StreamingFraming.JsonLines)]
+    [InlineData("application/x-jsonlines", StreamingFraming.JsonLines)]
+    [InlineData("application/json-seq", StreamingFraming.JsonSequence)]
+    [InlineData("application/geo+json-seq", StreamingFraming.JsonSequence)]
+    public void GetStreamingResponse_SchemaOnAStreamingMediaTypeWithoutAnnotation_IsAStream(
+        string mediaType,
+        StreamingFraming expected)
     {
-        var operation = BuildAnnotatedOperation("text/event-stream", new OpenApiSchema { Title = "Event" }, annotated: false);
+        // The media type says it is a stream: x-return-async-enumerable is not needed on top (without it the records
+        // were dropped)
+        var schema = new OpenApiSchema { Title = "Event" };
+        var operation = BuildAnnotatedOperation(mediaType, schema, annotated: false);
+
+        var result = operation.GetStreamingResponse();
+
+        Assert.NotNull(result);
+        Assert.Same(schema, result.Value.ItemSchema);
+        Assert.True(operation.IsStreamingResponse());
+        Assert.Equal(expected, operation.GetStreamingFraming());
+    }
+
+    [Fact]
+    public void GetStreamingResponse_MultipartMixedWithoutAnnotation_IsNotAStream()
+    {
+        // multipart/mixed is as often a batch answer as a stream: it streams only with the annotation (or an itemSchema)
+        var operation = BuildAnnotatedOperation("multipart/mixed", new OpenApiSchema { Title = "Event" }, annotated: false);
 
         Assert.Null(operation.GetStreamingResponse());
         Assert.False(operation.IsStreamingResponse());

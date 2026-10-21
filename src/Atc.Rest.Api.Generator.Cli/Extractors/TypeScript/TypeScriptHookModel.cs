@@ -64,13 +64,22 @@ internal static class TypeScriptHookModel
         var segmentProperty = segmentCamel;
         var itemType = string.IsNullOrEmpty(info.ReturnType) ? "unknown" : info.ReturnType;
 
-        // Hook signature: pathParams..., query?, headers?, options?: { enabled?: boolean }
+        // Hook signature: pathParams..., body (a streamed search's criteria, or the records streamed in), query?,
+        // headers?, options?: { enabled?: boolean }
         var hookParams = new List<string>();
         foreach (var param in info.PathParams)
         {
             var paramName = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
             var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
             hookParams.Add(paramName + ": " + paramType);
+        }
+
+        // A body of records is read once and cannot be serialized: the stream restarts when another source is passed. A
+        // JSON body restarts it when its value changes
+        var isRecordsBody = info.HasBody && info.BodyType.StartsWith("AsyncIterable<", StringComparison.Ordinal);
+        if (info.HasBody)
+        {
+            hookParams.Add("body: " + info.BodyType);
         }
 
         if (info.QueryParams.Count > 0)
@@ -93,6 +102,11 @@ internal static class TypeScriptHookModel
         foreach (var p in info.PathParams)
         {
             clientCallParts.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
+        }
+
+        if (info.HasBody)
+        {
+            clientCallParts.Add("body");
         }
 
         if (info.QueryParams.Count > 0)
@@ -118,7 +132,13 @@ internal static class TypeScriptHookModel
             depParts.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
         }
 
-        var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0;
+        if (isRecordsBody)
+        {
+            depParts.Add("body");
+        }
+
+        var hasJsonBody = info.HasBody && !isRecordsBody;
+        var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0 || hasJsonBody;
         if (needsKeyDep)
         {
             depParts.Add("keyDep");
@@ -150,18 +170,23 @@ internal static class TypeScriptHookModel
 
         if (needsKeyDep)
         {
-            sb.Append("  const keyDep = JSON.stringify({");
+            var keyParts = new List<string>();
+            if (hasJsonBody)
+            {
+                keyParts.Add("body");
+            }
+
             if (info.QueryParams.Count > 0)
             {
-                sb.Append(" query");
+                keyParts.Add("query");
             }
 
             if (info.HeaderParams.Count > 0)
             {
-                sb.Append(info.QueryParams.Count > 0 ? ", headers" : " headers");
+                keyParts.Add("headers");
             }
 
-            sb.AppendLine(" });");
+            sb.Append("  const keyDep = JSON.stringify({ ").Append(string.Join(", ", keyParts)).AppendLine(" });");
         }
 
         sb.AppendLine();
@@ -474,6 +499,12 @@ internal static class TypeScriptHookModel
             {
                 bodyType = bodyRefName + TypeScriptModelExtractor.WritableSuffix;
             }
+        }
+
+        // A stream of records (JSON Lines, JSON Text Sequences): an async source or a list of them
+        if (hasBody && StreamingMediaType.IsSequential(bodyContentType))
+        {
+            bodyType = TypeScriptRequestRecords.BodyType(bodyType);
         }
 
         // Determine file upload parameter info

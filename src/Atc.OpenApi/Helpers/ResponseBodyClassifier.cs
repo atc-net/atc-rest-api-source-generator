@@ -19,9 +19,9 @@ public static class ResponseBodyClassifier
     {
         var type = (mediaType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
 
-        // Every framing a stream comes in (StreamingFraming): multipart/mixed too - boundary-delimited JSON parts,
-        // not a file
-        if (type is "text/event-stream" or "application/jsonl" or "application/x-ndjson" or "application/json-seq" or "multipart/mixed")
+        // Every framing a stream comes in (StreamingFraming, one list): multipart/mixed too - boundary-delimited JSON
+        // parts, not a file. Checked before JSON, so a "+json-seq" type is never read as one JSON document
+        if (StreamingMediaType.IsSequential(type))
         {
             return ResponseBodyKind.Stream;
         }
@@ -113,7 +113,7 @@ public static class ResponseBodyClassifier
     /// <summary>
     /// Whether a schema describes a model (an object, an array, or a reference to one) rather than a string.
     /// </summary>
-    private static bool IsModelSchema(IOpenApiSchema? schema)
+    public static bool IsModelSchema(IOpenApiSchema? schema)
     {
         if (schema is null)
         {

@@ -32,7 +32,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool convertDates = false,
         bool hasXml = false,
         bool hasModelOrFile = false,
-        bool hasResponseHeaders = false)
+        bool hasResponseHeaders = false,
+        bool hasSequenceBodies = false)
     {
         var sb = new StringBuilder();
 
@@ -49,14 +50,20 @@ public static class TypeScriptAxiosApiClientExtractor
 
         AppendUnparseableBodyClass(sb);
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
         if (hasResponseHeaders)
         {
             TypeScriptResponseHeaders.AppendRuntime(sb, axios: true);
         }
 
-        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders);
+        if (hasSequenceBodies)
+        {
+            // Axios sends a body of records in one piece
+            TypeScriptRequestRecords.AppendRuntime(sb, streams: false);
+        }
+
+        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
 
         return sb.ToString();
     }
@@ -151,7 +158,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasWireNames,
         bool hasXml,
         bool hasModelOrFile,
-        bool hasResponseHeaders)
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -169,6 +177,11 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  onEvent?: (event: ServerSentEventInfo) => void;");
         TypeScriptModelOrFileExtractor.AppendRequestOption(sb, hasModelOrFile);
         TypeScriptOperationHelper.AppendXmlRequestOption(sb, hasXml);
+        if (hasSequenceBodies)
+        {
+            TypeScriptRequestRecords.AppendRequestOption(sb);
+        }
+
         if (hasRetry)
         {
             sb.AppendLine("  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */");
@@ -215,7 +228,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasWireNames,
         bool hasXml,
         bool hasModelOrFile,
-        bool hasResponseHeaders)
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
         TypeScriptResultArms.AppendFitToArms(sb);
         sb.AppendLine("/** A request's config with what the operation reads: every body is asked for as bytes (responseType), and bodyType says what to make of them. */");
@@ -254,13 +268,13 @@ public static class TypeScriptAxiosApiClientExtractor
             AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders);
+        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
         if (hasWireNames)
         {
             TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
         }
 
-        AppendRequestStreamMethod(sb, hasWireNames);
+        AppendRequestStreamMethod(sb, hasWireNames, hasSequenceBodies);
         TypeScriptSecurity.AppendCredentialsMethod(sb);
         AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames, hasXml);
 
@@ -362,7 +376,8 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasWireNames,
         bool hasXml,
         bool hasModelOrFile,
-        bool hasResponseHeaders)
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
         var jsonBody = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
@@ -370,7 +385,18 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    const headers: Record<string, string> = { ...this.requestHeaders };");
         sb.AppendLine();
         sb.AppendLine("    if (options?.body !== undefined) {");
-        sb.AppendLine("      if (options.body instanceof FormData) {");
+        if (hasSequenceBodies)
+        {
+            // A body of records, sent in one piece
+            sb.AppendLine("      if (options.sequence) {");
+            TypeScriptRequestRecords.AppendAxiosRecordsBody(sb, hasWireNames, "        ");
+            sb.AppendLine("      } else if (options.body instanceof FormData) {");
+        }
+        else
+        {
+            sb.AppendLine("      if (options.body instanceof FormData) {");
+        }
+
         sb.AppendLine("        // Named, not left to the adapter: axios's fetch adapter in Node labels a FormData form-urlencoded.");
         sb.AppendLine("        // Axios adds the boundary; in a browser it drops the header and the browser sets it.");
         sb.AppendLine("        headers['Content-Type'] = 'multipart/form-data';");
@@ -544,7 +570,8 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendRequestStreamMethod(
         StringBuilder sb,
-        bool hasWireNames)
+        bool hasWireNames,
+        bool hasSequenceBodies)
     {
         const string multipartParse = "JSON.parse(bodyText)";
 
@@ -569,7 +596,18 @@ public static class TypeScriptAxiosApiClientExtractor
 
         // A streamed search (POST or QUERY) sends its criteria as JSON, renamed to the API's property names
         sb.AppendLine("    let data: unknown;");
-        sb.AppendLine("    if (options?.body !== undefined) {");
+        if (hasSequenceBodies)
+        {
+            // A body of records streamed in while the answer streams out: sent in one piece
+            sb.AppendLine("    if (options?.body !== undefined && options.sequence) {");
+            TypeScriptRequestRecords.AppendAxiosRecordsBody(sb, hasWireNames, "      ");
+            sb.AppendLine("    } else if (options?.body !== undefined) {");
+        }
+        else
+        {
+            sb.AppendLine("    if (options?.body !== undefined) {");
+        }
+
         sb.AppendLine("      headers['Content-Type'] = 'application/json';");
         sb.Append("      data = ").Append(hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body").AppendLine(";");
         sb.AppendLine("    }");

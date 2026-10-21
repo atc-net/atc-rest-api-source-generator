@@ -41,6 +41,9 @@ public class ResponseBodyClassifierTests
             { "application/x-ndjson", "object", ResponseBodyKind.Stream },
             { "application/json-seq", "none", ResponseBodyKind.Stream },
             { "multipart/mixed", "object", ResponseBodyKind.Stream },
+            { "application/x-jsonlines", "object", ResponseBodyKind.Stream },
+            { "Application/JSONL; charset=utf-8", "object", ResponseBodyKind.Stream },
+            { "application/geo+json-seq", "object", ResponseBodyKind.Stream },
 
             // Binary - known file types, and any other media type (never "no body")
             { "application/octet-stream", "binary", ResponseBodyKind.Binary },
@@ -196,6 +199,34 @@ public class ResponseBodyClassifierTests
         Assert.Equal(primary, ResponseBodyClassifier.PrimaryBody(responseContent)?.MediaType);
         Assert.Equal(fileAlternatives, string.Join(", ", ResponseBodyClassifier.FileAlternatives(responseContent)));
     }
+
+    /// <summary>
+    /// Every media type the streaming framing recognizes is a stream body - never JSON (which would read a streamed
+    /// array as one JSON list) and never a file. The two rules must not drift apart.
+    /// </summary>
+    [Theory]
+    [InlineData("text/event-stream")]
+    [InlineData("application/jsonl")]
+    [InlineData("application/x-ndjson")]
+    [InlineData("application/x-jsonlines")]
+    [InlineData("application/json-seq")]
+    [InlineData("application/geo+json-seq")]
+    [InlineData("multipart/mixed")]
+    public void Classify_EverySequentialMediaType_IsAStream(string mediaType)
+    {
+        Assert.True(StreamingMediaType.IsSequential(mediaType));
+        Assert.Equal(ResponseBodyKind.Stream, ResponseBodyClassifier.Classify(mediaType, ObjectSchema));
+        Assert.Equal(ResponseBodyKind.Stream, ResponseBodyClassifier.Classify(mediaType, ArraySchema));
+    }
+
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/problem+json")]
+    [InlineData("application/octet-stream")]
+    [InlineData("text/plain")]
+    [InlineData("")]
+    public void IsSequential_OtherMediaTypes_IsFalse(string mediaType)
+        => Assert.False(StreamingMediaType.IsSequential(mediaType));
 
     [Fact]
     public void ClassifyContent_NoContent_IsEmpty()

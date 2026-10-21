@@ -154,13 +154,24 @@ public sealed class JsonArrayResult<T> : IResult, IStatusCodeHttpResult, IValueH
 public sealed class JsonLinesResult<T> : IResult
 {
     private readonly IAsyncEnumerable<T> items;
+    private readonly string contentType;
 
     public JsonLinesResult(IAsyncEnumerable<T> items)
-        => this.items = items;
+        : this(items, "application/jsonl")
+    {
+    }
+
+    public JsonLinesResult(
+        IAsyncEnumerable<T> items,
+        string contentType)
+    {
+        this.items = items;
+        this.contentType = contentType;
+    }
 
     public async Task ExecuteAsync(HttpContext httpContext)
     {
-        httpContext.Response.ContentType = "application/jsonl";
+        httpContext.Response.ContentType = contentType;
         var options = httpContext.RequestServices
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
@@ -174,13 +185,24 @@ public sealed class JsonLinesResult<T> : IResult
 public sealed class JsonSequenceResult<T> : IResult
 {
     private readonly IAsyncEnumerable<T> items;
+    private readonly string contentType;
 
     public JsonSequenceResult(IAsyncEnumerable<T> items)
-        => this.items = items;
+        : this(items, "application/json-seq")
+    {
+    }
+
+    public JsonSequenceResult(
+        IAsyncEnumerable<T> items,
+        string contentType)
+    {
+        this.items = items;
+        this.contentType = contentType;
+    }
 
     public async Task ExecuteAsync(HttpContext httpContext)
     {
-        httpContext.Response.ContentType = "application/json-seq";
+        httpContext.Response.ContentType = contentType;
         var options = httpContext.RequestServices
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;

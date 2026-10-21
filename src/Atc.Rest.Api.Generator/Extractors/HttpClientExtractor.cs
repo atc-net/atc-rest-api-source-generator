@@ -523,7 +523,8 @@ public static class HttpClientExtractor
         // doc-wide StreamReadersExtractor.DocumentRequiresStreamReaders would over-inject the using
         // into a sibling segment client that has no SSE op. Until a per-segment framing signal is
         // threaded through, the content scan keeps the using precisely scoped to where it is used.
-        if (contentForAnalysis.IndexOf("StreamReaders", StringComparison.Ordinal) >= 0)
+        if (contentForAnalysis.IndexOf("StreamReaders", StringComparison.Ordinal) >= 0 ||
+            contentForAnalysis.IndexOf(StreamedRequestContentExtractor.TypeName, StringComparison.Ordinal) >= 0)
         {
             usings.Add($"{projectName}.Generated.Streaming");
         }
@@ -599,6 +600,7 @@ public static class HttpClientExtractor
         string? streamingItemType = null;
         XmlReadPlan? xmlRead = null;
         var hasLocationHeader = false;
+        var isTextResponse = false;
 
         // The success response: 200, else 201, else the operation's other 2xx (202, 203, 206, ... - an operation
         // declares one, ATC_API_OPR018).
@@ -659,8 +661,9 @@ public static class HttpClientExtractor
         }
         else if (response?.Content is not null && IsTextResponseContent(response.Content))
         {
-            // Plain text content returns string
+            // Plain text content returns string, read as text on every verb
             returnType = "string";
+            isTextResponse = true;
         }
         else if (response is { } openApiResp &&
                  openApiResp.Headers is not null &&
@@ -768,7 +771,7 @@ public static class HttpClientExtractor
 
         // Generate method body content
         var hasReturnType = returnType != nameof(Task);
-        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle, xmlRead);
+        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle, xmlRead, isTextResponse);
 
         // For async enumerable methods, return IAsyncEnumerable<T> directly.
         // Under Result style the operation instead returns Task<StreamingEndpointResponse<T>>, which
@@ -843,7 +846,8 @@ public static class HttpClientExtractor
         bool useServersBasePath = true,
         string parametersClassName = "",
         TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw,
-        XmlReadPlan? xmlRead = null)
+        XmlReadPlan? xmlRead = null,
+        bool isTextResponse = false)
     {
         var builder = new StringBuilder();
         var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
@@ -1115,25 +1119,38 @@ public static class HttpClientExtractor
                 : string.Join(Environment.NewLine, statements);
         }
 
+        // A streamed response on another verb (a POST that streams its answer, a body streamed in and out): the request
+        // with its body, read as far as the headers, then the items as they arrive - as for a GET
+        if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType) && !string.Equals(httpMethod, "GET", StringComparison.Ordinal))
+        {
+            var requestAccess = hasParameters ? "parameters.Request" : "request";
+            var content = hasParameters ? StreamedBodyContent(operation, requestAccess) : null;
+            content ??= hasParameters && operation.GetJsonRequestBodyMediaType() is not null ? JsonBodyContent(operation, requestAccess) : null;
+            GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), operation.GetServerSentEventItemNames(), hasReturnType, builder, resultStyle, Stamp, xmlRead, EndpointMapHelper.BuildHttpMethodExpression(httpMethod), content);
+            return builder
+                .ToString()
+                .Trim();
+        }
+
         switch (httpMethod)
         {
             case "GET":
                 GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), operation.GetServerSentEventItemNames(), hasReturnType, builder, resultStyle, Stamp, xmlRead);
                 break;
             case "POST":
-                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
+                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
                 break;
             case "PUT":
-                GeneratePutMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
+                GeneratePutMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
                 break;
             case "DELETE":
-                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
+                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
                 break;
             default:
                 // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
                 // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
                 // so build the request explicitly and dispatch by body/return presence.
-                GenerateGenericMethodBody(httpMethod, operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead);
+                GenerateGenericMethodBody(httpMethod, operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
                 break;
         }
 
@@ -1152,14 +1169,16 @@ public static class HttpClientExtractor
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
         Func<string, bool, string?> resilienceStamp,
-        XmlReadPlan? xmlRead = null)
+        XmlReadPlan? xmlRead = null,
+        string httpMethodExpression = "HttpMethod.Get",
+        string? contentExpression = null)
     {
         // Special handling for async enumerable streaming
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
             if (resultStyle == TypedClientResultStyleType.Result)
             {
-                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming, sseItemEvents, resilienceStamp("requestMessage", true));
+                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming, sseItemEvents, resilienceStamp("requestMessage", true), httpMethodExpression, contentExpression);
                 return;
             }
 
@@ -1167,10 +1186,11 @@ public static class HttpClientExtractor
                 builder,
                 "using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);",
                 resilienceStamp("requestMessage", true),
-                "HttpMethod.Get",
-                contentExpression: null,
+                httpMethodExpression,
+                contentExpression,
                 responseHeadersRead: true,
-                disposeResponse: true);
+                disposeResponse: true,
+                forceRequestMessage: httpMethodExpression != "HttpMethod.Get" || contentExpression is not null);
             builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);");
             builder.AppendLine();
             builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);");
@@ -1293,15 +1313,18 @@ public static class HttpClientExtractor
         string streamingItemType,
         StreamingFraming streamingFraming,
         IReadOnlyList<string> sseItemEvents,
-        string? resilienceStamp)
+        string? resilienceStamp,
+        string httpMethodExpression = "HttpMethod.Get",
+        string? contentExpression = null)
     {
         AppendSend(
             builder,
             "var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);",
             resilienceStamp,
-            "HttpMethod.Get",
-            contentExpression: null,
-            responseHeadersRead: true);
+            httpMethodExpression,
+            contentExpression,
+            responseHeadersRead: true,
+            forceRequestMessage: httpMethodExpression != "HttpMethod.Get" || contentExpression is not null);
         builder.AppendLine();
         builder.AppendLine("if (!response.IsSuccessStatusCode)");
         builder.AppendLine("{");
@@ -1417,7 +1440,8 @@ public static class HttpClientExtractor
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
-        XmlReadPlan? xmlRead = null)
+        XmlReadPlan? xmlRead = null,
+        bool isTextResponse = false)
     {
         var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
@@ -1446,6 +1470,10 @@ public static class HttpClientExtractor
         {
             builder.AppendLine($"requestMessage.Content = {xmlRead.RequestContent};");
         }
+        else if (hasParameters && StreamedBodyContent(operation, requestAccess) is { } streamedContent)
+        {
+            builder.AppendLine($"requestMessage.Content = {streamedContent};");
+        }
         else if (hasJsonBody)
         {
             builder.AppendLine($"requestMessage.Content = {JsonBodyContent(operation, requestAccess)};");
@@ -1467,7 +1495,7 @@ public static class HttpClientExtractor
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+            PayloadKind(hasReturnType, xmlRead, isTextResponse),
             returnType,
             isLastStatement: hasReturnType,
             xmlRead: xmlRead);
@@ -1483,7 +1511,8 @@ public static class HttpClientExtractor
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
-        XmlReadPlan? xmlRead = null)
+        XmlReadPlan? xmlRead = null,
+        bool isTextResponse = false)
     {
         var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
         var requestAccess = hasParameters
@@ -1568,6 +1597,17 @@ public static class HttpClientExtractor
             // An XML body: the model's XML with its media type
             AppendSend(builder, $"var response = await httpClient.PostAsync(url, {xmlRead.RequestContent}, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", xmlRead.RequestContent, accept: xmlRead.Accept);
         }
+        else if (hasParameters && StreamedBodyContent(operation, requestAccess) is { } streamedContent)
+        {
+            // A stream of records (JSON Lines, JSON Text Sequences): written record by record as the caller yields them
+            AppendSend(
+                builder,
+                $"var response = await httpClient.PostAsync(url, {streamedContent}, cancellationToken).ConfigureAwait(false);",
+                resilienceStamp,
+                "HttpMethod.Post",
+                streamedContent,
+                accept: xmlRead?.Accept);
+        }
         else if (hasJsonBody)
         {
             var jsonContent = JsonBodyContent(operation, requestAccess);
@@ -1602,7 +1642,7 @@ public static class HttpClientExtractor
             AppendResponseCompletion(
                 builder,
                 resultStyle,
-                hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+                PayloadKind(hasReturnType, xmlRead, isTextResponse),
                 returnType,
                 isLastStatement: true,
                 xmlRead: xmlRead);
@@ -1618,7 +1658,8 @@ public static class HttpClientExtractor
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
-        XmlReadPlan? xmlRead = null)
+        XmlReadPlan? xmlRead = null,
+        bool isTextResponse = false)
     {
         var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
@@ -1637,7 +1678,9 @@ public static class HttpClientExtractor
         }
         else
         {
-            var jsonContent = hasJsonBody ? JsonBodyContent(operation, requestAccess) : null;
+            // A stream of records first (it wins over a JSON array offered beside it), else the JSON body
+            var jsonContent = (hasParameters ? StreamedBodyContent(operation, requestAccess) : null) ??
+                              (hasJsonBody ? JsonBodyContent(operation, requestAccess) : null);
             AppendSend(
                 builder,
                 $"var response = await httpClient.PutAsync(url, {jsonContent ?? "null"}, cancellationToken).ConfigureAwait(false);",
@@ -1650,7 +1693,7 @@ public static class HttpClientExtractor
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+            PayloadKind(hasReturnType, xmlRead, isTextResponse),
             returnType,
             isLastStatement: true,
             xmlRead: xmlRead);
@@ -1662,14 +1705,15 @@ public static class HttpClientExtractor
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
-        XmlReadPlan? xmlRead = null)
+        XmlReadPlan? xmlRead = null,
+        bool isTextResponse = false)
     {
         AppendSend(builder, "var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Delete", contentExpression: null, accept: xmlRead?.Accept);
 
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+            PayloadKind(hasReturnType, xmlRead, isTextResponse),
             returnType,
             isLastStatement: true,
             xmlRead: xmlRead);
@@ -1680,6 +1724,18 @@ public static class HttpClientExtractor
     /// </summary>
     private static bool IsPlainJson(OpenApiOperation operation)
         => string.Equals(operation.GetJsonRequestBodyMediaType(), "application/json", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A request body sent as a stream of records (JSON Lines, JSON Text Sequences) as content: the generated
+    /// <c>StreamedRequestContent</c>, written with the client's JSON options in the first declared sequential media
+    /// type; <see langword="null"/> when the body is not one.
+    /// </summary>
+    private static string? StreamedBodyContent(
+        OpenApiOperation operation,
+        string requestAccess)
+        => operation.GetStreamedRequestBody() is { } streamed
+            ? StreamedRequestContentExtractor.CreateContentExpression(requestAccess, "jsonSerializerOptions", streamed.PrimaryMediaType, streamed.IsRequired)
+            : null;
 
     /// <summary>
     /// The JSON request body as content: with the declared media type when it is another JSON media type
@@ -1705,12 +1761,13 @@ public static class HttpClientExtractor
         string? contentExpression,
         bool responseHeadersRead = false,
         bool disposeResponse = false,
-        string? accept = null)
+        string? accept = null,
+        bool forceRequestMessage = false)
     {
         // A buffered response is read in full before the method returns, so the method disposes it; only a streamed
         // response the caller takes over (the Result style's streaming envelope) is left undisposed
         disposeResponse |= !responseHeadersRead;
-        if (resilienceStamp is null && accept is null)
+        if (resilienceStamp is null && accept is null && !forceRequestMessage)
         {
             builder.AppendLine(disposeResponse && plainSendStatement.StartsWith("var response", StringComparison.Ordinal)
                 ? "using " + plainSendStatement
@@ -2270,6 +2327,28 @@ public static class HttpClientExtractor
     private static bool IsBinaryResponseContent(
         IDictionary<string, IOpenApiMediaType> content)
         => ResponseBodyClassifier.PrimaryBody(content)?.Kind == ResponseBodyKind.Binary;
+
+    /// <summary>
+    /// How a response body is read: as text (a text response), by its model's XML mapping, or as JSON; none without a
+    /// return type.
+    /// </summary>
+    private static ResponsePayloadKind PayloadKind(
+        bool hasReturnType,
+        XmlReadPlan? xmlRead,
+        bool isTextResponse)
+    {
+        if (!hasReturnType)
+        {
+            return ResponsePayloadKind.None;
+        }
+
+        if (isTextResponse)
+        {
+            return ResponsePayloadKind.Text;
+        }
+
+        return xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml;
+    }
 
     /// <summary>
     /// Checks if any of the response content types are text-based (text/plain, text/html, etc.).

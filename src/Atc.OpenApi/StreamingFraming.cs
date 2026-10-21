@@ -32,13 +32,28 @@ public static class StreamingMediaType
     /// sequential framing maps to <see cref="StreamingFraming.JsonArray"/>.
     /// </summary>
     public static StreamingFraming Classify(string mediaType)
+        => TryClassify(mediaType, out var framing) ? framing : StreamingFraming.JsonArray;
+
+    /// <summary>
+    /// Whether a media type is a sequential framing - a stream of items, not one document: Server-Sent Events,
+    /// JSON Lines (<c>application/jsonl</c>, <c>application/x-ndjson</c>, <c>application/x-jsonlines</c>), JSON Text
+    /// Sequences (<c>application/json-seq</c> and any <c>+json-seq</c> type, RFC 8091) or <c>multipart/mixed</c>.
+    /// The one list every layer uses: <see cref="Helpers.ResponseBodyClassifier"/> calls a body of such a type a stream.
+    /// </summary>
+    public static bool IsSequential(string? mediaType)
+        => TryClassify(mediaType, out _);
+
+    private static bool TryClassify(
+        string? mediaType,
+        out StreamingFraming framing)
     {
+        framing = StreamingFraming.JsonArray;
         if (string.IsNullOrEmpty(mediaType))
         {
-            return StreamingFraming.JsonArray;
+            return false;
         }
 
-        var baseType = mediaType;
+        var baseType = mediaType!;
         var semicolon = baseType.IndexOf(';');
         if (semicolon >= 0)
         {
@@ -49,27 +64,32 @@ public static class StreamingMediaType
 
         if (baseType.Equals("text/event-stream", StringComparison.OrdinalIgnoreCase))
         {
-            return StreamingFraming.ServerSentEvents;
+            framing = StreamingFraming.ServerSentEvents;
+            return true;
         }
 
         if (baseType.Equals("application/jsonl", StringComparison.OrdinalIgnoreCase) ||
             baseType.Equals("application/x-ndjson", StringComparison.OrdinalIgnoreCase) ||
             baseType.Equals("application/x-jsonlines", StringComparison.OrdinalIgnoreCase))
         {
-            return StreamingFraming.JsonLines;
+            framing = StreamingFraming.JsonLines;
+            return true;
         }
 
-        if (baseType.Equals("application/json-seq", StringComparison.OrdinalIgnoreCase))
+        if (baseType.Equals("application/json-seq", StringComparison.OrdinalIgnoreCase) ||
+            baseType.EndsWith("+json-seq", StringComparison.OrdinalIgnoreCase))
         {
-            return StreamingFraming.JsonSequence;
+            framing = StreamingFraming.JsonSequence;
+            return true;
         }
 
         if (baseType.Equals("multipart/mixed", StringComparison.OrdinalIgnoreCase))
         {
-            return StreamingFraming.MultipartMixed;
+            framing = StreamingFraming.MultipartMixed;
+            return true;
         }
 
-        return StreamingFraming.JsonArray;
+        return false;
     }
 
     /// <summary>

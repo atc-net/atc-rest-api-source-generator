@@ -122,6 +122,63 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
+        /// The request body sent as a stream of records: a JSON Lines or JSON Text Sequence media type with a
+        /// <c>schema</c> (one record, or an array of them) or an <c>itemSchema</c>. Server-Sent Events and
+        /// <c>multipart/mixed</c> are no request bodies (the validator says so).
+        /// </summary>
+        /// <returns>The streamed body, or <see langword="null"/> when the body is not one.</returns>
+        public StreamedRequestBody? GetStreamedRequestBody()
+        {
+            if (operation.RequestBody?.Content is not { Count: > 0 } content)
+            {
+                return null;
+            }
+
+            var mediaTypes = new List<string>();
+            IOpenApiSchema? itemSchema = null;
+            IOpenApiSchema? collectionSchema = null;
+            foreach (var kvp in content)
+            {
+                if (StreamingMediaType.Classify(kvp.Key) is not (StreamingFraming.JsonLines or StreamingFraming.JsonSequence))
+                {
+                    continue;
+                }
+
+                var item = kvp.Value?.ItemSchema ?? StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value?.Schema);
+                if (item is null)
+                {
+                    continue;
+                }
+
+                mediaTypes.Add(kvp.Key);
+                if (itemSchema is null)
+                {
+                    itemSchema = item;
+                    collectionSchema = kvp.Value?.ItemSchema is null && kvp.Value?.Schema is { } schema && !ReferenceEquals(schema, item)
+                        ? schema
+                        : null;
+                }
+            }
+
+            if (itemSchema is null)
+            {
+                return null;
+            }
+
+            var acceptsJsonArray = content.TryGetValue("application/json", out var json) &&
+                                   json?.Schema is { } jsonSchema &&
+                                   jsonSchema.Type?.HasFlag(JsonSchemaType.Array) == true;
+
+            return new StreamedRequestBody(
+                mediaTypes,
+                itemSchema,
+                collectionSchema?.MinItems > 0 ? collectionSchema.MinItems : null,
+                collectionSchema?.MaxItems,
+                acceptsJsonArray,
+                operation.RequestBody.Required);
+        }
+
+        /// <summary>
         /// The media type of the operation's JSON request body: <c>application/json</c>, else the first media type
         /// with a <c>+json</c> suffix (<c>application/merge-patch+json</c>, <c>application/vnd.x+json</c>), by name.
         /// </summary>
@@ -245,6 +302,13 @@ public static class OpenApiOperationExtensions
             if (operation.RequestBody?.Content is null)
             {
                 return (null, string.Empty);
+            }
+
+            // Priority 0: a stream of records (JSON Lines, JSON Text Sequences) - the record's schema. It wins over a
+            // JSON array offered beside it: the server streams that array as the same records
+            if (operation.GetStreamedRequestBody() is { } streamed)
+            {
+                return (streamed.ItemSchema, streamed.PrimaryMediaType);
             }
 
             // Priority 1: JSON (application/json, else a +json media type)
@@ -415,20 +479,23 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
-        /// The pre-3.2 way to declare a sequential stream: <c>x-return-async-enumerable</c> on an operation
-        /// whose response has a <c>schema</c> under a streaming media type (<c>text/event-stream</c>,
-        /// <c>application/jsonl</c>, ...). The schema describes one element, or the array of them.
+        /// The pre-3.2 way to declare a sequential stream: a <c>schema</c> under a streaming media type
+        /// (<c>text/event-stream</c>, <c>application/jsonl</c>, <c>application/json-seq</c>, ...). The schema describes
+        /// one element, or the array of them. The media type says it is a stream on its own;
+        /// <c>multipart/mixed</c> - as often a batch answer as a stream - streams only with
+        /// <c>x-return-async-enumerable</c>.
         /// </summary>
         private (string MediaType, IOpenApiSchema ItemSchema)? GetAnnotatedStreamingResponse()
         {
-            if (!operation.IsAsyncEnumerableOperation())
+            if (operation.Responses is null)
             {
                 return null;
             }
 
+            var annotated = operation.IsAsyncEnumerableOperation();
             foreach (var statusCode in new[] { "200", "201" })
             {
-                if (!operation.Responses!.TryGetValue(statusCode, out var response) ||
+                if (!operation.Responses.TryGetValue(statusCode, out var response) ||
                     response.Content is null)
                 {
                     continue;
@@ -436,7 +503,8 @@ public static class OpenApiOperationExtensions
 
                 foreach (var kvp in response.Content)
                 {
-                    if (StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value.Schema) is { } itemSchema)
+                    if ((annotated || StreamingMediaType.Classify(kvp.Key) != StreamingFraming.MultipartMixed) &&
+                        StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value.Schema) is { } itemSchema)
                     {
                         return (kvp.Key, itemSchema);
                     }
@@ -477,7 +545,8 @@ public static class OpenApiOperationExtensions
         /// Determines whether the operation produces a streamed/sequential response that
         /// should be generated as <c>IAsyncEnumerable&lt;T&gt;</c> (server) / async-iterator
         /// (clients). True when the operation carries the <c>x-return-async-enumerable</c>
-        /// annotation OR declares an OpenAPI 3.2 <c>itemSchema</c> on a 2xx response.
+        /// annotation, declares an OpenAPI 3.2 <c>itemSchema</c> on a 2xx response, or has a
+        /// <c>schema</c> under a sequential media type (JSON Lines, JSON Text Sequences, Server-Sent Events).
         /// </summary>
         /// <returns>True if the response should be streamed.</returns>
         public bool IsStreamingResponse()

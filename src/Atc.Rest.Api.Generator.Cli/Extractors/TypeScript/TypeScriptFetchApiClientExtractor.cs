@@ -24,6 +24,7 @@ public static class TypeScriptFetchApiClientExtractor
     /// </param>
     /// <param name="hasModelOrFile">When true, an operation answers a model or a file: the <c>modelOrFile</c> request option.</param>
     /// <param name="hasResponseHeaders">When true, an operation's result arms have typed headers: the <c>responseHeaders</c> request option and their readers.</param>
+    /// <param name="hasSequenceBodies">When true, an operation takes a request body of records (JSON Lines, JSON Text Sequences): the <c>sequence</c> request option, the <c>requestStreaming</c> client option and the record writers.</param>
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
@@ -33,7 +34,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool convertDates = false,
         bool hasXml = false,
         bool hasModelOrFile = false,
-        bool hasResponseHeaders = false)
+        bool hasResponseHeaders = false,
+        bool hasSequenceBodies = false)
     {
         var sb = new StringBuilder();
 
@@ -48,15 +50,20 @@ public static class TypeScriptFetchApiClientExtractor
             TypeScriptOperationHelper.AppendDateOnlyHelper(sb);
         }
 
-        AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders);
+        AppendApiClientOptionsInterface(sb, hasRetry, hasSequenceBodies);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
         if (hasResponseHeaders)
         {
             TypeScriptResponseHeaders.AppendRuntime(sb, axios: false);
         }
 
-        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasResponseHeaders);
+        if (hasSequenceBodies)
+        {
+            TypeScriptRequestRecords.AppendRuntime(sb, streams: true);
+        }
+
+        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasResponseHeaders, hasSequenceBodies);
 
         return sb.ToString();
     }
@@ -102,7 +109,8 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendApiClientOptionsInterface(
         StringBuilder sb,
-        bool hasRetry)
+        bool hasRetry,
+        bool hasSequenceBodies)
     {
         sb.AppendLine("export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;");
         sb.AppendLine("export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;");
@@ -124,6 +132,11 @@ public static class TypeScriptFetchApiClientExtractor
             sb.AppendLine("  retryPolicy?: RetryPolicy | false;");
         }
 
+        if (hasSequenceBodies)
+        {
+            TypeScriptRequestRecords.AppendClientOption(sb);
+        }
+
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -135,7 +148,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasWireNames,
         bool hasXml,
         bool hasModelOrFile,
-        bool hasResponseHeaders)
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -153,6 +167,11 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  onEvent?: (event: ServerSentEventInfo) => void;");
         TypeScriptModelOrFileExtractor.AppendRequestOption(sb, hasModelOrFile);
         TypeScriptOperationHelper.AppendXmlRequestOption(sb, hasXml);
+        if (hasSequenceBodies)
+        {
+            TypeScriptRequestRecords.AppendRequestOption(sb);
+        }
+
         if (hasRetry)
         {
             sb.AppendLine("  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */");
@@ -201,7 +220,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool zodRuntimeValidate,
         bool hasWireNames,
         bool hasXml,
-        bool hasResponseHeaders)
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
         TypeScriptResultArms.AppendFitToArms(sb);
         sb.AppendLine("/** A body as text, in the charset its Content-Type names (fetch's own text() reads every body as UTF-8). */");
@@ -236,13 +256,18 @@ public static class TypeScriptFetchApiClientExtractor
             AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasResponseHeaders);
+        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasResponseHeaders, hasSequenceBodies);
+        if (hasSequenceBodies)
+        {
+            TypeScriptRequestRecords.AppendFetchRecordsBodyMethod(sb, hasWireNames);
+        }
+
         if (hasWireNames)
         {
             TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
         }
 
-        AppendRequestStreamMethod(sb, hasWireNames);
+        AppendRequestStreamMethod(sb, hasWireNames, hasSequenceBodies);
         AppendBuildUrlMethod(sb);
         AppendGetHeadersMethod(sb);
         AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames, hasXml);
@@ -294,7 +319,8 @@ public static class TypeScriptFetchApiClientExtractor
         bool zodRuntimeValidate,
         bool hasWireNames,
         bool hasXml,
-        bool hasResponseHeaders)
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
         var body = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
         var stringify = $"JSON.stringify({body})";
@@ -311,8 +337,26 @@ public static class TypeScriptFetchApiClientExtractor
 
         sb.AppendLine();
         sb.AppendLine("    let fetchBody: BodyInit | undefined;");
+        if (hasSequenceBodies)
+        {
+            sb.AppendLine("    let streamed = false;");
+        }
+
         sb.AppendLine("    if (options?.body !== undefined) {");
-        sb.AppendLine("      if (options.body instanceof FormData) {");
+        if (hasSequenceBodies)
+        {
+            // A body of records: streamed as the source yields them, or buffered
+            sb.AppendLine("      if (options.sequence) {");
+            sb.AppendLine("        const records = await this.recordsBody(options, headers);");
+            sb.AppendLine("        fetchBody = records.body;");
+            sb.AppendLine("        streamed = records.streamed;");
+            sb.AppendLine("      } else if (options.body instanceof FormData) {");
+        }
+        else
+        {
+            sb.AppendLine("      if (options.body instanceof FormData) {");
+        }
+
         sb.AppendLine("        fetchBody = options.body;");
         sb.AppendLine("      } else if (options.body instanceof URLSearchParams) {");
         sb.AppendLine("        headers.set('Content-Type', 'application/x-www-form-urlencoded');");
@@ -339,6 +383,11 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      body: fetchBody,");
         sb.AppendLine("      signal: options?.signal,");
         sb.AppendLine("    };");
+        if (hasSequenceBodies)
+        {
+            AppendDuplex(sb);
+        }
+
         sb.AppendLine();
         sb.AppendLine("    for (const interceptor of this.options.requestInterceptors ?? []) {");
         sb.AppendLine("      init = await interceptor(url, init);");
@@ -348,7 +397,9 @@ public static class TypeScriptFetchApiClientExtractor
         if (hasRetry)
         {
             sb.AppendLine("    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);");
-            sb.AppendLine("    if (retryPolicy) {");
+
+            // A streamed body is read once, as it is sent: it is never retried
+            sb.AppendLine(hasSequenceBodies ? "    if (retryPolicy && !streamed) {" : "    if (retryPolicy) {");
             sb.AppendLine("      // Each attempt gets its own signal, so policy.timeoutMs cancels the in-flight fetch and a parent abort");
             sb.AppendLine("      // reaches every attempt; the body is read inside the attempt, so both cover the body read too.");
             sb.AppendLine("      return retryWithBackoff(");
@@ -427,9 +478,20 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
     }
 
+    /// <summary>
+    /// A streamed request body needs fetch's <c>duplex: 'half'</c> (the DOM typings do not name it yet).
+    /// </summary>
+    private static void AppendDuplex(StringBuilder sb)
+    {
+        sb.AppendLine("    if (streamed) {");
+        sb.AppendLine("      (init as RequestInit & { duplex: 'half' }).duplex = 'half';");
+        sb.AppendLine("    }");
+    }
+
     private static void AppendRequestStreamMethod(
         StringBuilder sb,
-        bool hasWireNames)
+        bool hasWireNames,
+        bool hasSequenceBodies)
     {
         const string multipartParse = "JSON.parse(bodyText)";
 
@@ -440,13 +502,17 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    const url = this.buildUrl(path, { ...options?.query, ...(await this.credentials(options?.security, 'query')) });");
         sb.AppendLine("    const headers = await this.getHeaders(options?.headers, options?.security);");
         sb.AppendLine();
-        TypeScriptOperationHelper.AppendStreamRequestBody(sb, hasWireNames);
+        TypeScriptOperationHelper.AppendStreamRequestBody(sb, hasWireNames, hasSequenceBodies);
         sb.AppendLine("    let init: RequestInit = {");
         sb.AppendLine("      method,");
         sb.AppendLine("      headers,");
         sb.AppendLine("      body: streamBody,");
         sb.AppendLine("      signal: options?.signal,");
         sb.AppendLine("    };");
+        if (hasSequenceBodies)
+        {
+            AppendDuplex(sb);
+        }
         sb.AppendLine();
         sb.AppendLine("    for (const interceptor of this.options.requestInterceptors ?? []) {");
         sb.AppendLine("      init = await interceptor(url, init);");

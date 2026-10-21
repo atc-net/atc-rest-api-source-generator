@@ -1285,10 +1285,28 @@ public static class TypeScriptOperationHelper
     /// </summary>
     internal static void AppendStreamRequestBody(
         StringBuilder sb,
-        bool hasWireNames)
+        bool hasWireNames,
+        bool hasSequenceBodies = false)
     {
         var value = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
         var stringify = $"JSON.stringify({value})";
+        if (hasSequenceBodies)
+        {
+            // A body of records streamed in while the answer streams out (Fetch), or a JSON body
+            sb.AppendLine("    let streamBody: BodyInit | undefined;");
+            sb.AppendLine("    let streamed = false;");
+            sb.AppendLine("    if (options?.body !== undefined && options.sequence) {");
+            sb.AppendLine("      const records = await this.recordsBody(options, headers);");
+            sb.AppendLine("      streamBody = records.body;");
+            sb.AppendLine("      streamed = records.streamed;");
+            sb.AppendLine("    } else if (options?.body !== undefined) {");
+            sb.Append("      streamBody = ").Append(stringify).AppendLine(";");
+            sb.AppendLine("      headers.set('Content-Type', 'application/json');");
+            sb.AppendLine("    }");
+            sb.AppendLine();
+            return;
+        }
+
         sb.Append("    const streamBody = options?.body !== undefined ? ").Append(stringify).AppendLine(" : undefined;");
         sb.AppendLine("    if (streamBody !== undefined) {");
         sb.AppendLine("      headers.set('Content-Type', 'application/json');");

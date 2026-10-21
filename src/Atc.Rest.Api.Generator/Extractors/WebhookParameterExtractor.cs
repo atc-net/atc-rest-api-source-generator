@@ -81,14 +81,13 @@ public static class WebhookParameterExtractor
         var operationId = operation.OperationId ?? $"On{webhookName.EnsureFirstCharacterToUpper()}";
         var className = $"{operationId.EnsureFirstCharacterToUpper()}WebhookParameters";
 
-        // Get the schema from the request body content
-        var contentType = operation.RequestBody.Content.Keys.FirstOrDefault() ?? "application/json";
-        if (!operation.RequestBody.Content.TryGetValue(contentType, out var mediaType) || mediaType?.Schema is null)
+        // The payload's schema: a stream's record (JSON Lines, JSON Text Sequences - an itemSchema or a schema), else the
+        // first media type's schema
+        if (PayloadSchema(operation) is not { } schema)
         {
             return null;
         }
 
-        var schema = mediaType.Schema;
         var resolvedSchema = schema.ResolveSchema(openApiDoc);
 
         if (resolvedSchema is null)
@@ -105,6 +104,15 @@ public static class WebhookParameterExtractor
         if (boundBody is { IsList: true })
         {
             bodyTypeName = XmlBodyHelper.JsonListBodyTypeName(bodyTypeName);
+        }
+
+        // A stream of records is read record by record by the generated StreamedRequestBody<T> (bound by its BindAsync;
+        // an optional one with no body is no records, never null)
+        var isStreamed = operation.GetStreamedRequestBody() is not null;
+        if (isStreamed)
+        {
+            bodyTypeName = StreamedRequestBodyExtractor.BodyTypeName(bodyTypeName);
+            isRequired = true;
         }
 
         var propertyType = isRequired ? bodyTypeName : $"{bodyTypeName}?";
@@ -139,12 +147,16 @@ public static class WebhookParameterExtractor
         sb.AppendLine(4, "/// <summary>");
         sb.AppendLine(4, "/// The webhook payload.");
         sb.AppendLine(4, "/// </summary>");
-        if (boundBody is null)
+        if (boundBody is null && !isStreamed)
         {
             sb.AppendLine(4, "[FromBody]");
         }
 
-        if (isRequired)
+        if (isStreamed)
+        {
+            sb.AppendLine(4, $"public {propertyType} Payload {{ get; init; }} = default!;");
+        }
+        else if (isRequired)
         {
             sb.AppendLine(4, "[Required]");
             sb.AppendLine(4, $"public {propertyType} Payload {{ get; init; }} = default!;");
@@ -157,6 +169,34 @@ public static class WebhookParameterExtractor
         sb.Append('}');
 
         return (className, sb.ToString());
+    }
+
+    /// <summary>
+    /// Whether the webhook gets a parameters class - a payload with a schema the generator types. The endpoint binds
+    /// it exactly when this is true.
+    /// </summary>
+    /// <param name="operation">The webhook operation.</param>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>True when <c>{Op}WebhookParameters</c> is emitted.</returns>
+    public static bool HasParameters(
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc)
+        => operation?.RequestBody?.Content is { Count: > 0 } &&
+           PayloadSchema(operation) is { } schema &&
+           schema.ResolveSchema(openApiDoc) is not null;
+
+    private static IOpenApiSchema? PayloadSchema(OpenApiOperation operation)
+    {
+        if (operation.GetStreamedRequestBody() is { } streamed)
+        {
+            return streamed.ItemSchema;
+        }
+
+        var contentType = operation.RequestBody?.Content?.Keys.FirstOrDefault() ?? "application/json";
+        return operation.RequestBody?.Content is { } content &&
+               content.TryGetValue(contentType, out var mediaType)
+            ? mediaType?.Schema
+            : null;
     }
 
     private static string GetBodyTypeName(

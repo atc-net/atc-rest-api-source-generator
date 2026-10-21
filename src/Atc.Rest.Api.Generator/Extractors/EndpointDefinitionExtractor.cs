@@ -984,7 +984,8 @@ using Microsoft.AspNetCore.Builder;
 
         // A body the generated reader reads (XML, or JSON next to it): one it cannot read is a problem with its status,
         // not the host exception handler's 500
-        if (XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is not null)
+        if (XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is not null ||
+            operation.GetStreamedRequestBody() is not null)
         {
             builder.AppendLine();
             builder.Append("    .WithRequestBodyProblems()");
@@ -1017,6 +1018,16 @@ using Microsoft.AspNetCore.Builder;
                 : boundBody.JsonOnlyMediaTypes ?? [boundBody.MediaType];
             builder.AppendLine();
             builder.Append($"    .Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody, registry)}>({string.Join(", ", mediaTypes.Select(m => $"\"{m}\""))})");
+        }
+
+        // A stream of records: Accepts names its media types with the record (the runtime OpenAPI document describes
+        // the body as the specification does - a schema of one record under a sequential media type)
+        if (operation.GetStreamedRequestBody() is { } streamedBody)
+        {
+            // Routing answers a media type Accepts does not name with a 415 before the endpoint runs: every JSON Lines name
+            // is listed when one is declared
+            builder.AppendLine();
+            builder.Append($"    .Accepts<{GetStreamedRecordTypeName(streamedBody, registry)}>({string.Join(", ", streamedBody.AcceptedMediaTypes.Select(m => $"\"{m}\""))})");
         }
 
         // Add Accepts and DisableAntiforgery for file upload endpoints
@@ -1070,6 +1081,14 @@ using Microsoft.AspNetCore.Builder;
 
         builder.AppendLine(";");
     }
+
+    /// <summary>
+    /// The C# type of one record of a streamed request body, as the parameters record names it.
+    /// </summary>
+    private static string GetStreamedRecordTypeName(
+        StreamedRequestBody streamedBody,
+        TypeConflictRegistry? registry)
+        => streamedBody.ItemSchema.ToCSharpType(isRequired: true, registry).TrimEnd('?');
 
     // Whether a field of the operation's form body is an object part - JSON, XML or URL-encoded (read by the form step)
     private static bool HasJsonParts(OpenApiOperation operation)
@@ -2004,6 +2023,34 @@ using Microsoft.AspNetCore.Builder;
 
         // The handler's result is not named (its Result is what ToIResult returns): an operation named like an MVC result
         // (signIn, redirect, file, ...) has a result whose name Microsoft.AspNetCore.Mvc, imported by this file, also has
+        if (operation.GetStreamedRequestBody() is { } streamed)
+        {
+            // A stream of records: the rules the specification declares for it (media types, required, count, the
+            // validation of each record) are set before the handler runs; a body of another media type or a missing one
+            // is answered here
+            var validateRecords = useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamed.ItemSchema);
+            content = $"""
+                       {StreamedRequestBodyExtractor.ExpectStatement(streamed, validateRecords)}
+
+                       return (await handler.ExecuteAsync(
+                               parameters,
+                               cancellationToken))
+                           .Result;
+                       """;
+
+            return new MethodParameters(
+                DocumentationTags: null,
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.InternalAsync,
+                ReturnGenericTypeName: systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task)),
+                ReturnTypeName: "IResult",
+                Name: methodName,
+                Parameters: methodParameters,
+                AlwaysBreakDownParameters: true,
+                UseExpressionBody: false,
+                Content: content);
+        }
+
         if (hasParameters || hasRequestBody)
         {
             content = $"""

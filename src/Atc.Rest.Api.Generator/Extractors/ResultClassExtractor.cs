@@ -721,7 +721,7 @@ public static class ResultClassExtractor
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType, xmlBody));
+                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType, xmlBody, StreamingMediaTypeOf(responseValue)));
 
                 // A model or a file: the file factories too (the content type defaults to the first declared file type)
                 if (!isFileDownload && contentType is not null && ResponseBodyClassifier.FileAlternatives(responseValue.Content) is { Count: > 0 } fileMediaTypes)
@@ -1066,6 +1066,23 @@ public static class ResultClassExtractor
             UseExpressionBody: true,
             Content: body);
 
+    /// <summary>
+    /// The sequential media type a response declares (its first), as written - <c>application/x-ndjson</c>,
+    /// <c>application/geo+json-seq</c> - or <see langword="null"/>.
+    /// </summary>
+    private static string? StreamingMediaTypeOf(IOpenApiResponse response)
+        => response.Content?.Keys.FirstOrDefault(StreamingMediaType.IsSequential);
+
+    /// <summary>
+    /// The writer's content-type argument when the declared media type is not the writer's default; empty otherwise.
+    /// </summary>
+    private static string DeclaredMediaTypeArgument(
+        string? declared,
+        string writerDefault)
+        => declared is null || string.Equals(declared, writerDefault, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : $", \"{declared}\"";
+
     private static List<MethodParameters> GenerateOkMethods(
         string projectName,
         string className,
@@ -1077,7 +1094,8 @@ public static class ResultClassExtractor
         bool isTextResponse = false,
         string? textResponseMediaType = null,
         string? fileMediaType = null,
-        XmlBody? xmlBody = null)
+        XmlBody? xmlBody = null,
+        string? streamingMediaType = null)
     {
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"200 OK - {description}");
@@ -1138,11 +1156,11 @@ public static class ResultClassExtractor
             }
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonLines)
             {
-                content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}))";
+                content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/jsonl")}))";
             }
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonSequence)
             {
-                content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}))";
+                content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/json-seq")}))";
             }
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.MultipartMixed)
             {

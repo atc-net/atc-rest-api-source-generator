@@ -43,6 +43,7 @@ public static class WebhookHandlerExtractor
             }
 
             var interfaceParams = ExtractWebhookHandlerInterface(
+                openApiDoc,
                 webhookName,
                 httpMethod,
                 operation,
@@ -60,6 +61,7 @@ public static class WebhookHandlerExtractor
     }
 
     private static InterfaceParameters? ExtractWebhookHandlerInterface(
+        OpenApiDocument openApiDoc,
         string webhookName,
         string httpMethod,
         OpenApiOperation operation,
@@ -80,8 +82,8 @@ public static class WebhookHandlerExtractor
         // Determine return type based on responses
         var resultTypeName = $"{handlerName}WebhookResult";
 
-        // Determine parameter type
-        var hasParameters = operation.RequestBody is not null;
+        // Determine parameter type: the parameters class, exactly when one is emitted
+        var hasParameters = WebhookParameterExtractor.HasParameters(operation, openApiDoc);
         var parameterTypeName = hasParameters ? $"{handlerName}WebhookParameters" : null;
 
         // Build the method signature

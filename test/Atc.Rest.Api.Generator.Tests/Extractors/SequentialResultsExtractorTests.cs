@@ -88,8 +88,10 @@ public class SequentialResultsExtractorTests
     {
         var content = SequentialResultsExtractor.GenerateContent("MyApi");
 
-        Assert.Contains("httpContext.Response.ContentType = \"application/jsonl\";", content, StringComparison.Ordinal);
-        Assert.Contains("httpContext.Response.ContentType = \"application/json-seq\";", content, StringComparison.Ordinal);
+        // The declared media type (application/x-ndjson, application/geo+json-seq) when it is not the writer's default
+        Assert.Contains(": this(items, \"application/jsonl\")", content, StringComparison.Ordinal);
+        Assert.Contains(": this(items, \"application/json-seq\")", content, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.ContentType = contentType;", content, StringComparison.Ordinal);
         Assert.Contains("httpContext.Response.ContentType = $\"multipart/mixed; boundary={SequentialStreamWriter.MultipartBoundary}\";", content, StringComparison.Ordinal);
         Assert.Contains(".GetRequiredService<IOptions<JsonOptions>>()", content, StringComparison.Ordinal);
 

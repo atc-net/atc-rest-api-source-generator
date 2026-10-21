@@ -29,7 +29,8 @@ public enum ResponseBodyKind
 
     /// <summary>
     /// A stream of items: a media type that declares an <c>itemSchema</c> (OpenAPI 3.2), or a sequential media type
-    /// (<c>text/event-stream</c>, <c>application/jsonl</c>, <c>application/x-ndjson</c>, <c>application/json-seq</c>).
+    /// (<see cref="StreamingMediaType.IsSequential"/>: <c>text/event-stream</c>, <c>application/jsonl</c>,
+    /// <c>application/x-ndjson</c>, <c>application/x-jsonlines</c>, <c>application/json-seq</c>, <c>multipart/mixed</c>).
     /// </summary>
     Stream,
 

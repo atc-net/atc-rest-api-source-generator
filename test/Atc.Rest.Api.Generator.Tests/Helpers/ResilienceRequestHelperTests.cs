@@ -42,7 +42,58 @@ public class ResilienceRequestHelperTests
               x-retry-enabled: false
               responses:
                 '200': { description: OK }
+          /records:
+            put:
+              operationId: replaceRecords
+              requestBody:
+                content:
+                  application/jsonl: { schema: { type: object } }
+              responses:
+                '204': { description: Replaced }
+            post:
+              operationId: importRecords
+              x-retry-enabled: true
+              requestBody:
+                content:
+                  application/jsonl: { schema: { type: object } }
+              responses:
+                '202': { description: Accepted }
+          /records/own:
+            post:
+              operationId: importOwnRecords
+              x-retry-policy: own-policy
+              requestBody:
+                content:
+                  application/json-seq: { schema: { type: object } }
+              responses:
+                '202': { description: Accepted }
         """;
+
+    [Fact]
+    public void BuildStampStatement_StreamedRequestBodyOnASafeToRetryMethod_DisablesRetry()
+    {
+        // The records are read once, as they are written: the PUT the handler would retry is sent once
+        var statement = Build("/records", HttpMethod.Put, "PUT");
+
+        Assert.Equal("ApiResilienceRequest.DisableRetry(request);", statement);
+    }
+
+    [Fact]
+    public void BuildStampStatement_StreamedRequestBodyOptedIn_DisablesRetry()
+    {
+        var statement = Build("/records", HttpMethod.Post, "POST");
+
+        Assert.Equal("ApiResilienceRequest.DisableRetry(request);", statement);
+    }
+
+    [Fact]
+    public void BuildStampStatement_StreamedRequestBodyWithItsOwnPolicy_KeepsThePolicyWithoutRetry()
+    {
+        // The policy's timeout still applies; its retries do not
+        var statement = Build("/records/own", HttpMethod.Post, "POST");
+
+        Assert.Equal("ApiResilienceRequest.DisableRetry(request, ResiliencePolicies.OwnPolicy);", statement);
+    }
 
     [Fact]
     public void BuildStampStatement_SafeMethodWithTheDefaultPolicy_ReturnsNull()

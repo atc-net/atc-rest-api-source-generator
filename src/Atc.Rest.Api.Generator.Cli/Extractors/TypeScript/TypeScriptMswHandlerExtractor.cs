@@ -123,7 +123,14 @@ public static class TypeScriptMswHandlerExtractor
                 sb.Append("    if (request.method !== '").Append(method.ToUpperInvariant()).AppendLine("') return;");
             }
 
-            if (mockBody is not null)
+            if (StreamedMockBody(operation, openApiDoc, namingStrategy) is { } streamed)
+            {
+                // A stream (JSON Lines, a JSON Text Sequence, Server-Sent Events): two mock records in its framing, with
+                // its media type - what the client's stream reader reads
+                sb.Append("    return new HttpResponse(").Append(streamed.Body).Append(", { status: ").Append(statusCode)
+                    .Append(", headers: { 'Content-Type': ").Append(TypeScriptLiteralHelper.ToStringLiteral(streamed.MediaType)).AppendLine(" } });");
+            }
+            else if (mockBody is not null)
             {
                 if (statusCode != 200)
                 {
@@ -281,23 +288,54 @@ public static class TypeScriptMswHandlerExtractor
             return (200, false);
         }
 
-        // Try 200, then 201, then 204
-        if (operation.Responses.TryGetValue("200", out var resp200))
+        // The success response: 200, else the lowest other 2xx the operation declares (201 Created, 202 Accepted with a
+        // receipt, 204 No Content, ...)
+        var successStatus = operation.Responses.ContainsKey("200")
+            ? "200"
+            : operation.Responses.Keys
+                .Where(k => k.Length == 3 && k[0] == '2' && char.IsDigit(k[1]) && char.IsDigit(k[2]))
+                .OrderBy(k => k, StringComparer.Ordinal)
+                .FirstOrDefault();
+        if (successStatus is null)
         {
-            return (200, resp200?.Content?.ContainsKey("application/json") == true);
+            return (200, false);
         }
 
-        if (operation.Responses.TryGetValue("201", out var resp201))
+        var response = operation.Responses[successStatus];
+        return (int.Parse(successStatus, CultureInfo.InvariantCulture), response?.Content?.ContainsKey("application/json") == true);
+    }
+
+    /// <summary>
+    /// The mock body of a streamed response in its framing - two records, as JSON Lines, a JSON Text Sequence or
+    /// Server-Sent Events - and its media type; <see langword="null"/> for any other response (a streamed JSON array is
+    /// a JSON array).
+    /// </summary>
+    private static (string Body, string MediaType)? StreamedMockBody(
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        if (!operation.IsStreamingResponse() ||
+            operation.GetStreamingResponse() is not { } streaming)
         {
-            return (201, resp201?.Content?.ContainsKey("application/json") == true);
+            return null;
         }
 
-        if (operation.Responses.ContainsKey("204"))
+        var (prefix, suffix) = StreamingMediaType.Classify(streaming.MediaType) switch
         {
-            return (204, false);
+            StreamingFraming.JsonLines => (string.Empty, "\\n"),
+            StreamingFraming.JsonSequence => ("\\u001e", "\\n"),
+            StreamingFraming.ServerSentEvents => ("data: ", "\\n\\n"),
+            _ => ((string?)null, (string?)null),
+        };
+        if (prefix is null)
+        {
+            return null;
         }
 
-        return (200, false);
+        var item = GenerateMockValue(streaming.ItemSchema, "item", openApiDoc, namingStrategy, new Dictionary<string, int>(StringComparer.Ordinal));
+        var body = $"[{item}, {item}].map((record) => '{prefix}' + JSON.stringify(record) + '{suffix}').join('')";
+        return (body, streaming.MediaType);
     }
 
     private static string? GenerateMockBody(
@@ -305,7 +343,8 @@ public static class TypeScriptMswHandlerExtractor
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy)
     {
-        var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
+        var (statusCode, _) = GetPrimaryResponse(operation);
+        var schema = operation.GetResponseSchema(statusCode.ToString(CultureInfo.InvariantCulture));
         if (schema is null)
         {
             return null;

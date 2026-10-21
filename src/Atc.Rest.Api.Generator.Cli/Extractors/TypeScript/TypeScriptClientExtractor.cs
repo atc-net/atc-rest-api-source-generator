@@ -600,7 +600,7 @@ public static class TypeScriptClientExtractor
                 _ => null,
             };
 
-            var streamBodyType = !isFileUpload && bodySchema is not null ? BodyTypeOf(bodySchema, writableSchemas) : null;
+            var streamBodyType = !isFileUpload && bodySchema is not null ? BodyTypeOf(bodySchema, writableSchemas, bodyContentType) : null;
             AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, bodyContentType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption, securityOption);
         }
         else
@@ -636,7 +636,7 @@ public static class TypeScriptClientExtractor
                 }
             }
 
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption, bodyMediaType, wireNames, headerReadersOption);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption, bodyMediaType, wireNames, headerReadersOption, bodyOptional: operation.GetStreamedRequestBody() is { IsRequired: false });
         }
     }
 
@@ -754,10 +754,11 @@ public static class TypeScriptClientExtractor
         string? securityOption = null,
         IOpenApiMediaType? bodyMediaType = null,
         TypeScriptWireNames? wireNames = null,
-        IReadOnlyList<string>? headerReadersOption = null)
+        IReadOnlyList<string>? headerReadersOption = null,
+        bool bodyOptional = false)
     {
         // Build parameter list
-        var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
+        var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path, bodyOptional);
 
         // perOpResultTypeName is supplied for every non-streaming op when called from
         // GenerateClientClass. The generic ApiResult fallback is a safety net for any unit
@@ -1050,7 +1051,8 @@ public static class TypeScriptClientExtractor
         bool convertDates,
         HashSet<string> writableSchemas,
         bool brandedIds,
-        string path)
+        string path,
+        bool bodyOptional = false)
     {
         var parts = new List<string>();
 
@@ -1071,7 +1073,8 @@ public static class TypeScriptClientExtractor
             }
             else
             {
-                parts.Add("body: " + BodyTypeOf(bodySchema, writableSchemas));
+                // An optional stream of records may be left out: no body
+                parts.Add((bodyOptional ? "body?: " : "body: ") + BodyTypeOf(bodySchema, writableSchemas, bodyContentType));
             }
         }
 
@@ -1116,16 +1119,19 @@ public static class TypeScriptClientExtractor
     /// </summary>
     private static string BodyTypeOf(
         IOpenApiSchema bodySchema,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        string? bodyContentType = null)
     {
-        if (bodySchema is OpenApiSchemaReference bodyRef &&
-            (bodyRef.Reference.Id ?? bodyRef.Id) is { } refName &&
-            writableSchemas.Contains(refName))
-        {
-            return refName + TypeScriptModelExtractor.WritableSuffix;
-        }
+        var bodyType = bodySchema is OpenApiSchemaReference bodyRef &&
+                       (bodyRef.Reference.Id ?? bodyRef.Id) is { } refName &&
+                       writableSchemas.Contains(refName)
+            ? refName + TypeScriptModelExtractor.WritableSuffix
+            : bodySchema.ToTypeScriptReturnType();
 
-        return bodySchema.ToTypeScriptReturnType();
+        // A stream of records (JSON Lines, JSON Text Sequences): an async source or a list of them
+        return StreamingMediaType.IsSequential(bodyContentType)
+            ? TypeScriptRequestRecords.BodyType(bodyType)
+            : bodyType;
     }
 
     /// <summary>
@@ -1136,6 +1142,14 @@ public static class TypeScriptClientExtractor
         StringBuilder sb,
         string mediaType)
     {
+        // A stream of records: its media type and framing
+        if (StreamingMediaType.IsSequential(mediaType))
+        {
+            sb.Append("      contentType: ").Append(TypeScriptLiteralHelper.ToStringLiteral(mediaType)).AppendLine(",");
+            sb.Append("      sequence: '").Append(TypeScriptRequestRecords.SequenceOf(mediaType)).AppendLine("',");
+            return;
+        }
+
         if (mediaType.Split(';')[0].Trim().EndsWith("+json", StringComparison.OrdinalIgnoreCase))
         {
             sb.Append("      contentType: '").Append(mediaType).AppendLine("',");

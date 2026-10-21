@@ -505,8 +505,18 @@ public class ApiServerGenerator : IIncrementalGenerator
         // The models bound by Content-Type (JSON and/or XML request bodies): a partial with BindAsync
         var boundRequestModels = XmlBodyHelper.ServerBoundRequestModels(openApiDoc);
 
+        // A body sent as a stream of records (JSON Lines, JSON Text Sequences) is read by the generated
+        // StreamedRequestBody<T>, one record at a time
+        var hasStreamedRequestBody = StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc);
+        if (hasStreamedRequestBody)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{StreamedRequestBodyExtractor.TypeName}.g.cs",
+                SourceText.From(StreamedRequestBodyExtractor.GenerateContent(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // A body the generated reader cannot read is a problem with its status on every host
-        if (boundRequestModels.Count > 0 || XmlBodyHelper.HasServerBoundBody(openApiDoc))
+        if (boundRequestModels.Count > 0 || XmlBodyHelper.HasServerBoundBody(openApiDoc) || hasStreamedRequestBody)
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.{XmlModelMapperExtractor.RequestBodyProblemsTypeName}.g.cs",

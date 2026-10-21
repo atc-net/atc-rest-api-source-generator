@@ -557,6 +557,16 @@ public class ApiClientGenerator : IIncrementalGenerator
                 SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
+        // A request body sent as a stream of records (JSON Lines, JSON Text Sequences) is written by the generated
+        // StreamedRequestContent<T> - with the typed client's JSON options, or the endpoint-per-operation client's
+        // contract serializer
+        if (StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Streaming.{StreamedRequestContentExtractor.TypeName}.g.cs",
+                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName, withJsonOptions: config.GenerationMode != GenerationModeType.EndpointPerOperation).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only).
         // When the only segment resolved away, the per-segment extension is already project-named and
         // lives in "{projectName}.Generated", so a consolidated wrapper would be a duplicate.
@@ -1055,6 +1065,13 @@ public class ApiClientGenerator : IIncrementalGenerator
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.StreamReaders.g.cs",
                 SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
+        if (StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Streaming.{StreamedRequestContentExtractor.TypeName}.g.cs",
+                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName, withJsonOptions: true).NormalizeForSourceOutput(), Encoding.UTF8));
         }
     }
 

@@ -859,6 +859,12 @@ public static class EndpointPerOperationExtractor
             headerBuilder.AppendLine($"using {NamespaceBuilder.ForClient(projectName, pathSegment)};");
         }
 
+        // A streamed request body is written by the generated StreamedRequestContent
+        if (operation.GetStreamedRequestBody() is not null)
+        {
+            headerBuilder.AppendLine($"using {NamespaceBuilder.BuildBase(projectName)}.Streaming;");
+        }
+
         // Add blank line before namespace
         headerBuilder.AppendLine();
 
@@ -884,6 +890,22 @@ public static class EndpointPerOperationExtractor
                 CreateAsPrivateReadonlyMember: true,
                 CreateAaOneLiner: false),
         };
+
+        // A request body sent as a stream of records is written record by record with the client's contract serializer
+        // (the one its request builder serializes a JSON body with); the request builder has no streamed body
+        if (operation.GetStreamedRequestBody() is not null)
+        {
+            constructorParams.Add(
+                new(
+                    GenericTypeName: null,
+                    TypeName: "global::Atc.Rest.Client.Serialization.IContractSerializer",
+                    IsNullableType: false,
+                    Name: "contractSerializer",
+                    DefaultValue: null,
+                    PassToInheritedClass: false,
+                    CreateAsPrivateReadonlyMember: true,
+                    CreateAaOneLiner: false));
+        }
 
         var constructor = new ConstructorParameters(
             DocumentationTags: null,
@@ -1200,7 +1222,8 @@ public static class EndpointPerOperationExtractor
         }
 
         // Add request body
-        if (operation.RequestBody?.Content is not null)
+        var streamedBody = operation.GetStreamedRequestBody();
+        if (operation.RequestBody?.Content is not null && streamedBody is null)
         {
             // Check if this is a file upload
             var isFileUpload = operation.HasFileUpload();
@@ -1276,6 +1299,12 @@ public static class EndpointPerOperationExtractor
         // Build and send request. Standard verbs use the HttpMethod static property;
         // OpenAPI 3.2 custom additionalOperations verbs (e.g. LINK) are constructed by name.
         sb.AppendLine($"using var requestMessage = requestBuilder.Build({EndpointMapHelper.BuildHttpMethodExpression(httpMethod)});");
+        if (streamedBody is not null)
+        {
+            // A stream of records (JSON Lines, JSON Text Sequences): written record by record as the caller yields them
+            sb.AppendLine($"requestMessage.Content = {StreamedRequestContentExtractor.CreateContentExpression("parameters.Request", "contractSerializer", streamedBody.PrimaryMediaType, streamedBody.IsRequired)};");
+        }
+
         if (resilienceStamp is not null)
         {
             sb.AppendLine(resilienceStamp);

@@ -560,9 +560,13 @@ public static class TypeScriptClientGenerationService
 
         // The typed headers of the result arms: their readers, for a specification whose responses declare headers
         var hasResponseHeaders = clients.Any(c => TypeScriptOperationHelper.ReferencesIdentifier(c.Content, "responseHeaders"));
+
+        // A request body sent as a stream of records (JSON Lines, JSON Text Sequences): the sequence request option and
+        // the record writers
+        var hasSequenceBodies = TypeScriptRequestRecords.HasSequenceBodies(openApiDoc);
         var apiClientContent = httpClient == TypeScriptHttpClient.Axios
-            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders)
-            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders);
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
 
         WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);
 

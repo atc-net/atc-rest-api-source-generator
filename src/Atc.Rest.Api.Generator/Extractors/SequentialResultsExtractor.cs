@@ -242,13 +242,27 @@ public static class SequentialResultsExtractor
         sb.AppendLine("public sealed class JsonLinesResult<T> : IResult");
         sb.AppendLine("{");
         sb.AppendLine("    private readonly IAsyncEnumerable<T> items;");
+        sb.AppendLine("    private readonly string contentType;");
         sb.AppendLine();
+
+        // The media type the specification declares (application/x-ndjson, application/geo+json-seq, ...): the
+        // response says what the document promised
         sb.AppendLine("    public JsonLinesResult(IAsyncEnumerable<T> items)");
-        sb.AppendLine("        => this.items = items;");
+        sb.AppendLine("        : this(items, \"application/jsonl\")");
+        sb.AppendLine("    {");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    public JsonLinesResult(");
+        sb.AppendLine("        IAsyncEnumerable<T> items,");
+        sb.AppendLine("        string contentType)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        this.items = items;");
+        sb.AppendLine("        this.contentType = contentType;");
+        sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    public async Task ExecuteAsync(HttpContext httpContext)");
         sb.AppendLine("    {");
-        sb.AppendLine("        httpContext.Response.ContentType = \"application/jsonl\";");
+        sb.AppendLine("        httpContext.Response.ContentType = contentType;");
 
         // Resolve the application's configured JSON options via the options system. The previous
         // GetService(typeof(JsonOptions)) lookup always returned null because ConfigureHttpJsonOptions
@@ -267,13 +281,27 @@ public static class SequentialResultsExtractor
         sb.AppendLine("public sealed class JsonSequenceResult<T> : IResult");
         sb.AppendLine("{");
         sb.AppendLine("    private readonly IAsyncEnumerable<T> items;");
+        sb.AppendLine("    private readonly string contentType;");
         sb.AppendLine();
+
+        // The media type the specification declares (application/x-ndjson, application/geo+json-seq, ...): the
+        // response says what the document promised
         sb.AppendLine("    public JsonSequenceResult(IAsyncEnumerable<T> items)");
-        sb.AppendLine("        => this.items = items;");
+        sb.AppendLine("        : this(items, \"application/json-seq\")");
+        sb.AppendLine("    {");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    public JsonSequenceResult(");
+        sb.AppendLine("        IAsyncEnumerable<T> items,");
+        sb.AppendLine("        string contentType)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        this.items = items;");
+        sb.AppendLine("        this.contentType = contentType;");
+        sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    public async Task ExecuteAsync(HttpContext httpContext)");
         sb.AppendLine("    {");
-        sb.AppendLine("        httpContext.Response.ContentType = \"application/json-seq\";");
+        sb.AppendLine("        httpContext.Response.ContentType = contentType;");
 
         // Same DI-configured JSON options lookup as JsonLinesResult (the C2 fix).
         sb.AppendLine("        var options = httpContext.RequestServices");

@@ -107,8 +107,8 @@ public static class WebhookEndpointExtractor
     }
 
     /// <summary>
-    /// The model namespaces of the webhook payloads the generated reader reads, which the endpoints name in
-    /// <c>Accepts&lt;T&gt;</c>.
+    /// The model namespaces of the webhook payloads the generated reader reads (a model, a list, a stream of records),
+    /// which the endpoints name in <c>Accepts&lt;T&gt;</c>.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <param name="projectName">The project name.</param>
@@ -119,7 +119,8 @@ public static class WebhookEndpointExtractor
         => openApiDoc is null
             ? []
             : openApiDoc.GetAllWebhookOperations()
-                .Where(w => XmlBodyHelper.ServerBoundWebhookBody(w.Operation) is not null)
+                .Where(w => XmlBodyHelper.ServerBoundWebhookBody(w.Operation) is not null ||
+                            w.Operation.GetStreamedRequestBody() is not null)
                 .SelectMany(w => PathSegmentHelper.GetWebhookModelUsings(openApiDoc, projectName, w.Operation))
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(u => u, StringComparer.Ordinal)
@@ -166,7 +167,7 @@ public static class WebhookEndpointExtractor
                 continue;
             }
 
-            GenerateWebhookEndpoint(builder, webhookName, httpMethod, operation, isFirst, useValidationFilter);
+            GenerateWebhookEndpoint(builder, openApiDoc, webhookName, httpMethod, operation, isFirst, useValidationFilter);
             isFirst = false;
         }
 
@@ -178,6 +179,7 @@ public static class WebhookEndpointExtractor
 
     private static void GenerateWebhookEndpoint(
         StringBuilder builder,
+        OpenApiDocument openApiDoc,
         string webhookName,
         string httpMethod,
         OpenApiOperation operation,
@@ -199,8 +201,10 @@ public static class WebhookEndpointExtractor
             ? $"Map{httpMethod.ToUpperInvariant()[0]}{httpMethod.Substring(1).ToLowerInvariant()}"
             : "MapMethods";
 
-        // Determine if webhook has parameters (request body)
-        var hasParameters = operation.RequestBody is not null;
+        // The webhook binds its parameters class exactly when one is emitted (a payload with a schema - a 3.2 itemSchema
+        // too)
+        var hasParameters = WebhookParameterExtractor.HasParameters(operation, openApiDoc);
+        var streamedBody = hasParameters ? operation.GetStreamedRequestBody() : null;
         var parameterTypeName = hasParameters ? $"{handlerName}WebhookParameters" : null;
 
         // Add blank line before each endpoint except the first one
@@ -255,6 +259,21 @@ public static class WebhookEndpointExtractor
         builder.AppendLine(8, ") =>");
         builder.AppendLine(8, "{");
 
+        // A stream of records: the rules the specification declares for it are set before the handler runs
+        if (streamedBody is not null)
+        {
+            var expect = StreamedRequestBodyExtractor.ExpectStatement(
+                streamedBody,
+                useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamedBody.ItemSchema),
+                "parameters.Payload");
+            foreach (var line in expect.Split('\n'))
+            {
+                builder.AppendLine(12, line.TrimEnd('\r'));
+            }
+
+            builder.AppendLine();
+        }
+
         // Build the handler call
         builder.AppendLine(12, "return await handler.ExecuteAsync(");
         for (var i = 0; i < handlerParams.Count; i++)
@@ -285,6 +304,12 @@ public static class WebhookEndpointExtractor
         {
             builder.AppendLine(4, ".WithRequestBodyProblems()");
             builder.AppendLine(4, $".Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody)}>({string.Join(", ", boundBody.JsonOnlyMediaTypes!.Select(m => $"\"{m}\""))})");
+        }
+        else if (streamedBody is not null)
+        {
+            // A stream of records: a record that cannot be read or is not valid is a problem naming it
+            builder.AppendLine(4, ".WithRequestBodyProblems()");
+            builder.AppendLine(4, $".Accepts<{streamedBody.ItemSchema.ToCSharpType(isRequired: true).TrimEnd('?')}>({string.Join(", ", streamedBody.AcceptedMediaTypes.Select(m => $"\"{m}\""))})");
         }
 
         // Add Produces metadata based on responses

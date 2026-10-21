@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SecurityHybrid.Generated;
@@ -22,6 +23,10 @@ public static class RequestBodyProblems
     // The request item that names the member a value could not be read for
     private const string RejectedMemberKey = "\u001Frequest-body-rejected-member";
 
+    // The request item that holds the errors of a record that is not valid (a streamed body), keyed as a
+    // validation problem
+    private const string RejectedErrorsKey = "\u001Frequest-body-rejected-errors";
+
     private static readonly global::System.Text.Json.JsonSerializerOptions FallbackJsonOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
 
     /// <summary>
@@ -38,6 +43,36 @@ public static class RequestBodyProblems
         return innerException is null
             ? new global::Microsoft.AspNetCore.Http.BadHttpRequestException(message, statusCode)
             : new global::Microsoft.AspNetCore.Http.BadHttpRequestException(message, statusCode, innerException);
+    }
+
+    /// <summary>
+    /// The exception for a body with values that are not valid, keyed as a validation problem
+    /// (<c>[1].value</c>): the endpoint answers it as a 400 validation problem.
+    /// </summary>
+    public static global::Microsoft.AspNetCore.Http.BadHttpRequestException Invalid(
+        global::Microsoft.AspNetCore.Http.HttpContext context,
+        global::System.Collections.Generic.IDictionary<string, string[]> errors,
+        global::System.Exception? innerException = null)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(context);
+        global::System.ArgumentNullException.ThrowIfNull(errors);
+        context.Items[RejectedErrorsKey] = errors;
+        return Rejected(
+            context,
+            string.Join(" ", global::System.Linq.Enumerable.SelectMany(errors.Values, messages => messages)),
+            global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest,
+            innerException);
+    }
+
+    /// <summary>
+    /// The host's JSON options (<c>ConfigureHttpJsonOptions</c>), or the framework's defaults.
+    /// </summary>
+    public static global::System.Text.Json.JsonSerializerOptions SerializerOptionsOf(
+        global::Microsoft.AspNetCore.Http.HttpContext context)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(context);
+        return (context.RequestServices?.GetService(typeof(global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>)) as global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>)?.Value.SerializerOptions
+               ?? FallbackJsonOptions;
     }
 
     /// <summary>
@@ -110,8 +145,11 @@ public static class RequestBodyProblems
                 }
                 catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (context.Items.ContainsKey(RejectedKey) && !context.Response.HasStarted)
                 {
-                    // A value of one member: a validation problem naming it, as a value the validation filter rejects
-                    var result = context.Items[RejectedMemberKey] is string member
+                    // Values that are not valid (a record of a streamed body), or a value of one member: a validation
+                    // problem naming them, as values the validation filter rejects
+                    var result = context.Items[RejectedErrorsKey] is global::System.Collections.Generic.IDictionary<string, string[]> errors
+                        ? global::Microsoft.AspNetCore.Http.Results.ValidationProblem(errors, statusCode: ex.StatusCode)
+                        : context.Items[RejectedMemberKey] is string member
                         ? global::Microsoft.AspNetCore.Http.Results.ValidationProblem(
                             new global::System.Collections.Generic.Dictionary<string, string[]> { [member] = [ex.Message] },
                             statusCode: ex.StatusCode)

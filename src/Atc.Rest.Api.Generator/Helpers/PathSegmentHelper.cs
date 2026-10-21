@@ -517,7 +517,7 @@ public static class PathSegmentHelper
         var usings = new HashSet<string>(StringComparer.Ordinal);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal);
 
-        // Collect schemas from request body
+        // Collect schemas from request body (a stream's record may be declared as an OpenAPI 3.2 itemSchema)
         if (webhookOperation.RequestBody?.Content is not null)
         {
             foreach (var content in webhookOperation.RequestBody.Content.Values)
@@ -525,6 +525,11 @@ public static class PathSegmentHelper
                 if (content?.Schema is not null)
                 {
                     CollectSchemaNames(content.Schema, schemaNames);
+                }
+
+                if (content?.ItemSchema is not null)
+                {
+                    CollectSchemaNames(content.ItemSchema, schemaNames);
                 }
             }
         }
@@ -566,9 +571,12 @@ public static class PathSegmentHelper
             }
             else if (schemaSegmentMap.TryGetValue(schemaName, out var segments) && segments.Count == 1)
             {
-                // Segment-specific schema
-                var segment = segments.First();
-                usings.Add($"{projectName}.Generated.{segment}.Models");
+                // Segment-specific schema - in the segment's namespace, unless the segment resolved away (a document with
+                // one path segment has its models in the root Models namespace)
+                var segment = ResolveEffectivePathSegment(openApiDoc, projectName, segments.First());
+                usings.Add(segment is null
+                    ? $"{projectName}.Generated.Models"
+                    : $"{projectName}.Generated.{segment}.Models");
             }
             else
             {

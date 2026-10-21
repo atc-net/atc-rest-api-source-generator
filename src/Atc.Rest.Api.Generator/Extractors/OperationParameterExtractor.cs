@@ -607,8 +607,24 @@ public static class OperationParameterExtractor
                 string bodyType;
                 string propertyName;
                 var bodyAttributes = new List<AttributeParameters>();
+                var streamedBody = operation.GetStreamedRequestBody();
 
-                if (isDirectFileUpload)
+                if (streamedBody is not null)
+                {
+                    // A stream of records (JSON Lines, JSON Text Sequences): the server reads it record by record
+                    // through the generated StreamedRequestBody<T> (bound by its BindAsync, no attribute); a client
+                    // writes it from an IAsyncEnumerable<T>. Its count and its records are checked by the reader, so no
+                    // validation attribute goes on the stream itself
+                    var itemType = requestBodySchema.ToCSharpType(isRequired: true, registry).TrimEnd('?');
+                    propertyName = "Request";
+                    bodyType = includeBindingAttributes
+                        ? StreamedRequestBodyExtractor.BodyTypeName(itemType)
+                        : streamedBody.IsRequired
+                            ? $"IAsyncEnumerable<{itemType}>"
+                            : $"IAsyncEnumerable<{itemType}>?";
+                    isDirectFileUpload = false;
+                }
+                else if (isDirectFileUpload)
                 {
                     // File uploads: type depends on content type and server/client mode
                     // - multipart/form-data: IFormFile/IFormFileCollection (server), IFileContent/IFileContent[] (client)
@@ -683,15 +699,16 @@ public static class OperationParameterExtractor
                     ? bodyType.Substring(0, bodyType.Length - 1)
                     : bodyType;
 
-                // Add validation attributes from body schema (only for non-file types)
-                if (!isDirectFileUpload)
+                // Add validation attributes from body schema (only for non-file types; a stream's records are validated
+                // as they are read)
+                if (streamedBody is null && !isDirectFileUpload)
                 {
                     var validationAttributes = requestBodySchema.GetValidationAttributes(isRequired);
                     bodyAttributes.AddRange(
                         validationAttributes.Select(
                             validationAttr => new AttributeParameters(validationAttr, null)));
                 }
-                else if (isRequired)
+                else if (streamedBody is null && isRequired)
                 {
                     // For file uploads, only add Required attribute if needed
                     bodyAttributes.Add(new AttributeParameters("Required", null));
