@@ -1848,6 +1848,34 @@ public class SpecificationServiceTests
         }
     }
 
+    /// <summary>
+    /// The one part-file convention the build and every CLI command use: <c>{BaseName}_*</c> with any specification
+    /// extension, whatever the base file's own one, sorted - a <c>.yml</c> part beside a <c>.yaml</c> base was merged
+    /// by the build but missed by <c>spec merge</c> and <c>spec validate</c>.
+    /// </summary>
+    [Fact]
+    public void DiscoverPartFilePaths_PartsOfAnySpecificationExtension_AreFoundSorted()
+    {
+        var directory = CreateTempDirectory("atc-discover-parts");
+        try
+        {
+            var basePath = Path.Combine(directory, "MyApi.yaml");
+            File.WriteAllText(basePath, "openapi: 3.0.3\ninfo:\n  title: My API\n  version: 1.0.0\npaths: {}\n");
+            foreach (var name in new[] { "MyApi_Users.yml", "MyApi_Orders.yaml", "MyApi_Legacy.json", "MyApi_Notes.md", "OtherApi_Users.yaml" })
+            {
+                File.WriteAllText(Path.Combine(directory, name), "openapi: 3.0.3\npaths: {}\n");
+            }
+
+            var parts = SpecificationService.DiscoverPartFilePaths(basePath);
+
+            Assert.Equal(["MyApi_Legacy.json", "MyApi_Orders.yaml", "MyApi_Users.yml"], parts.Select(Path.GetFileName), StringComparer.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public void DiscoverPartFiles_BaseWithoutParts_ReturnsEmpty()
     {

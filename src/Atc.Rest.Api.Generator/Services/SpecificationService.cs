@@ -205,13 +205,25 @@ public static class SpecificationService
     public static IReadOnlyList<SpecificationFile> DiscoverPartFiles(
         string baseFilePath)
     {
+        var baseName = Path.GetFileNameWithoutExtension(baseFilePath);
+        return DiscoverPartFilePaths(baseFilePath)
+            .Select(partFilePath => SpecificationFile.FromFile(partFilePath, baseName))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The part files of a multi-part specification, by the one convention the build and every CLI command use: the
+    /// files named <c>{BaseName}_{PartName}</c> next to the base file with a specification extension (<c>.yaml</c>,
+    /// <c>.yml</c> or <c>.json</c>, whatever the base file's own), sorted by name.
+    /// </summary>
+    /// <param name="baseFilePath">Path to the base file.</param>
+    /// <returns>The part files' paths, sorted.</returns>
+    public static IReadOnlyList<string> DiscoverPartFilePaths(
+        string baseFilePath)
+    {
         var directory = Path.GetDirectoryName(baseFilePath) ?? ".";
         var baseName = Path.GetFileNameWithoutExtension(baseFilePath);
-
-        var partFiles = new List<SpecificationFile>();
-
-        // Look for files matching the pattern {BaseName}_{PartName}.yaml - .yml and .json parts too, as the build reads them
-        var matchingFiles = Directory
+        return Directory
             .GetFiles(directory, $"{baseName}_*")
             .Where(f => !f.Equals(baseFilePath, StringComparison.OrdinalIgnoreCase) &&
                         Path.GetExtension(f) is { } extension &&
@@ -220,14 +232,6 @@ public static class SpecificationService
                          extension.Equals(".json", StringComparison.OrdinalIgnoreCase)))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        foreach (var partFilePath in matchingFiles)
-        {
-            var partFile = SpecificationFile.FromFile(partFilePath, baseName);
-            partFiles.Add(partFile);
-        }
-
-        return partFiles;
     }
 
     /// <summary>

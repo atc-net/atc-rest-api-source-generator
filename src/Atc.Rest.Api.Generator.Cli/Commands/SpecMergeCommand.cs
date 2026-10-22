@@ -253,22 +253,10 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
         if (!string.IsNullOrWhiteSpace(settings.SpecificationPath))
         {
             var specPath = Path.GetFullPath(settings.SpecificationPath);
-            var specDir = Path.GetDirectoryName(specPath) ?? ".";
-            var baseName = Path.GetFileNameWithoutExtension(specPath);
-            var extension = Path.GetExtension(specPath);
 
-            // Add base file first
+            // The base file first, then its parts as the build finds them
             files.Add(specPath);
-
-            // Find part files matching pattern: {BaseName}_{PartName}.yaml
-            var partPattern = $"{baseName}_*{extension}";
-            var partFiles = Directory
-                .GetFiles(specDir, partPattern)
-                .Where(f => !f.Equals(specPath, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            files.AddRange(partFiles);
+            files.AddRange(SpecificationService.DiscoverPartFilePaths(specPath));
         }
 
         return files;

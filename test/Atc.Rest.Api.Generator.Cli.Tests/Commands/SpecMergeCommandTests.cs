@@ -72,6 +72,36 @@ public sealed class SpecMergeCommandTests : IDisposable
         Assert.Contains("Files to merge", cleanOutput, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A <c>.yml</c> part beside a <c>.yaml</c> base is merged, as the build merges it.
+    /// </summary>
+    [Fact]
+    public async Task SpecMerge_APartWithAnotherExtension_IsMerged()
+    {
+        // Arrange
+        Directory.CreateDirectory(tempOutputDir);
+        var basePath = Path.Combine(tempOutputDir, "Shop.yaml");
+        await File.WriteAllTextAsync(basePath, "openapi: 3.0.3\ninfo:\n  title: Shop\n  version: 1.0.0\npaths: {}\n", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(tempOutputDir, "Shop_Orders.yml"),
+            "openapi: 3.0.3\ninfo:\n  title: Shop\n  version: 1.0.0\npaths:\n  /orders:\n    get:\n      operationId: listOrders\n      responses:\n        '200':\n          description: OK\n",
+            TestContext.Current.CancellationToken);
+        var outputPath = Path.Combine(tempOutputDir, "merged.yaml");
+        var arguments = $"spec merge -s \"{basePath}\" -o \"{outputPath}\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+        var merged = await File.ReadAllTextAsync(outputPath, TestContext.Current.CancellationToken);
+        Assert.Contains("/orders", merged, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task SpecMerge_WithOutputPath_WritesMergedFile()
     {
