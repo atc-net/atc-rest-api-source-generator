@@ -458,8 +458,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, extensibleEnums: config.ExtensibleEnums, componentTypeNames: componentTypeNames);
 
             GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
-            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, config.ExtensibleEnums);
-            GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
+            SchemaTypeEmitter.EmitEnums(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, config.ExtensibleEnums, stringOnTheWire: false);
+            SchemaTypeEmitter.EmitTuples(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
         }
 
@@ -497,8 +497,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             if (segmentSchemas.Count > 0)
             {
                 GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
-                GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, config.ExtensibleEnums);
-                GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
+                SchemaTypeEmitter.EmitEnums(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, config.ExtensibleEnums, stringOnTheWire: false);
+                SchemaTypeEmitter.EmitTuples(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
                 PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
             }
 
@@ -824,84 +824,6 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates enums for specific schemas (used for shared or segment-specific types).
-    /// </summary>
-    private static void GenerateEnumsForSchemas(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        HashSet<string> schemaNames,
-        string? pathSegment,
-        bool extensibleEnums)
-    {
-        // Use EnumExtractor to extract specific enum schemas
-        var enumParametersList = EnumExtractor.ExtractForSchemas(
-            openApiDoc,
-            projectName,
-            schemaNames,
-            pathSegment);
-
-        if (enumParametersList is null || enumParametersList.Count == 0)
-        {
-            return;
-        }
-
-        var enumsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        // Generate each enum as a separate file
-        foreach (var enumParams in enumParametersList)
-        {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, extensibleEnums, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
-
-            // File name mirrors the namespace the enum is emitted into
-            var fileName = NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName);
-
-            context.AddGeneratedSource(
-                fileName,
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-    }
-
-    /// <summary>
-    /// Generates tuple records for specific schemas (used for shared or segment-specific types).
-    /// Tuples are schemas with prefixItems (JSON Schema 2020-12 / OpenAPI 3.1).
-    /// </summary>
-    private static void GenerateTuplesForSchemas(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        HashSet<string> schemaNames,
-        string? pathSegment)
-    {
-        // Use TupleExtractor to extract specific tuple schemas
-        var tupleParametersList = TupleExtractor.ExtractForSchemas(
-            openApiDoc,
-            projectName,
-            schemaNames,
-            pathSegment);
-
-        if (tupleParametersList is null || tupleParametersList.Count == 0)
-        {
-            return;
-        }
-
-        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        // Generate each tuple as a separate file
-        foreach (var tupleParams in tupleParametersList)
-        {
-            var generatedContent = TupleExtractor.GenerateTupleContent(tupleParams, ns);
-
-            // File name mirrors the namespace the tuple is emitted into
-            var fileName = NamespaceBuilder.ToFileName(ns, tupleParams.Name);
-
-            context.AddGeneratedSource(
-                fileName,
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-    }
-
-    /// <summary>
     /// Converts server-side types (IFormFile) to client-side types (IFileContent from Atc.Rest.Client) in the records parameters.
     /// </summary>
     private static RecordsParameters ConvertToClientTypes(
@@ -1021,8 +943,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         if (allSchemas.Count > 0)
         {
             GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
-            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, config.ExtensibleEnums);
-            GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
+            SchemaTypeEmitter.EmitEnums(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, config.ExtensibleEnums, stringOnTheWire: false);
+            SchemaTypeEmitter.EmitTuples(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
         }
 

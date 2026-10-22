@@ -533,14 +533,16 @@ public class ApiServerGenerator : IIncrementalGenerator
                 xmlOnlyRequestModels: xmlOnlyRequestModels,
                 requireJsonProperties: !useValidationFilter);
 
-            GenerateEnumsForSchemas(
+            SchemaTypeEmitter.EmitEnums(
                 generatedContext,
                 openApiDoc,
                 projectName,
                 sharedSchemas,
-                pathSegment: null);
+                pathSegment: null,
+                generatedContext.ExtensibleEnums,
+                stringOnTheWire: true);
 
-            GenerateTuplesForSchemas(
+            SchemaTypeEmitter.EmitTuples(
                 generatedContext,
                 openApiDoc,
                 projectName,
@@ -609,14 +611,16 @@ public class ApiServerGenerator : IIncrementalGenerator
                     xmlOnlyRequestModels: xmlOnlyRequestModels,
                     requireJsonProperties: !useValidationFilter);
 
-                GenerateEnumsForSchemas(
+                SchemaTypeEmitter.EmitEnums(
                     generatedContext,
                     openApiDoc,
                     projectName,
                     segmentSchemas,
-                    effectiveSegment);
+                    effectiveSegment,
+                    generatedContext.ExtensibleEnums,
+                    stringOnTheWire: true);
 
-                GenerateTuplesForSchemas(
+                SchemaTypeEmitter.EmitTuples(
                     generatedContext,
                     openApiDoc,
                     projectName,
@@ -1047,74 +1051,6 @@ public class ApiServerGenerator : IIncrementalGenerator
                 })
                 .ToList(),
         };
-    }
-
-    /// <summary>
-    /// Generates enums for a specific set of schemas.
-    /// Used for both shared types (pathSegment = null) and segment-specific types.
-    /// </summary>
-    private static void GenerateEnumsForSchemas(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        HashSet<string> schemaNames,
-        string? pathSegment)
-    {
-        // Use EnumExtractor.ExtractForSchemas to extract only specific enums
-        var enumParametersList = EnumExtractor.ExtractForSchemas(openApiDoc, projectName, schemaNames, pathSegment);
-
-        if (enumParametersList is null || enumParametersList.Count == 0)
-        {
-            return;
-        }
-
-        var enumsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        // Generate each enum as a separate file
-        foreach (var enumParams in enumParametersList)
-        {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
-
-            context.AddGeneratedSource(
-                NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName),
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-    }
-
-    /// <summary>
-    /// Generates tuple records for a specific set of schemas.
-    /// Tuples are schemas with prefixItems (JSON Schema 2020-12 / OpenAPI 3.1).
-    /// </summary>
-    private static void GenerateTuplesForSchemas(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        HashSet<string> schemaNames,
-        string? pathSegment)
-    {
-        // Use TupleExtractor.ExtractForSchemas to extract only specific tuples
-        var tupleParametersList = TupleExtractor.ExtractForSchemas(
-            openApiDoc,
-            projectName,
-            schemaNames,
-            pathSegment);
-
-        if (tupleParametersList is null || tupleParametersList.Count == 0)
-        {
-            return;
-        }
-
-        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        // Generate each tuple as a separate file
-        foreach (var tupleParams in tupleParametersList)
-        {
-            var generatedContent = TupleExtractor.GenerateTupleContent(tupleParams, ns);
-
-            context.AddGeneratedSource(
-                NamespaceBuilder.ToFileName(ns, tupleParams.Name),
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
     }
 
     private static void GenerateHandlerInterfaces(
