@@ -40,14 +40,10 @@ public class ApiClientGenerator : IIncrementalGenerator
         var packageReferencesProvider = context.CompilationProvider
             .Select(static (compilation, _) => new ClientPackageReferences
             {
-                AtcRestClientVersion = compilation.ReferencedAssemblyNames
-                    .FirstOrDefault(a => a.Name.Equals("Atc.Rest.Client", StringComparison.OrdinalIgnoreCase))?.Version,
-                HasResilience = compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.Equals("Microsoft.Extensions.Http.Resilience", StringComparison.OrdinalIgnoreCase)),
-                HasHttpClientFactory = compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.Equals("Microsoft.Extensions.Http", StringComparison.OrdinalIgnoreCase)),
-                HasSignalRClient = compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.Equals("Microsoft.AspNetCore.SignalR.Client", StringComparison.OrdinalIgnoreCase)),
+                AtcRestClientVersion = compilation.VersionOf("Atc.Rest.Client"),
+                HasResilience = compilation.References("Microsoft.Extensions.Http.Resilience"),
+                HasHttpClientFactory = compilation.References("Microsoft.Extensions.Http"),
+                HasSignalRClient = compilation.References("Microsoft.AspNetCore.SignalR.Client"),
             });
 
         // Combine ALL YAML files (as collection) with marker files and compilation info

@@ -354,11 +354,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     private static DomainCompilationSummary ExtractCompilationSummary(
         Compilation compilation)
     {
-        var hasAspNetCore = compilation.ReferencedAssemblyNames
-            .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase));
+        var hasAspNetCore = compilation.ReferencesAnyStartingWith("Microsoft.AspNetCore");
 
-        var hasLogging = compilation.ReferencedAssemblyNames
-            .Any(a => a.Name.Equals("Microsoft.Extensions.Logging.Abstractions", StringComparison.OrdinalIgnoreCase));
+        var hasLogging = compilation.References("Microsoft.Extensions.Logging.Abstractions");
 
         var assemblyName = compilation.AssemblyName;
 

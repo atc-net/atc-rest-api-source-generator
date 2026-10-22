@@ -49,15 +49,11 @@ public class ApiServerGenerator : IIncrementalGenerator
             {
                 RequestDelegateGenerator = project.RequestDelegateGenerator,
                 NamesFoundFirst = project.RequestDelegateGenerator ? NamesBesideRequestDelegates(project.Compilation) : string.Empty,
-                HasAspNetCore = project.Compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase)),
-                MinimalApiVersion = project.Compilation.ReferencedAssemblyNames
-                    .FirstOrDefault(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase))?.Version,
-                HasHealthChecks = project.Compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.Equals("Atc.Rest.HealthChecks", StringComparison.OrdinalIgnoreCase)),
-                HasBearerHandler = project.Compilation.ReferencedAssemblyNames
-                    .Any(a => a.Name.Equals("Microsoft.AspNetCore.Authentication.JwtBearer", StringComparison.OrdinalIgnoreCase) ||
-                              a.Name.Equals("Microsoft.Identity.Web", StringComparison.OrdinalIgnoreCase)),
+                HasAspNetCore = project.Compilation.ReferencesAnyStartingWith("Microsoft.AspNetCore"),
+                MinimalApiVersion = project.Compilation.VersionOf("Atc.Rest.MinimalApi"),
+                HasHealthChecks = project.Compilation.References("Atc.Rest.HealthChecks"),
+                HasBearerHandler = project.Compilation.References("Microsoft.AspNetCore.Authentication.JwtBearer") ||
+                                   project.Compilation.References("Microsoft.Identity.Web"),
             });
 
         // Combine ALL YAML files (as collection) with marker files and compilation info
