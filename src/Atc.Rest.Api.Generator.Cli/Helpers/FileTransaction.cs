@@ -42,6 +42,30 @@ public sealed class FileTransaction : IDisposable
     }
 
     /// <summary>
+    /// Runs a command in a transaction: what it writes is kept when it returns 0, and put back - saying so - when it
+    /// fails.
+    /// </summary>
+    /// <param name="command">The command; 0 is success.</param>
+    /// <returns>The command's result.</returns>
+    public static int Run(Func<int> command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        using var transaction = Begin();
+        var result = command();
+        if (result == 0)
+        {
+            transaction.Commit();
+        }
+        else if (transaction.HasChanges)
+        {
+            AnsiConsole.MarkupLine("[yellow]The files written before the failure were put back.[/]");
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Keeps what was written: disposing no longer puts it back.
     /// </summary>
     public void Commit()

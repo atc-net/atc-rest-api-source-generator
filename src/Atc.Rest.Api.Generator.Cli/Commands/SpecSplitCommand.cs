@@ -17,21 +17,7 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         CommandContext context,
         SpecSplitCommandSettings settings,
         CancellationToken cancellationToken)
-    {
-        // A command that fails half-way leaves the project as it found it: what it wrote is put back
-        using var transaction = FileTransaction.Begin();
-        var result = ExecuteCore(context, settings, cancellationToken);
-        if (result == 0)
-        {
-            transaction.Commit();
-        }
-        else if (transaction.HasChanges)
-        {
-            AnsiConsole.MarkupLine("[yellow]The files written before the failure were put back.[/]");
-        }
-
-        return result;
-    }
+        => FileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
 
     private int ExecuteCore(
         CommandContext context,

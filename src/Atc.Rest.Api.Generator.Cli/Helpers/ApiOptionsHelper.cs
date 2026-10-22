@@ -12,6 +12,32 @@ public static class ApiOptionsHelper
     public static JsonSerializerOptions JsonOptions { get; } = JsonSerializerOptionsFactory.Create();
 
     /// <summary>
+    /// Loads the options as <see cref="LoadOptions"/> does; an options file that cannot be read is reported on the
+    /// console instead of thrown.
+    /// </summary>
+    /// <param name="optionsPath">Explicit path to options file (optional).</param>
+    /// <param name="specificationPath">Path to OpenAPI specification file (used for auto-discovery).</param>
+    /// <param name="options">The loaded options, or the defaults when no options file is found.</param>
+    /// <returns><see langword="true"/> when the options could be read.</returns>
+    public static bool TryLoadOptions(
+        string? optionsPath,
+        string? specificationPath,
+        [NotNullWhen(true)] out ApiGeneratorOptions? options)
+    {
+        try
+        {
+            options = LoadOptions(optionsPath, specificationPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {ex.Message}");
+            options = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Loads ApiGeneratorOptions from the specified path or auto-discovers the options file.
     /// </summary>
     /// <param name="optionsPath">Explicit path to options file (optional).</param>

@@ -31,14 +31,8 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
 
         // The options file (auto-discovered, or --options): its general settings, which the command line overrides; a
         // file that cannot be read stops the command
-        ApiGeneratorOptions options;
-        try
+        if (!ApiOptionsHelper.TryLoadOptions(settings.OptionsPath, specPath, out var options))
         {
-            options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {ex.Message}");
             return 1;
         }
 

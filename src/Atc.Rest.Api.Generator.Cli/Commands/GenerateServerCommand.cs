@@ -29,21 +29,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         CommandContext context,
         GenerateServerCommandSettings settings,
         CancellationToken cancellationToken)
-    {
-        // A command that fails half-way leaves the project as it found it: what it wrote is put back
-        using var transaction = FileTransaction.Begin();
-        var result = ExecuteCore(context, settings, cancellationToken);
-        if (result == 0)
-        {
-            transaction.Commit();
-        }
-        else if (transaction.HasChanges)
-        {
-            AnsiConsole.MarkupLine("[yellow]The files written before the failure were put back.[/]");
-        }
-
-        return result;
-    }
+        => FileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
 
     private int ExecuteCore(
         CommandContext context,
@@ -63,14 +49,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var projectName = settings.ProjectName;
 
         // Load options from file (auto-discovery or explicit path); a file that cannot be read stops the command
-        ApiGeneratorOptions options;
-        try
+        if (!ApiOptionsHelper.TryLoadOptions(settings.OptionsPath, specPath, out var options))
         {
-            options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {ex.Message}");
             return 1;
         }
 
@@ -368,15 +348,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 ProjectStructure = scaffoldingConfig.ProjectStructure.ToString(),
             };
 
-            ReportService.WriteToConsole(finalStats);
-
-            // Write report file if --report flag is passed
-            if (settings.GenerateReport)
-            {
-                var reportPath = Path.Combine(outputPath, ".generation-report.md");
-                ReportService.WriteToFile(finalStats, reportPath);
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]Report written to: {reportPath}[/]");
-            }
+            ScaffoldCommandSupport.WriteGenerationReport(finalStats, settings.GenerateReport, outputPath);
         }
 
         AnsiConsole.MarkupLine(
@@ -607,7 +579,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         Version sourceGeneratorVersion)
     {
         // Validate output directory
-        if (!ValidateOutputDirectory(outputPath, projectName))
+        if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
         {
             return false;
         }
@@ -689,7 +661,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         Version sourceGeneratorVersion)
     {
         // Validate output directory
-        if (!ValidateOutputDirectory(outputPath, projectName))
+        if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
         {
             return false;
         }
@@ -774,7 +746,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         Version sourceGeneratorVersion)
     {
         // Validate output directory
-        if (!ValidateOutputDirectory(outputPath, projectName))
+        if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
         {
             return false;
         }
@@ -847,33 +819,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         if (!CreateOrUpdateProgramFile(outputPath, projectName, hostUi, hostUiMode))
         {
             return false;
-        }
-
-        return true;
-    }
-
-    private static bool ValidateOutputDirectory(
-        string outputPath,
-        string projectName)
-    {
-        if (!Directory.Exists(outputPath))
-        {
-            return true;
-        }
-
-        var existingCsprojFiles = Directory.GetFiles(outputPath, "*.csproj");
-        var expectedCsprojName = $"{projectName}.csproj";
-
-        foreach (var csprojFile in existingCsprojFiles)
-        {
-            var fileName = Path.GetFileName(csprojFile);
-            if (!fileName.Equals(expectedCsprojName, StringComparison.OrdinalIgnoreCase))
-            {
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Output directory contains a different project file: {fileName}");
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]Expected:[/] {expectedCsprojName}");
-                AnsiConsole.MarkupLine("  [yellow]Please use a different output directory or project name.[/]");
-                return false;
-            }
         }
 
         return true;

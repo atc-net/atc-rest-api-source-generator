@@ -19,6 +19,26 @@ public sealed class FileTransactionTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(0, "after")]
+    [InlineData(1, "before")]
+    public void Run_KeepsWhatASucceedingCommandWrote_AndPutsBackWhatAFailingOneWrote(
+        int result,
+        string expected)
+    {
+        var file = Path.Combine(root, "Program.cs");
+        File.WriteAllText(file, "before");
+
+        var returned = FileTransaction.Run(() =>
+        {
+            TrackedFile.WriteAllText(file, "after");
+            return result;
+        });
+
+        Assert.Equal(result, returned);
+        Assert.Equal(expected, File.ReadAllText(file));
+    }
+
     [Fact]
     public void Dispose_WithoutCommit_PutsTheProjectBack()
     {
