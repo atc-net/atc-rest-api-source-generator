@@ -61,7 +61,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 SpecificationPath = settings.SpecificationPath,
             };
 
-            var report = RunValidation(validationSettings);
+            var report = MigrationValidator.Validate(validationSettings);
 
             if (!report.CanMigrate)
             {
@@ -72,6 +72,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 }
 
                 return 1;
+            }
+
+            // What validate would warn about, before anything changes
+            foreach (var warning in report.Warnings)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] {warning}");
             }
 
             // Step 2: Git status check
@@ -1050,88 +1056,6 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         AnsiConsole.MarkupLineInterpolated(
             CultureInfo.InvariantCulture,
             $"[dim]Summary: {summary.CreatedFiles.Count} create, {deleteCount} delete, {modifyCount} modify, {summary.RenamedProjects.Count} rename[/]");
-    }
-
-    private static MigrationValidationReport RunValidation(
-        MigrateValidateCommandSettings settings)
-    {
-        var report = new MigrationValidationReport
-        {
-            SolutionPath = settings.SolutionPath,
-            SpecificationPath = settings.SpecificationPath,
-        };
-
-        var rootDirectory = settings.GetSolutionDirectory();
-
-        // Run all validators
-        report.ProjectStructure = ProjectStructureValidator.Validate(settings.SolutionPath);
-
-        if (!report.ProjectStructure.HasSolutionFile)
-        {
-            report.BlockingIssues.Add("No solution file (.sln/.slnx) found in path");
-        }
-
-        if (!report.ProjectStructure.HasApiGeneratedProject)
-        {
-            report.BlockingIssues.Add("No Api.Generated project found. Is this an ATC-generated API?");
-        }
-
-        report.DetectedProjectName = report.ProjectStructure.DetectedProjectName;
-        report.DetectedNamespace = report.ProjectStructure.DetectedProjectName;
-
-        report.Specification = SpecificationValidator.Validate(settings.SpecificationPath);
-
-        if (!report.Specification.FileExists)
-        {
-            report.BlockingIssues.Add($"Specification file not found: {settings.SpecificationPath}");
-        }
-        else if (!report.Specification.IsValid)
-        {
-            foreach (var error in report.Specification.ValidationErrors)
-            {
-                report.BlockingIssues.Add($"OpenAPI validation error: {error}");
-            }
-        }
-
-        report.GeneratorOptions = GeneratorOptionsAnalyzer.Analyze(rootDirectory);
-        report.PackageReferences = PackageReferenceAnalyzer.Analyze(report.ProjectStructure.AllProjects);
-        report.GeneratedCode = GeneratedCodeAnalyzer.Analyze(
-            report.ProjectStructure.ApiGeneratedProject,
-            report.ProjectStructure.ApiClientGeneratedProject);
-        report.Handlers = HandlerAnalyzer.Analyze(
-            report.ProjectStructure.DomainProject,
-            report.GeneratedCode.HandlerInterfaces);
-        report.TargetFramework = TargetFrameworkValidator.Validate(rootDirectory, report.ProjectStructure.AllProjects);
-
-        if (report.TargetFramework.IsBlocked)
-        {
-            if (!report.TargetFramework.IsTargetFrameworkCompatible)
-            {
-                report.BlockingIssues.Add($"Target framework not supported. Minimum: net8.0");
-            }
-
-            if (!report.TargetFramework.IsLangVersionCompatible)
-            {
-                report.BlockingIssues.Add($"Language version not supported. Minimum: C# 12");
-            }
-        }
-
-        report.RequiresUpgrade = report.TargetFramework.RequiresAnyUpgrade;
-
-        if (report.BlockingIssues.Count > 0)
-        {
-            report.Status = MigrationValidationStatus.Blocked;
-        }
-        else if (report.RequiresUpgrade)
-        {
-            report.Status = MigrationValidationStatus.RequiresUpgrade;
-        }
-        else
-        {
-            report.Status = MigrationValidationStatus.Ready;
-        }
-
-        return report;
     }
 
     private static bool CheckGitStatus(

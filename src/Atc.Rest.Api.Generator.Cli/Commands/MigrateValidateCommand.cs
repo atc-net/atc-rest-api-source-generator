@@ -44,7 +44,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
             {
                 try
                 {
-                    var report = RunValidation(settings, ctx);
+                    var report = MigrationValidator.Validate(settings, status => ctx.Status(status));
                     DisplayResults(report, settings.Verbose);
 
                     // Save report if requested
@@ -61,132 +61,6 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
                     return 1;
                 }
             });
-    }
-
-    private static MigrationValidationReport RunValidation(
-        MigrateValidateCommandSettings settings,
-        StatusContext ctx)
-    {
-        var report = new MigrationValidationReport
-        {
-            SolutionPath = settings.SolutionPath,
-            SpecificationPath = settings.SpecificationPath,
-        };
-
-        var rootDirectory = settings.GetSolutionDirectory();
-
-        // 1. Validate project structure
-        ctx.Status("Analyzing project structure...");
-        report.ProjectStructure = ProjectStructureValidator.Validate(settings.SolutionPath);
-
-        if (!report.ProjectStructure.HasSolutionFile)
-        {
-            report.BlockingIssues.Add("No solution file (.sln/.slnx) found in path");
-        }
-
-        if (!report.ProjectStructure.HasApiGeneratedProject)
-        {
-            report.BlockingIssues.Add("No Api.Generated project found. Is this an ATC-generated API?");
-        }
-
-        if (!report.ProjectStructure.HasDomainProject)
-        {
-            report.Warnings.Add("No Domain project found. Handler preservation not possible.");
-        }
-
-        report.DetectedProjectName = report.ProjectStructure.DetectedProjectName;
-        report.DetectedNamespace = report.ProjectStructure.DetectedProjectName;
-
-        // 2. Validate OpenAPI specification
-        ctx.Status("Validating OpenAPI specification...");
-        report.Specification = SpecificationValidator.Validate(settings.SpecificationPath);
-
-        if (!report.Specification.FileExists)
-        {
-            report.BlockingIssues.Add($"Specification file not found: {settings.SpecificationPath}");
-        }
-        else if (!report.Specification.IsValid)
-        {
-            foreach (var error in report.Specification.ValidationErrors)
-            {
-                report.BlockingIssues.Add($"OpenAPI validation error: {error}");
-            }
-        }
-
-        // 3. Analyze generator options
-        ctx.Status("Analyzing generator options...");
-        report.GeneratorOptions = GeneratorOptionsAnalyzer.Analyze(rootDirectory);
-
-        if (report.GeneratorOptions.IsControllerBased)
-        {
-            report.Warnings.Add("Controller-based APIs require manual migration steps");
-        }
-
-        // 4. Analyze package references
-        ctx.Status("Analyzing package references...");
-        report.PackageReferences = PackageReferenceAnalyzer.Analyze(report.ProjectStructure.AllProjects);
-
-        if (!report.PackageReferences.IsAtcGeneratedProject)
-        {
-            report.Warnings.Add("No Atc.Rest packages found. This may not be an ATC-generated project.");
-        }
-
-        foreach (var upgrade in report.PackageReferences.PackagesToUpgrade)
-        {
-            report.Warnings.Add($"{upgrade.Package} {upgrade.Version} is older than the generated code needs: update it to {upgrade.Minimum} or later, or the first build stops with {upgrade.RuleId}.");
-        }
-
-        // 5. Analyze generated code
-        ctx.Status("Analyzing generated code...");
-        report.GeneratedCode = GeneratedCodeAnalyzer.Analyze(
-            report.ProjectStructure.ApiGeneratedProject,
-            report.ProjectStructure.ApiClientGeneratedProject);
-
-        // 6. Analyze handlers
-        ctx.Status("Analyzing handler implementations...");
-        report.Handlers = HandlerAnalyzer.Analyze(
-            report.ProjectStructure.DomainProject,
-            report.GeneratedCode.HandlerInterfaces);
-
-        // 7. Validate target framework
-        ctx.Status("Validating target framework...");
-        report.TargetFramework = TargetFrameworkValidator.Validate(
-            rootDirectory,
-            report.ProjectStructure.AllProjects);
-
-        if (report.TargetFramework.IsBlocked)
-        {
-            var tfm = report.TargetFramework.CurrentTargetFramework ?? "unknown";
-            var lang = report.TargetFramework.CurrentLangVersion ?? "unknown";
-
-            if (!report.TargetFramework.IsTargetFrameworkCompatible)
-            {
-                report.BlockingIssues.Add($"Target framework {tfm} not supported. Minimum: net8.0");
-            }
-
-            if (!report.TargetFramework.IsLangVersionCompatible)
-            {
-                report.BlockingIssues.Add($"Language version C# {lang} not supported. Minimum: C# 12");
-            }
-        }
-
-        report.RequiresUpgrade = report.TargetFramework.RequiresAnyUpgrade;
-
-        // Determine overall status
-        if (report.BlockingIssues.Count > 0)
-        {
-            report.Status = MigrationValidationStatus.Blocked;
-        }
-        else if (report.RequiresUpgrade)
-        {
-            report.Status = MigrationValidationStatus.RequiresUpgrade;
-        }
-        else
-        {
-            report.Status = MigrationValidationStatus.Ready;
-        }
-
-        return report;
     }
 
     private static void DisplayResults(
