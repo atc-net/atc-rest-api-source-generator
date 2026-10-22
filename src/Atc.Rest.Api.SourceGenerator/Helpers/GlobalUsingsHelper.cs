@@ -20,22 +20,44 @@ internal static class DomainGlobalUsingsHelper
         List<string>? staleDetectionPathSegments = null)
     {
         var globalUsingsPath = Path.Combine(projectRootDirectory, "GlobalUsings.cs");
-
-        // Build required usings set
         var requiredUsings = BuildRequiredUsings(discoveredInterfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config.InjectLogger, config.InjectTracing);
-
-        // Read existing content
         var existingContent = File.Exists(globalUsingsPath)
             ? File.ReadAllText(globalUsingsPath)
             : string.Empty;
 
+        // Write file using helper (ensures proper newline handling)
+        if (Merge(existingContent, requiredUsings, rootNamespace, staleDetectionPathSegments ?? pathSegments, openApiDoc, config.RemoveNamespaceGroupSeparatorInGlobalUsings) is { } content)
+        {
+            ScaffoldFileWriter.Write(globalUsingsPath, content);
+        }
+    }
+
+    /// <summary>
+    /// The GlobalUsings.cs content with the required usings added and this generator's stale ones removed - a pure
+    /// function of the file's current content.
+    /// </summary>
+    /// <param name="existingContent">The file's content, empty when there is none.</param>
+    /// <param name="requiredUsings">The global usings the handlers need.</param>
+    /// <param name="rootNamespace">The root namespace of the generated code.</param>
+    /// <param name="stalePathSegments">The path segments whose generated namespaces are this project's.</param>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="removeNamespaceGroupSeparator">Whether no blank line separates the namespace groups.</param>
+    /// <returns>The content to write, or <see langword="null"/> when the file is as it should be.</returns>
+    public static string? Merge(
+        string existingContent,
+        HashSet<string> requiredUsings,
+        string rootNamespace,
+        IReadOnlyCollection<string> stalePathSegments,
+        OpenApiDocument openApiDoc,
+        bool removeNamespaceGroupSeparator)
+    {
         // Parse existing global usings, separating stale generator-owned entries from
         // anything else (hand-written usings stay untouched). Stale-detection is keyed
         // to the current OpenAPI path segments — a namespace whose middle segment isn't
         // in this project's spec cannot be stale output from this project's generator.
         // The raw (unresolved) segments are used here so entries written before a segment
         // collapsed away are still recognized as this generator's output and pruned.
-        var currentPathSegments = new HashSet<string>(staleDetectionPathSegments ?? pathSegments, StringComparer.OrdinalIgnoreCase);
+        var currentPathSegments = new HashSet<string>(stalePathSegments, StringComparer.OrdinalIgnoreCase);
         var existingUsings = new HashSet<string>(StringComparer.Ordinal);
         var staleGeneratedUsings = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in existingContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
@@ -77,14 +99,13 @@ internal static class DomainGlobalUsingsHelper
         // If nothing to add, no stale entries to remove, and file ends with newline, skip
         if (missingUsings.Count == 0 && staleGeneratedUsings.Count == 0 && endsWithNewline)
         {
-            return;
+            return null;
         }
 
         // If nothing to add and no stale entries, just fix newline
         if (missingUsings.Count == 0 && staleGeneratedUsings.Count == 0)
         {
-            ScaffoldFileWriter.Write(globalUsingsPath, existingContent);
-            return;
+            return existingContent;
         }
 
         // Merge all usings (existing + required, excluding stale) and re-sort the entire file
@@ -95,12 +116,9 @@ internal static class DomainGlobalUsingsHelper
         }
 
         // Sort and format global usings with namespace grouping
-        var sortedContent = UsingStatementHelper.SortGlobalUsings(
+        return UsingStatementHelper.SortGlobalUsings(
             allUsings,
-            config.RemoveNamespaceGroupSeparatorInGlobalUsings);
-
-        // Write file using helper (ensures proper newline handling)
-        ScaffoldFileWriter.Write(globalUsingsPath, sortedContent);
+            removeNamespaceGroupSeparator);
     }
 
     /// <summary>

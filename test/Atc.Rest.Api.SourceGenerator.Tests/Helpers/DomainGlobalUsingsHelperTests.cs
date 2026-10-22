@@ -3,6 +3,28 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Helpers;
 [SuppressMessage("", "SA1512:Single-line comments should not be followed by blank line", Justification = "OK")]
 public class DomainGlobalUsingsHelperTests
 {
+    // ========== Merge Tests (no file system) ==========
+
+    [Fact]
+    public void Merge_AFileThatHasEveryUsingAndEndsWithANewline_IsLeftAlone()
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal) { "global using System;" };
+
+        Assert.Null(DomainGlobalUsingsHelper.Merge("global using System;\n", required, "MyApp", [], CreateEmptyOpenApiDocument(), removeNamespaceGroupSeparator: false));
+    }
+
+    [Fact]
+    public void Merge_AddsAMissingUsing_AndKeepsAHandWrittenOne()
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal) { "global using System;", "global using System.Threading;" };
+
+        var content = DomainGlobalUsingsHelper.Merge("global using Contoso.Shared;\n", required, "MyApp", [], CreateEmptyOpenApiDocument(), removeNamespaceGroupSeparator: false);
+
+        Assert.NotNull(content);
+        Assert.Contains("global using System.Threading;", content, StringComparison.Ordinal);
+        Assert.Contains("global using Contoso.Shared;", content, StringComparison.Ordinal);
+    }
+
     // ========== BuildRequiredUsings Tests ==========
 
     [Fact]
