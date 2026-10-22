@@ -110,9 +110,11 @@ public class CodeGenerationServiceTests
     [InlineData("/v1/pets/{petId}", "Pets")]
     [InlineData("/V2/orders", "Orders")]
     [InlineData("/{tenantId}/users", "Users")]
-    [InlineData("/", "Api")]
-    [InlineData("/v1/{id}", "Api")]
-    public void GetGroupNameFromPath_SkipsVersionAndParameterSegments(
+    [InlineData("/api/v1/pets", "Pets")]
+    [InlineData("/2010-04-01/accounts", "Accounts")]
+    [InlineData("/", "Default")]
+    [InlineData("/v1/{id}", "Default")]
+    public void GetGroupNameFromPath_IsTheSegmentTheNamespacesUse(
         string path,
         string expected)
     {

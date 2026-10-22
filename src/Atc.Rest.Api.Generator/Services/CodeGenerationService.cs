@@ -64,30 +64,7 @@ public static class CodeGenerationService
     /// Gets a group name from a path by extracting the first significant segment.
     /// </summary>
     public static string GetGroupNameFromPath(string path)
-    {
-        var segments = path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
-        foreach (var segment in segments)
-        {
-            // Skip version segments like v1, v2
-            if (segment.StartsWith("v", StringComparison.OrdinalIgnoreCase) &&
-                segment.Length > 1 &&
-                char.IsDigit(segment[1]))
-            {
-                continue;
-            }
-
-            // Skip parameter segments like {id}
-            if (segment.StartsWith("{", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            // Capitalize and return
-            return segment.ToPascalCaseForDotNet();
-        }
-
-        return "Api";
-    }
+        => PathSegmentHelper.GetFirstPathSegment(path);
 
     /// <summary>
     /// Gets the group name for a schema by finding which operations reference it.

@@ -1550,29 +1550,10 @@ public static class SpecificationService
         }
     }
 
+    // The segment the generated namespaces are named after (an /api prefix, a version and a date skipped), so a
+    // split part or an analysis group is the namespace its operations generate into
     private static string GetFirstPathSegment(string path)
-    {
-        var segments = path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
-        foreach (var segment in segments)
-        {
-            // Skip version segments
-            if (segment.StartsWith("v", StringComparison.OrdinalIgnoreCase) &&
-                segment.Length > 1 && char.IsDigit(segment[1]))
-            {
-                continue;
-            }
-
-            // Skip parameter segments
-            if (segment.StartsWith("{", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            return segment;
-        }
-
-        return "Api";
-    }
+        => PathSegmentHelper.GetFirstPathSegment(path);
 
     private static string GetDomainFromOperation(
         string path,

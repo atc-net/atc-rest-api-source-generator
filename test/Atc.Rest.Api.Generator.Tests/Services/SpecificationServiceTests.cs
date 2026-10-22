@@ -1745,6 +1745,50 @@ public class SpecificationServiceTests
         Assert.Contains("getVersion", other.Content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Split and analysis group paths by the path segment the generated namespaces are named after: an <c>/api</c>
+    /// prefix, a version and a date are skipped (<c>/api/v1/pets</c> is Pets) - they grouped every path of an API under
+    /// one "api" part.
+    /// </summary>
+    [Fact]
+    public void SplitAndAnalyze_ByPathSegment_GroupByTheSegmentTheNamespacesUse()
+    {
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Shop
+                              version: 1.0.0
+                            paths:
+                              /api/v1/pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /api/v1/orders/{orderId}:
+                                get:
+                                  operationId: getOrder
+                                  parameters:
+                                    - { name: orderId, in: path, required: true, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /2010-04-01/accounts:
+                                get:
+                                  operationId: listAccounts
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var split = SpecificationService.Split(doc, "Shop", SplitStrategy.ByPathSegment, extractCommon: false);
+        var analysis = SpecificationService.Analyze(doc, "Shop.yaml");
+
+        Assert.Equal(["Accounts", "Orders", "Pets"], split.PartFiles.Select(p => p.PartName!).Order(StringComparer.Ordinal), StringComparer.Ordinal);
+        Assert.Equal(["Accounts", "Orders", "Pets"], analysis.PathSegments.Keys.Order(StringComparer.Ordinal), StringComparer.Ordinal);
+    }
+
     [Fact]
     public void ReadFromFile_ExistingFile_ReadsAndParsesIt()
     {
