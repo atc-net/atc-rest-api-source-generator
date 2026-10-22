@@ -343,13 +343,13 @@ public static class SpecificationService
             diagnostics.AddRange(ValidatePartAgainstBase(partFile, baseFile));
 
             // Merge paths
-            MergePaths(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
+            MergeEntries(partFile.Document.Paths, mergedDocument.Paths, config.PathsMergeStrategy, RuleIdentifiers.DuplicatePathInPart, "path", partFile.FilePath, diagnostics);
 
             // Merge schemas
-            MergeSchemas(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
+            MergeEntries(partFile.Document.Components?.Schemas, mergedDocument.Components!.Schemas!, config.SchemasMergeStrategy, RuleIdentifiers.DuplicateSchemaInPart, "schema", partFile.FilePath, diagnostics);
 
             // Merge parameters
-            MergeParameters(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
+            MergeEntries(partFile.Document.Components?.Parameters, mergedDocument.Components!.Parameters!, config.ParametersMergeStrategy, RuleIdentifiers.DuplicateParameterInPart, "parameter", partFile.FilePath, diagnostics);
 
             // Merge tags
             MergeTags(mergedDocument, partFile.Document);
@@ -978,164 +978,60 @@ public static class SpecificationService
         return clone;
     }
 
-    private static void MergePaths(
-        OpenApiDocument target,
-        OpenApiDocument source,
+    /// <summary>
+    /// Merges the entries of a part file into the merged document by the strategy configured for them (paths, schemas or
+    /// parameters): a key the merged document already has is an error, merged when identical, skipped, or replaced.
+    /// </summary>
+    private static void MergeEntries<T>(
+        IDictionary<string, T>? source,
+        IDictionary<string, T> target,
+        MergeStrategy strategy,
+        string duplicateRuleId,
+        string kind,
         string sourceFilePath,
-        MultiPartConfiguration config,
         List<DiagnosticMessage> diagnostics)
+        where T : IOpenApiSerializable
     {
-        if (source.Paths is null)
+        if (source is null)
         {
             return;
         }
 
-        foreach (var path in source.Paths)
+        foreach (var entry in source)
         {
-            if (target.Paths.ContainsKey(path.Key))
+            if (!target.ContainsKey(entry.Key))
             {
-                switch (config.PathsMergeStrategy)
-                {
-                    case MergeStrategy.ErrorOnDuplicate:
+                target[entry.Key] = entry.Value;
+                continue;
+            }
+
+            switch (strategy)
+            {
+                case MergeStrategy.ErrorOnDuplicate:
+                    diagnostics.Add(DiagnosticMessage.Error(
+                        duplicateRuleId,
+                        $"Duplicate {kind} '{entry.Key}' found in part file",
+                        sourceFilePath));
+                    break;
+
+                case MergeStrategy.MergeIfIdentical:
+                    if (!AreOpenApiElementsIdentical(target[entry.Key], entry.Value))
+                    {
                         diagnostics.Add(DiagnosticMessage.Error(
-                            RuleIdentifiers.DuplicatePathInPart,
-                            $"Duplicate path '{path.Key}' found in part file",
+                            RuleIdentifiers.NonIdenticalMergeConflict,
+                            $"{char.ToUpperInvariant(kind[0])}{kind.Substring(1)} '{entry.Key}' exists in both base and part file with different definitions",
                             sourceFilePath));
-                        break;
+                    }
 
-                    case MergeStrategy.MergeIfIdentical:
-                        if (!AreOpenApiElementsIdentical(
-                            target.Paths[path.Key],
-                            path.Value))
-                        {
-                            diagnostics.Add(DiagnosticMessage.Error(
-                                RuleIdentifiers.NonIdenticalMergeConflict,
-                                $"Path '{path.Key}' exists in both base and part file with different definitions",
-                                sourceFilePath));
-                        }
+                    break;
 
-                        break;
+                case MergeStrategy.FirstWins:
+                    // Skip - already exists
+                    break;
 
-                    case MergeStrategy.FirstWins:
-                        // Skip - already exists
-                        break;
-
-                    case MergeStrategy.LastWins:
-                        target.Paths[path.Key] = path.Value;
-                        break;
-                }
-            }
-            else
-            {
-                target.Paths[path.Key] = path.Value;
-            }
-        }
-    }
-
-    private static void MergeSchemas(
-        OpenApiDocument target,
-        OpenApiDocument source,
-        string sourceFilePath,
-        MultiPartConfiguration config,
-        List<DiagnosticMessage> diagnostics)
-    {
-        if (source.Components?.Schemas is null)
-        {
-            return;
-        }
-
-        foreach (var schema in source.Components.Schemas)
-        {
-            if (target.Components!.Schemas!.ContainsKey(schema.Key))
-            {
-                switch (config.SchemasMergeStrategy)
-                {
-                    case MergeStrategy.ErrorOnDuplicate:
-                        diagnostics.Add(DiagnosticMessage.Error(
-                            RuleIdentifiers.DuplicateSchemaInPart,
-                            $"Duplicate schema '{schema.Key}' found in part file",
-                            sourceFilePath));
-                        break;
-
-                    case MergeStrategy.MergeIfIdentical:
-                        if (!AreOpenApiElementsIdentical(
-                            target.Components.Schemas[schema.Key],
-                            schema.Value))
-                        {
-                            diagnostics.Add(DiagnosticMessage.Error(
-                                RuleIdentifiers.NonIdenticalMergeConflict,
-                                $"Schema '{schema.Key}' exists in both base and part file with different definitions",
-                                sourceFilePath));
-                        }
-
-                        break;
-
-                    case MergeStrategy.FirstWins:
-                        // Skip - already exists
-                        break;
-
-                    case MergeStrategy.LastWins:
-                        target.Components.Schemas[schema.Key] = schema.Value;
-                        break;
-                }
-            }
-            else
-            {
-                target.Components.Schemas[schema.Key] = schema.Value;
-            }
-        }
-    }
-
-    private static void MergeParameters(
-        OpenApiDocument target,
-        OpenApiDocument source,
-        string sourceFilePath,
-        MultiPartConfiguration config,
-        List<DiagnosticMessage> diagnostics)
-    {
-        if (source.Components?.Parameters is null)
-        {
-            return;
-        }
-
-        foreach (var parameter in source.Components.Parameters)
-        {
-            if (target.Components!.Parameters!.ContainsKey(parameter.Key))
-            {
-                switch (config.ParametersMergeStrategy)
-                {
-                    case MergeStrategy.ErrorOnDuplicate:
-                        diagnostics.Add(DiagnosticMessage.Error(
-                            RuleIdentifiers.DuplicateParameterInPart,
-                            $"Duplicate parameter '{parameter.Key}' found in part file",
-                            sourceFilePath));
-                        break;
-
-                    case MergeStrategy.MergeIfIdentical:
-                        if (!AreOpenApiElementsIdentical(
-                            target.Components.Parameters[parameter.Key],
-                            parameter.Value))
-                        {
-                            diagnostics.Add(DiagnosticMessage.Error(
-                                RuleIdentifiers.NonIdenticalMergeConflict,
-                                $"Parameter '{parameter.Key}' exists in both base and part file with different definitions",
-                                sourceFilePath));
-                        }
-
-                        break;
-
-                    case MergeStrategy.FirstWins:
-                        // Skip - already exists
-                        break;
-
-                    case MergeStrategy.LastWins:
-                        target.Components.Parameters[parameter.Key] = parameter.Value;
-                        break;
-                }
-            }
-            else
-            {
-                target.Components.Parameters[parameter.Key] = parameter.Value;
+                case MergeStrategy.LastWins:
+                    target[entry.Key] = entry.Value;
+                    break;
             }
         }
     }
