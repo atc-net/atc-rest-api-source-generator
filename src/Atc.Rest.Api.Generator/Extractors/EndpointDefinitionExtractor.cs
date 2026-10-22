@@ -1568,65 +1568,27 @@ using Microsoft.AspNetCore.Builder;
         // This ensures Swagger documentation shows all possible responses
         var features = OperationFeaturesHelper.DetectOperationFeatures(operation, pathItem, openApiDoc, httpMethod);
 
-        // 400 - Has parameters but no 400 defined
-        if (features.HasParameters && !definedCodes.Contains("400"))
+        foreach (var statusCode in features.ImplicitErrorStatuses(definedCodes, hasDefaultResponse: definedCodes.Contains("default")))
         {
             builder.AppendLine();
-            builder.Append("    .ProducesValidationProblem()");
-        }
-
-        // 401 - Has security but no 401 defined
-        if (features.HasSecurity && !definedCodes.Contains("401"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status401Unauthorized)");
-        }
-
-        // 403 - Has roles/policies but no 403 defined
-        if (features.HasRolesOrPolicies && !definedCodes.Contains("403"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status403Forbidden)");
-        }
-
-        // 404 - GET/PUT/DELETE/PATCH with path params but no 404 defined
-        if (features.HasPathParameters &&
-            features.HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH" &&
-            !definedCodes.Contains("404"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status404NotFound)");
-        }
-
-        // 409 - POST/PUT but no 409 defined
-        if (features.HttpMethod is "POST" or "PUT" && !definedCodes.Contains("409"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status409Conflict)");
-        }
-
-        // 429 - Has rate limiting but no 429 defined
-        if (features.HasRateLimiting && !definedCodes.Contains("429"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status429TooManyRequests)");
-        }
-
-        // 500 - Always add if not defined (GlobalErrorHandler)
-        if (!definedCodes.Contains("500") && !definedCodes.Contains("default"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status500InternalServerError)");
-        }
-
-        // 504 - Always add if not defined (GlobalErrorHandler maps TimeoutException
-        // and OperationCanceledException to 504 Gateway Timeout)
-        if (!definedCodes.Contains("504") && !definedCodes.Contains("default"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status504GatewayTimeout)");
+            builder.Append(statusCode == "400"
+                ? "    .ProducesValidationProblem()"
+                : $"    .ProducesProblem(StatusCodes.Status{statusCode}{ImplicitStatusName(statusCode)})");
         }
     }
+
+    // The StatusCodes / result names of the statuses the server adds by itself
+    private static string ImplicitStatusName(string statusCode)
+        => statusCode switch
+        {
+            "401" => "Unauthorized",
+            "403" => "Forbidden",
+            "404" => "NotFound",
+            "409" => "Conflict",
+            "429" => "TooManyRequests",
+            "500" => "InternalServerError",
+            _ => "GatewayTimeout",
+        };
 
     /// <summary>
     /// The <c>.Produces*</c> call describing one error response exactly as the result factories write it

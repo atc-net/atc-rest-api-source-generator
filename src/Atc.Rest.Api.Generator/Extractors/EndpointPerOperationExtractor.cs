@@ -288,56 +288,22 @@ public static class EndpointPerOperationExtractor
         var features = Helpers.OperationFeaturesHelper.DetectOperationFeatures(operation, pathItem, openApiDoc, httpMethod);
         var errorContentType = string.IsNullOrEmpty(customErrorTypeName) ? "ProblemDetails" : customErrorTypeName;
 
-        // 400 - Has parameters but no 400 defined
-        if (features.HasParameters && !definedCodes.Contains("400"))
+        // The global error handler answers a thrown handler with a 500 (504 for a timeout) problem whatever the
+        // `default` response declares, so the client keeps those arms beside the default one
+        foreach (var statusCode in features.ImplicitErrorStatuses(definedCodes, hasDefaultResponse: false))
         {
-            var validationContentType = string.IsNullOrEmpty(customErrorTypeName) ? "ValidationProblemDetails" : customErrorTypeName;
-            responses.Add(new ResponseInfo("400", "BadRequest", "BadRequest", validationContentType, false, IsAutoAdded: true));
-        }
-
-        // 401 - Has security but no 401 defined
-        if (features.HasSecurity && !definedCodes.Contains("401"))
-        {
-            responses.Add(new ResponseInfo("401", "Unauthorized", "Unauthorized", errorContentType, false, IsAutoAdded: true));
-        }
-
-        // 403 - Has roles/policies but no 403 defined
-        if (features.HasRolesOrPolicies && !definedCodes.Contains("403"))
-        {
-            responses.Add(new ResponseInfo("403", "Forbidden", "Forbidden", errorContentType, false, IsAutoAdded: true));
-        }
-
-        // 404 - GET/PUT/DELETE/PATCH with path params but no 404 defined
-        if (features.HasPathParameters &&
-            features.HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH" &&
-            !definedCodes.Contains("404"))
-        {
-            responses.Add(new ResponseInfo("404", "NotFound", "NotFound", errorContentType, false, IsAutoAdded: true));
-        }
-
-        // 409 - POST/PUT but no 409 defined
-        if (features.HttpMethod is "POST" or "PUT" && !definedCodes.Contains("409"))
-        {
-            responses.Add(new ResponseInfo("409", "Conflict", "Conflict", errorContentType, false, IsAutoAdded: true));
-        }
-
-        // 429 - Has rate limiting but no 429 defined
-        if (features.HasRateLimiting && !definedCodes.Contains("429"))
-        {
-            responses.Add(new ResponseInfo("429", "TooManyRequests", "TooManyRequests", errorContentType, false, IsAutoAdded: true));
-        }
-
-        // 500 - Always add if not defined (global error handler)
-        if (!definedCodes.Contains("500"))
-        {
-            responses.Add(new ResponseInfo("500", "InternalServerError", "InternalServerError", errorContentType, false, IsAutoAdded: true));
-        }
-
-        // 504 - Always add if not defined (GlobalErrorHandler maps TimeoutException
-        // and OperationCanceledException to 504 Gateway Timeout)
-        if (!definedCodes.Contains("504"))
-        {
-            responses.Add(new ResponseInfo("504", "GatewayTimeout", "GatewayTimeout", errorContentType, false, IsAutoAdded: true));
+            var (name, contentType) = statusCode switch
+            {
+                "400" => ("BadRequest", string.IsNullOrEmpty(customErrorTypeName) ? "ValidationProblemDetails" : customErrorTypeName),
+                "401" => ("Unauthorized", errorContentType),
+                "403" => ("Forbidden", errorContentType),
+                "404" => ("NotFound", errorContentType),
+                "409" => ("Conflict", errorContentType),
+                "429" => ("TooManyRequests", errorContentType),
+                "500" => ("InternalServerError", errorContentType),
+                _ => ("GatewayTimeout", errorContentType),
+            };
+            responses.Add(new ResponseInfo(statusCode, name, name, contentType, false, IsAutoAdded: true));
         }
 
         // Check if operation has parameters

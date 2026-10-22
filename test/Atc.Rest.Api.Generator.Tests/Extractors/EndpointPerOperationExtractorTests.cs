@@ -1207,6 +1207,54 @@ public class EndpointPerOperationExtractorTests
     }
 
     /// <summary>
+    /// Beside a <c>default</c> response the client keeps its 500 and 504 arms: the global error handler answers a thrown
+    /// handler with a problem whatever the default declares (the runtime matrix proves the wire).
+    /// </summary>
+    [Fact]
+    public void Extract_WithADefaultResponse_Keeps500And504()
+    {
+        var document = ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /items/{id}:
+                get:
+                  operationId: getItem
+                  parameters:
+                    - { name: id, in: path, required: true, schema: { type: string } }
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema: { $ref: '#/components/schemas/Item' }
+                    default:
+                      description: Any other answer
+                      content:
+                        application/json:
+                          schema: { $ref: '#/components/schemas/Error' }
+            components:
+              schemas:
+                Item:
+                  type: object
+                  properties:
+                    id: { type: string }
+                Error:
+                  type: object
+                  properties:
+                    message: { type: string }
+            """);
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "items", registry: null, includeDeprecated: false);
+
+        var result = Assert.Single(files).ResultClassContent!;
+        Assert.Contains("DefaultError", result, StringComparison.Ordinal);
+        Assert.Contains("InternalServerError", result, StringComparison.Ordinal);
+        Assert.Contains("GatewayTimeout", result, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A parameter an operation redeclares from its path item is sent once, as the operation declares it - the
     /// per-operation client concatenated both lists and sent it twice.
     /// </summary>

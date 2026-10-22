@@ -2,6 +2,36 @@ namespace Atc.Rest.Api.Generator.Tests.Models;
 
 public class OperationFeaturesTests
 {
+    [Theory]
+    [InlineData("GET", false, false, false, false, false, false, "500,504")]
+    [InlineData("GET", true, true, true, true, true, false, "400,401,403,404,429,500,504")]
+    [InlineData("POST", true, true, false, false, false, false, "400,409,500,504")]
+    [InlineData("PUT", true, true, false, false, false, true, "400,404,409")]
+    [InlineData("DELETE", true, false, false, false, false, true, "400")]
+    public void ImplicitErrorStatuses_FollowTheOperation_AndADefaultResponseTakes5xx(
+        string httpMethod,
+        bool hasParameters,
+        bool hasPathParameters,
+        bool hasSecurity,
+        bool hasRolesOrPolicies,
+        bool hasRateLimiting,
+        bool hasDefaultResponse,
+        string expected)
+    {
+        var features = new OperationFeatures
+        {
+            HttpMethod = httpMethod,
+            HasParameters = hasParameters,
+            HasPathParameters = hasPathParameters,
+            HasSecurity = hasSecurity,
+            HasRolesOrPolicies = hasRolesOrPolicies,
+            HasRateLimiting = hasRateLimiting,
+        };
+
+        Assert.Equal(expected, string.Join(",", features.ImplicitErrorStatuses([], hasDefaultResponse)));
+        Assert.DoesNotContain("409", features.ImplicitErrorStatuses(["409"], hasDefaultResponse), StringComparer.Ordinal);
+    }
+
     [Fact]
     public void DefaultInstance_HasAllPropertiesFalse()
     {

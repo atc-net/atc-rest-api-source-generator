@@ -471,37 +471,21 @@ public static class TypeScriptOperationHelper
 
         // Errors the server produces without the spec listing them - the same rules as the
         // generated server's endpoint metadata - so the union covers what handleResponse returns.
-        if (features is not null)
+        foreach (var statusCode in features?.ImplicitErrorStatuses([], hasDefaultResponse: true) ?? [])
         {
-            if (features.HasParameters)
-            {
-                AddErrorArm("badRequest", "ValidationError", null, onlyIfMissing: true);
-            }
-
-            if (features.HasSecurity)
-            {
-                AddErrorArm("unauthorized", "ApiError", null, onlyIfMissing: true);
-            }
-
-            if (features.HasRolesOrPolicies)
-            {
-                AddErrorArm("forbidden", "ApiError", null, onlyIfMissing: true);
-            }
-
-            if (features.HasPathParameters && features.HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH")
-            {
-                AddErrorArm("notFound", "ApiError", null, onlyIfMissing: true);
-            }
-
-            if (features.HttpMethod is "POST" or "PUT")
-            {
-                AddErrorArm("conflict", "ApiError", null, onlyIfMissing: true);
-            }
-
-            if (features.HasRateLimiting)
-            {
-                AddErrorArm("tooManyRequests", "ApiError", null, onlyIfMissing: true);
-            }
+            AddErrorArm(
+                statusCode switch
+                {
+                    "400" => "badRequest",
+                    "401" => "unauthorized",
+                    "403" => "forbidden",
+                    "404" => "notFound",
+                    "409" => "conflict",
+                    _ => "tooManyRequests",
+                },
+                statusCode == "400" ? "ValidationError" : "ApiError",
+                null,
+                onlyIfMissing: true);
         }
 
         // Any API can answer with an unmapped 4xx (405, 413, 415, ... from the framework) or a 5xx. Without a
