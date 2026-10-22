@@ -1112,7 +1112,7 @@ public static class OpenApiSchemaExtensions
         /// <returns>A list of validation attribute strings (e.g., "Required", "Range(0, 100)").</returns>
         public IList<string> GetValidationAttributes(bool isRequired)
         {
-            IList<string> attributes = new List<string>();
+            var attributes = new List<string>();
 
             // Add Required attribute for required properties
             if (isRequired)
@@ -1133,9 +1133,26 @@ public static class OpenApiSchemaExtensions
                 return attributes;
             }
 
-            // Range validation for numeric types (use HasFlag for flags enum compatibility)
             var schemaType = actualSchema.Type ?? JsonSchemaType.Null;
+            attributes.AddRange(RangeAttributes(actualSchema, schemaType));
+            if (schemaType.HasFlag(JsonSchemaType.String))
+            {
+                attributes.AddRange(StringAttributes(actualSchema));
+            }
 
+            if (schemaType.HasFlag(JsonSchemaType.Array))
+            {
+                attributes.AddRange(ArrayAttributes(actualSchema));
+            }
+
+            return attributes;
+        }
+
+        // Range for a numeric type (HasFlag for a type that also allows null)
+        private static IEnumerable<string> RangeAttributes(
+            OpenApiSchema actualSchema,
+            JsonSchemaType schemaType)
+        {
             // An exclusive bound (the 3.0 boolean next to minimum/maximum, which the reader folds into
             // exclusiveMinimum/exclusiveMaximum, or the 3.1 number) is the same Range with its exclusive flag
             var (minimum, minimumIsExclusive) = Bound(actualSchema.Minimum, actualSchema.ExclusiveMinimum);
@@ -1151,7 +1168,7 @@ public static class OpenApiSchemaExtensions
 
                 if (min is not null || max is not null)
                 {
-                    attributes.Add($"Range({min?.ToString(CultureInfo.InvariantCulture) ?? "long.MinValue"}, {max?.ToString(CultureInfo.InvariantCulture) ?? "long.MaxValue"}{flags})");
+                    yield return $"Range({min?.ToString(CultureInfo.InvariantCulture) ?? "long.MinValue"}, {max?.ToString(CultureInfo.InvariantCulture) ?? "long.MaxValue"}{flags})";
                 }
             }
             else if (schemaType.HasFlag(JsonSchemaType.Number))
@@ -1161,86 +1178,86 @@ public static class OpenApiSchemaExtensions
 
                 if (min is not null || max is not null)
                 {
-                    attributes.Add($"Range({min ?? "double.MinValue"}, {max ?? "double.MaxValue"}{flags})");
+                    yield return $"Range({min ?? "double.MinValue"}, {max ?? "double.MaxValue"}{flags})";
                 }
             }
+        }
 
-            // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
-            // project declares (LengthLimitAttributesExtractor)
-            // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[])
-            if (schemaType.HasFlag(JsonSchemaType.String))
+        // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
+        // project declares (LengthLimitAttributesExtractor)
+        // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[])
+        private static IEnumerable<string> StringAttributes(
+            OpenApiSchema actualSchema)
+        {
+            var format = actualSchema.Format?.ToLowerInvariant();
+            var isNonStringFormat = format is "uri" or "uuid" or "date" or "date-time" or "byte";
+
+            if (!isNonStringFormat)
             {
-                var format = actualSchema.Format?.ToLowerInvariant();
-                var isNonStringFormat = format is "uri" or "uuid" or "date" or "date-time" or "byte";
-
-                if (!isNonStringFormat)
+                if (actualSchema.MinLength > 0)
                 {
-                    if (actualSchema.MinLength > 0)
-                    {
-                        attributes.Add($"ApiMinLength({actualSchema.MinLength})");
-                    }
-
-                    if (actualSchema.MaxLength > 0)
-                    {
-                        attributes.Add($"ApiMaxLength({actualSchema.MaxLength})");
-                    }
-
-                    // Regular expression validation: ApiRegularExpression, the generated RegularExpression that matches an
-                    // empty string against the pattern too (the base counts "" as valid; the specification's pattern
-                    // applies to it). A verbatim literal keeps the backslashes; a double quote is doubled
-                    if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
-                    {
-                        var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
-                        attributes.Add($"ApiRegularExpression(@\"{escapedPattern}\")");
-                    }
+                    yield return $"ApiMinLength({actualSchema.MinLength})";
                 }
 
-                // Format-based validation attributes: an email address; a uri is absolute (a relative reference is
-                // format: uri-reference), which the Uri it binds to does not check
-                switch (format)
+                if (actualSchema.MaxLength > 0)
                 {
-                    case "email":
-                        attributes.Add("EmailAddress");
-                        break;
-                    case "uri":
-                        attributes.Add("ApiAbsoluteUri");
-                        break;
+                    yield return $"ApiMaxLength({actualSchema.MaxLength})";
+                }
+
+                // Regular expression validation: ApiRegularExpression, the generated RegularExpression that matches an
+                // empty string against the pattern too (the base counts "" as valid; the specification's pattern
+                // applies to it). A verbatim literal keeps the backslashes; a double quote is doubled
+                if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
+                {
+                    var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
+                    yield return $"ApiRegularExpression(@\"{escapedPattern}\")";
                 }
             }
 
-            // Array length validation
-            if (schemaType.HasFlag(JsonSchemaType.Array))
+            // Format-based validation attributes: an email address; a uri is absolute (a relative reference is
+            // format: uri-reference), which the Uri it binds to does not check
+            switch (format)
             {
-                var hasMinItems = actualSchema.MinItems > 0;
-                var hasMaxItems = actualSchema.MaxItems > 0;
+                case "email":
+                    yield return "EmailAddress";
+                    break;
+                case "uri":
+                    yield return "ApiAbsoluteUri";
+                    break;
+            }
+        }
 
-                if (hasMinItems)
-                {
-                    attributes.Add($"ApiMinLength({actualSchema.MinItems})");
-                }
+        // Array length validation
+        private static IEnumerable<string> ArrayAttributes(
+            OpenApiSchema actualSchema)
+        {
+            var hasMinItems = actualSchema.MinItems > 0;
+            var hasMaxItems = actualSchema.MaxItems > 0;
 
-                if (hasMaxItems)
-                {
-                    attributes.Add($"ApiMaxLength({actualSchema.MaxItems})");
-                }
-
-                // A pattern on the items (in place, or on the string component they reference): RegularExpression
-                // validates one string, so each item is matched by the generated ApiItemsRegularExpression
-                if (ItemPattern(actualSchema.Items) is { } itemPattern)
-                {
-                    attributes.Add($"ApiItemsRegularExpression(@\"{itemPattern.Replace("\"", "\"\"")}\")");
-                }
-
-                // Items of format: uri are absolute, as one is
-                var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.AliasTarget : actualSchema.Items as OpenApiSchema;
-                if (items is { Type: { } itemType } && itemType.HasFlag(JsonSchemaType.String) &&
-                    string.Equals(items.Format, "uri", StringComparison.OrdinalIgnoreCase))
-                {
-                    attributes.Add("ApiAbsoluteUri");
-                }
+            if (hasMinItems)
+            {
+                yield return $"ApiMinLength({actualSchema.MinItems})";
             }
 
-            return attributes;
+            if (hasMaxItems)
+            {
+                yield return $"ApiMaxLength({actualSchema.MaxItems})";
+            }
+
+            // A pattern on the items (in place, or on the string component they reference): RegularExpression
+            // validates one string, so each item is matched by the generated ApiItemsRegularExpression
+            if (ItemPattern(actualSchema.Items) is { } itemPattern)
+            {
+                yield return $"ApiItemsRegularExpression(@\"{itemPattern.Replace("\"", "\"\"")}\")";
+            }
+
+            // Items of format: uri are absolute, as one is
+            var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.AliasTarget : actualSchema.Items as OpenApiSchema;
+            if (items is { Type: { } itemType } && itemType.HasFlag(JsonSchemaType.String) &&
+                string.Equals(items.Format, "uri", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return "ApiAbsoluteUri";
+            }
         }
 
         /// <summary>
