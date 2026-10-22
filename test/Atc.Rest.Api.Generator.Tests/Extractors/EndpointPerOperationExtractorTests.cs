@@ -1206,6 +1206,37 @@ public class EndpointPerOperationExtractorTests
             StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A parameter an operation redeclares from its path item is sent once, as the operation declares it - the
+    /// per-operation client concatenated both lists and sent it twice.
+    /// </summary>
+    [Fact]
+    public void Extract_AnOperationOverridingAPathLevelParameter_SendsItOnce()
+    {
+        var document = ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets:
+                parameters:
+                  - { name: tenant, in: query, required: true, schema: { type: string } }
+                  - { name: limit, in: query, schema: { type: integer } }
+                get:
+                  operationId: listPets
+                  parameters:
+                    - { name: limit, in: query, required: true, schema: { type: integer } }
+                  responses:
+                    '204': { description: OK }
+            """);
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "pets", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains("WithQueryParameter(\"tenant\"", content, StringComparison.Ordinal);
+        Assert.Equal(2, content.Split(["WithQueryParameter(\"limit\""], StringSplitOptions.None).Length);
+    }
+
     [Fact]
     public void Extract_MixedParameters_GeneratesAllParameterTypes()
     {

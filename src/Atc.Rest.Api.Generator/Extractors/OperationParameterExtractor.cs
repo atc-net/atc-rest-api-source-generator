@@ -392,29 +392,8 @@ public static class OperationParameterExtractor
         // Build parameters from operation parameters
         var parameters = new List<ParameterBaseParameters>();
 
-        // Combine path-level and operation-level parameters
-        // Path parameters are processed first, then operation parameters
-        var allParameters = new List<IOpenApiParameter>();
-        if (pathParameters is not null)
-        {
-            allParameters.AddRange(pathParameters);
-        }
-
-        if (operation.Parameters is not null)
-        {
-            // Operation parameters can override path parameters with the same name
-            foreach (var opParam in operation.Parameters)
-            {
-                var opParamName = opParam.GetName();
-                if (!string.IsNullOrEmpty(opParamName))
-                {
-                    // Remove the path parameter with the same name and location (the operation overrides it)
-                    allParameters.RemoveAll(p => p.GetName() == opParamName && p.GetLocation() == opParam.GetLocation());
-                }
-
-                allParameters.Add(opParam);
-            }
-        }
+        // The path item's parameters, then the operation's (one it redeclares overrides the path item's)
+        var allParameters = operation.EffectiveParameters(pathParameters);
 
         var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
 

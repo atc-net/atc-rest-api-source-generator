@@ -3,6 +3,29 @@ namespace Atc.OpenApi.Tests.Extensions;
 public class OpenApiOperationExtensionsTests
 {
     [Fact]
+    public void EffectiveParameters_ThePathItemsThenTheOperations_ARedeclaredOneOverridden()
+    {
+        var pathParameters = new List<IOpenApiParameter>
+        {
+            new OpenApiParameter { Name = "tenant", In = ParameterLocation.Query },
+            new OpenApiParameter { Name = "limit", In = ParameterLocation.Query, Description = "path item" },
+            new OpenApiParameter { Name = "limit", In = ParameterLocation.Header },
+        };
+        var operation = new OpenApiOperation
+        {
+            Parameters = [new OpenApiParameter { Name = "limit", In = ParameterLocation.Query, Description = "operation" }],
+        };
+
+        var effective = operation.EffectiveParameters(pathParameters);
+
+        Assert.Equal(
+            ["tenant/Query/", "limit/Header/", "limit/Query/operation"],
+            effective.Select(p => $"{p.Name}/{p.In}/{p.Description}"),
+            StringComparer.Ordinal);
+        Assert.Empty(new OpenApiOperation().EffectiveParameters(pathParameters: null));
+    }
+
+    [Fact]
     public void GetStreamingItemSchema_ItemSchemaPresent_ReturnsItem()
     {
         var op = CreateOperationWithItemSchema("text/event-stream");

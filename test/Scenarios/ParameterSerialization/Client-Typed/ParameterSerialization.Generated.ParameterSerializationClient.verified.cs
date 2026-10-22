@@ -152,6 +152,31 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Item>>())!;
     }
 
+    public async Task<List<string>> ListItemReportsAsync(
+        ListItemReportsParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}/reports";
+        var queryParams = new List<string>();
+        queryParams.Add($"limit={Uri.EscapeDataString(((global::System.IFormattable?)parameters.Limit)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}");
+
+        if (queryParams.Count > 0)
+        {
+            url += "?" + string.Join("&", queryParams);
+        }
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        if (parameters.Region is { Length: > 0 } headerRegion)
+        {
+            requestMessage.Headers.Add("x-region", headerRegion);
+        }
+
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<string>>())!;
+    }
+
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

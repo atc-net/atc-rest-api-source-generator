@@ -24,4 +24,8 @@ public interface IParameterSerializationClient
     Task<List<Item>> ListItemsByQueryStringAsync(
         ListItemsByQueryStringParameters parameters,
         CancellationToken cancellationToken = default);
+
+    Task<List<string>> ListItemReportsAsync(
+        ListItemReportsParameters parameters,
+        CancellationToken cancellationToken = default);
 }

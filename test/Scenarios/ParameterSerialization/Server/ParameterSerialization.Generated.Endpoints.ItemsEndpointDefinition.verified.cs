@@ -51,6 +51,17 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(ListItemsByQueryStringParametersWire.Parameters, requireParameters: true);
+
+        items
+            .MapGet("{itemId}/reports", ListItemReports)
+            .WithName("ListItemReports")
+            .WithSummary("The path item's path, header and query parameters, one of them redeclared by the operation")
+            .Produces<List<string>>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding(ListItemReportsParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListItems(
@@ -65,6 +76,15 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> ListItemsByQueryString(
         [FromServices] IListItemsByQueryStringHandler handler,
         [AsParameters] ListItemsByQueryStringParameters parameters,
+        CancellationToken cancellationToken)
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
+
+    internal async Task<IResult> ListItemReports(
+        [FromServices] IListItemReportsHandler handler,
+        [AsParameters] ListItemReportsParameters parameters,
         CancellationToken cancellationToken)
         => (await handler.ExecuteAsync(
                 parameters,

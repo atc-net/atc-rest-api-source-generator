@@ -860,10 +860,11 @@ public static class HttpClientExtractor
         // /svc-a/prices; a leading slash would replace that path
         var urlBuilder = (serverBasePath is not null ? $"{serverBasePath}{path}" : path).TrimStart('/');
 
-        // Process path-level parameters first
-        if (pathLevelParameters is not null)
-        {
-            foreach (var paramInterface in pathLevelParameters)
+        // The parameters the operation is called with: its path item's, except one it redeclares, then its own
+        var effectiveParameters = operation.EffectiveParameters(pathLevelParameters);
+
+        // The path parameters into the URL
+        foreach (var paramInterface in effectiveParameters)
             {
                 var resolved = paramInterface.Resolve();
                 var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
@@ -886,36 +887,6 @@ public static class HttpClientExtractor
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
-        }
-
-        // Then process operation-level parameters
-        if (operation.Parameters is not null)
-        {
-            foreach (var paramInterface in operation.Parameters)
-            {
-                // Resolve parameter reference if needed
-                var resolved = paramInterface.Resolve();
-                var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
-                if (param is null || string.IsNullOrEmpty(param.Name))
-                {
-                    continue;
-                }
-
-                if (param.In == ParameterLocation.Path)
-                {
-                    var propName = propertyNames.Get(param, referenceId);
-                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
-                    var replacement = param.GetArrayDelimiter() is { } delimiter
-                        ? $"{{{JoinedItemsExpression(param, $"parameters.{propName}", paramType, delimiter, escapeItems: true)}}}"
-                        : WireValueHelper.IsStringEnum(param.Schema)
-                            ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
-                            : WireValueHelper.IsIntegerEnum(param.Schema)
-                                ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
-                                : BuildPathParameterReplacement(propName, paramType);
-                    urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
-                }
-            }
-        }
 
         builder.AppendLine(
             urlBuilder.Contains('{')
@@ -927,34 +898,31 @@ public static class HttpClientExtractor
         var headerParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
         var cookieParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
         var querystringParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        if (operation.Parameters is not null)
+        foreach (var paramInterface in effectiveParameters)
         {
-            foreach (var paramInterface in operation.Parameters)
+            var resolved = paramInterface.Resolve();
+            var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
+
+            // A value the client cannot send is left out (ATC_API_OPR037 warned)
+            if (param?.IsUnbindable() == true)
             {
-                var resolved = paramInterface.Resolve();
-                var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
+                continue;
+            }
 
-                // A value the client cannot send is left out (ATC_API_OPR037 warned)
-                if (param?.IsUnbindable() == true)
-                {
-                    continue;
-                }
-
-                switch (param)
-                {
-                    case { In: ParameterLocation.Query }:
-                        queryParams.Add((param, referenceId));
-                        break;
-                    case { In: ParameterLocation.Header }:
-                        headerParams.Add((param, referenceId));
-                        break;
-                    case { In: ParameterLocation.Cookie }:
-                        cookieParams.Add((param, referenceId));
-                        break;
-                    case { In: ParameterLocation.QueryString }:
-                        querystringParams.Add((param, referenceId));
-                        break;
-                }
+            switch (param)
+            {
+                case { In: ParameterLocation.Query }:
+                    queryParams.Add((param, referenceId));
+                    break;
+                case { In: ParameterLocation.Header }:
+                    headerParams.Add((param, referenceId));
+                    break;
+                case { In: ParameterLocation.Cookie }:
+                    cookieParams.Add((param, referenceId));
+                    break;
+                case { In: ParameterLocation.QueryString }:
+                    querystringParams.Add((param, referenceId));
+                    break;
             }
         }
 

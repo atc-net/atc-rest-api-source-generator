@@ -1052,32 +1052,16 @@ public static class EndpointPerOperationExtractor
         }
 
         // Add path parameters
+        // The parameters the operation is called with: its path item's, except one it redeclares, then its own
         var allParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        if (pathLevelParameters is not null)
+        foreach (var p in operation.EffectiveParameters(pathLevelParameters))
         {
-            foreach (var p in pathLevelParameters)
+            var resolved = p.Resolve();
+
+            // A value the client cannot send is left out (ATC_API_OPR037 warned)
+            if (resolved.Parameter is not null && !resolved.Parameter.IsUnbindable())
             {
-                var resolved = p.Resolve();
-
-                // A value the client cannot send is left out (ATC_API_OPR037 warned)
-                if (resolved.Parameter is not null && !resolved.Parameter.IsUnbindable())
-                {
-                    allParams.Add((resolved.Parameter, resolved.ReferenceId));
-                }
-            }
-        }
-
-        if (operation.Parameters is not null)
-        {
-            foreach (var p in operation.Parameters)
-            {
-                var resolved = p.Resolve();
-
-                // A value the client cannot send is left out (ATC_API_OPR037 warned)
-                if (resolved.Parameter is not null && !resolved.Parameter.IsUnbindable())
-                {
-                    allParams.Add((resolved.Parameter, resolved.ReferenceId));
-                }
+                allParams.Add((resolved.Parameter, resolved.ReferenceId));
             }
         }
 

@@ -11,6 +11,7 @@ const itemsKeys = {
   all: ['items'] as const,
   list: (query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }) => [...itemsKeys.all, 'list', query] as const,
   listItemsByQueryString: (rawFilter?: string) => [...itemsKeys.all, 'listItemsByQueryString', rawFilter] as const,
+  listItemReports: (itemId: string, query: { limit: number }) => [...itemsKeys.all, 'listItemReports', itemId, query] as const,
 };
 
 export { itemsKeys };
@@ -59,6 +60,25 @@ const itemsQueries = {
     },
     retry: false,
   }),
+  listItemReports: (api: ApiService, itemId: string, query: { limit: number }, headers: { 'x-region': string }) => queryOptions<string[], ApiError>({
+    queryKey: itemsKeys.listItemReports(itemId, query),
+    queryFn: async ({ signal }) => {
+      const result = await api.items.listItemReports(itemId, query, headers, signal);
+      if (result.status === 'ok') {
+        return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    retry: false,
+  }),
 };
 
 export { itemsQueries };
@@ -78,5 +98,15 @@ export function useListItemsByQueryString(rawFilter?: string, options?: Omit<Use
   return useQuery({
     ...itemsQueries.listItemsByQueryString(api, rawFilter),
     ...options,
+  });
+}
+
+/** The path item's path, header and query parameters, one of them redeclared by the operation */
+export function useListItemReports(itemId: string, query: { limit: number }, headers: { 'x-region': string }, options?: Omit<UseQueryOptions<string[], ApiError>, 'queryKey' | 'queryFn'>) {
+  const api = useApiService();
+  return useQuery({
+    ...itemsQueries.listItemReports(api, itemId, query, headers),
+    ...options,
+    enabled: itemId != null && (options?.enabled ?? true),
   });
 }

@@ -1126,6 +1126,40 @@ public class HttpClientExtractorTests
     }
 
     /// <summary>
+    /// The parameters a path item declares for all its operations are sent - the typed client sent only the operation's
+    /// own query and header parameters (the parameters record had the property, the request never carried it) - and
+    /// one the operation redeclares is sent once, as the operation declares it.
+    /// </summary>
+    [Fact]
+    public void Extract_PathLevelQueryAndHeaderParameters_AreSentOnce()
+    {
+        var document = ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets:
+                parameters:
+                  - { name: tenant, in: query, required: true, schema: { type: string } }
+                  - { name: x-trace, in: header, required: true, schema: { type: string } }
+                  - { name: limit, in: query, schema: { type: integer } }
+                get:
+                  operationId: listPets
+                  parameters:
+                    - { name: limit, in: query, required: true, schema: { type: integer } }
+                  responses:
+                    '204': { description: OK }
+            """);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        var content = clientClass!.Methods!.First(m => m.Name == "ListPetsAsync").Content!;
+        Assert.Contains("tenant=", content, StringComparison.Ordinal);
+        Assert.Contains("\"x-trace\"", content, StringComparison.Ordinal);
+        Assert.Equal(2, content.Split(["limit="], StringSplitOptions.None).Length);
+    }
+
+    /// <summary>
     /// A file or multipart body is sent on every verb, not only on POST: a PUT or PATCH that uploads a photo sent no body
     /// at all (<c>PutAsync(url, null, …)</c>).
     /// </summary>

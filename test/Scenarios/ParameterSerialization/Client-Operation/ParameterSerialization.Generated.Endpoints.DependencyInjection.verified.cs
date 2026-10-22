@@ -53,6 +53,7 @@ public static class EndpointsServiceCollectionExtensions
 
         services.AddTransient<IListItemsEndpoint, ListItemsEndpoint>();
         services.AddTransient<IListItemsByQueryStringEndpoint, ListItemsByQueryStringEndpoint>();
+        services.AddTransient<IListItemReportsEndpoint, ListItemReportsEndpoint>();
 
         return services;
     }

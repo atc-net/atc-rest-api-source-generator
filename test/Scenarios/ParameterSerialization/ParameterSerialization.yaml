@@ -105,6 +105,40 @@ paths:
                 items:
                   $ref: "#/components/schemas/Item"
 
+  /items/{itemId}/reports:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: x-region
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+    get:
+      operationId: listItemReports
+      summary: The path item's path, header and query parameters, one of them redeclared by the operation
+      parameters:
+        - name: limit
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The report names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
 components:
   schemas:
     ItemFilter:

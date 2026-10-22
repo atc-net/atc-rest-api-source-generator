@@ -1807,25 +1807,7 @@ using Microsoft.AspNetCore.Builder;
             }
 
             // Also add path-level and operation-level parameters (e.g., {pizzaId}) to the method signature
-            var allNonFormParameters = new List<IOpenApiParameter>();
-            if (pathParameters is not null)
-            {
-                allNonFormParameters.AddRange(pathParameters);
-            }
-
-            if (operation.Parameters is not null)
-            {
-                foreach (var opParam in operation.Parameters)
-                {
-                    var opParamName = opParam.GetName();
-                    if (!string.IsNullOrEmpty(opParamName))
-                    {
-                        allNonFormParameters.RemoveAll(p => p.GetName() == opParamName && p.GetLocation() == opParam.GetLocation());
-                    }
-
-                    allNonFormParameters.Add(opParam);
-                }
-            }
+            var allNonFormParameters = operation.EffectiveParameters(pathParameters);
 
             var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
             foreach (var paramOrRef in allNonFormParameters)

@@ -37,6 +37,31 @@ public static class OpenApiOperationExtensions
     extension(OpenApiOperation operation)
     {
         /// <summary>
+        /// The parameters the operation is called with: its path item's, except one the operation redeclares with the
+        /// same name and location, then the operation's own - in that order.
+        /// </summary>
+        /// <param name="pathParameters">The path item's parameters, which the operation inherits.</param>
+        /// <returns>The effective parameters (still references where the specification has them).</returns>
+        public IReadOnlyList<IOpenApiParameter> EffectiveParameters(
+            IList<IOpenApiParameter>? pathParameters)
+        {
+            var result = new List<IOpenApiParameter>(pathParameters ?? []);
+            foreach (var parameter in operation.Parameters ?? [])
+            {
+                var name = parameter.GetName();
+                if (!string.IsNullOrEmpty(name))
+                {
+                    var location = parameter.GetLocation();
+                    result.RemoveAll(p => string.Equals(p.GetName(), name, StringComparison.Ordinal) && p.GetLocation() == location);
+                }
+
+                result.Add(parameter);
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Gets the operation ID, or generates one from the HTTP method and the path when it is missing or empty -
         /// in both cases as an identifier: a character that is none becomes an underscore (<c>repos/get</c> is
         /// <c>repos_get</c>) and an id that starts with a digit is prefixed (<c>1stThing</c> is <c>Op1stThing</c>),

@@ -79,3 +79,14 @@ public sealed record ListItemsByQueryStringParameters(
     [FromQuery(Name = "\u001fquerystring")]
     public string? RawFilter { get; init; } = RawFilter;
 }
+
+/// <summary>
+/// Parameters for operation request.
+/// Description: The path item's path, header and query parameters, one of them redeclared by the operation.
+/// Operation: ListItemReports.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record ListItemReportsParameters(
+    [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] string ItemId,
+    [property: FromHeader(Name = "x-region"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "x-region")] string Region,
+    [property: FromQuery(Name = "limit"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "limit")] int Limit);

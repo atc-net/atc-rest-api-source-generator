@@ -35,3 +35,14 @@ public interface IListItemsByQueryStringHandler
         ListItemsByQueryStringParameters parameters,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// The path item's path, header and query parameters, one of them redeclared by the operation.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IListItemReportsHandler
+{
+    Task<ListItemReportsResult> ExecuteAsync(
+        ListItemReportsParameters parameters,
+        CancellationToken cancellationToken = default);
+}

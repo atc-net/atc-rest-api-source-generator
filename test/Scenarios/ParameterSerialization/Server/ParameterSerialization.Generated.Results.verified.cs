@@ -91,3 +91,42 @@ public sealed class ListItemsByQueryStringResult : IResult, INestedHttpResult
     public static IResult ToIResult(ListItemsByQueryStringResult result)
         => result.Result;
 }
+
+/// <summary>
+/// The path item's path, header and query parameters, one of them redeclared by the operation.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class ListItemReportsResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private ListItemReportsResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The report names.
+    /// </summary>
+    public static ListItemReportsResult Ok(List<string> response)
+        => new(TypedResults.Ok(response));
+
+    public static implicit operator ListItemReportsResult(List<string> response)
+        => Ok(response);
+
+    public static implicit operator ListItemReportsResult(string[] response)
+        => Ok(response.ToList());
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts ListItemReportsResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(ListItemReportsResult result)
+        => result.Result;
+}
