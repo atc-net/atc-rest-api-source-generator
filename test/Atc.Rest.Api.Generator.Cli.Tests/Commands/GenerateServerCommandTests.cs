@@ -31,6 +31,42 @@ public sealed class GenerateServerCommandTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// A <c>.yml</c> part beside a <c>.yaml</c> base goes into the repository and the contracts project with the base, as
+    /// the build reads it - only parts with the base file's own extension were copied, so the build missed the part.
+    /// </summary>
+    [Fact]
+    public async Task GenerateServer_APartWithAnotherExtension_IsCopiedAndListedWithTheBase()
+    {
+        // Arrange - the specification outside the repository, so the command copies it in
+        var specDir = Path.Combine(tempOutputDir, "specs");
+        Directory.CreateDirectory(specDir);
+        var basePath = Path.Combine(specDir, "Shop.yaml");
+        await File.WriteAllTextAsync(
+            basePath,
+            "openapi: 3.0.3\ninfo:\n  title: Shop\n  version: 1.0.0\npaths:\n  /pets:\n    get:\n      operationId: listPets\n      responses:\n        '204':\n          description: OK\n",
+            TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(specDir, "Shop_Orders.yml"),
+            "openapi: 3.0.3\ninfo:\n  title: Shop\n  version: 1.0.0\npaths:\n  /orders:\n    get:\n      operationId: listOrders\n      responses:\n        '204':\n          description: OK\n",
+            TestContext.Current.CancellationToken);
+        var repoRoot = Path.Combine(tempOutputDir, "Shop");
+        var arguments = $"generate server -s \"{basePath}\" -o \"{repoRoot}\" -n \"Shop\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+        Assert.NotEmpty(Directory.GetFiles(repoRoot, "Shop_Orders.yml", SearchOption.AllDirectories));
+        var contractsProject = Assert.Single(Directory.GetFiles(repoRoot, "Shop.Api.Contracts.csproj", SearchOption.AllDirectories));
+        Assert.Contains("Shop_Orders.yml", await File.ReadAllTextAsync(contractsProject, TestContext.Current.CancellationToken), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GenerateServer_WithProjectNameOnly_WritesNamespaceToMarkerFile()
     {

@@ -1,7 +1,7 @@
 namespace Atc.Rest.Api.Generator.Cli.Helpers;
 
 /// <summary>
-/// Watches a specification file and its multi-part files (<c>{Base}_{Part}.yaml</c>) for <c>--watch</c>, and calls
+/// Watches a specification file and its multi-part files (<c>{Base}_{Part}.yaml</c>, <c>.yml</c>, <c>.json</c>) for <c>--watch</c>, and calls
 /// back - debounced - when one of them is saved.
 /// </summary>
 public sealed class SpecificationWatcher : IDisposable
@@ -31,7 +31,13 @@ public sealed class SpecificationWatcher : IDisposable
         {
             NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.FileName | NotifyFilters.Size,
         };
-        watcher.Filters.Add(Path.GetFileNameWithoutExtension(specPath) + "_*" + Path.GetExtension(specPath));
+
+        // The parts, with any specification extension, as the build finds them
+        foreach (var extension in new[] { ".yaml", ".yml", ".json" })
+        {
+            watcher.Filters.Add(Path.GetFileNameWithoutExtension(specPath) + "_*" + extension);
+        }
+
         watcher.Changed += (_, _) => Bump();
         watcher.Created += (_, _) => Bump();
         watcher.Renamed += (_, _) => Bump();

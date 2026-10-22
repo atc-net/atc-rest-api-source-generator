@@ -23,6 +23,7 @@ public sealed class SpecificationWatcherTests : IDisposable
     [InlineData("rename")]
     [InlineData("write")]
     [InlineData("part")]
+    [InlineData("part-yml")]
     public async Task Watcher_SeesARenameSave_AWrite_AndAPartFile(string how)
     {
         var specPath = Path.Combine(directory, "Api.yaml");
@@ -39,6 +40,10 @@ public sealed class SpecificationWatcherTests : IDisposable
                 break;
             case "write":
                 await File.WriteAllTextAsync(specPath, "openapi: 3.0.3\ninfo: {}\n", TestContext.Current.CancellationToken);
+                break;
+            case "part-yml":
+                // A part with another specification extension than the base, as the build reads it
+                await File.WriteAllTextAsync(Path.Combine(directory, "Api_Orders.yml"), "openapi: 3.0.3\n", TestContext.Current.CancellationToken);
                 break;
             default:
                 await File.WriteAllTextAsync(Path.Combine(directory, "Api_Users.yaml"), "openapi: 3.0.3\n", TestContext.Current.CancellationToken);

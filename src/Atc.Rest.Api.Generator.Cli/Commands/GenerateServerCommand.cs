@@ -880,30 +880,10 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     }
 
     /// <summary>
-    /// Gets all specification files including multi-part files.
-    /// Multi-part files follow the pattern: Base.yaml, Base_Part1.yaml, Base_Part2.yaml.
+    /// The specification files: the base file, then its parts as the build finds them (any specification extension).
     /// </summary>
     private static List<string> GetSpecificationFiles(string primarySpecPath)
-    {
-        var specDir = Path.GetDirectoryName(primarySpecPath);
-        if (string.IsNullOrEmpty(specDir))
-        {
-            return [primarySpecPath];
-        }
-
-        var baseName = Path.GetFileNameWithoutExtension(primarySpecPath);
-        var extension = Path.GetExtension(primarySpecPath);
-
-        var allSpecFiles = new List<string> { primarySpecPath };
-
-        // Find multi-part files (e.g., MyApi_Users.yaml, MyApi_Products.yaml)
-        var partPattern = $"{baseName}_*{extension}";
-        var partFiles = Directory.GetFiles(specDir, partPattern)
-            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
-
-        allSpecFiles.AddRange(partFiles);
-        return allSpecFiles;
-    }
+        => [primarySpecPath, .. SpecificationService.DiscoverPartFilePaths(primarySpecPath)];
 
     /// <summary>
     /// Determines if spec is inside repository and returns the effective spec path for projects.
