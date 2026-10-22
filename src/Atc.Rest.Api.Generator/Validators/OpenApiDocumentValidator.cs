@@ -2644,8 +2644,8 @@ public static class OpenApiDocumentValidator
                 continue;
             }
 
-            var xmlOnly = XmlBodyHelper.FindXmlOnlyBody(content);
-            var alternative = XmlBodyHelper.FindXmlAlternative(content);
+            var xmlOnly = content.XmlOnlyBody;
+            var alternative = content.XmlAlternative;
             foreach (var xml in xmlEntries)
             {
                 var generated = string.Equals(xmlOnly?.MediaType, xml, StringComparison.OrdinalIgnoreCase) ||
@@ -2688,8 +2688,8 @@ public static class OpenApiDocumentValidator
                 }
             }
 
-            var xmlOnly = XmlBodyHelper.FindXmlOnlyBody(requestContent);
-            var alternative = XmlBodyHelper.FindXmlAlternative(requestContent);
+            var xmlOnly = requestContent.XmlOnlyBody;
+            var alternative = requestContent.XmlAlternative;
             foreach (var xml in requestContent.Where(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Xml).Select(e => e.Key))
             {
                 var body = string.Equals(xmlOnly?.MediaType, xml, StringComparison.OrdinalIgnoreCase)

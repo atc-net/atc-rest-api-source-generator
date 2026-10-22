@@ -222,7 +222,7 @@ public static class TypeScriptOperationHelper
             return schema;
         }
 
-        return XmlBodyHelper.FindXmlOnlyBody(response.Content) is { } xml
+        return response.Content.XmlOnlyBody is { } xml
             ? response.Content![xml.MediaType].Schema
             : null;
     }

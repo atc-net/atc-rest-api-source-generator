@@ -639,14 +639,14 @@ public static class HttpClientExtractor
                 }
 
                 // Offered as XML too: ask for JSON first (preferXml: XML), read whatever Content-Type comes back
-                if (!isAsyncEnumerable && XmlBodyHelper.FindXmlAlternative(response.Content) is { } alternative)
+                if (!isAsyncEnumerable && response.Content.XmlAlternative is { } alternative)
                 {
                     xmlRead = new XmlReadPlan(XmlBodyHelper.ReadMethod(contentType, alternative), ByContentType: true, XmlBodyHelper.AcceptFor([alternative], XmlBodyHelper.ErrorMediaTypes(operation), preferXml)!);
                 }
             }
         }
         else if (response?.Content is not null &&
-                 XmlBodyHelper.FindXmlOnlyBody(response.Content) is { } xmlBody &&
+                 response.Content.XmlOnlyBody is { } xmlBody &&
                  GetSchemaTypeName(response.Content[xmlBody.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas) is { Length: > 0 } xmlType)
         {
             // An XML-only model body: read by the model's generated XML mapping
@@ -683,7 +683,7 @@ public static class HttpClientExtractor
         {
             var xmlBodies = xmlRead?.ReadMethod is null
                 ? []
-                : new[] { xmlRead.ByContentType ? XmlBodyHelper.FindXmlAlternative(response!.Content) : XmlBodyHelper.FindXmlOnlyBody(response!.Content) }.Where(b => b is not null).Select(b => b!).ToList();
+                : new[] { xmlRead.ByContentType ? response!.Content.XmlAlternative : response!.Content.XmlOnlyBody }.Where(b => b is not null).Select(b => b!).ToList();
             xmlRead = (xmlRead ?? new XmlReadPlan(ReadMethod: null, ByContentType: false, Accept: null)) with
             {
                 Accept = XmlBodyHelper.AcceptFor(xmlBodies, XmlBodyHelper.ErrorMediaTypes(operation), preferXml, fileMediaTypes),

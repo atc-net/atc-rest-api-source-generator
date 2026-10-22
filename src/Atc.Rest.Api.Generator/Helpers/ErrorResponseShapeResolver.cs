@@ -175,7 +175,7 @@ public static class ErrorResponseShapeResolver
             }
 
             // A declared model as XML (a third-party API's XML error): written and read by the model's XML mapping
-            if (XmlBodyHelper.FindXmlOnlyBody(content) is { IsList: false } xml)
+            if (content.XmlOnlyBody is { IsList: false } xml)
             {
                 return new ErrorResponseShape(ErrorResponseKind.XmlObject, xml.MediaType, content[xml.MediaType].Schema);
             }

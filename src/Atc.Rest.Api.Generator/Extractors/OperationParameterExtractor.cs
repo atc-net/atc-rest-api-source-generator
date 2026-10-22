@@ -563,7 +563,7 @@ public static class OperationParameterExtractor
             var (requestBodySchema, contentType) = operation.GetRequestBodySchemaWithContentType();
 
             // An XML-only model body is the Request too (read and written by the model's XML mapping)
-            if (requestBodySchema is null && XmlBodyHelper.FindXmlOnlyBody(operation.RequestBody?.Content) is { } xmlOnlyBody)
+            if (requestBodySchema is null && operation.RequestBody?.Content.XmlOnlyBody is { } xmlOnlyBody)
             {
                 requestBodySchema = operation.RequestBody!.Content![xmlOnlyBody.MediaType].Schema;
                 contentType = xmlOnlyBody.MediaType;

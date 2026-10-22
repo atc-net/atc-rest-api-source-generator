@@ -1441,7 +1441,7 @@ using Microsoft.AspNetCore.Builder;
                 if (openApiResponse.Content is not null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
                 {
                     contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
-                    if (XmlBodyHelper.FindXmlAlternative(openApiResponse.Content)?.AlternativeMediaTypes is { } xmlMediaTypes)
+                    if (openApiResponse.Content.XmlAlternative?.AlternativeMediaTypes is { } xmlMediaTypes)
                     {
                         negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
                     }
@@ -1450,7 +1450,7 @@ using Microsoft.AspNetCore.Builder;
                         negotiatedMediaTypes = ", \"application/json\"" + fileMediaTypes;
                     }
                 }
-                else if (XmlBodyHelper.FindXmlOnlyBody(openApiResponse.Content) is { } xmlBody)
+                else if (openApiResponse.Content.XmlOnlyBody is { } xmlBody)
                 {
                     // An XML-only model body: the model, with its XML media type (Produces<T>() alone means JSON)
                     contentType = GetResponseContentType(openApiResponse.Content![xmlBody.MediaType].Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);

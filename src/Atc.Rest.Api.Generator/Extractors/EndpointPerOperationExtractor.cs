@@ -556,7 +556,7 @@ public static class EndpointPerOperationExtractor
             {
                 contentType = "DownloadedFile";
             }
-            else if (isSuccess && XmlBodyHelper.FindXmlOnlyBody(response.Value?.Content) is { } xml)
+            else if (isSuccess && response.Value?.Content.XmlOnlyBody is { } xml)
             {
                 // An XML-only model body: Atc.Rest.Client keeps it (bytes, or text for text/xml), OkContent reads the XML
                 contentType = GetSchemaTypeName(response.Value!.Content![xml.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas, isAsyncEnumerable: false);
@@ -586,7 +586,7 @@ public static class EndpointPerOperationExtractor
                 // Offered as XML too: read by the response's Content-Type
                 if (isSuccess && !isAsyncEnumerable)
                 {
-                    xmlBody = XmlBodyHelper.FindXmlAlternative(response.Value.Content);
+                    xmlBody = response.Value.Content.XmlAlternative;
                 }
             }
             else if (response.Value is not null &&

@@ -476,7 +476,7 @@ public static class TypeScriptClientExtractor
             .Select(r => r.Value)
             .FirstOrDefault();
         var content = success?.Content;
-        if ((XmlBodyHelper.FindXmlOnlyBody(content) ?? XmlBodyHelper.FindXmlAlternative(content)) is { } responseXml &&
+        if ((content.XmlOnlyBody ?? content.XmlAlternative) is { } responseXml &&
             ModelKey(content![responseXml.MediaType].Schema, responseXml.IsList) is { } responseKey)
         {
             var names = TypeScriptXmlHelperExtractor.FunctionNames(responseKey);

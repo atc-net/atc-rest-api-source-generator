@@ -680,12 +680,12 @@ public static class ResultClassExtractor
         // An XML-only model body (no JSON media type declared): the model, written as its generated XML; a JSON body
         // offered as XML too: negotiated by Accept (JSON unless XML is preferred)
         XmlBody? xmlBody = null;
-        if (!isFileDownload && contentType is null && XmlBodyHelper.FindXmlOnlyBody(responseValue.Content) is { } xml)
+        if (!isFileDownload && contentType is null && responseValue.Content.XmlOnlyBody is { } xml)
         {
             contentType = GetSchemaTypeName(responseValue.Content![xml.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
             xmlBody = contentType is null ? null : xml;
         }
-        else if (!isFileDownload && !isAsyncEnumerable && contentType is not null && XmlBodyHelper.FindXmlAlternative(responseValue.Content) is { } alternative)
+        else if (!isFileDownload && !isAsyncEnumerable && contentType is not null && responseValue.Content.XmlAlternative is { } alternative)
         {
             xmlBody = alternative;
         }

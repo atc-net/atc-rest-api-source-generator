@@ -5,8 +5,25 @@ namespace Atc.Rest.Api.Generator.Helpers;
 /// the generated <c>{Model}Xml</c> calls that write and read it. Shared by the server and both C# clients, so every
 /// side reads what the others write.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class XmlBodyHelper
 {
+    /// <param name="content">The request or response content.</param>
+    extension(IDictionary<string, IOpenApiMediaType>? content)
+    {
+        /// <summary>
+        /// Gets the XML body of the content when it declares no JSON media type (<see cref="FindXmlOnlyBody"/>).
+        /// </summary>
+        public XmlBody? XmlOnlyBody
+            => FindXmlOnlyBody(content);
+
+        /// <summary>
+        /// Gets the XML media type offered beside a JSON one (<see cref="FindXmlAlternative"/>).
+        /// </summary>
+        public XmlBody? XmlAlternative
+            => FindXmlAlternative(content);
+    }
+
     /// <summary>
     /// The generated list type a JSON-only array body is read into.
     /// </summary>
