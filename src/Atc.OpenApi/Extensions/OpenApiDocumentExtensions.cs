@@ -31,7 +31,7 @@ public static class OpenApiDocumentExtensions
         /// document was not parsed through <c>OpenApiDocumentHelper</c> (e.g. constructed
         /// in-memory) and therefore carries no version metadata.
         /// </returns>
-        public OpenApiSpecVersion? GetOpenApiSpecVersion()
+        public OpenApiSpecVersion? SpecVersion
             => document?.Metadata is not null &&
                document.Metadata.TryGetValue(SpecVersionMetadataKey, out var value) &&
                value is OpenApiSpecVersion specVersion
@@ -63,7 +63,7 @@ public static class OpenApiDocumentExtensions
         /// Checks if the document has any webhooks defined (OpenAPI 3.1 feature).
         /// </summary>
         /// <returns>True if the document has webhooks.</returns>
-        public bool HasWebhooks()
+        public bool HasWebhooks
             => document?.Webhooks?.Count > 0;
 
         /// <summary>
@@ -79,9 +79,7 @@ public static class OpenApiDocumentExtensions
         /// Gets the count of webhooks in the document.
         /// </summary>
         /// <returns>The number of webhooks.</returns>
-#pragma warning disable CA1024 // Use properties where appropriate - extension method cannot be a property
-        public int GetWebhooksCount()
-#pragma warning restore CA1024
+        public int WebhooksCount
             => document?.Webhooks?.Count ?? 0;
     }
 

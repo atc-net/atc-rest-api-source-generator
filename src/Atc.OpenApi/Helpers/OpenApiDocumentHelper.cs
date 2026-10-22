@@ -257,7 +257,7 @@ public static class OpenApiDocumentHelper
     /// <summary>
     /// Stashes the parsed OpenAPI specification version onto the document's
     /// (non-serialized) metadata bag, so that downstream code holding only the
-    /// document can recover it via <c>OpenApiDocument.GetOpenApiSpecVersion()</c>.
+    /// document can recover it via <c>OpenApiDocument.SpecVersion</c>.
     /// The spec version is only exposed on the parser diagnostic, not the document.
     /// </summary>
     private static void StashSpecVersion(

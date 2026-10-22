@@ -36,7 +36,7 @@ internal sealed class TypeScriptDiscriminatorLiterals
         foreach (var (_, schema) in openApiDoc.Components.Schemas)
         {
             if (schema is not OpenApiSchema union ||
-                union.GetDiscriminatorPropertyName() is not { Length: > 0 } propertyName)
+                union.DiscriminatorPropertyName is not { Length: > 0 } propertyName)
             {
                 continue;
             }

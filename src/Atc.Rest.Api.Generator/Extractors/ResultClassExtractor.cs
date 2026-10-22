@@ -1662,14 +1662,14 @@ public static class ResultClassExtractor
             if (openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
                 resolvedSchema is OpenApiSchema { Items: not null } arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
-                !arraySchema.HasPrefixItems())
+                !arraySchema.HasPrefixItems)
             {
                 // This is a simple array alias - resolve to the underlying array type
                 return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
             }
 
             // A primitive alias (ProductCode: a string with a pattern) is no generated type: it is the primitive
-            if (schemaRef.GetAliasTarget() is { } aliasTarget)
+            if (schemaRef.AliasTarget is { } aliasTarget)
             {
                 return GetSchemaTypeName(aliasTarget, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
             }

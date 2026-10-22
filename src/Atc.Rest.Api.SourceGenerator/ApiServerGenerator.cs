@@ -803,7 +803,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Generate webhook handlers, parameters, results, endpoints, and DI (only if webhooks exist and enabled)
-        if (config.GenerateWebhooks && openApiDoc.HasWebhooks())
+        if (config.GenerateWebhooks && openApiDoc.HasWebhooks)
         {
             GenerateWebhookHandlerInterfaces(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookParameterClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);

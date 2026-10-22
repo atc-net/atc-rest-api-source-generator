@@ -779,7 +779,7 @@ public static class OperationParameterExtractor
 
             // A $ref to a primitive alias (ProductCode: a string with a pattern) has no named C# type either: the
             // parameter is the primitive
-            if (schemaRef.GetAliasTarget() is { } aliasTarget)
+            if (schemaRef.AliasTarget is { } aliasTarget)
             {
                 return MapOpenApiTypeToCSharp(aliasTarget, isRequired, registry);
             }
@@ -890,7 +890,7 @@ public static class OperationParameterExtractor
             return "List<object>";
         }
 
-        if (schema.Items.GetAliasTarget() is { } itemAlias && !itemAlias.IsOfType(JsonSchemaType.Array))
+        if (schema.Items.AliasTarget is { } itemAlias && !itemAlias.IsOfType(JsonSchemaType.Array))
         {
             return $"List<{MapOpenApiTypeToCSharp(itemAlias, true, registry)}>";
         }

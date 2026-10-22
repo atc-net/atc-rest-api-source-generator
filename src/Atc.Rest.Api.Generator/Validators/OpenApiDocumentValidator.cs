@@ -367,7 +367,7 @@ public static class OpenApiDocumentValidator
 
         if (diagnosticErrors.Count > 0)
         {
-            var isOpenApi32 = document.GetOpenApiSpecVersion() == OpenApiSpecVersion.OpenApi3_2;
+            var isOpenApi32 = document.SpecVersion == OpenApiSpecVersion.OpenApi3_2;
 
             foreach (var error in diagnosticErrors)
             {
@@ -542,7 +542,7 @@ public static class OpenApiDocumentValidator
     /// Validates the OpenAPI specification version (ATC_API_VAL002: OpenAPI 2.0 not supported).
     /// Recognizes 3.0 / 3.1 / 3.2 as supported and rejects Swagger/OpenAPI 2.0.
     /// The spec version is read from the parsed document's metadata (see
-    /// <c>OpenApiDocument.GetOpenApiSpecVersion()</c>), not from <c>info.version</c>
+    /// <c>OpenApiDocument.SpecVersion</c>), not from <c>info.version</c>
     /// (which is the API's own semantic version).
     /// </summary>
     private static List<DiagnosticMessage> ValidateOpenApiVersion(
@@ -551,7 +551,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.GetOpenApiSpecVersion() == OpenApiSpecVersion.OpenApi2_0)
+        if (document.SpecVersion == OpenApiSpecVersion.OpenApi2_0)
         {
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.OpenApi20NotSupported,
@@ -1526,7 +1526,7 @@ public static class OpenApiDocumentValidator
 
         // A tuple (prefixItems) is an array whose positions are typed one by one: it needs no items
         var tupleCandidate = actualPropertySchema.Dereferenced;
-        if (items is null && tupleCandidate?.HasPrefixItems() == true)
+        if (items is null && tupleCandidate?.HasPrefixItems == true)
         {
             return;
         }
@@ -2509,7 +2509,7 @@ public static class OpenApiDocumentValidator
             }
 
             // ATC_API_OPR016: Path parameter must not be nullable
-            if (parameter.Schema is OpenApiSchema schema && schema.IsNullable())
+            if (parameter.Schema is OpenApiSchema schema && schema.IsNullable)
             {
                 diagnostics.Add(new DiagnosticMessage(
                     RuleIdentifiers.PathParameterNullable,
@@ -3154,13 +3154,13 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (!document.HasWebhooks())
+        if (!document.HasWebhooks)
         {
             return diagnostics;
         }
 
         // Info: Webhooks detected
-        var webhookCount = document.GetWebhooksCount();
+        var webhookCount = document.WebhooksCount;
         diagnostics.Add(new DiagnosticMessage(
             RuleIdentifiers.WebhooksDetected,
             $"OpenAPI 3.1 webhooks detected: {webhookCount} webhook(s) defined. " +
@@ -3532,7 +3532,7 @@ public static class OpenApiDocumentValidator
             return false;
         }
 
-        return string.IsNullOrEmpty(schema.GetDiscriminatorPropertyName());
+        return string.IsNullOrEmpty(schema.DiscriminatorPropertyName);
     }
 
     private static void ValidateDiscriminatorPropertyNames(
@@ -3556,13 +3556,13 @@ public static class OpenApiDocumentValidator
             }
 
             // Only check schemas with polymorphic composition and a discriminator block
-            if (!schemaValue.HasPolymorphicComposition() || !schemaValue.HasDiscriminatorBlock())
+            if (!schemaValue.HasPolymorphicComposition || !schemaValue.HasDiscriminatorBlock())
             {
                 continue;
             }
 
             // If propertyName is set, there is nothing to warn about
-            if (!string.IsNullOrEmpty(schemaValue.GetDiscriminatorPropertyName()))
+            if (!string.IsNullOrEmpty(schemaValue.DiscriminatorPropertyName))
             {
                 continue;
             }

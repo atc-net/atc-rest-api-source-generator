@@ -780,7 +780,7 @@ public static class TypeScriptZodModelExtractor
         }
 
         var sb = new StringBuilder(literal);
-        AppendModifiers(sb, plain.IsNullable(), isRequired, plain.Default);
+        AppendModifiers(sb, plain.IsNullable, isRequired, plain.Default);
         return sb.ToString();
     }
 
@@ -1108,7 +1108,7 @@ public static class TypeScriptZodModelExtractor
             var siblingDefault = schemaRef.Default is { } own && !ReferenceEquals(own, (schemaRef.Target as OpenApiSchema)?.Default)
                 ? own
                 : null;
-            AppendModifiers(sb, schemaRef.Target?.IsNullable() == true, isRequired, siblingDefault);
+            AppendModifiers(sb, schemaRef.Target?.IsNullable == true, isRequired, siblingDefault);
             return sb.ToString();
         }
 
@@ -1119,7 +1119,7 @@ public static class TypeScriptZodModelExtractor
             return sb.ToString();
         }
 
-        var isNullable = actualSchema.IsNullable();
+        var isNullable = actualSchema.IsNullable;
 
         // Handle allOf compositions (commonly used for nullable $ref in OpenAPI 3.0)
         if (actualSchema.AllOf is { Count: > 0 })

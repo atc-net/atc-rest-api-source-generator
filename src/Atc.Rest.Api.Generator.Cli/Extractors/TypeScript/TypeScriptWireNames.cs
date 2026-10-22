@@ -413,7 +413,7 @@ public sealed class TypeScriptWireNames
         IList<IOpenApiSchema> branches,
         HashSet<string> visiting)
     {
-        if (schema.GetDiscriminatorPropertyName() is not { Length: > 0 } wire)
+        if (schema.DiscriminatorPropertyName is not { Length: > 0 } wire)
         {
             return null;
         }

@@ -36,6 +36,6 @@ public class OpenApiSpecVersionExtensionsTests
             paths: {}
             """);
 
-        Assert.Equal("3.1", doc.GetOpenApiSpecVersion().ToDisplayString());
+        Assert.Equal("3.1", doc.SpecVersion.ToDisplayString());
     }
 }

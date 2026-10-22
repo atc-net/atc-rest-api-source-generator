@@ -47,13 +47,13 @@ public static class ClientSchemaTypeResolver
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
                 resolvedSchema is OpenApiSchema arraySchema &&
                 arraySchema.IsOfType(JsonSchemaType.Array) &&
-                !arraySchema.HasPrefixItems())
+                !arraySchema.HasPrefixItems)
             {
                 return CollectionOf(arraySchema, openApiDoc, registry, topCollection ?? collection, collection, context, inlineTypeName);
             }
 
             // A primitive alias (ProductCode: a string with a pattern) is no generated type: it is the primitive
-            if (schemaRef.GetAliasTarget() is { } aliasTarget)
+            if (schemaRef.AliasTarget is { } aliasTarget)
             {
                 return Resolve(aliasTarget, openApiDoc, registry, collection, topCollection, context, inlineTypeName);
             }
@@ -79,7 +79,7 @@ public static class ClientSchemaTypeResolver
         {
             // A component's own schema (a tuple reached through its target) keeps its name
             var schemaName = SchemaLookup.FindSchemaNameByReference(openApiDoc, actualSchema);
-            if (!string.IsNullOrEmpty(schemaName) && actualSchema.HasPrefixItems())
+            if (!string.IsNullOrEmpty(schemaName) && actualSchema.HasPrefixItems)
             {
                 return OpenApiSchemaExtensions.ResolveTypeName(schemaName!, registry);
             }

@@ -363,7 +363,7 @@ public static class CodeGenerationService
     {
         var result = new List<GeneratedType>();
 
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return result;
         }
@@ -419,7 +419,7 @@ public static class CodeGenerationService
     {
         var result = new List<GeneratedType>();
 
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return result;
         }
@@ -465,7 +465,7 @@ public static class CodeGenerationService
     {
         var result = new List<GeneratedType>();
 
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return result;
         }
@@ -508,7 +508,7 @@ public static class CodeGenerationService
         ServerConfig config,
         bool useValidationFilter = false)
     {
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return null;
         }

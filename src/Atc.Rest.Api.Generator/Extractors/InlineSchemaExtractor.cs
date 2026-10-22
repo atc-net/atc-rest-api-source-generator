@@ -179,7 +179,7 @@ public static class InlineSchemaExtractor
                 var actualSchema = (OpenApiSchema)prop.Value;
                 var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, typeName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);
                 csharpType = enumTypeName ?? "string";
-                if (!isRequired || actualSchema.IsNullable())
+                if (!isRequired || actualSchema.IsNullable)
                 {
                     csharpType += "?";
                 }
@@ -191,7 +191,7 @@ public static class InlineSchemaExtractor
                     ? $"List<{enumTypeName}>"
                     : prop.Value.ToCSharpTypeForModel(isRequired, registry);
 
-                if (!isRequired || ((OpenApiSchema)prop.Value).IsNullable())
+                if (!isRequired || ((OpenApiSchema)prop.Value).IsNullable)
                 {
                     csharpType += "?";
                 }

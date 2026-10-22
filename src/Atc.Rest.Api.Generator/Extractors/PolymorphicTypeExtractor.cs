@@ -33,7 +33,7 @@ public static class PolymorphicTypeExtractor
             }
 
             // Check if this is a polymorphic schema
-            if (!schemaValue.HasPolymorphicComposition())
+            if (!schemaValue.HasPolymorphicComposition)
             {
                 continue;
             }
@@ -228,7 +228,7 @@ public static class PolymorphicTypeExtractor
         IOpenApiSchema schema,
         OpenApiDocument document)
     {
-        if (!schema.HasPolymorphicComposition())
+        if (!schema.HasPolymorphicComposition)
         {
             return null;
         }
@@ -242,7 +242,7 @@ public static class PolymorphicTypeExtractor
         }
 
         // Get discriminator - explicit or auto-detect
-        var discriminatorPropertyName = schema.GetDiscriminatorPropertyName();
+        var discriminatorPropertyName = schema.DiscriminatorPropertyName;
         var isExplicit = !string.IsNullOrEmpty(discriminatorPropertyName);
 
         if (!isExplicit)

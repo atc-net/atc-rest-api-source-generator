@@ -25,7 +25,7 @@ public static class WebhookParameterExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return null;
         }

@@ -256,7 +256,7 @@ public static class SchemaExtractor
             }
 
             // Skip polymorphic base schemas (oneOf/anyOf) - they're handled by PolymorphicTypeExtractor
-            if (schemaValue.HasPolymorphicComposition())
+            if (schemaValue.HasPolymorphicComposition)
             {
                 continue;
             }
@@ -276,7 +276,7 @@ public static class SchemaExtractor
                 }
 
                 // Skip tuple schemas - handled by TupleExtractor
-                if (actualSchema.HasPrefixItems())
+                if (actualSchema.HasPrefixItems)
                 {
                     continue;
                 }
@@ -879,7 +879,7 @@ public static class SchemaExtractor
                 csharpType = enumTypeName ?? "string";
 
                 // Handle nullable for inline enums: optional without a default, or nullable by the schema
-                if ((!isRequired && !actualSchema.HasConstantDefault(registry)) || actualSchema.IsNullable())
+                if ((!isRequired && !actualSchema.HasConstantDefault(registry)) || actualSchema.IsNullable)
                 {
                     csharpType += "?";
                 }
@@ -896,7 +896,7 @@ public static class SchemaExtractor
                     ? $"List<{enumTypeName}>"
                     : prop.Value.ToCSharpTypeForModel(isRequired, registry);
 
-                if (!isRequired || actualArraySchema.IsNullable())
+                if (!isRequired || actualArraySchema.IsNullable)
                 {
                     csharpType += "?";
                 }

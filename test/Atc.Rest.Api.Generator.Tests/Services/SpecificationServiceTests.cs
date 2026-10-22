@@ -120,12 +120,12 @@ public class SpecificationServiceTests
                                           description: OK
                                 """;
         var baseFile = SpecificationService.ReadFromContent(baseYaml, "SpecVersionBase.yaml");
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, baseFile.Document.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, baseFile.Document.SpecVersion);
 
         var result = SpecificationService.MergeSpecifications(baseFile, new List<SpecificationFile>());
 
         Assert.NotNull(result.Document);
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, result.Document.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, result.Document.SpecVersion);
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class SpecificationServiceTests
                                       description: OK
                             """;
         var file = SpecificationService.ReadFromContent(yaml, "SpecVersionLeak.yaml");
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, file.Document.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, file.Document.SpecVersion);
 
         var serialized = SpecificationService.SerializeToYaml(file.Document);
 
@@ -1557,7 +1557,7 @@ public class SpecificationServiceTests
             Assert.True(merge.IsMultiPart);
             var document = specification?.Document;
             Assert.NotNull(document);
-            Assert.Equal(OpenApiSpecVersion.OpenApi3_2, document.GetOpenApiSpecVersion());
+            Assert.Equal(OpenApiSpecVersion.OpenApi3_2, document.SpecVersion);
             Assert.Contains(document.GetAllOperations(), o => o.Operation.OperationId == "searchPets");
             Assert.NotNull(document.Webhooks?["orderShipped"]);
             Assert.True(document.Components!.Schemas!["Pet"].Properties!["name"].Type!.Value.HasFlag(JsonSchemaType.Null));

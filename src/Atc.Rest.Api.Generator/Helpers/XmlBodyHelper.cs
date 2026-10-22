@@ -166,7 +166,7 @@ public static class XmlBodyHelper
 
         // An array of anything JSON carries, the same under every media type
         var lists = content.Values
-            .Select(media => media.Schema is { } schema && schema.IsOfType(JsonSchemaType.Array) && !schema.HasPrefixItems() && schema.Items is not null
+            .Select(media => media.Schema is { } schema && schema.IsOfType(JsonSchemaType.Array) && !schema.HasPrefixItems && schema.Items is not null
                 ? schema.ToCSharpType(isRequired: true)
                 : null)
             .Distinct(StringComparer.Ordinal)
@@ -362,7 +362,7 @@ public static class XmlBodyHelper
     /// <returns><see langword="true"/> for a mapped model.</returns>
     public static bool IsMappedModel(IOpenApiSchema? schema)
         => schema is OpenApiSchemaReference { Target: OpenApiSchema target } &&
-           !target.HasPolymorphicComposition() &&
+           !target.HasPolymorphicComposition &&
            target.Enum is not { Count: > 0 } &&
            (target.Type is { } type ? (type & JsonSchemaType.Object) == JsonSchemaType.Object : target.AllOf is { Count: > 0 }) &&
            !SchemaExtractor.IsPaginationBaseSchema(target);
@@ -430,7 +430,7 @@ public static class XmlBodyHelper
     // A component with oneOf/anyOf the generator emits a polymorphic base for (an abstract record)
     private static bool IsPolymorphicBase(OpenApiSchemaReference reference)
         => reference.Target is OpenApiSchema target &&
-           target.HasPolymorphicComposition() &&
+           target.HasPolymorphicComposition &&
            reference.Reference?.HostDocument is { } document &&
            reference.ComponentName is { } id &&
            PolymorphicBases.GetValue(document, d => new HashSet<string>(PolymorphicTypeExtractor.ExtractPolymorphicConfigs(d)?.Keys ?? Enumerable.Empty<string>(), StringComparer.Ordinal)).Contains(id);

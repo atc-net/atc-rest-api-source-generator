@@ -229,44 +229,47 @@ public static class OpenApiSchemaExtensions
         /// Also checks the string representation for older formats.
         /// </summary>
         /// <returns>True if the schema allows null values.</returns>
-        public bool IsNullable()
+        public bool IsNullable
         {
-            if (schema is not OpenApiSchema openApiSchema)
+            get
             {
-                return false;
-            }
+                if (schema is not OpenApiSchema openApiSchema)
+                {
+                    return false;
+                }
 
-            // `nullable: true` is an OpenAPI 3.0 keyword. Microsoft.OpenApi up to 3.7.0 still
-            // honoured it inside a 3.1 document by folding it into the Null type flag; 3.10.2
-            // correctly stopped, because 3.1 replaced it with `type: [x, 'null']` — the keyword
-            // lands in UnrecognizedKeywords instead.
-            //
-            // The 3.1 spec is on the library's side, but silently flipping a consumer's generated
-            // model from `string?` to `string` on a package bump is a breaking change they never
-            // asked for and would not notice until it failed at runtime. So the keyword is still
-            // honoured wherever it appears, and ATC_API_SCH022 tells the author to migrate.
-            if (openApiSchema.UnrecognizedKeywords is { } unrecognized &&
-                unrecognized.TryGetValue("nullable", out var nullableNode) &&
-                nullableNode?.GetValueKind() == JsonValueKind.True)
-            {
-                return true;
-            }
+                // `nullable: true` is an OpenAPI 3.0 keyword. Microsoft.OpenApi up to 3.7.0 still
+                // honoured it inside a 3.1 document by folding it into the Null type flag; 3.10.2
+                // correctly stopped, because 3.1 replaced it with `type: [x, 'null']` — the keyword
+                // lands in UnrecognizedKeywords instead.
+                //
+                // The 3.1 spec is on the library's side, but silently flipping a consumer's generated
+                // model from `string?` to `string` on a package bump is a breaking change they never
+                // asked for and would not notice until it failed at runtime. So the keyword is still
+                // honoured wherever it appears, and ATC_API_SCH022 tells the author to migrate.
+                if (openApiSchema.UnrecognizedKeywords is { } unrecognized &&
+                    unrecognized.TryGetValue("nullable", out var nullableNode) &&
+                    nullableNode?.GetValueKind() == JsonValueKind.True)
+                {
+                    return true;
+                }
 
-            var schemaType = openApiSchema.Type;
-            if (schemaType is null)
-            {
-                return false;
-            }
+                var schemaType = openApiSchema.Type;
+                if (schemaType is null)
+                {
+                    return false;
+                }
 
-            // Check if the type includes the Null flag (JsonSchemaType is a flags enum)
-            if (schemaType.Value.HasFlag(JsonSchemaType.Null))
-            {
-                return true;
-            }
+                // Check if the type includes the Null flag (JsonSchemaType is a flags enum)
+                if (schemaType.Value.HasFlag(JsonSchemaType.Null))
+                {
+                    return true;
+                }
 
-            // Fallback: Check if the type string representation contains "null"
-            var typeString = schemaType.ToString();
-            return typeString is not null && typeString.Contains("Null", StringComparison.OrdinalIgnoreCase);
+                // Fallback: Check if the type string representation contains "null"
+                var typeString = schemaType.ToString();
+                return typeString is not null && typeString.Contains("Null", StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         /// <summary>
@@ -636,22 +639,25 @@ public static class OpenApiSchemaExtensions
         /// PrefixItems defines a tuple with typed positional elements.
         /// </summary>
         /// <returns>True if prefixItems is defined.</returns>
-        public bool HasPrefixItems()
+        public bool HasPrefixItems
         {
-            if (schema is not OpenApiSchema actualSchema)
+            get
             {
-                return false;
-            }
+                if (schema is not OpenApiSchema actualSchema)
+                {
+                    return false;
+                }
 
-            // Microsoft.OpenApi 3.x doesn't surface prefixItems as a typed property — for
-            // OpenAPI 3.1 specs the YAML reader drops the keyword into UnrecognizedKeywords,
-            // and older specs that work around the parser put it under Extensions (with or
-            // without the "x-" prefix). Accept both so the helper works regardless of how
-            // the spec was written.
-            return (actualSchema.UnrecognizedKeywords is not null &&
-                    actualSchema.UnrecognizedKeywords.ContainsKey("prefixItems")) ||
-                   (actualSchema.Extensions is not null &&
-                    actualSchema.Extensions.ContainsKey("prefixItems"));
+                // Microsoft.OpenApi 3.x doesn't surface prefixItems as a typed property — for
+                // OpenAPI 3.1 specs the YAML reader drops the keyword into UnrecognizedKeywords,
+                // and older specs that work around the parser put it under Extensions (with or
+                // without the "x-" prefix). Accept both so the helper works regardless of how
+                // the spec was written.
+                return (actualSchema.UnrecognizedKeywords is not null &&
+                        actualSchema.UnrecognizedKeywords.ContainsKey("prefixItems")) ||
+                       (actualSchema.Extensions is not null &&
+                        actualSchema.Extensions.ContainsKey("prefixItems"));
+            }
         }
 
         /// <summary>
@@ -661,7 +667,7 @@ public static class OpenApiSchemaExtensions
         /// <returns>True if this is a strict tuple.</returns>
         public bool IsStrictTuple()
         {
-            if (!schema.HasPrefixItems())
+            if (!schema.HasPrefixItems)
             {
                 return false;
             }
@@ -1067,7 +1073,7 @@ public static class OpenApiSchemaExtensions
         /// composition): the generators emit no type for it, so the value takes the aliased type and its constraints.
         /// </summary>
         /// <returns>The aliased schema, or null when this is no reference to an alias.</returns>
-        public OpenApiSchema? GetAliasTarget()
+        public OpenApiSchema? AliasTarget
             => schema is OpenApiSchemaReference { Target: OpenApiSchema target } && IsAliasSchema(target)
                 ? target
                 : null;
@@ -1226,7 +1232,7 @@ public static class OpenApiSchemaExtensions
                 }
 
                 // Items of format: uri are absolute, as one is
-                var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.GetAliasTarget() : actualSchema.Items as OpenApiSchema;
+                var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.AliasTarget : actualSchema.Items as OpenApiSchema;
                 if (items is { Type: { } itemType } && itemType.HasFlag(JsonSchemaType.String) &&
                     string.Equals(items.Format, "uri", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1366,7 +1372,7 @@ public static class OpenApiSchemaExtensions
 
                 // A component that allows null (type: [object, 'null']) makes the property nullable
                 // even when it is required.
-                return isOptional || schemaRef.Target.IsNullable() ? $"{refTypeName}?" : refTypeName;
+                return isOptional || schemaRef.Target.IsNullable ? $"{refTypeName}?" : refTypeName;
             }
 
             // Handle actual schemas
@@ -1376,7 +1382,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check if schema has nullable: true (in OpenAPI 3.1/Microsoft.OpenApi 3.0.x, this is indicated by JsonSchemaType.Null flag)
-            var isNullable = schema1.IsNullable() || isOptional;
+            var isNullable = schema1.IsNullable || isOptional;
 
             // Handle allOf compositions (commonly used for nullable $ref in OpenAPI 3.0)
             // Pattern: allOf: [ $ref: "#/..." ] with nullable: true
@@ -1391,7 +1397,7 @@ public static class OpenApiSchemaExtensions
                         // Polymorphic base types are not currently generated by the generators,
                         // so we fall back to object to maintain compatibility
                         var targetSchema = allOfRef.Target;
-                        if (targetSchema is not null && targetSchema.HasPolymorphicComposition())
+                        if (targetSchema is not null && targetSchema.HasPolymorphicComposition)
                         {
                             return isNullable
                                 ? "object?"
@@ -1476,8 +1482,8 @@ public static class OpenApiSchemaExtensions
         {
             if (EffectiveType(target) is not { } type ||
                 target.AllOf is { Count: > 0 } ||
-                target.HasPolymorphicComposition() ||
-                target.HasPrefixItems())
+                target.HasPolymorphicComposition ||
+                target.HasPrefixItems)
             {
                 return false;
             }
@@ -1558,7 +1564,7 @@ public static class OpenApiSchemaExtensions
         /// Checks if the schema uses polymorphic composition (oneOf or anyOf).
         /// </summary>
         /// <returns>True if the schema has oneOf or anyOf elements.</returns>
-        public bool HasPolymorphicComposition()
+        public bool HasPolymorphicComposition
             => schema.HasOneOfComposition() || schema.HasAnyOfComposition();
 
         /// <summary>
@@ -1573,7 +1579,7 @@ public static class OpenApiSchemaExtensions
         /// Gets the discriminator property name from a polymorphic schema.
         /// </summary>
         /// <returns>The discriminator property name, or null if not defined.</returns>
-        public string? GetDiscriminatorPropertyName()
+        public string? DiscriminatorPropertyName
             => schema is not OpenApiSchema actualSchema
                 ? null
                 : actualSchema.Discriminator?.PropertyName;
@@ -1931,7 +1937,7 @@ public static class OpenApiSchemaExtensions
                     if (prop.Value is OpenApiSchemaReference { Target: OpenApiSchema aliasSchema } &&
                         aliasSchema.IsOfType(JsonSchemaType.Array) &&
                         aliasSchema.Items is not null &&
-                        !aliasSchema.HasPrefixItems())
+                        !aliasSchema.HasPrefixItems)
                     {
                         return aliasSchema.GetArrayItemType(registry);
                     }

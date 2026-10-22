@@ -107,7 +107,7 @@ public static class TypeScriptTypeMapper
             }
 
             // Check if schema has nullable: true
-            var isNullable = actualSchema.IsNullable();
+            var isNullable = actualSchema.IsNullable;
 
             // Handle allOf compositions (commonly used for nullable $ref in OpenAPI 3.0)
             if (actualSchema.AllOf is { Count: > 0 })
@@ -154,7 +154,7 @@ public static class TypeScriptTypeMapper
             // Handle prefixItems (OpenAPI 3.1 / JSON Schema 2020-12 tuple types).
             // Must come before the regular array branch — a prefixItems schema also has
             // type: array, but the tuple shape is the more specific signal.
-            if (actualSchema.HasPrefixItems())
+            if (actualSchema.HasPrefixItems)
             {
                 var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates);
                 if (tupleType is not null)
@@ -209,7 +209,7 @@ public static class TypeScriptTypeMapper
 
             // Handle prefixItems (OpenAPI 3.1 / JSON Schema 2020-12 tuple types).
             // Must come before the regular array branch (same reason as ToTypeScriptTypeForModel).
-            if (actualSchema.HasPrefixItems())
+            if (actualSchema.HasPrefixItems)
             {
                 var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates: false);
                 if (tupleType is not null)

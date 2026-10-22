@@ -45,7 +45,7 @@ internal static class SpecificationValidator
             result.IsValid = true;
 
             // Extract OpenAPI version from parsed metadata
-            result.OpenApiVersion = openApiDoc.GetOpenApiSpecVersion().ToDisplayString();
+            result.OpenApiVersion = openApiDoc.SpecVersion.ToDisplayString();
 
             // Extract API info
             result.ApiTitle = openApiDoc.Info?.Title;

@@ -33,7 +33,7 @@ public static class WebhookEndpointExtractor
             throw new ArgumentNullException(nameof(config));
         }
 
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return null;
         }

@@ -71,7 +71,7 @@ public class OpenApiDocumentExtensionsTests
     {
         var doc = new OpenApiDocument();
 
-        Assert.False(doc.HasWebhooks());
+        Assert.False(doc.HasWebhooks);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public class OpenApiDocumentExtensionsTests
             Webhooks = new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal),
         };
 
-        Assert.False(doc.HasWebhooks());
+        Assert.False(doc.HasWebhooks);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class OpenApiDocumentExtensionsTests
     {
         var doc = CreateDocWithWebhook("petCreated");
 
-        Assert.True(doc.HasWebhooks());
+        Assert.True(doc.HasWebhooks);
     }
 
     // ========== GetWebhooksCount Tests ==========
@@ -99,7 +99,7 @@ public class OpenApiDocumentExtensionsTests
     {
         var doc = new OpenApiDocument();
 
-        Assert.Equal(0, doc.GetWebhooksCount());
+        Assert.Equal(0, doc.WebhooksCount);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public class OpenApiDocumentExtensionsTests
     {
         var doc = CreateDocWithWebhook("petCreated");
 
-        Assert.Equal(1, doc.GetWebhooksCount());
+        Assert.Equal(1, doc.WebhooksCount);
     }
 
     // ========== GetAllWebhookOperations Tests ==========

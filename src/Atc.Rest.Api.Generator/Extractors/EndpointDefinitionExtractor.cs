@@ -2096,7 +2096,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // A $ref to a primitive alias (a string component with a pattern) is that primitive: no type is generated for it
-        if (schema.GetAliasTarget() is { } aliasTarget)
+        if (schema.AliasTarget is { } aliasTarget)
         {
             return aliasTarget.ToCSharpType(isRequired: true, registry);
         }
@@ -2168,7 +2168,7 @@ using Microsoft.AspNetCore.Builder;
         string itemContext = "ResponseItem")
     {
         // An item that names a primitive alias is that primitive
-        if (itemSchema.GetAliasTarget() is { } itemAlias && !itemAlias.IsOfType(JsonSchemaType.Array))
+        if (itemSchema.AliasTarget is { } itemAlias && !itemAlias.IsOfType(JsonSchemaType.Array))
         {
             return itemAlias.ToCSharpType(isRequired: true, registry);
         }

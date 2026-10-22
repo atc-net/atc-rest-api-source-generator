@@ -119,7 +119,7 @@ public static class SpecificationService
         OpenApiDocument document,
         IOpenApiWriter writer)
     {
-        var version = document.GetOpenApiSpecVersion();
+        var version = document.SpecVersion;
         if (version is OpenApiSpecVersion.OpenApi3_1 or OpenApiSpecVersion.OpenApi3_2)
         {
             // The 3.0 `nullable: true` in a 3.1+ document is kept as an unrecognized keyword (and honored by the
@@ -743,8 +743,8 @@ public static class SpecificationService
             return diagnostics;
         }
 
-        var partVersion = part.GetOpenApiSpecVersion();
-        var baseVersion = baseDocument.GetOpenApiSpecVersion();
+        var partVersion = part.SpecVersion;
+        var baseVersion = baseDocument.SpecVersion;
         if (partVersion is { } declared && baseVersion is { } expected && declared != expected)
         {
             diagnostics.Add(DiagnosticMessage.Warning(

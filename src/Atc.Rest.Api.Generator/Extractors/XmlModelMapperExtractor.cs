@@ -1281,7 +1281,7 @@ public static class XmlModelMapperExtractor
             (reference.Reference?.Id ?? reference.Id) is { } key &&
             xmlModels.Contains(key) &&
             reference.Target is OpenApiSchema target &&
-            !target.HasPolymorphicComposition() &&
+            !target.HasPolymorphicComposition &&
             !clean.Contains('<'))
         {
             return new XmlValue(ValueKind.Model, clean, null);

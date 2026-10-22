@@ -380,21 +380,21 @@ public class OpenApiSchemaExtensionsTests
     public void IsNullable_WithNullFlag_ReturnsTrue()
     {
         var schema = new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Null };
-        Assert.True(schema.IsNullable());
+        Assert.True(schema.IsNullable);
     }
 
     [Fact]
     public void IsNullable_WithoutNullFlag_ReturnsFalse()
     {
         var schema = new OpenApiSchema { Type = JsonSchemaType.String };
-        Assert.False(schema.IsNullable());
+        Assert.False(schema.IsNullable);
     }
 
     [Fact]
     public void IsNullable_NoType_ReturnsFalse()
     {
         var schema = new OpenApiSchema();
-        Assert.False(schema.IsNullable());
+        Assert.False(schema.IsNullable);
     }
 
     // ========== HasMultipleNonNullTypes Tests ==========
@@ -550,14 +550,14 @@ public class OpenApiSchemaExtensionsTests
         {
             OneOf = [new OpenApiSchema { Type = JsonSchemaType.String }],
         };
-        Assert.True(schema.HasPolymorphicComposition());
+        Assert.True(schema.HasPolymorphicComposition);
     }
 
     [Fact]
     public void HasPolymorphicComposition_NoComposition_ReturnsFalse()
     {
         var schema = new OpenApiSchema();
-        Assert.False(schema.HasPolymorphicComposition());
+        Assert.False(schema.HasPolymorphicComposition);
     }
 
     // ========== HasConstValue / GetConstValue Tests ==========
@@ -1155,14 +1155,14 @@ public class OpenApiSchemaExtensionsTests
         {
             Discriminator = new OpenApiDiscriminator { PropertyName = "type" },
         };
-        Assert.Equal("type", schema.GetDiscriminatorPropertyName());
+        Assert.Equal("type", schema.DiscriminatorPropertyName);
     }
 
     [Fact]
     public void GetDiscriminatorPropertyName_NoDiscriminator_ReturnsNull()
     {
         var schema = new OpenApiSchema();
-        Assert.Null(schema.GetDiscriminatorPropertyName());
+        Assert.Null(schema.DiscriminatorPropertyName);
     }
 
     // ========== GetAllOfBaseSchemaName Tests (via YAML) ==========
@@ -1670,8 +1670,8 @@ public class OpenApiSchemaExtensionsTests
 
         var address = (OpenApiSchema)document.Components!.Schemas!["Address"];
 
-        Assert.False(((OpenApiSchema)address.Properties!["street"]).IsNullable());
-        Assert.True(((OpenApiSchema)address.Properties!["state"]).IsNullable());
+        Assert.False(((OpenApiSchema)address.Properties!["street"]).IsNullable);
+        Assert.True(((OpenApiSchema)address.Properties!["state"]).IsNullable);
     }
 
     // ========== IsSchemaReference / IsOfType Tests ==========
@@ -1890,7 +1890,7 @@ public class OpenApiSchemaExtensionsTests
     {
         var schema = ParseTupleSchema(string.Empty);
 
-        Assert.True(schema.HasPrefixItems());
+        Assert.True(schema.HasPrefixItems);
         Assert.True(schema.IsStrictTuple());
     }
 
@@ -1899,7 +1899,7 @@ public class OpenApiSchemaExtensionsTests
     {
         var schema = ParseTupleSchema("items:\n        type: string");
 
-        Assert.True(schema.HasPrefixItems());
+        Assert.True(schema.HasPrefixItems);
         Assert.False(schema.IsStrictTuple());
     }
 
@@ -1908,7 +1908,7 @@ public class OpenApiSchemaExtensionsTests
     {
         var schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } };
 
-        Assert.False(schema.HasPrefixItems());
+        Assert.False(schema.HasPrefixItems);
         Assert.False(schema.IsStrictTuple());
     }
 

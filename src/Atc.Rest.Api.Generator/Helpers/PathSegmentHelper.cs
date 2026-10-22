@@ -433,7 +433,7 @@ public static class PathSegmentHelper
     {
         var schemas = new HashSet<string>(StringComparer.Ordinal);
 
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return schemas;
         }

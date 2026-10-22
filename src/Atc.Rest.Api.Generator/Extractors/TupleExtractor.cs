@@ -29,7 +29,7 @@ public static class TupleExtractor
     /// <param name="schema">The schema to check.</param>
     /// <returns>True if the schema is a tuple type.</returns>
     public static bool IsTupleSchema(IOpenApiSchema schema)
-        => schema.HasPrefixItems();
+        => schema.HasPrefixItems;
 
     /// <summary>
     /// Extracts tuple records for a specific set of schema names.
@@ -80,7 +80,7 @@ public static class TupleExtractor
             }
 
             // Only process schemas with prefixItems
-            if (!actualSchema.HasPrefixItems())
+            if (!actualSchema.HasPrefixItems)
             {
                 continue;
             }

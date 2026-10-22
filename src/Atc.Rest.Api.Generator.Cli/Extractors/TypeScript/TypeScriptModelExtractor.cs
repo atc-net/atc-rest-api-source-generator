@@ -267,7 +267,7 @@ public static class TypeScriptModelExtractor
             // OpenAPI 3.1 / JSON Schema 2020-12: a `type: array` schema with `prefixItems`
             // is a tuple, not an array. Route through ToTypeScriptReturnType so we emit
             // `[number, number]` instead of the lossy `unknown[]`.
-            if (actualSchema.HasPrefixItems())
+            if (actualSchema.HasPrefixItems)
             {
                 var tupleType = actualSchema.ToTypeScriptReturnType();
                 sb.Append("export type ").Append(schemaName).Append(" = ").Append(tupleType).AppendLine(";");
@@ -338,7 +338,7 @@ public static class TypeScriptModelExtractor
             var leafNames = CollectUnionLeafRefs(actualSchema);
             if (leafNames.Count > 0)
             {
-                var discriminator = actualSchema.GetDiscriminatorPropertyName();
+                var discriminator = actualSchema.DiscriminatorPropertyName;
                 aliases.Add((schema.Key, leafNames, string.IsNullOrEmpty(discriminator) ? null : discriminator));
             }
         }

@@ -181,7 +181,7 @@ public sealed class TypeConflictRegistry
             schema.AllOf is { Count: > 0 } ||
             schema.OneOf is { Count: > 0 } ||
             schema.AnyOf is { Count: > 0 } ||
-            schema.HasPrefixItems())
+            schema.HasPrefixItems)
         {
             return true;
         }
