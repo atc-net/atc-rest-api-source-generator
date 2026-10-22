@@ -213,10 +213,7 @@ public static class TypeScriptReactQueryHookExtractor
         var bodyText = bodySb.ToString();
 
         // Write header
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         // Write imports (narrowed to what the body references)
         AppendImports(

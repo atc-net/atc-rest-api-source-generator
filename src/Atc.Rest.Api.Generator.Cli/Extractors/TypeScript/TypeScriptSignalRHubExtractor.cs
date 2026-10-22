@@ -143,10 +143,7 @@ public static class TypeScriptSignalRHubExtractor
         TypeScriptWireNames? wireNames)
     {
         var sb = new StringBuilder();
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         // A payload whose model renames keys travels with the API's property names: renamed on the way in and out
         string? ShapeOf(SignalRHubPayload? payload)
@@ -324,10 +321,7 @@ public static class TypeScriptSignalRHubExtractor
     {
         var hasMethods = hub.Methods.Count > 0;
         var sb = new StringBuilder();
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         var hubModule = hubPascal.EnsureFirstCharacterToLower() + "Hub";
         sb.AppendLine(hasMethods

@@ -32,7 +32,7 @@ public static class TypeScriptModelExtractor
             return results;
         }
 
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
         var discriminators = TypeScriptDiscriminatorLiterals.Collect(openApiDoc);
 
         foreach (var schema in openApiDoc.Components.Schemas)
@@ -160,15 +160,12 @@ public static class TypeScriptModelExtractor
         ArgumentNullException.ThrowIfNull(config);
 
         var results = new List<(string Name, string Content)>();
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         foreach (var (schemaName, leafNames, _) in CollectUnionAliases(openApiDoc, config))
         {
             var sb = new StringBuilder();
-            if (headerContent is not null)
-            {
-                sb.Append(headerContent);
-            }
+            sb.Append(headerContent);
 
             // One import per leaf so the union type alias compiles even when nothing else
             // in the file references those names.
@@ -207,7 +204,7 @@ public static class TypeScriptModelExtractor
             return results;
         }
 
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         foreach (var schema in openApiDoc.Components.Schemas)
         {
@@ -234,10 +231,7 @@ public static class TypeScriptModelExtractor
 
             var sb = new StringBuilder();
 
-            if (headerContent is not null)
-            {
-                sb.Append(headerContent);
-            }
+            sb.Append(headerContent);
 
             // A component that only names a primitive (UserId: string/uuid) or a numeric enum is
             // referenced by name from other models, so it needs its own alias file.

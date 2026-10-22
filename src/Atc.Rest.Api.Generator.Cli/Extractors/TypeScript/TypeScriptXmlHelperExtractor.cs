@@ -60,10 +60,7 @@ public static class TypeScriptXmlHelperExtractor
             .ToList();
 
         var sb = new StringBuilder();
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         if (models.Count > 0)
         {

@@ -20,10 +20,7 @@ public static class TypeScriptRetryConfigExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         // RetryPolicy interface
         sb.AppendLine("/** Configuration for a retry policy. */");

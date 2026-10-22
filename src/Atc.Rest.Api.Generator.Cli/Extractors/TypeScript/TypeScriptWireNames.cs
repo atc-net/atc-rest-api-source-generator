@@ -181,10 +181,7 @@ public sealed class TypeScriptWireNames
         }
 
         var sb = new StringBuilder();
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("/**");
         sb.AppendLine(" * The shape of a value, for converting it between the wire (the API's property names, dates as strings) and");

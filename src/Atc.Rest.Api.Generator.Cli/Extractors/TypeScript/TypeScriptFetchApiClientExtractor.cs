@@ -39,10 +39,7 @@ public static class TypeScriptFetchApiClientExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         AppendImports(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
         if (convertDates)

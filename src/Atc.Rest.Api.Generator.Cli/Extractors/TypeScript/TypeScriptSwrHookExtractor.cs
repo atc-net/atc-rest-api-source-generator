@@ -145,10 +145,7 @@ public static class TypeScriptSwrHookExtractor
 
         var bodyText = body.ToString();
         var sb = new StringBuilder();
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         AppendImports(sb, hookInfos, importTypes, enumNames, brandImports, bodyText);
         sb.Append(bodyText);

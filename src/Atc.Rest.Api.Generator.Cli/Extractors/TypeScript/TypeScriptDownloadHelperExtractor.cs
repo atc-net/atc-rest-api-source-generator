@@ -16,10 +16,7 @@ public static class TypeScriptDownloadHelperExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("/**");
         sb.AppendLine(" * The file name of a downloaded file, from the response's Content-Disposition header: the RFC 5987");

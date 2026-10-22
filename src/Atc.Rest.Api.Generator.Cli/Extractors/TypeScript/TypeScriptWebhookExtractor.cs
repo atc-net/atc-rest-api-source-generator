@@ -66,10 +66,7 @@ public static class TypeScriptWebhookExtractor
         }
 
         var sb = new StringBuilder();
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         if (imports.Count > 0)
         {

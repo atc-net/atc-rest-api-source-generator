@@ -66,10 +66,7 @@ public static class TypeScriptServersExtractor
 
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("export const Servers = {");
         foreach (var (key, url) in entries)

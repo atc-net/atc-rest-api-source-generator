@@ -77,10 +77,7 @@ public static class TypeScriptMswHandlerExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { http, HttpResponse } from 'msw';");
         sb.AppendLine();
@@ -169,10 +166,7 @@ public static class TypeScriptMswHandlerExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         // Import each segment handler
         foreach (var (segmentName, _) in segments)

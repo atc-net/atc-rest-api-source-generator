@@ -14,10 +14,7 @@ public static class TypeScriptApiProviderExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { createContext, useRef, createElement } from 'react';");
         sb.AppendLine("import type { ReactNode } from 'react';");
@@ -61,10 +58,7 @@ public static class TypeScriptApiProviderExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { useContext } from 'react';");
         sb.AppendLine("import { ApiServiceContext } from './ApiProvider';");

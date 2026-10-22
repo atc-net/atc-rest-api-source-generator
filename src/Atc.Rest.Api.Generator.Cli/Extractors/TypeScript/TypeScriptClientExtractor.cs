@@ -305,10 +305,7 @@ public static class TypeScriptClientExtractor
         var bodyText = bodySb.ToString();
 
         // Write header
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         // Write imports (narrowed to what the body references)
         AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient, brandImports, zodSchemaImports, needsZodImport, bodyText);

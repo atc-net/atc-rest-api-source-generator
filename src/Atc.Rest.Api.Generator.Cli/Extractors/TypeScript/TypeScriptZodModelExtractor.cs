@@ -27,7 +27,7 @@ public static class TypeScriptZodModelExtractor
             return results;
         }
 
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         // Build the cross-schema cycle map once. Each cyclic schema maps to the set of
         // sibling schemas in the same strongly-connected component — when emitting a
@@ -105,17 +105,14 @@ public static class TypeScriptZodModelExtractor
         ArgumentNullException.ThrowIfNull(config);
 
         var results = new List<(string Name, string Content)>();
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         var cycleMembers = BuildCycleMemberMap(openApiDoc);
 
         foreach (var (schemaName, leaves, discriminator) in TypeScriptModelExtractor.CollectUnionAliases(openApiDoc, config))
         {
             var sb = new StringBuilder();
-            if (headerContent is not null)
-            {
-                sb.Append(headerContent);
-            }
+            sb.Append(headerContent);
 
             if (leaves.Count > 1)
             {
@@ -179,7 +176,7 @@ public static class TypeScriptZodModelExtractor
             return results;
         }
 
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         // An array alias in a cycle (NodeList: array of Node, Node.children: NodeList) is evaluated lazily, or
         // whichever module loads first reads the other's binding before it is initialized
@@ -678,10 +675,7 @@ public static class TypeScriptZodModelExtractor
 
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { z } from 'zod';");
 
@@ -865,10 +859,7 @@ public static class TypeScriptZodModelExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { z } from 'zod';");
         sb.AppendLine();
@@ -912,10 +903,7 @@ public static class TypeScriptZodModelExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { z } from 'zod';");
 
@@ -948,10 +936,7 @@ public static class TypeScriptZodModelExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { z } from 'zod';");
 

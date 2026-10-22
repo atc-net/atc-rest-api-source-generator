@@ -22,10 +22,7 @@ public static class TypeScriptErrorExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
 
@@ -148,10 +145,7 @@ public static class TypeScriptErrorExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
 

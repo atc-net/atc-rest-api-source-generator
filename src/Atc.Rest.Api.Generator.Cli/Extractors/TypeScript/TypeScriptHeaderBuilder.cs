@@ -3,8 +3,20 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// <summary>
 /// Builds the auto-generated file header for TypeScript files.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class TypeScriptHeaderBuilder
 {
+    /// <param name="config">The TypeScript client configuration.</param>
+    extension(TypeScriptClientConfig config)
+    {
+        /// <summary>
+        /// Gets the header the generated files start with, or <see langword="null"/> when the configuration turns
+        /// headers off.
+        /// </summary>
+        public string? FileHeader
+            => config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+    }
+
     /// <summary>
     /// The first line of every generated TypeScript file. The generation service recognises its own files by this
     /// line alone (to overwrite them, and to delete the ones a later run no longer writes), so it never changes.

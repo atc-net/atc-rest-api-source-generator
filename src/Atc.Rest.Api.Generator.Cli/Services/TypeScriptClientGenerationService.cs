@@ -50,7 +50,7 @@ public static class TypeScriptClientGenerationService
         var dryRun = config.DryRun;
         WrittenFiles.Value = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         KeptFiles.Value = [];
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         // Step 1: Extract enums first (needed for correct import paths in models)
         var enums = TypeScriptEnumExtractor.Extract(openApiDoc, config);

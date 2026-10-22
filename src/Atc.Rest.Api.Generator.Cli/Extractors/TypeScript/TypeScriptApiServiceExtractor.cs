@@ -19,10 +19,7 @@ public static class TypeScriptApiServiceExtractor
 
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         AppendImports(sb, clientClassNames);
         AppendClass(sb, clientClassNames);

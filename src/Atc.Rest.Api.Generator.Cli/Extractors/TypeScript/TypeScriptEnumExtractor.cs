@@ -25,7 +25,7 @@ public static class TypeScriptEnumExtractor
             return results;
         }
 
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         foreach (var schema in openApiDoc.Components.Schemas)
         {

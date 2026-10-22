@@ -25,7 +25,7 @@ public static class TypeScriptZodEnumExtractor
             return results;
         }
 
-        var headerContent = config.GenerateFileHeaders ? TypeScriptHeaderBuilder.FileHeader : null;
+        var headerContent = config.FileHeader;
 
         foreach (var schema in openApiDoc.Components.Schemas)
         {
@@ -76,10 +76,7 @@ public static class TypeScriptZodEnumExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { z } from 'zod';");
         sb.AppendLine();

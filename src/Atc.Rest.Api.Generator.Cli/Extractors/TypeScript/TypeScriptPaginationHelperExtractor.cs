@@ -13,10 +13,7 @@ public static class TypeScriptPaginationHelperExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
         sb.AppendLine();

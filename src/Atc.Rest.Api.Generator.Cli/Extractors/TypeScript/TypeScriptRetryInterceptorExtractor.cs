@@ -16,10 +16,7 @@ public static class TypeScriptRetryInterceptorExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import type { RequestRetry, RetryPolicy } from './retryConfig';");
         sb.AppendLine();

@@ -109,10 +109,7 @@ public static class TypeScriptBrandedIdExtractor
         }
 
         var sb = new StringBuilder();
-        if (!string.IsNullOrEmpty(headerContent))
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("/**");
         sb.AppendLine(" * Branded ID types. The intersection with `{ readonly __brand: '...' }` makes");
