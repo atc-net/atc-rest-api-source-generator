@@ -86,7 +86,6 @@ public sealed class FilesClient : IFilesClient
             }
         }
 
-
         using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
@@ -112,7 +111,6 @@ public sealed class FilesClient : IFilesClient
                 content.Add(fileContent, "files", fileItem.FileName);
             }
         }
-
 
         using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

@@ -3,9 +3,11 @@
 #pragma warning disable CS1591
 
 using System;
+using System.IO;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -72,6 +74,50 @@ public sealed class ItemsClient : IItemsClient
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Item>())!;
         }
+    }
+
+    public async Task UpdateItemAttachmentAsync(
+        UpdateItemAttachmentParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}/attachment";
+
+        using var content = new StreamContent(parameters.File!.OpenReadStream());
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+        using var response = await httpClient.PutAsync(url, content, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task UpdateItemPhotoAsync(
+        UpdateItemPhotoParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}/photo";
+        using var content = new MultipartFormDataContent();
+
+        if (parameters.Request?.Caption is { } caption)
+        {
+            content.Add(new StringContent(caption), "caption");
+        }
+
+        if (parameters.Request?.Photo is not null)
+        {
+            var fileContent = new StreamContent(parameters.Request.Photo.OpenReadStream());
+
+            if (parameters.Request.Photo.ContentType is not null)
+            {
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(parameters.Request.Photo.ContentType);
+            }
+
+            content.Add(fileContent, "photo", parameters.Request.Photo.FileName);
+        }
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Patch, url);
+        requestMessage.Content = content;
+
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

@@ -88,6 +88,48 @@ paths:
         '404':
           description: Item not found
 
+  /items/{itemId}/attachment:
+    put:
+      operationId: updateItemAttachment
+      summary: Replace an item's attachment with a raw file
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Replaced
+
+  /items/{itemId}/photo:
+    patch:
+      operationId: updateItemPhoto
+      summary: Update an item's photo and its caption
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ItemPhoto'
+      responses:
+        '204':
+          description: Updated
+
+
 components:
   schemas:
     Item:
@@ -98,3 +140,12 @@ components:
           type: string
         name:
           type: string
+    ItemPhoto:
+      title: ItemPhoto
+      type: object
+      properties:
+        caption:
+          type: string
+        photo:
+          type: string
+          format: binary

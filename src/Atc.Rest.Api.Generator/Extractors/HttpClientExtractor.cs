@@ -1441,40 +1441,24 @@ public static class HttpClientExtractor
         XmlReadPlan? xmlRead = null,
         bool isTextResponse = false)
     {
-        var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
-        var requestAccess = hasParameters ? "parameters.Request" : "request";
-        var formSchema = hasParameters ? UrlEncodedFormSchema(operation, openApiDoc) : null;
-
         // Resolve the verb through the same helper the per-operation client uses, so both
         // generated clients express the same verb the same way: the static HttpMethod property
         // for RFC verbs (HttpMethod.Query, ...) and new HttpMethod("VERB") only for custom
         // additionalOperations verbs that have none.
         var httpMethodExpression = EndpointMapHelper.BuildHttpMethodExpression(httpMethod);
 
-        builder.AppendLine();
-        if (formSchema is not null)
+        // The body by the same rule as every other verb; a form, file or multipart body is built into a local first
+        var content = AppendRequestContent(builder, operation, openApiDoc, hasParameters, xmlRead);
+        if (!string.Equals(content, LocalContent, StringComparison.Ordinal))
         {
-            // A URL-encoded form: the model's fields
-            GenerateUrlEncodedForm(builder, formSchema, requestAccess);
+            builder.AppendLine();
         }
 
         builder.AppendLine($"using var requestMessage = new HttpRequestMessage({httpMethodExpression}, url);");
 
-        if (formSchema is not null)
+        if (content is not null)
         {
-            builder.AppendLine("requestMessage.Content = content;");
-        }
-        else if (xmlRead?.RequestContent is not null)
-        {
-            builder.AppendLine($"requestMessage.Content = {xmlRead.RequestContent};");
-        }
-        else if (hasParameters && StreamedBodyContent(operation, requestAccess) is { } streamedContent)
-        {
-            builder.AppendLine($"requestMessage.Content = {streamedContent};");
-        }
-        else if (hasJsonBody)
-        {
-            builder.AppendLine($"requestMessage.Content = {JsonBodyContent(operation, requestAccess)};");
+            builder.AppendLine($"requestMessage.Content = {content};");
         }
 
         if (xmlRead?.Accept is not null)
@@ -1555,8 +1539,13 @@ public static class HttpClientExtractor
     }
 
     /// <summary>
-    /// The request body of an operation as content, for a send built as a request message (a streamed answer on any
-    /// verb): a stream of records, a file, a form, XML or JSON - with the statements that build it emitted first;
+    /// The name of the local a form, file or multipart body is built into.
+    /// </summary>
+    private const string LocalContent = "content";
+
+    /// <summary>
+    /// The request body of an operation as content - the one rule every verb sends its body by: a stream of records, a
+    /// file, a multipart form, a URL-encoded form, XML or JSON, with the statements that build it emitted first;
     /// <see langword="null"/> when there is no body.
     /// </summary>
     private static string? AppendRequestContent(
@@ -1582,21 +1571,21 @@ public static class HttpClientExtractor
             builder.AppendLine();
             AppendDirectFileUploadContent(builder, operation, operation.GetFileUploadContentType());
             builder.AppendLine();
-            return "content";
+            return LocalContent;
         }
 
         if (GetSchemaBasedMultipartSchema(operation, openApiDoc) is { } multipartSchema)
         {
+            // The parts end with a blank line of their own
             GenerateSchemaBasedMultipartFormData(builder, multipartSchema, FormBodyHelper.FindMultipartFormData(operation), requestAccess);
-            builder.AppendLine();
-            return "content";
+            return LocalContent;
         }
 
         if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema)
         {
             builder.AppendLine();
             GenerateUrlEncodedForm(builder, formSchema, requestAccess);
-            return "content";
+            return LocalContent;
         }
 
         if (xmlRead?.RequestContent is { } xmlContent)
@@ -1622,71 +1611,7 @@ public static class HttpClientExtractor
         XmlReadPlan? xmlRead = null,
         bool isTextResponse = false)
     {
-        var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
-        var requestAccess = hasParameters
-            ? "parameters.Request"
-            : "request";
-
-        // Check for direct file upload (schema is binary or array of binary)
-        // Schema references to objects should use the Request pattern, not File
-        var isDirectFileUpload = IsDirectFileUpload(operation);
-        var fileUploadContentType = operation.GetFileUploadContentType();
-
-        // Check for schema-based multipart/form-data (object with file properties)
-        var schemaBasedMultipartSchema = GetSchemaBasedMultipartSchema(operation, openApiDoc);
-
-        if (isDirectFileUpload && hasParameters)
-        {
-            builder.AppendLine();
-            AppendDirectFileUploadContent(builder, operation, fileUploadContentType);
-
-            builder.AppendLine();
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");
-        }
-        else if (schemaBasedMultipartSchema is not null && hasParameters)
-        {
-            // Schema-based multipart/form-data with object containing file properties
-            GenerateSchemaBasedMultipartFormData(builder, schemaBasedMultipartSchema, FormBodyHelper.FindMultipartFormData(operation), requestAccess);
-            builder.AppendLine();
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");
-        }
-        else if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema && hasParameters)
-        {
-            // A URL-encoded form: the model's fields
-            GenerateUrlEncodedForm(builder, formSchema, requestAccess);
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", "content");
-        }
-        else if (xmlRead?.RequestContent is not null)
-        {
-            // An XML body: the model's XML with its media type
-            AppendSend(builder, $"var response = await httpClient.PostAsync(url, {xmlRead.RequestContent}, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", xmlRead.RequestContent, accept: xmlRead.Accept);
-        }
-        else if (hasParameters && StreamedBodyContent(operation, requestAccess) is { } streamedContent)
-        {
-            // A stream of records (JSON Lines, JSON Text Sequences): written record by record as the caller yields them
-            AppendSend(
-                builder,
-                $"var response = await httpClient.PostAsync(url, {streamedContent}, cancellationToken).ConfigureAwait(false);",
-                resilienceStamp,
-                "HttpMethod.Post",
-                streamedContent,
-                accept: xmlRead?.Accept);
-        }
-        else if (hasJsonBody)
-        {
-            var jsonContent = JsonBodyContent(operation, requestAccess);
-            AppendSend(
-                builder,
-                $"var response = await httpClient.PostAsync(url, {jsonContent}, cancellationToken).ConfigureAwait(false);",
-                resilienceStamp,
-                "HttpMethod.Post",
-                jsonContent,
-                accept: xmlRead?.Accept);
-        }
-        else
-        {
-            AppendSend(builder, "var response = await httpClient.PostAsync(url, null, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Post", contentExpression: null, accept: xmlRead?.Accept);
-        }
+        AppendBodySend(builder, "PostAsync", "HttpMethod.Post", operation, openApiDoc, hasParameters, resilienceStamp, xmlRead);
 
         if (hasLocationHeader)
         {
@@ -1725,34 +1650,7 @@ public static class HttpClientExtractor
         XmlReadPlan? xmlRead = null,
         bool isTextResponse = false)
     {
-        var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
-        var requestAccess = hasParameters ? "parameters.Request" : "request";
-
-        if (xmlRead?.RequestContent is not null)
-        {
-            // An XML body: the model's XML with its media type
-            AppendSend(builder, $"var response = await httpClient.PutAsync(url, {xmlRead.RequestContent}, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Put", xmlRead.RequestContent, accept: xmlRead.Accept);
-        }
-        else if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema && hasParameters)
-        {
-            // A URL-encoded form: the model's fields
-            builder.AppendLine();
-            GenerateUrlEncodedForm(builder, formSchema, requestAccess);
-            AppendSend(builder, "var response = await httpClient.PutAsync(url, content, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Put", "content");
-        }
-        else
-        {
-            // A stream of records first (it wins over a JSON array offered beside it), else the JSON body
-            var jsonContent = (hasParameters ? StreamedBodyContent(operation, requestAccess) : null) ??
-                              (hasJsonBody ? JsonBodyContent(operation, requestAccess) : null);
-            AppendSend(
-                builder,
-                $"var response = await httpClient.PutAsync(url, {jsonContent ?? "null"}, cancellationToken).ConfigureAwait(false);",
-                resilienceStamp,
-                "HttpMethod.Put",
-                jsonContent,
-                accept: xmlRead?.Accept);
-        }
+        AppendBodySend(builder, "PutAsync", "HttpMethod.Put", operation, openApiDoc, hasParameters, resilienceStamp, xmlRead);
 
         AppendResponseCompletion(
             builder,
@@ -1761,6 +1659,30 @@ public static class HttpClientExtractor
             returnType,
             isLastStatement: true,
             xmlRead: xmlRead);
+    }
+
+    /// <summary>
+    /// Emits the send of a verb with an <c>HttpClient</c> helper (<c>PostAsync</c>, <c>PutAsync</c>) and its body, built by
+    /// <see cref="AppendRequestContent"/>.
+    /// </summary>
+    private static void AppendBodySend(
+        StringBuilder builder,
+        string helper,
+        string httpMethodExpression,
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
+        bool hasParameters,
+        string? resilienceStamp,
+        XmlReadPlan? xmlRead)
+    {
+        var content = AppendRequestContent(builder, operation, openApiDoc, hasParameters, xmlRead);
+        AppendSend(
+            builder,
+            $"var response = await httpClient.{helper}(url, {content ?? "null"}, cancellationToken).ConfigureAwait(false);",
+            resilienceStamp,
+            httpMethodExpression,
+            content,
+            accept: xmlRead?.Accept);
     }
 
     private static void GenerateDeleteMethodBody(

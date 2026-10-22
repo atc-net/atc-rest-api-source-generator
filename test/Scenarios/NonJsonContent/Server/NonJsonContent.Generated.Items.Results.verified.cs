@@ -113,3 +113,69 @@ public sealed class GetItemSheetResult : IResult, INestedHttpResult
     public static IResult ToIResult(GetItemSheetResult result)
         => result.Result;
 }
+
+/// <summary>
+/// Replace an item's attachment with a raw file.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class UpdateItemAttachmentResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private UpdateItemAttachmentResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 204 No Content - Replaced.
+    /// </summary>
+    public static UpdateItemAttachmentResult NoContent()
+        => new(TypedResults.NoContent());
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts UpdateItemAttachmentResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(UpdateItemAttachmentResult result)
+        => result.Result;
+}
+
+/// <summary>
+/// Update an item's photo and its caption.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class UpdateItemPhotoResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private UpdateItemPhotoResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 204 No Content - Updated.
+    /// </summary>
+    public static UpdateItemPhotoResult NoContent()
+        => new(TypedResults.NoContent());
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts UpdateItemPhotoResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(UpdateItemPhotoResult result)
+        => result.Result;
+}

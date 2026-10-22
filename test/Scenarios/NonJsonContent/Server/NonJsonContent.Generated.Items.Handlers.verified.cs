@@ -33,3 +33,25 @@ public interface IGetItemSheetHandler
         GetItemSheetParameters parameters,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Replace an item's attachment with a raw file.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IUpdateItemAttachmentHandler
+{
+    Task<UpdateItemAttachmentResult> ExecuteAsync(
+        UpdateItemAttachmentParameters parameters,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Update an item's photo and its caption.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IUpdateItemPhotoHandler
+{
+    Task<UpdateItemPhotoResult> ExecuteAsync(
+        UpdateItemPhotoParameters parameters,
+        CancellationToken cancellationToken = default);
+}

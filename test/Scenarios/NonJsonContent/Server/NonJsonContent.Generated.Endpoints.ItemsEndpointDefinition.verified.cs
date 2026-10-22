@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,6 +51,33 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(GetItemSheetParametersWire.Parameters, requireParameters: true);
+
+        items
+            .MapPut("{itemId}/attachment", UpdateItemAttachment)
+            .WithName("UpdateItemAttachment")
+            .WithSummary("Replace an item's attachment with a raw file")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding(UpdateItemAttachmentParametersWire.Parameters, requireParameters: true)
+            .Accepts<Stream>("application/octet-stream")
+            .DisableAntiforgery();
+
+        items
+            .MapPatch("{itemId}/photo", UpdateItemPhoto)
+            .WithName("UpdateItemPhoto")
+            .WithSummary("Update an item's photo and its caption")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireFormBinding((WireParameter.Text("form", "caption"), false, false), (WireParameter.Text("form", "photo"), false, true))
+            .Accepts<IFormFile>("multipart/form-data")
+            .DisableAntiforgery();
     }
 
     internal async Task<IResult> ListItems(
@@ -67,4 +95,28 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
                 parameters,
                 cancellationToken))
             .Result;
+
+    internal async Task<IResult> UpdateItemAttachment(
+        [FromServices] IUpdateItemAttachmentHandler handler,
+        [AsParameters] UpdateItemAttachmentParameters parameters,
+        CancellationToken cancellationToken)
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
+
+    internal async Task<IResult> UpdateItemPhoto(
+        [FromServices] IUpdateItemPhotoHandler handler,
+        [FromForm(Name = "caption")] string? caption,
+        [FromForm(Name = "photo")] IFormFile? photo,
+        [FromRoute(Name = "itemId")] string itemId,
+        CancellationToken cancellationToken)
+    {
+        var request = new ItemPhoto(Caption: caption, Photo: photo);
+        var parameters = new UpdateItemPhotoParameters(itemId, request);
+        return (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
+    }
 }

@@ -69,7 +69,6 @@ public sealed class OrdersClient : IOrdersClient
             content.Add(new StringContent(note), "note");
         }
 
-
         using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }

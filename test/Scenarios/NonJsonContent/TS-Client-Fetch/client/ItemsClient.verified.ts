@@ -18,6 +18,23 @@ export type GetItemSheetResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+export type UpdateItemAttachmentResult =
+  | { status: 'noContent'; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
+export type UpdateItemPhotoResult =
+  | { status: 'noContent'; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
 export class ItemsClient {
   private readonly api: ApiClient;
 
@@ -42,5 +59,29 @@ export class ItemsClient {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GetItemSheetResult>;
+  }
+
+  /** Replace an item's attachment with a raw file */
+  async updateItemAttachment(itemId: string, file: Blob | File, signal?: AbortSignal): Promise<UpdateItemAttachmentResult> {
+    return this.api.request<void>('PUT', `/items/${encodeURIComponent(itemId)}/attachment`, {
+      body: file,
+      contentType: 'application/octet-stream',
+      arms: ['noContent', 'badRequest', 'notFound', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<UpdateItemAttachmentResult>;
+  }
+
+  /** Update an item's photo and its caption */
+  async updateItemPhoto(itemId: string, data: { caption?: string; photo?: Blob | File }, signal?: AbortSignal): Promise<UpdateItemPhotoResult> {
+    return this.api.request<void>('PATCH', `/items/${encodeURIComponent(itemId)}/photo`, {
+      body: (() => {
+        const formData = new FormData();
+        if (data.caption != null) formData.append('caption', String(data.caption));
+        if (data.photo != null) formData.append('photo', data.photo);
+        return formData;
+      })(),
+      arms: ['noContent', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<UpdateItemPhotoResult>;
   }
 }

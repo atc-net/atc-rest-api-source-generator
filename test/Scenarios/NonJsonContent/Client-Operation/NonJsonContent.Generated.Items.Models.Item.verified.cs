@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System;
+using Atc.Rest.Client;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
 

@@ -1067,6 +1067,57 @@ public class HttpClientExtractorTests
         Assert.Contains(".OpenReadStream());", content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A file or multipart body is sent on every verb, not only on POST: a PUT or PATCH that uploads a photo sent no body
+    /// at all (<c>PutAsync(url, null, …)</c>).
+    /// </summary>
+    [Theory]
+    [InlineData("post", "multipart/form-data", "{ $ref: '#/components/schemas/Upload' }", "new MultipartFormDataContent()")]
+    [InlineData("put", "multipart/form-data", "{ $ref: '#/components/schemas/Upload' }", "new MultipartFormDataContent()")]
+    [InlineData("patch", "multipart/form-data", "{ $ref: '#/components/schemas/Upload' }", "new MultipartFormDataContent()")]
+    [InlineData("post", "application/octet-stream", "{ type: string, format: binary }", "new StreamContent(parameters.File!.OpenReadStream())")]
+    [InlineData("put", "application/octet-stream", "{ type: string, format: binary }", "new StreamContent(parameters.File!.OpenReadStream())")]
+    [InlineData("patch", "application/octet-stream", "{ type: string, format: binary }", "new StreamContent(parameters.File!.OpenReadStream())")]
+    public void Extract_FileOrMultipartBody_IsSentOnEveryVerb(
+        string verb,
+        string mediaType,
+        string schema,
+        string expectedContent)
+    {
+        var document = ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets/{petId}/photo:
+                {{verb}}:
+                  operationId: uploadPhoto
+                  parameters:
+                    - { name: petId, in: path, required: true, schema: { type: string } }
+                  requestBody:
+                    required: true
+                    content:
+                      '{{mediaType}}':
+                        schema: {{schema}}
+                  responses:
+                    '204': { description: Uploaded }
+            components:
+              schemas:
+                Upload:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    file: { type: string, format: binary }
+            """);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        var content = clientClass!.Methods!.First(m => m.Name == "UploadPhotoAsync").Content!;
+        Assert.Contains(expectedContent, content, StringComparison.Ordinal);
+        Assert.DoesNotContain("(url, null,", content, StringComparison.Ordinal);
+        Assert.Matches(@"(Async\(url, content,|requestMessage\.Content = content;)", content);
+    }
+
     [Fact]
     public void Extract_WithPathSegment_KeepsOnlyThatSegmentsOperationsAndNamesTheClientAfterIt()
     {

@@ -6,6 +6,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -21,5 +22,13 @@ public interface IItemsClient
 
     Task<ContentOrFile<Item>> GetItemSheetAsync(
         GetItemSheetParameters parameters,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateItemAttachmentAsync(
+        UpdateItemAttachmentParameters parameters,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateItemPhotoAsync(
+        UpdateItemPhotoParameters parameters,
         CancellationToken cancellationToken = default);
 }

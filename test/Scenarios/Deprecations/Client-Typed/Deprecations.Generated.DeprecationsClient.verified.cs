@@ -4,11 +4,13 @@
 #pragma warning disable CS0618
 
 using System;
+using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -96,7 +98,26 @@ public sealed class DeprecationsClient : IDeprecationsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(parameters.PetId)}/photo";
-        using var response = await httpClient.PutAsync(url, null, cancellationToken).ConfigureAwait(false);
+        using var content = new MultipartFormDataContent();
+
+        if (parameters.Request?.File is not null)
+        {
+            var fileContent = new StreamContent(parameters.Request.File.OpenReadStream());
+
+            if (parameters.Request.File.ContentType is not null)
+            {
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(parameters.Request.File.ContentType);
+            }
+
+            content.Add(fileContent, "file", parameters.Request.File.FileName);
+        }
+
+        if (parameters.Request?.Caption is { } caption)
+        {
+            content.Add(new StringContent(caption), "caption");
+        }
+
+        using var response = await httpClient.PutAsync(url, content, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

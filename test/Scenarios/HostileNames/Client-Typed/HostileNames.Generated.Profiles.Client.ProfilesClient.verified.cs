@@ -48,6 +48,7 @@ public sealed class ProfilesClient : IProfilesClient
         CancellationToken cancellationToken = default)
     {
         var url = "profiles";
+
         var fields = new List<KeyValuePair<string, string>>();
         if (parameters.Request?.UserName is { } userName)
         {

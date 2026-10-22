@@ -21,3 +21,23 @@ namespace NonJsonContent.Generated.Items.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemSheetParameters(
     [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] string ItemId);
+
+/// <summary>
+/// Parameters for operation request.
+/// Description: Replace an item's attachment with a raw file.
+/// Operation: UpdateItemAttachment.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record UpdateItemAttachmentParameters(
+    [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] string ItemId,
+    [property: FromBody, Required] Stream File);
+
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update an item's photo and its caption.
+/// Operation: UpdateItemPhoto.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record UpdateItemPhotoParameters(
+    [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] string ItemId,
+    [property: Required] ItemPhoto Request);
