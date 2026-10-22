@@ -76,46 +76,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             var ((((yamlFiles, summary), markers), declaredServerMarkers), writes) = combinedData;
             var scaffolding = new ScaffoldSettings(declaredServerMarkers.Values, writes);
 
-            // Skip if no marker file found - marker file presence IS the trigger
-            if (markers.IsEmpty)
+            if (GeneratorStartup.ReadMarker<ServerDomainConfig>(productionContext, yamlFiles, markers) is not { } started)
             {
                 return;
             }
 
-            // Skip if no YAML files found
-            if (yamlFiles.IsEmpty)
-            {
-                return;
-            }
-
-            // One configuration per project: two marker files are a mistake, not a choice
-            if (markers.Values.Length > 1)
-            {
-                DiagnosticHelpers.ReportMultipleMarkerFiles(productionContext, markers.Values.Select(m => m.Path).ToList());
-                return;
-            }
-
-            var markerInfo = markers.Values[0];
+            var (markerInfo, config) = started;
             var markerDirectory = Path.GetDirectoryName(markerInfo.Path) ?? string.Empty;
-
-            ServerDomainConfig config;
-            try
-            {
-                config = MarkerConfigInspector.Read<ServerDomainConfig>(markerInfo.Content, out var markerProblems);
-                DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, markerInfo.Path, markerProblems);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // A marker that cannot be read is no configuration at all
-                DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, markerInfo.Path, ex, typeof(ServerDomainConfig));
-                return;
-            }
-
-            // Skip if generation is disabled
-            if (!config.Generate)
-            {
-                return;
-            }
 
             // Validate ASP.NET Core references - generated handlers require them
             if (!summary.HasAspNetCore)
@@ -130,62 +97,28 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             {
                 GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.HandlerScaffoldGenerationError);
 
-                // Identify base file and part files for multi-part spec support
-                // Overlay files are no specifications: the ones the marker lists are applied to it
-                var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
-                var overlays = OverlayFileHelper.Resolve(productionContext, markerInfo.Path, config.Overlays, overlayFiles);
-                if (overlays is null)
+                if (GeneratorStartup.FindSpecification(productionContext, markerInfo.Path, config.Overlays, yamlFiles) is not { } files)
                 {
                     return;
                 }
 
-                var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
-                if (baseFile is null)
+                filePath = files.BaseFile.Path;
+
+                // A multi-part specification is merged with the server marker's merge settings, so the handlers see
+                // the specification the contracts do
+                var openApiDoc = GeneratorStartup.Load(
+                    productionContext,
+                    files,
+                    config,
+                    MarkerFileHelper.MultiPartConfigurationOf(declaredServerMarkers.Values),
+                    parametersMustBind: true,
+                    DiagnosticHelpers.ReportDomainParsingError);
+                if (openApiDoc is null)
                 {
                     return;
                 }
 
-                filePath = baseFile.Value.Path;
-
-                // A second base specification: the generator reads one per project
-                var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
-                if (otherBases.Count > 0)
-                {
-                    DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
-                    return;
-                }
-
-                var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-                var partFiles = specificationFiles
-                    .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
-                    .ToList();
-
-                if (partFiles.Count > 0)
-                {
-                    // Multi-part mode: merge all files (and apply the overlays), then validate and normalize the result
-                    // like a single file - with the server marker's merge settings, so the handlers see the
-                    // specification the contracts do
-                    var merged = SpecificationLoader.MergeAndValidate(
-                        productionContext,
-                        baseFile.Value,
-                        partFiles,
-                        MarkerFileHelper.MultiPartConfigurationOf(declaredServerMarkers.Values),
-                        config.ValidateSpecificationStrategy,
-                        overlays,
-                        parametersMustBind: true,
-                        config.SuppressRules);
-                    if (merged is null)
-                    {
-                        return;
-                    }
-
-                    GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, merged, summary, config, markerDirectory, scaffolding);
-                }
-                else
-                {
-                    // Single file mode
-                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory, overlays, baseFile.Value.RuleSeverities, scaffolding);
-                }
+                GenerateHandlerScaffoldsFromDocument(productionContext, files.BaseFile.Path, openApiDoc, summary, config, markerDirectory, scaffolding);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -385,26 +318,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             new EquatableArray<HandlerInfo>(implementedHandlers),
             new EquatableArray<string>(interfaceNamespaces),
             new EquatableArray<ValidatorInfo>(validators));
-    }
-
-    private static void GenerateHandlerScaffolds(
-        SourceProductionContext context,
-        string yamlPath,
-        string yamlContent,
-        DomainCompilationSummary summary,
-        ServerDomainConfig config,
-        string markerDirectory,
-        IReadOnlyList<OverlayFile> overlays,
-        string ruleSeverities,
-        ScaffoldSettings scaffolding)
-    {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError, overlays, parametersMustBind: true, RuleSeverityOverrides.From(ruleSeverities, config.SuppressRules));
-        if (openApiDoc is null)
-        {
-            return;
-        }
-
-        GenerateHandlerScaffoldsFromDocument(context, yamlPath, openApiDoc, summary, config, markerDirectory, scaffolding);
     }
 
     private static void GenerateHandlerScaffoldsFromDocument(

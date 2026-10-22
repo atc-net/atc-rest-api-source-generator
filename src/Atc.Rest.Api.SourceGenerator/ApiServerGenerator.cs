@@ -138,46 +138,12 @@ public class ApiServerGenerator : IIncrementalGenerator
         var hasAspNetCore = packages.HasAspNetCore;
         var hasMinimalApi = packages.HasMinimalApi;
 
-        // Skip if no marker file found - marker file presence IS the trigger
-        if (markers.IsEmpty)
+        if (GeneratorStartup.ReadMarker<ServerConfig>(productionContext, yamlFiles, markers) is not { } started)
         {
             return;
         }
 
-        // Skip if no YAML files found
-        if (yamlFiles.IsEmpty)
-        {
-            return;
-        }
-
-        // One configuration per project: two marker files are a mistake, not a choice
-        if (markers.Values.Length > 1)
-        {
-            DiagnosticHelpers.ReportMultipleMarkerFiles(productionContext, markers.Values.Select(m => m.Path).ToList());
-            return;
-        }
-
-        var marker = markers.Values[0];
-
-        ServerConfig config;
-        try
-        {
-            config = MarkerConfigInspector.Read<ServerConfig>(marker.Content, out var markerProblems);
-            DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, marker.Path, markerProblems);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // A marker that cannot be read is no configuration at all: generating from the defaults would be a
-            // different project
-            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex, typeof(ServerConfig));
-            return;
-        }
-
-        // Skip if generation is disabled
-        if (!config.Generate)
-        {
-            return;
-        }
+        var (marker, config) = started;
 
         // Validate ASP.NET Core references - generated code requires them
         if (!hasAspNetCore)
@@ -221,67 +187,20 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.ServerGenerationError);
 
-            // Identify the base file (non-part file or the first file that is not a part file)
-            // Part files follow the naming convention: {BaseName}_{PartName}.yaml
-            // Overlay files are no specifications: the ones the marker lists are applied to it
-            var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
-            var overlays = OverlayFileHelper.Resolve(productionContext, marker.Path, config.Overlays, overlayFiles);
-            if (overlays is null)
+            if (GeneratorStartup.FindSpecification(productionContext, marker.Path, config.Overlays, yamlFiles) is not { } files)
             {
                 return;
             }
 
-            var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
-            if (baseFile is null)
-            {
-                return;
-            }
-
-            filePath = baseFile.Value.Path;
-
-            // A second base specification: the generator reads one per project
-            var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
-            if (otherBases.Count > 0)
-            {
-                DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
-                return;
-            }
-
-            // Check if multi-parts specification
-            var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-            var partFiles = specificationFiles
-                .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
-                .ToList();
-
-            if (partFiles.Count > 0)
-            {
-                // Multi-part mode: merge all files
-                GenerateApiServerMultiPart(
-                    productionContext,
-                    baseFile.Value,
-                    partFiles,
-                    config,
-                    useMinimalApiPackage,
-                    useValidationFilter,
-                    useGlobalErrorHandler,
-                    packages,
-                    overlays);
-            }
-            else
-            {
-                // Single file mode
-                GenerateApiServer(
-                    productionContext,
-                    baseFile.Value.Path,
-                    baseFile.Value.Content,
-                    config,
-                    useMinimalApiPackage,
-                    useValidationFilter,
-                    useGlobalErrorHandler,
-                    packages,
-                    overlays,
-                    baseFile.Value.RuleSeverities);
-            }
+            filePath = files.BaseFile.Path;
+            GenerateApiServer(
+                productionContext,
+                files,
+                config,
+                useMinimalApiPackage,
+                useValidationFilter,
+                useGlobalErrorHandler,
+                packages);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -290,65 +209,29 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates API server code from a multi-parts specification.
-    /// Merges all part files with the base file before generation.
+    /// Generates the API server from the project's specification (its parts merged).
     /// </summary>
-    private static void GenerateApiServerMultiPart(
+    private static void GenerateApiServer(
         SourceProductionContext context,
-        YamlFileInfo baseFile,
-        List<YamlFileInfo> partFiles,
+        SpecificationFiles files,
         ServerConfig config,
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        ServerPackageReferences packages,
-        IReadOnlyList<OverlayFile> overlays)
+        ServerPackageReferences packages)
     {
-        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy, overlays, parametersMustBind: true, config.SuppressRules);
+        var openApiDoc = GeneratorStartup.Load(context, files, config, config.MultiPartConfiguration, parametersMustBind: true, DiagnosticHelpers.ReportServerParsingError);
         if (openApiDoc is null)
         {
             return;
         }
 
         // The root namespace: marker namespace, qualifying info.title, then base file name - as for a client
-        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, baseFile.Path);
+        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, files.BaseFile.Path);
 
         GenerateApiServerFromDocument(
             context,
-            baseFile.Path,
-            openApiDoc,
-            config,
-            projectName,
-            useMinimalApiPackage,
-            useValidationFilter,
-            useGlobalErrorHandler,
-            packages);
-    }
-
-    private static void GenerateApiServer(
-        SourceProductionContext context,
-        string yamlPath,
-        string yamlContent,
-        ServerConfig config,
-        bool useMinimalApiPackage,
-        bool useValidationFilter,
-        bool useGlobalErrorHandler,
-        ServerPackageReferences packages,
-        IReadOnlyList<OverlayFile> overlays,
-        string ruleSeverities)
-    {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportServerParsingError, overlays, parametersMustBind: true, RuleSeverityOverrides.From(ruleSeverities, config.SuppressRules));
-        if (openApiDoc is null)
-        {
-            return;
-        }
-
-        // The root namespace: marker namespace, qualifying info.title, then file name - as for a client
-        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, yamlPath);
-
-        GenerateApiServerFromDocument(
-            context,
-            yamlPath,
+            files.BaseFile.Path,
             openApiDoc,
             config,
             projectName,

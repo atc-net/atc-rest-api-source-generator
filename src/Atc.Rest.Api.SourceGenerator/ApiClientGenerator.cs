@@ -63,45 +63,12 @@ public class ApiClientGenerator : IIncrementalGenerator
     {
         var ((yamlFiles, markers), packages) = combinedData;
 
-        // Skip if no marker file found - marker file presence IS the trigger
-        if (markers.IsEmpty)
+        if (GeneratorStartup.ReadMarker<ClientConfig>(productionContext, yamlFiles, markers) is not { } started)
         {
             return;
         }
 
-        // Skip if no YAML files found
-        if (yamlFiles.IsEmpty)
-        {
-            return;
-        }
-
-        // One configuration per project: two marker files are a mistake, not a choice
-        if (markers.Values.Length > 1)
-        {
-            DiagnosticHelpers.ReportMultipleMarkerFiles(productionContext, markers.Values.Select(m => m.Path).ToList());
-            return;
-        }
-
-        var marker = markers.Values[0];
-
-        ClientConfig config;
-        try
-        {
-            config = MarkerConfigInspector.Read<ClientConfig>(marker.Content, out var markerProblems);
-            DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, marker.Path, markerProblems);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // A marker that cannot be read is no configuration at all
-            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex, typeof(ClientConfig));
-            return;
-        }
-
-        // Skip if generation is disabled in config
-        if (!config.Generate)
-        {
-            return;
-        }
+        var (marker, config) = started;
 
         // Check for Atc.Rest.Client reference when using EndpointPerOperation mode
         if (config.GenerationMode == GenerationModeType.EndpointPerOperation && packages.AtcRestClientVersion is null)
@@ -126,75 +93,18 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.ClientGenerationError);
 
-            // Identify the base file (non-part file or the first file that is not a part file)
-            // Overlay files are no specifications: the ones the marker lists are applied to it
-            var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
-            var overlays = OverlayFileHelper.Resolve(productionContext, marker.Path, config.Overlays, overlayFiles);
-            if (overlays is null)
+            if (GeneratorStartup.FindSpecification(productionContext, marker.Path, config.Overlays, yamlFiles) is not { } files)
             {
                 return;
             }
 
-            var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
-            if (baseFile is null)
-            {
-                return;
-            }
-
-            filePath = baseFile.Value.Path;
-
-            // A second base specification: the generator reads one per project
-            var otherBases = YamlFileHelper.OtherBaseFiles(specificationFiles, baseFile.Value);
-            if (otherBases.Count > 0)
-            {
-                DiagnosticHelpers.ReportMultipleSpecifications(productionContext, [baseFile.Value.Path, .. otherBases.Select(f => f.Path)]);
-                return;
-            }
-
-            // Check if multi-parts specification
-            var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-            var partFiles = specificationFiles
-                .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
-                .ToList();
-
-            if (partFiles.Count > 0)
-            {
-                // Multi-part mode: merge all files
-                GenerateApiClientMultiPart(productionContext, baseFile.Value, partFiles, config, packages, overlays);
-            }
-            else
-            {
-                // Single file mode
-                GenerateApiClient(productionContext, baseFile.Value.Path, baseFile.Value.Content, config, packages, overlays, baseFile.Value.RuleSeverities);
-            }
+            filePath = files.BaseFile.Path;
+            GenerateApiClient(productionContext, files, config, packages);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportClientGenerationError(productionContext, filePath, ex);
         }
-    }
-
-    /// <summary>
-    /// Generates API client code from a multi-parts specification.
-    /// </summary>
-    private static void GenerateApiClientMultiPart(
-        SourceProductionContext context,
-        YamlFileInfo baseFile,
-        List<YamlFileInfo> partFiles,
-        ClientConfig config,
-        ClientPackageReferences packages,
-        IReadOnlyList<OverlayFile> overlays)
-    {
-        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy, overlays, suppressRules: config.SuppressRules);
-        if (openApiDoc is null)
-        {
-            return;
-        }
-
-        // Resolve the root namespace: marker namespace, qualifying info.title, then base file name.
-        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, baseFile.Path);
-
-        GenerateApiClientFromDocument(context, baseFile.Path, openApiDoc, config, packages, projectName);
     }
 
     /// <summary>
@@ -223,25 +133,25 @@ public class ApiClientGenerator : IIncrementalGenerator
         public bool HasSignalRClient { get; init; }
     }
 
+    /// <summary>
+    /// Generates the API client from the project's specification (its parts merged).
+    /// </summary>
     private static void GenerateApiClient(
         SourceProductionContext context,
-        string yamlPath,
-        string yamlContent,
+        SpecificationFiles files,
         ClientConfig config,
-        ClientPackageReferences packages,
-        IReadOnlyList<OverlayFile> overlays,
-        string ruleSeverities)
+        ClientPackageReferences packages)
     {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportClientParsingError, overlays, severities: RuleSeverityOverrides.From(ruleSeverities, config.SuppressRules));
+        var openApiDoc = GeneratorStartup.Load(context, files, config, config.MultiPartConfiguration, parametersMustBind: false, DiagnosticHelpers.ReportClientParsingError);
         if (openApiDoc is null)
         {
             return;
         }
 
-        // Resolve the root namespace: marker namespace, qualifying info.title, then file name.
-        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, yamlPath);
+        // Resolve the root namespace: marker namespace, qualifying info.title, then base file name.
+        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, files.BaseFile.Path);
 
-        GenerateApiClientFromDocument(context, yamlPath, openApiDoc, config, packages, projectName);
+        GenerateApiClientFromDocument(context, files.BaseFile.Path, openApiDoc, config, packages, projectName);
     }
 
     /// <summary>
