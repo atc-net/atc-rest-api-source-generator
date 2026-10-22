@@ -119,58 +119,18 @@ public static class CodeGenerationService
     }
 
     /// <summary>
-    /// Generates record types for inline schemas discovered during endpoint extraction.
-    /// Inline schemas are object types defined directly in responses/requests rather than as $ref.
+    /// Generates the records of the inline schemas an extractor found (the server's results, the typed and the
+    /// per-operation client).
     /// </summary>
-    /// <param name="inlineSchemas">Dictionary of inline schemas discovered during endpoint extraction.</param>
+    /// <param name="inlineSchemas">The inline schemas, by type name.</param>
     /// <param name="projectName">The project name for namespace generation.</param>
-    /// <param name="generatorType">The generator type (Server or Client).</param>
-    /// <returns>List of generated types for inline schemas.</returns>
-    public static List<GeneratedType> GenerateInlineModels(
-        Dictionary<string, EndpointPerOperationExtractor.InlineSchemaInfo> inlineSchemas,
-        string projectName,
-        GeneratorType generatorType = GeneratorType.Client)
-        => GenerateInlineModelsInternal(
-            inlineSchemas.ToDictionary(
-                kvp => kvp.Key,
-                kvp => (kvp.Value.PathSegment, kvp.Value.RecordParameters),
-                StringComparer.Ordinal),
-            projectName,
-            generatorType);
-
-    /// <summary>
-    /// Generates record types for inline schemas from HttpClientExtractor.
-    /// </summary>
-    /// <param name="inlineSchemas">The dictionary of inline schemas discovered during extraction.</param>
-    /// <param name="projectName">The project name for namespace.</param>
-    /// <param name="generatorType">The generator type (Server or Client).</param>
+    /// <param name="generatorType">The generator the records are for.</param>
     /// <param name="granularity">Client granularity; under Single, inline models are placed flat.</param>
-    /// <returns>List of generated types for inline schemas.</returns>
+    /// <returns>The generated types.</returns>
     public static List<GeneratedType> GenerateInlineModels(
-        Dictionary<string, HttpClientInlineSchemaInfo> inlineSchemas,
+        Dictionary<string, InlineSchemaInfo> inlineSchemas,
         string projectName,
-        GeneratorType generatorType = GeneratorType.Client,
-        ClientGranularityType granularity = ClientGranularityType.PerArea)
-        => GenerateInlineModelsInternal(
-            inlineSchemas.ToDictionary(
-                kvp => kvp.Key,
-                kvp => (kvp.Value.PathSegment, kvp.Value.RecordParameters),
-                StringComparer.Ordinal),
-            projectName,
-            generatorType,
-            granularity);
-
-    /// <summary>
-    /// Generates record types for inline schemas from ResultClassExtractor.
-    /// </summary>
-    /// <param name="inlineSchemas">The dictionary of inline schemas discovered during extraction.</param>
-    /// <param name="projectName">The project name for namespace.</param>
-    /// <param name="generatorType">The generator type (Server or Client).</param>
-    /// <returns>List of generated types for inline schemas.</returns>
-    public static List<GeneratedType> GenerateInlineModels(
-        Dictionary<string, ResultClassInlineSchemaInfo> inlineSchemas,
-        string projectName,
-        GeneratorType generatorType = GeneratorType.Server,
+        GeneratorType generatorType,
         ClientGranularityType granularity = ClientGranularityType.PerArea)
         => GenerateInlineModelsInternal(
             inlineSchemas.ToDictionary(

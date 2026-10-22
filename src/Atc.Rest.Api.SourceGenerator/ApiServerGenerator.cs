@@ -1504,7 +1504,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate inline model files for any inline schemas discovered
         if (inlineSchemas.Count > 0)
         {
-            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName);
+            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName, CodeGenerationService.GeneratorType.Server);
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);

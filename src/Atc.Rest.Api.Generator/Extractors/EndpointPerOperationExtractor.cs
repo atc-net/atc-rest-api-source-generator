@@ -10,14 +10,6 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class EndpointPerOperationExtractor
 {
     /// <summary>
-    /// Represents an inline schema discovered during extraction.
-    /// </summary>
-    public sealed record InlineSchemaInfo(
-        string TypeName,
-        string PathSegment,
-        RecordParameters RecordParameters);
-
-    /// <summary>
     /// Represents the generated files for a single operation.
     /// </summary>
     /// <remarks>

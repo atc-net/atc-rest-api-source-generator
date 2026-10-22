@@ -95,7 +95,7 @@ public static class ResultClassExtractor
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
     /// <returns>A tuple containing the result classes and a dictionary of discovered inline schemas.</returns>
-    public static (List<ClassParameters>? ResultClasses, Dictionary<string, ResultClassInlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
+    public static (List<ClassParameters>? ResultClasses, Dictionary<string, InlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
         string projectName,
         string? pathSegment,
@@ -104,7 +104,7 @@ public static class ResultClassExtractor
         bool includeDeprecated = false,
         string? namespaceSegment = null)
     {
-        var inlineSchemas = new Dictionary<string, ResultClassInlineSchemaInfo>(StringComparer.Ordinal);
+        var inlineSchemas = new Dictionary<string, InlineSchemaInfo>(StringComparer.Ordinal);
         var resultClasses = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, namespaceSegment);
 
         // The inline models live in the models namespace the Results file imports: the collapsed segment
@@ -411,7 +411,7 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         string? namespaceSegment = null)
     {
         if (openApiDoc is null)
@@ -491,7 +491,7 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         string pathSegment,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
     {
         var className = $"{operationId.ToPascalCaseForDotNet()}Result";
         var summary = operationValue.Summary ?? $"Result for operation: {operationId}";
@@ -655,7 +655,7 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         string operationId,
         string pathSegment,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
     {
         var methods = new List<MethodParameters>();
         var description = responseValue.Summary ?? responseValue.Description ?? string.Empty;
@@ -780,7 +780,7 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         string operationId,
         string pathSegment,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
     {
         var shape = ErrorResponseShapeResolver.Resolve(responseValue);
         var isDefault = !int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code);
@@ -1639,7 +1639,7 @@ public static class ResultClassExtractor
         string operationId,
         string pathSegment,
         string context,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
     {
         if (schema is null)
         {
@@ -1711,7 +1711,7 @@ public static class ResultClassExtractor
                 if (!inlineSchemas.ContainsKey(typeName))
                 {
                     var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(actualSchema, typeName, registry);
-                    inlineSchemas[typeName] = new ResultClassInlineSchemaInfo(typeName, pathSegment, recordParams);
+                    inlineSchemas[typeName] = new InlineSchemaInfo(typeName, pathSegment, recordParams);
                 }
 
                 return typeName;
@@ -1731,7 +1731,7 @@ public static class ResultClassExtractor
         string operationId,
         string pathSegment,
         string? context,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
     {
         if (schema.Items is null)
         {

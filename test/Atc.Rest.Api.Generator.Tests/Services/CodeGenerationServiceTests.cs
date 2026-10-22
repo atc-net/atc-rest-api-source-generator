@@ -116,7 +116,7 @@ public class CodeGenerationServiceTests
             registry: null);
         Assert.Contains("GetReportResponse", inlineSchemas.Keys, StringComparer.Ordinal);
 
-        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName);
+        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName, CodeGenerationService.GeneratorType.Client);
 
         var model = Assert.Single(models);
         Assert.Equal("GetReportResponse", model.TypeName);
@@ -164,7 +164,7 @@ public class CodeGenerationServiceTests
             systemTypeResolver: new SystemTypeConflictResolver([]));
         Assert.Contains("GetReportResponse", inlineSchemas.Keys, StringComparer.Ordinal);
 
-        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName);
+        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName, CodeGenerationService.GeneratorType.Client);
 
         var model = Assert.Single(models);
         Assert.Equal("GetReportResponse", model.TypeName);
@@ -211,7 +211,7 @@ public class CodeGenerationServiceTests
             systemTypeResolver: new SystemTypeConflictResolver([]));
         Assert.Contains("GetReportResponse", inlineSchemas.Keys, StringComparer.Ordinal);
 
-        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName);
+        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName, CodeGenerationService.GeneratorType.Server);
 
         var model = Assert.Single(models);
         Assert.Equal("GetReportResponse", model.TypeName);
@@ -235,7 +235,7 @@ public class CodeGenerationServiceTests
             systemTypeResolver: new SystemTypeConflictResolver([]),
             namespaceSegment: string.Empty);
 
-        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName);
+        var models = CodeGenerationService.GenerateInlineModels(inlineSchemas, ProjectName, CodeGenerationService.GeneratorType.Server);
 
         var model = Assert.Single(models);
         Assert.Equal("TestApi.Generated.Models", model.Namespace);

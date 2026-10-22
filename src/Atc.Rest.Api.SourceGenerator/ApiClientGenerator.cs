@@ -1160,6 +1160,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
                     : inlineSchemas,
                 projectName,
+                CodeGenerationService.GeneratorType.Client,
                 granularity: string.IsNullOrEmpty(namespaceSegment) ? ClientGranularityType.Single : ClientGranularityType.PerArea);
             foreach (var inlineType in inlineTypes)
             {
@@ -1330,7 +1331,8 @@ public class ApiClientGenerator : IIncrementalGenerator
                 strictRequiredProperties
                     ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
                     : inlineSchemas,
-                projectName);
+                projectName,
+                CodeGenerationService.GeneratorType.Client);
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);

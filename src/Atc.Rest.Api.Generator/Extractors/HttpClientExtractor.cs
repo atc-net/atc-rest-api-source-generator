@@ -84,7 +84,7 @@ public static class HttpClientExtractor
     /// <param name="clientSuffix">The client class name suffix. Defaults to "Client" when null or empty.</param>
     /// <param name="clientName">Explicit client type name, used verbatim when supplied.</param>
     /// <returns>A tuple containing the ClassParameters and a dictionary of discovered inline schemas.</returns>
-    public static (ClassParameters? ClientClass, Dictionary<string, HttpClientInlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
+    public static (ClassParameters? ClientClass, Dictionary<string, InlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
         string projectName,
         string? pathSegment,
@@ -100,7 +100,7 @@ public static class HttpClientExtractor
         TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw,
         bool preferXml = false)
     {
-        var inlineSchemas = new Dictionary<string, HttpClientInlineSchemaInfo>(StringComparer.Ordinal);
+        var inlineSchemas = new Dictionary<string, InlineSchemaInfo>(StringComparer.Ordinal);
         var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName, resultStyle, preferXml);
         return (clientClass, inlineSchemas);
     }
@@ -283,7 +283,7 @@ public static class HttpClientExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
-        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         bool useServersBasePath = true,
         bool? hasSegmentModels = null,
         bool? hasSharedModels = null,
@@ -579,7 +579,7 @@ public static class HttpClientExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         string pathSegment,
-        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         bool useServersBasePath = true,
         TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw,
         bool preferXml = false)
@@ -1929,7 +1929,7 @@ public static class HttpClientExtractor
         string? operationId,
         string? pathSegment,
         string? context,
-        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
         => ClientSchemaTypeResolver.Resolve(
             schema,
             openApiDoc,
@@ -1948,7 +1948,7 @@ public static class HttpClientExtractor
                 if (!inlineSchemas.ContainsKey(typeName))
                 {
                     var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(inlineSchema, typeName, registry);
-                    inlineSchemas[typeName] = new HttpClientInlineSchemaInfo(typeName, pathSegment, recordParams);
+                    inlineSchemas[typeName] = new InlineSchemaInfo(typeName, pathSegment, recordParams);
                 }
 
                 return typeName;
