@@ -24,18 +24,7 @@ public static class WebApplicationExtensionsExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        // Auto-detect features from OpenAPI spec
-        var hasRateLimiting = openApiDoc.HasRateLimiting();
-
-        // A security scheme, or access declared with Atc's extensions alone (x-authorize-roles, x-authentication-required)
-        var hasSecurity = openApiDoc.RequiresAuthentication();
-
-        // A limiter partitioned by user reads HttpContext.User: authentication has to run before it
-        var limiterNeedsUser = hasRateLimiting && hasSecurity &&
-                               RateLimitPoliciesExtractor.CollectPolicies(openApiDoc, config?.IncludeDeprecated ?? false)
-                                   .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User);
-
-        return GenerateUnifiedFileContent(projectName, CasingHelper.GetApiName(projectName, config?.ApiName), hasRateLimiting, hasSecurity, limiterNeedsUser, openApiDoc.HasOutputCaching(), useGlobalErrorHandler);
+        return GenerateUnifiedFileContent(projectName, CasingHelper.GetApiName(projectName, config?.ApiName), ServerFeatures.Of(openApiDoc, config), useGlobalErrorHandler);
     }
 
     /// <summary>
@@ -44,10 +33,7 @@ public static class WebApplicationExtensionsExtractor
     private static string GenerateUnifiedFileContent(
         string projectName,
         string apiName,
-        bool hasRateLimiting,
-        bool hasSecurity,
-        bool limiterNeedsUser,
-        bool hasOutputCaching,
+        ServerFeatures features,
         bool useGlobalErrorHandler)
     {
         // Generate content first to analyze for required usings
@@ -81,7 +67,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine("{");
 
         // Generate Map{ProjectName}Api method
-        GenerateMapApiMethod(builder, projectName, apiName, hasRateLimiting, hasSecurity, limiterNeedsUser, hasOutputCaching, useGlobalErrorHandler);
+        GenerateMapApiMethod(builder, projectName, apiName, features, useGlobalErrorHandler);
 
         builder.AppendLine("}");
 
@@ -95,10 +81,7 @@ public static class WebApplicationExtensionsExtractor
         StringBuilder builder,
         string projectName,
         string apiName,
-        bool hasRateLimiting,
-        bool hasSecurity,
-        bool limiterNeedsUser,
-        bool hasOutputCaching,
+        ServerFeatures features,
         bool useGlobalErrorHandler)
     {
         builder.AppendLine(4, "/// <summary>");
@@ -111,17 +94,17 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, "/// This method configures:");
         builder.AppendLine(4, "/// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)");
 
-        if (hasRateLimiting)
+        if (features.HasRateLimiting)
         {
             builder.AppendLine(4, "/// - Rate limiter middleware (auto-detected)");
         }
 
-        if (hasSecurity)
+        if (features.RequiresAuthentication)
         {
             builder.AppendLine(4, "/// - Authentication and authorization middleware (auto-detected)");
         }
 
-        if (hasOutputCaching)
+        if (features.HasOutputCaching)
         {
             builder.AppendLine(4, "/// - Output cache middleware (auto-detected, after authentication)");
         }
@@ -185,20 +168,20 @@ public static class WebApplicationExtensionsExtractor
         // The rate limiter runs before authentication, so a rejected request costs no token validation -
         // unless a policy partitions by user: then the limiter needs the authenticated user, and the
         // order is turned around.
-        if (limiterNeedsUser)
+        if (features.LimiterNeedsUser)
         {
-            AppendAuthentication(builder, hasSecurity);
-            AppendRateLimiter(builder, hasRateLimiting, "// Rate limiter middleware (after authentication: a policy partitions by user)");
+            AppendAuthentication(builder, features);
+            AppendRateLimiter(builder, features, "// Rate limiter middleware (after authentication: a policy partitions by user)");
         }
         else
         {
-            AppendRateLimiter(builder, hasRateLimiting, "// Rate limiter middleware (before auth to protect against DDoS)");
-            AppendAuthentication(builder, hasSecurity);
+            AppendRateLimiter(builder, features, "// Rate limiter middleware (before auth to protect against DDoS)");
+            AppendAuthentication(builder, features);
         }
 
         // The output cache after authentication: the default policy never caches an authenticated caller's answer, and
         // it can only tell once the user is known
-        if (hasOutputCaching)
+        if (features.HasOutputCaching)
         {
             builder.AppendLine();
             builder.AppendLine(8, "// Output cache middleware (after authentication: an authenticated caller's answer is not cached). It");
@@ -222,10 +205,10 @@ public static class WebApplicationExtensionsExtractor
 
     private static void AppendRateLimiter(
         StringBuilder builder,
-        bool hasRateLimiting,
+        ServerFeatures features,
         string comment)
     {
-        if (!hasRateLimiting)
+        if (!features.HasRateLimiting)
         {
             return;
         }
@@ -240,9 +223,9 @@ public static class WebApplicationExtensionsExtractor
 
     private static void AppendAuthentication(
         StringBuilder builder,
-        bool hasSecurity)
+        ServerFeatures features)
     {
-        if (!hasSecurity)
+        if (!features.RequiresAuthentication)
         {
             return;
         }

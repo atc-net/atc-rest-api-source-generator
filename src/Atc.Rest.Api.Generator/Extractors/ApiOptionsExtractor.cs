@@ -23,13 +23,7 @@ public static class ApiOptionsExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        var hasRateLimiting = openApiDoc.HasRateLimiting();
-        var hasVersioning = config.VersioningStrategy != VersioningStrategyType.None;
-
-        // The same condition under which Add{Api}Api() reads UseSecurity (UnifiedServiceCollectionExtractor)
-        var hasSecurity = openApiDoc.HasSecuritySchemes();
-
-        return GenerateApiServiceOptionsContent(projectName, hasRateLimiting, hasVersioning, hasSecurity, openApiDoc.HasOutputCaching());
+        return GenerateApiServiceOptionsContent(projectName, ServerFeatures.Of(openApiDoc, config));
     }
 
     /// <summary>
@@ -48,12 +42,7 @@ public static class ApiOptionsExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        var hasRateLimiting = openApiDoc.HasRateLimiting();
-
-        // A security scheme, or access declared with Atc's extensions alone (x-authorize-roles, x-authentication-required)
-        var hasSecurity = openApiDoc.RequiresAuthentication();
-
-        return GenerateApiMiddlewareOptionsContent(projectName, hasRateLimiting, hasSecurity, openApiDoc.HasOutputCaching(), useGlobalErrorHandler);
+        return GenerateApiMiddlewareOptionsContent(projectName, ServerFeatures.Of(openApiDoc, config: null), useGlobalErrorHandler);
     }
 
     /// <summary>
@@ -61,10 +50,7 @@ public static class ApiOptionsExtractor
     /// </summary>
     private static string GenerateApiServiceOptionsContent(
         string projectName,
-        bool hasRateLimiting,
-        bool hasVersioning,
-        bool hasSecurity,
-        bool hasOutputCaching)
+        ServerFeatures features)
     {
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -77,7 +63,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        GenerateApiServiceOptions(builder, projectName, hasRateLimiting, hasVersioning, hasSecurity, hasOutputCaching);
+        GenerateApiServiceOptions(builder, projectName, features);
 
         return builder.ToString();
     }
@@ -87,9 +73,7 @@ public static class ApiOptionsExtractor
     /// </summary>
     private static string GenerateApiMiddlewareOptionsContent(
         string projectName,
-        bool hasRateLimiting,
-        bool hasSecurity,
-        bool hasOutputCaching,
+        ServerFeatures features,
         bool useGlobalErrorHandler)
     {
         var contentBuilder = new StringBuilder();
@@ -108,7 +92,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        GenerateApiMiddlewareOptions(builder, projectName, hasRateLimiting, hasSecurity, hasOutputCaching, useGlobalErrorHandler);
+        GenerateApiMiddlewareOptions(builder, projectName, features, useGlobalErrorHandler);
 
         return builder.ToString();
     }
@@ -119,10 +103,7 @@ public static class ApiOptionsExtractor
     private static void GenerateApiServiceOptions(
         StringBuilder builder,
         string projectName,
-        bool hasRateLimiting,
-        bool hasVersioning,
-        bool hasSecurity,
-        bool hasOutputCaching)
+        ServerFeatures features)
     {
         builder.AppendLine("/// <summary>");
         builder.AppendLine($"/// Options for configuring {projectName} API services.");
@@ -137,7 +118,7 @@ public static class ApiOptionsExtractor
 
         // Each feature switch exists only when Add{Api}Api() reads it - when the specification (or the marker)
         // declares the feature. A switch nothing reads would say the feature can be turned on.
-        if (hasRateLimiting)
+        if (features.HasRateLimiting)
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Register the rate limiting policies (<c>AddApiRateLimiting()</c>).");
@@ -147,7 +128,7 @@ public static class ApiOptionsExtractor
             builder.AppendLine();
         }
 
-        if (hasOutputCaching)
+        if (features.HasOutputCaching)
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Register the output cache policies (<c>AddApiOutputCaching()</c>).");
@@ -157,7 +138,7 @@ public static class ApiOptionsExtractor
             builder.AppendLine();
         }
 
-        if (hasVersioning)
+        if (features.HasVersioning)
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Register API versioning.");
@@ -167,7 +148,7 @@ public static class ApiOptionsExtractor
             builder.AppendLine();
         }
 
-        if (hasSecurity)
+        if (features.HasSecuritySchemes)
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Register the authorization policies of the security schemes (<c>AddApiSecurityPolicies()</c>).");
@@ -194,9 +175,7 @@ public static class ApiOptionsExtractor
     private static void GenerateApiMiddlewareOptions(
         StringBuilder builder,
         string projectName,
-        bool hasRateLimiting,
-        bool hasSecurity,
-        bool hasOutputCaching,
+        ServerFeatures features,
         bool useGlobalErrorHandler)
     {
         builder.AppendLine("/// <summary>");
@@ -217,7 +196,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine();
 
         // Each feature switch exists only when Map{Api}Api() reads it - when the specification declares the feature
-        if (hasRateLimiting)
+        if (features.HasRateLimiting)
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Add the rate limiter middleware (<c>UseRateLimiter()</c>).");
@@ -227,7 +206,7 @@ public static class ApiOptionsExtractor
             builder.AppendLine();
         }
 
-        if (hasOutputCaching)
+        if (features.HasOutputCaching)
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Add the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated");
@@ -238,7 +217,7 @@ public static class ApiOptionsExtractor
             builder.AppendLine();
         }
 
-        if (hasSecurity)
+        if (features.RequiresAuthentication)
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Add the authentication middleware (<c>UseAuthentication()</c>).");

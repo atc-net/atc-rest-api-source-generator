@@ -25,15 +25,7 @@ public static class UnifiedServiceCollectionExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        // Auto-detect features from OpenAPI spec
-        var hasRateLimiting = openApiDoc.HasRateLimiting();
-        var hasValidation = config.UseValidationFilter != MinimalApiPackageMode.Disabled;
-        var hasVersioning = config.VersioningStrategy != VersioningStrategyType.None;
-        var hasSecurity = openApiDoc.HasSecuritySchemes();
-        var hasXml = XmlBodyReachability.Collect(openApiDoc).Count > 0;
-        var hasEnums = EnumWireConverterExtractor.HasEnums(openApiDoc);
-
-        return GenerateFileContent(projectName, CasingHelper.GetApiName(projectName, config.ApiName), pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, openApiDoc.HasOutputCaching());
+        return GenerateFileContent(projectName, CasingHelper.GetApiName(projectName, config.ApiName), pathSegments, ServerFeatures.Of(openApiDoc, config));
     }
 
     /// <summary>
@@ -43,13 +35,7 @@ public static class UnifiedServiceCollectionExtractor
         string projectName,
         string apiName,
         List<string>? pathSegments,
-        bool hasRateLimiting,
-        bool hasValidation,
-        bool hasVersioning,
-        bool hasSecurity,
-        bool hasXml = false,
-        bool hasEnums = false,
-        bool hasOutputCaching = false)
+        ServerFeatures features)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -61,17 +47,17 @@ public static class UnifiedServiceCollectionExtractor
         contentBuilder.AppendLine(8, "Action<ApiServiceOptions>? configure = null)");
         contentBuilder.AppendLine(8, "var options = new ApiServiceOptions();");
         contentBuilder.AppendLine(8, "configure?.Invoke(options);");
-        if (hasRateLimiting)
+        if (features.HasRateLimiting)
         {
             contentBuilder.AppendLine(8, "services.AddApiRateLimiting();");
         }
 
-        if (hasVersioning)
+        if (features.HasVersioning)
         {
             contentBuilder.AppendLine(8, "services.AddApiVersioning();");
         }
 
-        if (hasSecurity)
+        if (features.HasSecuritySchemes)
         {
             contentBuilder.AppendLine(8, "services.AddApiSecurityPolicies();");
         }
@@ -105,17 +91,17 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         // Add namespaces for optional features
-        if (hasRateLimiting)
+        if (features.HasRateLimiting)
         {
             builder.AppendLine($"using {projectName}.Generated.RateLimiting;");
         }
 
-        if (hasVersioning)
+        if (features.HasVersioning)
         {
             builder.AppendLine($"using {projectName}.Generated.Versioning;");
         }
 
-        if (hasSecurity)
+        if (features.HasSecuritySchemes)
         {
             builder.AppendLine($"using {projectName}.Generated.Security;");
         }
@@ -131,7 +117,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}Api method
-        GenerateAddApiMethod(builder, projectName, apiName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml, hasEnums, hasOutputCaching);
+        GenerateAddApiMethod(builder, projectName, apiName, features);
 
         builder.AppendLine("}");
 
@@ -145,13 +131,7 @@ public static class UnifiedServiceCollectionExtractor
         StringBuilder builder,
         string projectName,
         string apiName,
-        bool hasRateLimiting,
-        bool hasValidation,
-        bool hasVersioning,
-        bool hasSecurity,
-        bool hasXml,
-        bool hasEnums,
-        bool hasOutputCaching)
+        ServerFeatures features)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Adds all {projectName} API services with auto-detected features.");
@@ -163,17 +143,17 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine(4, "/// This method registers:");
         builder.AppendLine(4, "/// - RFC 9457 ProblemDetails (AddProblemDetails), unless turned off");
 
-        if (hasRateLimiting)
+        if (features.HasRateLimiting)
         {
             builder.AppendLine(4, "/// - Rate limiting policies (auto-detected)");
         }
 
-        if (hasVersioning)
+        if (features.HasVersioning)
         {
             builder.AppendLine(4, "/// - API versioning (auto-detected)");
         }
 
-        if (hasSecurity)
+        if (features.HasSecuritySchemes)
         {
             builder.AppendLine(4, "/// - Security policies (auto-detected)");
         }
@@ -182,7 +162,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine(4, "/// Note: You also need to register handlers and validators from your Domain project:");
         builder.AppendLine(4, "/// - services.AddApiHandlersFromDomain() - Handler implementations");
 
-        if (hasValidation)
+        if (features.HasValidation)
         {
             builder.AppendLine(4, "/// - services.AddApiValidatorsFromDomain() - FluentValidation validators");
         }
@@ -203,7 +183,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine(8, "// Register RFC 9457 ProblemDetails for errors raised outside the handlers");
         builder.AppendLine(8, "if (options.UseProblemDetails)");
         builder.AppendLine(8, "{");
-        if (hasXml)
+        if (features.HasXmlBodies)
         {
             // application/problem+xml when the Accept prefers it: ahead of the default JSON writer, which writes too
             builder.AppendLine(12, "// application/problem+xml (RFC 9457 Appendix B) when the request's Accept prefers it - ahead of the JSON writer");
@@ -220,7 +200,7 @@ public static class UnifiedServiceCollectionExtractor
         // System.Text.Json reads a type discriminator only when it is the first property, unless told otherwise
         builder.AppendLine();
         builder.AppendLine(8, "// A polymorphic body's discriminator may stand anywhere in the object, not only first");
-        if (hasEnums)
+        if (features.HasEnums)
         {
             // Ahead of any enum converter the host registers: the specification decides how an enum is written
             builder.AppendLine(8, "// Every generated enum on the wire as the specification writes it, whatever enum converter the host adds");
@@ -236,7 +216,7 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         // Optional: rate limiting
-        if (hasRateLimiting)
+        if (features.HasRateLimiting)
         {
             builder.AppendLine();
             builder.AppendLine(8, "// Register rate limiting policies from OpenAPI x-ratelimit-* extensions");
@@ -247,7 +227,7 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         // Optional: output caching (Map…Api() adds the middleware)
-        if (hasOutputCaching)
+        if (features.HasOutputCaching)
         {
             builder.AppendLine();
             builder.AppendLine(8, "// Register the output cache policies from OpenAPI x-cache-* extensions");
@@ -258,7 +238,7 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         // Optional: versioning
-        if (hasVersioning)
+        if (features.HasVersioning)
         {
             builder.AppendLine();
             builder.AppendLine(8, "// Register API versioning");
@@ -269,7 +249,7 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         // Optional: security policies
-        if (hasSecurity)
+        if (features.HasSecuritySchemes)
         {
             builder.AppendLine();
             builder.AppendLine(8, "// Register security policies from OpenAPI security schemes");
