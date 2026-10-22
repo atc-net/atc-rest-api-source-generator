@@ -107,16 +107,7 @@ public static class ExtensibleEnumContentGenerator
             if (ReservedMemberNames.Contains(memberName) ||
                 string.Equals(memberName, parameters.EnumTypeName, StringComparison.Ordinal))
             {
-                var candidate = memberName + "Member";
-                var suffix = 1;
-                while (used.Contains(candidate))
-                {
-                    suffix++;
-                    candidate = memberName + "Member" + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                }
-
-                used.Add(candidate);
-                memberName = candidate;
+                memberName = used.Claim(memberName + "Member");
             }
 
             members.Add((memberName, CSharpLiteralHelper.ToStringLiteral(value.EnumMemberValue ?? value.Name)));

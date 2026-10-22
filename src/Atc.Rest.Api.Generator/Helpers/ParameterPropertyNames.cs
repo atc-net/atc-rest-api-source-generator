@@ -61,15 +61,7 @@ public sealed class ParameterPropertyNames
             {
                 // The first keeps the bare name; another location carries its location; the same location is numbered
                 var candidate = i == 0 || ordered[i].In == ordered[0].In ? group.Key : group.Key + ordered[i].In;
-                var unique = candidate;
-                var suffix = 1;
-                while (!taken.Add(unique))
-                {
-                    suffix++;
-                    unique = candidate + suffix.ToString(CultureInfo.InvariantCulture);
-                }
-
-                result[(ordered[i].Name, ordered[i].In)] = unique;
+                result[(ordered[i].Name, ordered[i].In)] = taken.Claim(candidate);
             }
         }
 

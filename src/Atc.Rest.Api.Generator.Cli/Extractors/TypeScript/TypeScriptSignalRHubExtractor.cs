@@ -75,16 +75,7 @@ public static class TypeScriptSignalRHubExtractor
         var named = new List<HubMember>();
         foreach (var member in members)
         {
-            var name = identifier(ToIdentifier(member.Name));
-            var unique = name;
-            var number = 1;
-            while (!taken.Add(unique))
-            {
-                number++;
-                unique = name + number.ToString(CultureInfo.InvariantCulture);
-            }
-
-            named.Add(new HubMember(member.Name, unique, ArgumentsOf(member), member.Returns));
+            named.Add(new HubMember(member.Name, taken.Claim(identifier(ToIdentifier(member.Name))), ArgumentsOf(member), member.Returns));
         }
 
         return named;
@@ -109,15 +100,7 @@ public static class TypeScriptSignalRHubExtractor
                 name += "Value";
             }
 
-            var unique = name;
-            var number = 1;
-            while (!taken.Add(unique))
-            {
-                number++;
-                unique = name + number.ToString(CultureInfo.InvariantCulture);
-            }
-
-            arguments.Add(new HubArgument(argument.Name, unique, argument.Payload));
+            arguments.Add(new HubArgument(argument.Name, taken.Claim(name), argument.Payload));
         }
 
         return arguments;

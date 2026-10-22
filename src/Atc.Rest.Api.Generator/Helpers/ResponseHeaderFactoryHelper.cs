@@ -294,20 +294,7 @@ public static class ResponseHeaderFactoryHelper
                     continue;
                 }
 
-                var pascal = header.Key.ToPascalCaseForDotNet();
-                if (pascal.Length == 0 || !(char.IsLetter(pascal[0]) || pascal[0] == '_'))
-                {
-                    pascal = "Response" + pascal;
-                }
-
-                var propertyName = pascal + "Header";
-                var number = 1;
-                while (!taken.Add(propertyName))
-                {
-                    number++;
-                    propertyName = pascal + "Header" + number.ToString(CultureInfo.InvariantCulture);
-                }
-
+                var propertyName = taken.Claim(header.Key.ToPascalCaseForDotNet().WithIdentifierStart("Response") + "Header");
                 headers.Add(new DeclaredResponseHeader(header.Key, propertyName, type, isArray, kind, fields, explode));
             }
         }
@@ -801,7 +788,6 @@ public static class ResponseHeaderFactoryHelper
             }
 
             var name = ParameterName(header.Key, taken);
-            taken.Add(name);
             var inlineEnumTypeName = operationName is null ? null : InlineEnumTypeName(operationName, header.Key, componentTypeNames);
             var (typeName, isReference, text) = TypeOf(header.Key, header.Value.Schema, name, registry, inlineEnumTypeName, header.Value.Explode);
             parameters.Add(new ParameterBaseParameters(
@@ -867,27 +853,14 @@ public static class ResponseHeaderFactoryHelper
         string headerName,
         HashSet<string> taken)
     {
-        var pascal = headerName.ToPascalCaseForDotNet();
-        if (pascal.Length == 0 || !(char.IsLetter(pascal[0]) || pascal[0] == '_'))
-        {
-            pascal = "Header" + pascal;
-        }
-
+        var pascal = headerName.ToPascalCaseForDotNet().WithIdentifierStart("Header");
         var name = char.ToLowerInvariant(pascal[0]) + pascal.Substring(1);
         if (CSharpKeywords.IsKeyword(name) || taken.Contains(name))
         {
             name += "Header";
         }
 
-        var unique = name;
-        var number = 1;
-        while (taken.Contains(unique))
-        {
-            number++;
-            unique = name + number.ToString(CultureInfo.InvariantCulture);
-        }
-
-        return unique;
+        return taken.Claim(name);
     }
 
     private static (string TypeName, bool IsReference, string Text) TypeOf(

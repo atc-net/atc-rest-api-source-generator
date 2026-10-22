@@ -36,14 +36,6 @@ public sealed class PropertyNameRegistry
             name = "_" + name;
         }
 
-        var uniqueName = name;
-        var suffix = 1;
-        while (!usedNames.Add(uniqueName))
-        {
-            suffix++;
-            uniqueName = name + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        }
-
-        return uniqueName;
+        return usedNames.Claim(name);
     }
 }

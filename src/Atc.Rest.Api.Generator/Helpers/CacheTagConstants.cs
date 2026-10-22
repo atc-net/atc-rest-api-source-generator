@@ -27,16 +27,7 @@ public static class CacheTagConstants
                      .Distinct(StringComparer.Ordinal)
                      .OrderBy(t => t, StringComparer.Ordinal))
         {
-            var baseName = PolicyNamingHelper.ToConstantName(tag);
-            var name = baseName;
-            var number = 1;
-            while (!taken.Add(name))
-            {
-                number++;
-                name = baseName + number.ToString(CultureInfo.InvariantCulture);
-            }
-
-            names[tag] = name;
+            names[tag] = taken.Claim(PolicyNamingHelper.ToConstantName(tag));
         }
 
         return names;

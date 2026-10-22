@@ -44,6 +44,7 @@ global using Atc.Rest.Api.Generator.Cli.Options;
 global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Cli.Services.Migration;
 global using Atc.Rest.Api.Generator.Configurations;
+global using Atc.Rest.Api.Generator.Extensions;
 global using Atc.Rest.Api.Generator.Helpers;
 global using Atc.Rest.Api.Generator.JsonConverters;
 global using Atc.Rest.Api.Generator.Models;

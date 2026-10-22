@@ -361,19 +361,9 @@ public static class SignalRHubExtractor
         var parameters = new List<(string Type, string Name)>();
         foreach (var argument in member.Arguments)
         {
-            var pascal = argument.Name.ToPascalCaseForDotNet();
-            var name = pascal.Length > 0 && (char.IsLetter(pascal[0]) || pascal[0] == '_')
-                ? char.ToLowerInvariant(pascal[0]) + pascal.Substring(1)
-                : "argument" + pascal;
-            var unique = name;
-            var number = 1;
-            while (!taken.Add(unique))
-            {
-                number++;
-                unique = name + number.ToString(CultureInfo.InvariantCulture);
-            }
-
-            parameters.Add((CSharpType(argument.Payload, models), CSharpIdentifierHelper.EscapeIfKeyword(unique)));
+            var pascal = argument.Name.ToPascalCaseForDotNet().WithIdentifierStart("Argument");
+            var name = taken.Claim(char.ToLowerInvariant(pascal[0]) + pascal.Substring(1));
+            parameters.Add((CSharpType(argument.Payload, models), CSharpIdentifierHelper.EscapeIfKeyword(name)));
         }
 
         return parameters;
@@ -413,15 +403,7 @@ public static class SignalRHubExtractor
                 identifier = "Member" + identifier;
             }
 
-            var unique = identifier;
-            var number = 1;
-            while (!taken.Add(unique))
-            {
-                number++;
-                unique = identifier + number.ToString(CultureInfo.InvariantCulture);
-            }
-
-            named.Add(new NamedMember(member, unique, isIdentifier));
+            named.Add(new NamedMember(member, taken.Claim(identifier), isIdentifier));
         }
 
         return named;
