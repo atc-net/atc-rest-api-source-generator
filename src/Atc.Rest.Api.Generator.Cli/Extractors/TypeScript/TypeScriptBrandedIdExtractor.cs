@@ -247,7 +247,7 @@ public static class TypeScriptBrandedIdExtractor
                 return null;
             }
 
-            return ToPascalCase(fallbackEntity) + "Id";
+            return fallbackEntity.EnsureFirstCharacterToUpper() + "Id";
         }
 
         // `<entity>Id` or `<entity>ID` shapes. Strip the trailing Id, PascalCase the rest.
@@ -260,7 +260,7 @@ public static class TypeScriptBrandedIdExtractor
                 return null;
             }
 
-            return ToPascalCase(entity) + "Id";
+            return entity.EnsureFirstCharacterToUpper() + "Id";
         }
 
         if (identifier.EndsWith("ID", StringComparison.Ordinal))
@@ -271,7 +271,7 @@ public static class TypeScriptBrandedIdExtractor
                 return null;
             }
 
-            return ToPascalCase(entity) + "Id";
+            return entity.EnsureFirstCharacterToUpper() + "Id";
         }
 
         return null;
@@ -320,20 +320,5 @@ public static class TypeScriptBrandedIdExtractor
         }
 
         return parent;
-    }
-
-    private static string ToPascalCase(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return value;
-        }
-
-        if (char.IsUpper(value[0]))
-        {
-            return value;
-        }
-
-        return char.ToUpperInvariant(value[0]) + value[1..];
     }
 }

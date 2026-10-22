@@ -46,7 +46,7 @@ public static class TypeScriptSignalRHubExtractor
         foreach (var hub in ParseHubs(openApiDoc))
         {
             var hubPascal = hub.Key.ToPascalCase();
-            results.Add((ToCamelCase(hubPascal) + "Hub", GenerateConnectionFile(openApiDoc, hub, hubPascal, headerContent, wireNames)));
+            results.Add((hubPascal.EnsureFirstCharacterToLower() + "Hub", GenerateConnectionFile(openApiDoc, hub, hubPascal, headerContent, wireNames)));
             if (includeReactHooks)
             {
                 results.Add(("use" + hubPascal + "Hub", GenerateHookFile(hub, hubPascal, headerContent)));
@@ -64,7 +64,7 @@ public static class TypeScriptSignalRHubExtractor
                 hub.Key,
                 hub.Path,
                 Named(hub.Events, name => "on" + name),
-                Named(hub.Methods, ToCamelCase)))
+                Named(hub.Methods, name => name.EnsureFirstCharacterToLower())))
             .ToList();
 
     private static List<HubMember> Named(
@@ -103,7 +103,7 @@ public static class TypeScriptSignalRHubExtractor
         var arguments = new List<HubArgument>();
         foreach (var argument in member.Arguments)
         {
-            var name = ToCamelCase(ToIdentifier(argument.Name));
+            var name = ToIdentifier(argument.Name).EnsureFirstCharacterToLower();
             if (ReservedWords.Contains(name))
             {
                 name += "Value";
@@ -262,7 +262,7 @@ public static class TypeScriptSignalRHubExtractor
         sb.Append(" * The ").Append(hub.Key).AppendLine(" hub's methods over a started connection: each invokes the method under its name on");
         sb.AppendLine(" * the wire and resolves with its answer.");
         sb.AppendLine(" */");
-        sb.Append("export function ").Append(ToCamelCase(hubPascal)).Append("HubMethods(connection: Pick<HubConnection, 'invoke'>): ").Append(hubPascal).AppendLine("HubMethods {");
+        sb.Append("export function ").Append(hubPascal.EnsureFirstCharacterToLower()).Append("HubMethods(connection: Pick<HubConnection, 'invoke'>): ").Append(hubPascal).AppendLine("HubMethods {");
         sb.AppendLine("  return {");
         foreach (var method in hub.Methods)
         {
@@ -329,7 +329,7 @@ public static class TypeScriptSignalRHubExtractor
             sb.Append(headerContent);
         }
 
-        var hubModule = ToCamelCase(hubPascal) + "Hub";
+        var hubModule = hubPascal.EnsureFirstCharacterToLower() + "Hub";
         sb.AppendLine(hasMethods
             ? "import { useCallback, useEffect, useMemo, useRef, useState } from 'react';"
             : "import { useCallback, useEffect, useRef, useState } from 'react';");
@@ -476,9 +476,6 @@ public static class TypeScriptSignalRHubExtractor
 
         return sb.ToString();
     }
-
-    private static string ToCamelCase(string pascal)
-        => pascal.Length == 0 ? pascal : char.ToLowerInvariant(pascal[0]) + pascal[1..];
 
     private sealed record HubDefinition(
         string Key,
