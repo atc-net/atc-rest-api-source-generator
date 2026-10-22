@@ -44,21 +44,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
         // Find OpenAPI YAML files - collect ALL files for multi-part spec support
-        var yamlFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            .Combine(context.AnalyzerConfigOptionsProvider)
-
-            // With the rules' severities for this file: the compiler applies .editorconfig to C# files only
-            .Select(static (pair, cancellationToken) =>
-                new YamlFileInfo(
-                    pair.Left.Path,
-                    pair.Left.GetText(cancellationToken)?.ToString() ?? string.Empty,
-                    RuleSeverityOverrides.ReadSeverities(pair.Right.GetOptions(pair.Left).TryGetValue)))
-            .Where(static file => OverlayFileHelper.IsCandidate(file))
-            .Collect()
-            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
+        var yamlFiles = SpecificationFileProvider.Create(context);
 
         // The server markers among the AdditionalFiles - the project's own, and a sibling project's that the package's
         // targets add (AtcRestApiSiblingMarker) - for the contracts namespace: a declared input, so a change to it runs

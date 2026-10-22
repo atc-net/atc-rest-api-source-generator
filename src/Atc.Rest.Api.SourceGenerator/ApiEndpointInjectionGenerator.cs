@@ -31,15 +31,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             .Where(info => info is not null);
 
         // 3. Collect YAML files for OpenAPI specs
-        var yamlFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) =>
-                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => OverlayFileHelper.IsCandidate(file))
-            .Collect()
-            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
+        var yamlFiles = SpecificationFileProvider.Create(context);
 
         // The project's marker files: the overlays they list are applied to the specification here too
         var markerFiles = context.AdditionalTextsProvider

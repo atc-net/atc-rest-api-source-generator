@@ -34,21 +34,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
         // Register a pipeline to collect ALL OpenAPI YAML files (for multi-parts support)
-        var yamlFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            .Combine(context.AnalyzerConfigOptionsProvider)
-
-            // With the rules' severities for this file: the compiler applies .editorconfig to C# files only
-            .Select(static (pair, cancellationToken) =>
-                new YamlFileInfo(
-                    pair.Left.Path,
-                    pair.Left.GetText(cancellationToken)?.ToString() ?? string.Empty,
-                    RuleSeverityOverrides.ReadSeverities(pair.Right.GetOptions(pair.Left).TryGetValue)))
-            .Where(static file => OverlayFileHelper.IsCandidate(file))
-            .Collect()
-            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
+        var yamlFiles = SpecificationFileProvider.Create(context);
 
         // Check for required package references
         var packageReferencesProvider = context.CompilationProvider
