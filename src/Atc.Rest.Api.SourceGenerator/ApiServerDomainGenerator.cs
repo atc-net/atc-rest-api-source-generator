@@ -386,9 +386,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
         }
 
-        // Get all operations from the OpenAPI document
-        var operations = openApiDoc.GetAllOperations();
-
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
@@ -433,78 +430,34 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage, DeprecationDetector.HasDeprecatedMembers(openApiDoc));
         generatedContext.AddGeneratedSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
 
-        // Collect all handler info for DI registration
-        var allHandlers = new List<(string OperationId, string HandlerName, string HandlerNamespace)>();
-
-        // Generate scaffolds for unimplemented handlers only
-        foreach (var (path, operationType, operation) in operations)
+        // Every operation's handler: a user-written one before a leftover stub, a stub scaffolded for the others
+        var plans = HandlerScaffoldPlanner.Plan(openApiDoc, config, assemblyName, markerDirectory, implementedHandlers);
+        foreach (var plan in plans)
         {
-            // Skip deprecated operations if not including them
-            if (operation is null || (!config.IncludeDeprecated && operation.Deprecated))
+            // A user handler shadowing a leftover stub is silent otherwise - surface it so the developer knows to
+            // delete the stale stub in the scaffold folder
+            if (plan.ShadowsStub)
             {
-                continue;
+                DiagnosticHelpers.ReportHandlerStubShadowed(context, plan.HandlerName, plan.Namespace, plan.ScaffoldNamespace);
             }
-
-            // Get the path item to access path-level parameters
-            openApiDoc.Paths.TryGetValue(path, out var pathItem);
-
-            var operationId = operation.GetOperationId(path, operationType);
-            var handlerName = $"{operationId.ToPascalCaseForDotNet()}{config.HandlerSuffix}";
-
-            // The namespace a scaffolded stub for this operation would live in.
-            var scaffoldNamespace = GetHandlerNamespace(assemblyName, path, operation, config);
-
-            // Resolve which implementation to register. When the same handler name exists in
-            // multiple namespaces (a leftover stub under the scaffold namespace PLUS a
-            // hand-written handler elsewhere), prefer the user's handler so the endpoint
-            // doesn't silently resolve to the NotImplementedException stub (HTTP 501).
-            var isImplemented = implementedHandlers.TryGetValue(handlerName, out var implementingNamespaces)
-                && implementingNamespaces.Count > 0;
-
-            string? actualNamespace = null;
-            if (isImplemented)
-            {
-                actualNamespace = implementingNamespaces.FirstOrDefault(ns => !string.Equals(ns, scaffoldNamespace, StringComparison.Ordinal))
-                                  ?? implementingNamespaces[0];
-
-                // A user handler shadowing a leftover stub is silent otherwise — surface it so
-                // the developer knows to delete the stale stub in the scaffold folder.
-                if (implementingNamespaces.Count > 1 &&
-                    implementingNamespaces.Contains(scaffoldNamespace) &&
-                    !string.Equals(actualNamespace, scaffoldNamespace, StringComparison.Ordinal))
-                {
-                    DiagnosticHelpers.ReportHandlerStubShadowed(context, handlerName, actualNamespace, scaffoldNamespace);
-                }
-            }
-
-            // Use actual namespace if implemented, otherwise use config-based namespace
-            var handlerNamespace = isImplemented && !string.IsNullOrEmpty(actualNamespace)
-                ? actualNamespace!
-                : scaffoldNamespace;
-
-            // Add to all handlers list for DI registration (regardless of implementation status)
-            allHandlers.Add((operationId, handlerName, handlerNamespace));
-
-            // Determine sub-folder path for physical file (if enabled)
-            var subFolderPath = GetSubFolderPath(path, operation, config);
 
             // If handler is already implemented, check if signature needs updating (when the project's files may be
             // written; a signature that does not match fails the build either way)
-            if (isImplemented)
+            if (plan.IsImplemented)
             {
-                var handlerFilePath = GetHandlerFilePath(handlerName, markerDirectory, subFolderPath, config);
-                if (scaffolding.WritesFiles && File.Exists(handlerFilePath))
+                if (scaffolding.WritesFiles && File.Exists(plan.FilePath))
                 {
-                    var expectedSignature = BuildExpectedSignature(openApiDoc, path, operation, operationId);
-                    UpdateHandlerSignatureIfNeeded(handlerFilePath, expectedSignature);
+                    UpdateHandlerSignatureIfNeeded(plan.FilePath, plan.ExpectedSignature);
                 }
 
                 continue;
             }
 
-            // Generate handler scaffold as physical file
-            GenerateHandlerScaffold(context, handlerName, handlerNamespace, operation, pathItem, operationId, config, markerDirectory, subFolderPath, systemTypeResolver, scaffolding.WritesFiles);
+            GenerateHandlerScaffold(context, plan, config, markerDirectory, systemTypeResolver, scaffolding.WritesFiles);
         }
+
+        // Every handler is registered, implemented or not
+        var allHandlers = plans.Select(p => (p.OperationId, p.HandlerName, p.Namespace)).ToList();
 
         // Generate DI registration extension method for handlers
         GenerateDependencyRegistration(generatedContext, assemblyName, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
@@ -651,46 +604,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Determines the handler namespace based on assembly name and configuration.
-    /// Uses assembly name as the base namespace, with optional override via config.Namespace.
-    /// </summary>
-    private static string GetHandlerNamespace(
-        string assemblyName,
-        string path,
-        OpenApiOperation operation,
-        ServerDomainConfig config)
-    {
-        // Use assembly name as base namespace by default, config.Namespace only as explicit override
-        var baseNamespace = assemblyName;
-
-        // Build handler folder name from config (default: "ApiHandlers")
-        var handlerFolder = config.GenerateHandlersOutput
-            .Replace("/", ".")
-            .Replace("\\", ".");
-
-        // If no sub-folders, use handler folder directly
-        if (config.SubFolderStrategy == SubFolderStrategyType.None)
-        {
-            return $"{baseNamespace}.{handlerFolder}";
-        }
-
-        // Extract sub-folder name based on strategy
-        var subFolder = config.SubFolderStrategy switch
-        {
-            SubFolderStrategyType.FirstPathSegment => ExtractFirstPathSegment(path),
-            SubFolderStrategyType.OpenApiTag => operation.GetFirstTag(),
-            _ => string.Empty
-        };
-
-        if (string.IsNullOrEmpty(subFolder))
-        {
-            return $"{baseNamespace}.{handlerFolder}";
-        }
-
-        return $"{baseNamespace}.{handlerFolder}.{subFolder.ToPascalCaseForDotNet()}";
-    }
-
-    /// <summary>
     /// Scans the compilation to find all handler interface namespaces.
     /// Returns a set of unique namespaces where IXxxHandler interfaces are defined.
     /// </summary>
@@ -741,79 +654,24 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
     }
 
-    /// <summary>
-    /// Extracts the first path segment from an OpenAPI path (e.g., "/pets/{id}" -> "Pet").
-    /// </summary>
-    private static string ExtractFirstPathSegment(string path)
-    {
-        var segments = path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        return segments[0].ToPascalCaseForDotNet();
-    }
-
-    /// <summary>
-    /// Gets the sub-folder path for physical file generation based on configuration.
-    /// </summary>
-    private static string GetSubFolderPath(
-        string path,
-        OpenApiOperation operation,
-        ServerDomainConfig config)
-    {
-        // If no sub-folders, return empty string
-        if (config.SubFolderStrategy == SubFolderStrategyType.None)
-        {
-            return string.Empty;
-        }
-
-        // Extract sub-folder name based on strategy
-        var subFolder = config.SubFolderStrategy switch
-        {
-            SubFolderStrategyType.FirstPathSegment => ExtractFirstPathSegment(path),
-            SubFolderStrategyType.OpenApiTag => operation.GetFirstTag(),
-            _ => string.Empty
-        };
-
-        return subFolder;
-    }
-
     private static void GenerateHandlerScaffold(
         SourceProductionContext context,
-        string handlerName,
-        string handlerNamespace,
-        OpenApiOperation operation,
-        IOpenApiPathItem? pathItem,
-        string operationId,
+        Atc.Rest.Api.Generator.Models.HandlerPlan plan,
         ServerDomainConfig config,
         string markerDirectory,
-        string subFolderPath,
         SystemTypeConflictResolver systemTypeResolver,
         bool writesFiles)
     {
-        // Determine output directory (GenerateHandlersOutput is relative to marker file)
-        var outputDirectory = Path.Combine(markerDirectory, config.GenerateHandlersOutput);
-
-        // If no marker file found, report warning
-        if (string.IsNullOrEmpty(outputDirectory))
+        // Without a marker folder and a handler folder there is nowhere to scaffold (GenerateHandlersOutput is relative
+        // to the marker file)
+        if (string.IsNullOrEmpty(Path.Combine(markerDirectory, config.GenerateHandlersOutput)))
         {
             DiagnosticHelpers.ReportOutputDirectoryNotSpecified(context);
             return;
         }
 
-        // Apply sub-folder if configured
-        if (!string.IsNullOrEmpty(subFolderPath))
-        {
-            outputDirectory = Path.Combine(outputDirectory, subFolderPath);
-        }
-
-        // Generate file path
-        var fileName = $"{handlerName}.cs";
-        var filePath = Path.Combine(outputDirectory, fileName);
-
         // Skip if file already exists
+        var filePath = plan.FilePath;
         if (File.Exists(filePath))
         {
             return;
@@ -821,11 +679,11 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Use HandlerScaffoldExtractor to extract class parameters
         var classParameters = HandlerScaffoldExtractor.Extract(
-            handlerName,
-            handlerNamespace,
-            operation,
-            pathItem,
-            operationId,
+            plan.HandlerName,
+            plan.Namespace,
+            plan.Operation,
+            plan.PathItem,
+            plan.OperationId,
             config.HandlerSuffix,
             config.StubImplementation,
             systemTypeResolver,
@@ -853,75 +711,16 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                DiagnosticHelpers.ReportHandlerScaffoldNotWritten(context, handlerName, filePath, ex);
+                DiagnosticHelpers.ReportHandlerScaffoldNotWritten(context, plan.HandlerName, filePath, ex);
             }
         }
         else
         {
-            DiagnosticHelpers.ReportHandlerNotImplemented(context, handlerName, filePath);
+            DiagnosticHelpers.ReportHandlerNotImplemented(context, plan.HandlerName, filePath);
         }
 
         // Also emit as in-memory source so the current compilation can reference this type
-        context.AddSource($"{handlerName}.scaffold.g.cs", SourceText.From(content, Encoding.UTF8));
-    }
-
-    /// <summary>
-    /// Gets the file path where a handler would be located based on configuration.
-    /// </summary>
-    private static string GetHandlerFilePath(
-        string handlerName,
-        string markerDirectory,
-        string subFolderPath,
-        ServerDomainConfig config)
-    {
-        var outputDirectory = Path.Combine(markerDirectory, config.GenerateHandlersOutput);
-
-        if (!string.IsNullOrEmpty(subFolderPath))
-        {
-            outputDirectory = Path.Combine(outputDirectory, subFolderPath);
-        }
-
-        return Path.Combine(outputDirectory, $"{handlerName}.cs");
-    }
-
-    /// <summary>
-    /// Builds the expected ExecuteAsync method signature based on the OpenAPI operation.
-    /// </summary>
-    private static string BuildExpectedSignature(
-        OpenApiDocument openApiDoc,
-        string path,
-        OpenApiOperation operation,
-        string operationId)
-    {
-        var operationIdPascal = operationId.ToPascalCaseForDotNet();
-
-        // Check if operation has parameters (operation-level)
-        var hasOperationParams = operation.Parameters is { Count: > 0 };
-
-        // Check for path-level parameters
-        var hasPathParams = false;
-        if (openApiDoc.Paths is not null &&
-            openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) &&
-            pathItemInterface is { } pathItem)
-        {
-            hasPathParams = pathItem.Parameters is { Count: > 0 };
-        }
-
-        // Check for request body
-        var hasRequestBody = operation.HasRequestBody();
-        var hasParameters = hasOperationParams || hasPathParams || hasRequestBody;
-
-        if (hasParameters)
-        {
-            // Multi-line format to comply with ATC202 (multi parameters on separate lines)
-            return $"public Task<{operationIdPascal}Result> ExecuteAsync(\n" +
-                   $"        {operationIdPascal}Parameters parameters,\n" +
-                   "        CancellationToken cancellationToken = default)";
-        }
-
-        // Single parameter - use multi-line format to comply with ATC201 (line exceeds 80 chars)
-        return $"public Task<{operationIdPascal}Result> ExecuteAsync(\n" +
-               "        CancellationToken cancellationToken = default)";
+        context.AddSource($"{plan.HandlerName}.scaffold.g.cs", SourceText.From(content, Encoding.UTF8));
     }
 
     /// <summary>
