@@ -202,16 +202,6 @@ public static class EndpointPerOperationExtractor
     }
 
     /// <summary>
-    /// Checks if an operation returns binary content (application/octet-stream).
-    /// </summary>
-    /// <remarks>
-    /// Binary endpoints use BinaryEndpointResponse from Atc.Rest.Client instead of
-    /// generating custom result classes.
-    /// </remarks>
-    private static bool IsBinaryEndpoint(OpenApiOperation operation)
-        => operation.IsStreamedDownloadOperation();
-
-    /// <summary>
     /// Information about a response from an operation.
     /// </summary>
     /// <param name="StatusCode">The HTTP status code (e.g., "200", "404").</param>
@@ -266,7 +256,7 @@ public static class EndpointPerOperationExtractor
         var description = operation.Summary ?? operation.Description ?? $"{operationName} operation";
 
         // Check if this is a binary endpoint (returns application/octet-stream)
-        var isBinaryEndpoint = IsBinaryEndpoint(operation);
+        var isBinaryEndpoint = operation.IsStreamedDownloadOperation();
 
         // Check if this operation returns an async enumerable / streamed response
         // (x-return-async-enumerable annotation or an OpenAPI 3.2 itemSchema).

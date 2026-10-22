@@ -532,7 +532,7 @@ public static class OperationParameterExtractor
                         validationAttr => new AttributeParameters(validationAttr, null)));
 
                 // Extract schema default value if available
-                var schemaDefault = ExtractSchemaDefault(parameter.Schema, cleanTypeName, registry);
+                var schemaDefault = DefaultValueHelper.ExtractSchemaDefault(parameter.Schema, cleanTypeName, registry);
 
                 // Add DefaultValue attribute when schema has a default (for OpenAPI/Scalar UI)
                 if (schemaDefault is not null)
@@ -955,15 +955,6 @@ public static class OperationParameterExtractor
 
         return null;
     }
-
-    /// <summary>
-    /// Extracts the default value from an OpenAPI schema and formats it as a C# literal.
-    /// </summary>
-    private static string? ExtractSchemaDefault(
-        IOpenApiSchema? schemaInterface,
-        string paramType,
-        TypeConflictRegistry? registry)
-        => DefaultValueHelper.ExtractSchemaDefault(schemaInterface, paramType, registry);
 
     /// <summary>
     /// Formats the default value for use in a [DefaultValue] attribute.

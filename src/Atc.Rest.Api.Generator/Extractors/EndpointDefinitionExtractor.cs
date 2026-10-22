@@ -276,7 +276,7 @@ public static class EndpointDefinitionExtractor
 
             // Extract first path segment (e.g., "/pets/{id}" -> "Pets")
             // PathSegmentHelper returns PascalCase, pluralized name
-            var segment = GetFirstPathSegment(pathKey);
+            var segment = PathSegmentHelper.GetFirstPathSegment(pathKey);
 
             if (!groups.TryGetValue(segment, out var operationList))
             {
@@ -347,7 +347,7 @@ public static class EndpointDefinitionExtractor
                 if (string.IsNullOrEmpty(groupName))
                 {
                     // GetFirstPathSegment already returns properly formatted name from PathSegmentHelper
-                    groupName = GetFirstPathSegment(pathKey);
+                    groupName = PathSegmentHelper.GetFirstPathSegment(pathKey);
                 }
 
                 if (groupName is null)
@@ -367,9 +367,6 @@ public static class EndpointDefinitionExtractor
 
         return groups;
     }
-
-    private static string GetFirstPathSegment(string path)
-        => PathSegmentHelper.GetFirstPathSegment(path);
 
     private static InterfaceParameters GenerateInterface(
         string projectName,

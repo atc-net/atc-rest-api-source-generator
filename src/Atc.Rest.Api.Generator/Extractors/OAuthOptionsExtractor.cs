@@ -70,7 +70,7 @@ public static class OAuthOptionsExtractor
         }
 
         builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public string TokenUrl {{ get; set; }} = \"{EscapeString(defaultTokenUrl)}\";");
+        builder.AppendLine(4, $"public string TokenUrl {{ get; set; }} = \"{CSharpLiteralHelper.EscapeString(defaultTokenUrl)}\";");
         builder.AppendLine();
 
         // ClientId property
@@ -99,7 +99,7 @@ public static class OAuthOptionsExtractor
         }
 
         builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, $"public string Scopes {{ get; set; }} = \"{EscapeString(defaultScopes)}\";");
+        builder.AppendLine(4, $"public string Scopes {{ get; set; }} = \"{CSharpLiteralHelper.EscapeString(defaultScopes)}\";");
         builder.AppendLine();
 
         // RefreshBufferSeconds property
@@ -117,17 +117,11 @@ public static class OAuthOptionsExtractor
             builder.AppendLine(4, "/// Gets or sets the OAuth2 refresh token endpoint URL.");
             builder.AppendLine(4, $"/// Default from OpenAPI spec: {oauthConfig.AuthorizationCodeRefreshUrl}");
             builder.AppendLine(4, "/// </summary>");
-            builder.AppendLine(4, $"public string? RefreshUrl {{ get; set; }} = \"{EscapeString(oauthConfig.AuthorizationCodeRefreshUrl ?? string.Empty)}\";");
+            builder.AppendLine(4, $"public string? RefreshUrl {{ get; set; }} = \"{CSharpLiteralHelper.EscapeString(oauthConfig.AuthorizationCodeRefreshUrl ?? string.Empty)}\";");
         }
 
         builder.AppendLine("}");
 
         return builder.ToString();
     }
-
-    /// <summary>
-    /// Escapes a string for use in C# string literals.
-    /// </summary>
-    private static string EscapeString(string value)
-        => CSharpLiteralHelper.EscapeString(value);
 }

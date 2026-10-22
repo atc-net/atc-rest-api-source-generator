@@ -647,7 +647,7 @@ public static class SchemaExtractor
                 : null;
 
             // Extract default value from schema (null for an optional property: it may be absent)
-            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
             var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
@@ -821,15 +821,6 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Extracts the default value from an OpenAPI schema and formats it as a C# literal.
-    /// </summary>
-    private static string? ExtractSchemaDefault(
-        IOpenApiSchema? schemaInterface,
-        string typeName,
-        TypeConflictRegistry? registry)
-        => DefaultValueHelper.ExtractSchemaDefault(schemaInterface, typeName, registry);
-
-    /// <summary>
     /// Extracts a single record definition from an OpenAPI schema, with inline enum support.
     /// Inline enum properties are detected and tracked in the inlineEnums dictionary.
     /// </summary>
@@ -964,7 +955,7 @@ public static class SchemaExtractor
                 : null;
 
             // Extract default value from schema (null for an optional property: it may be absent)
-            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
             var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
