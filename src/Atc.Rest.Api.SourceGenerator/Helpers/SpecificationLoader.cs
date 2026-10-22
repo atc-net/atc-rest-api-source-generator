@@ -2,9 +2,8 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 
 /// <summary>
 /// The first step every generator takes: a specification file is parsed (or a multi-part set is merged), its overlays
-/// are applied, it is validated by the configured strategy, and its diagnostics reported - generation goes on only
-/// when no error was found. The server, client and domain generators share it, so a specification is read the same
-/// way by all three.
+/// are applied, it is read by <see cref="SpecificationPipeline"/> - the same steps as every CLI command - and its
+/// diagnostics reported; generation goes on only when no error was found.
 /// </summary>
 internal static class SpecificationLoader
 {
@@ -43,36 +42,16 @@ internal static class SpecificationLoader
             yamlContent = effective;
         }
 
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
-        if (openApiDoc is null)
+        var result = SpecificationPipeline.ParseAndValidate(yamlPath, yamlContent, strategy, parametersMustBind);
+        if (result.Document is null)
         {
             // That it failed, and why: the parser's own errors
             reportParsingError(context, yamlPath);
-            ReportAndContinue(
-                context,
-                [.. (openApiDiagnostic?.Errors ?? []).Select(e => new GeneratorDiagnosticMessage(RuleIdentifiers.OpenApiCoreError, e.Message, GeneratorDiagnosticSeverity.Error, yamlPath))],
-                severities);
+            ReportAndContinue(context, result.Diagnostics, severities);
             return null;
         }
 
-        // Every extractor looks a body up by its media type: parameters, casing and model-carrying wildcards first
-        MediaTypeNormalizer.WithCanonicalMediaTypes(openApiDoc);
-
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            strategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
-            yamlPath,
-            yamlContent,
-            openApiDiagnostic?.Warnings);
-        if (parametersMustBind)
-        {
-            validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
-        }
-
-        // A status range (2XX) is its first status for every generator, and a HEAD's responses have no content (the
-        // validator has warned about both)
-        return ReportAndContinue(context, validationDiagnostics, severities) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc)) : null;
+        return ReportAndContinue(context, result.Diagnostics, severities) ? result.Document : null;
     }
 
     /// <summary>
@@ -82,10 +61,7 @@ internal static class SpecificationLoader
     /// <param name="document">The document, normalized in place.</param>
     /// <returns>The document.</returns>
     public static OpenApiDocument Normalize(OpenApiDocument document)
-    {
-        MediaTypeNormalizer.WithCanonicalMediaTypes(document);
-        return HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(document));
-    }
+        => SpecificationPipeline.Normalize(document);
 
     /// <summary>
     /// The texts of a specification of several files, the base file first (see <see cref="SpecLocations"/>).
@@ -129,36 +105,10 @@ internal static class SpecificationLoader
             return null;
         }
 
-        MediaTypeNormalizer.WithCanonicalMediaTypes(document);
-
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            strategy,
-            document,
-            Array.Empty<OpenApiError>(),
-            baseFile.Path);
-
         // On the line of the file - the base or a part - that declares the operation, the path or the schema
-        SpecLocations.Apply(validationDiagnostics, SourcesOf(baseFile, partFiles));
-        if (parametersMustBind)
-        {
-            validationDiagnostics = WithUnbindableParametersAsErrors(validationDiagnostics);
-        }
-
-        return ReportAndContinue(context, validationDiagnostics, severities) ? HeadResponseNormalizer.WithoutResponseBodies(ResponseRangeNormalizer.WithExplicitStatuses(document)) : null;
+        var result = SpecificationPipeline.Validate(document, SourcesOf(baseFile, partFiles), strategy, parametersMustBind);
+        return ReportAndContinue(context, result.Diagnostics, severities) ? result.Document : null;
     }
-
-    /// <summary>
-    /// The diagnostics a server generator reports: a parameter or a form field whose value cannot be bound
-    /// (<c>ATC_API_OPR037</c>, a warning to a client, which leaves it out) is an error - the server's code could not
-    /// bind it.
-    /// </summary>
-    /// <param name="diagnostics">The validation diagnostics.</param>
-    /// <returns>The diagnostics, with those warnings as errors.</returns>
-    public static List<GeneratorDiagnosticMessage> WithUnbindableParametersAsErrors(
-        List<GeneratorDiagnosticMessage> diagnostics)
-        => [.. (diagnostics ?? []).Select(d => d.RuleId == RuleIdentifiers.ParameterValueNotBindable && d.Severity == GeneratorDiagnosticSeverity.Warning
-            ? d with { Severity = GeneratorDiagnosticSeverity.Error }
-            : d)];
 
     /// <summary>
     /// Merges a base specification with its parts and applies the overlays to the result, without validating it.

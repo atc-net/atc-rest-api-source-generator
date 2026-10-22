@@ -105,25 +105,6 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 parsedDocument = validationResult.Document;
                 validationDiagnostics = validationResult.Diagnostics;
 
-                // A multi-part specification ({Base}_{Part}.yaml): the parts' operations, schemas and retry
-                // settings count too (e.g. for the resilience package and the statistics).
-                var (merge, merged) = SpecificationService.ReadAndMergeResolved(specPath);
-                if (!merge.IsSuccess)
-                {
-                    foreach (var diagnostic in merge.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
-                    {
-                        var location = diagnostic.FilePath is null ? string.Empty : " (" + Path.GetFileName(diagnostic.FilePath) + ")";
-                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red][[{diagnostic.RuleId}]] {diagnostic.Message + location}[/]");
-                    }
-
-                    return 1;
-                }
-
-                if (merge.IsMultiPart && merged?.Document is not null)
-                {
-                    parsedDocument = merged.Document;
-                }
-
                 // Resolve resilience package if spec has retry configuration
                 Version? resilienceVersion = null;
                 if (parsedDocument is not null && parsedDocument.HasRetryConfiguration())

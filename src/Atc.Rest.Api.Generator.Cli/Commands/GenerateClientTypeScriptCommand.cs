@@ -89,7 +89,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             {
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = ValidateSpecification(specPath, config.ValidateSpecificationStrategy, config.Overlays);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, config.ValidateSpecificationStrategy, config.Overlays);
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -381,130 +381,5 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.Write(new FigletText("ATC REST API").Color(Color.Blue));
         AnsiConsole.MarkupLine("[dim]TypeScript Client Generator[/]");
         AnsiConsole.WriteLine();
-    }
-
-    private static (bool Success, OpenApiDocument? Document) ValidateSpecification(
-        string specPath,
-        ValidateSpecificationStrategy strategy,
-        IReadOnlyList<string> overlays)
-    {
-        string yamlContent;
-        try
-        {
-            yamlContent = File.ReadAllText(specPath);
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Error reading file: {ex.Message}");
-            return (false, null);
-        }
-
-        try
-        {
-            var (parsedDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specPath);
-
-            if (parsedDoc is null)
-            {
-                AnsiConsole.MarkupLine("[red]\u2717[/] Failed to parse OpenAPI specification");
-
-                if (openApiDiagnostic?.Errors is not null)
-                {
-                    foreach (var error in openApiDiagnostic.Errors)
-                    {
-                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]{error.Message}[/]");
-                    }
-                }
-
-                return (false, null);
-            }
-
-            // Multi-part specifications ({Base}_{Part}.yaml next to the base file - as the build finds them - or an
-            // x-multipart list in the base file): merge the parts, so the client covers every part.
-            var (merge, merged) = SpecificationService.ReadAndMergeResolved(specPath);
-            if (merged?.Document is null)
-            {
-                AnsiConsole.MarkupLine("[red]✗[/] Failed to merge the multi-part specification:");
-                foreach (var diagnostic in merge.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
-                {
-                    var location = diagnostic.FilePath is null ? string.Empty : " (" + Path.GetFileName(diagnostic.FilePath) + ")";
-                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red][[{diagnostic.RuleId}]] {diagnostic.Message + location}[/]");
-                }
-
-                return (false, null);
-            }
-
-            if (merge.IsMultiPart)
-            {
-                parsedDoc = merged.Document;
-                yamlContent = merged.Content;
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Merged {merge.PartFiles.Count} part file(s) into the specification");
-            }
-
-            // The overlays apply to the whole (merged) specification, as in the C# build
-            if (overlays.Count > 0)
-            {
-                var effective = OverlayCliHelper.Apply(yamlContent, overlays);
-                if (effective is null)
-                {
-                    return (false, null);
-                }
-
-                (parsedDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(effective, specPath);
-                if (parsedDoc is null)
-                {
-                    AnsiConsole.MarkupLine("[red]✗[/] The overlays make a document that is no OpenAPI specification");
-                    return (false, null);
-                }
-
-                yamlContent = effective;
-            }
-
-            var diagnostics = OpenApiDocumentValidator.Validate(
-                strategy,
-                parsedDoc,
-                openApiDiagnostic?.Errors ?? [],
-                specPath,
-                yamlContent,
-                openApiDiagnostic?.Warnings);
-
-            var errors = diagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Error)
-                .ToList();
-
-            if (errors.Count > 0)
-            {
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Validation failed with {errors.Count} error(s):");
-                foreach (var error in errors)
-                {
-                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red][[{error.RuleId}]] {error.Message}[/]");
-                }
-
-                return (false, null);
-            }
-
-            var warnings = diagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Warning)
-                .ToList();
-
-            if (warnings.Count > 0)
-            {
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Validation passed with {warnings.Count} warning(s):");
-                foreach (var warning in warnings)
-                {
-                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow][[{warning.RuleId}]] {warning.Message}[/]");
-                }
-            }
-            else
-            {
-                AnsiConsole.MarkupLine("[green]\u2713[/] Validation passed - no issues found");
-            }
-
-            return (true, parsedDoc);
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Error parsing OpenAPI specification: {ex.Message}");
-            return (false, null);
-        }
     }
 }

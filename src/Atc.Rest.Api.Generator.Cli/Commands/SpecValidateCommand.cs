@@ -88,38 +88,21 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             return 1;
         }
 
-        // Parse the OpenAPI document
-        ctx.Status("Parsing OpenAPI document...");
-
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specPath);
-
-        if (openApiDoc is null)
+        // Parse and validate the OpenAPI document
+        ctx.Status("Parsing and validating the OpenAPI document...");
+        var result = SpecificationPipeline.ParseAndValidate(specPath, yamlContent, strategy);
+        if (result.Document is null)
         {
             AnsiConsole.MarkupLine("[red]✗[/] Failed to parse OpenAPI specification");
-
-            if (openApiDiagnostic?.Errors is not null)
+            foreach (var error in result.Diagnostics)
             {
-                foreach (var error in openApiDiagnostic.Errors)
-                {
-                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
-                }
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
             }
 
             return 1;
         }
 
-        // Validate the document
-        ctx.Status("Running validation rules...");
-        var diagnostics = OpenApiDocumentValidator.Validate(
-            strategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? [],
-            specPath,
-            yamlContent,
-            openApiDiagnostic?.Warnings);
-
-        // Display results
-        return DisplayValidationResults(diagnostics);
+        return DisplayValidationResults(result.Diagnostics);
     }
 
     private static int ExecuteMultiPartValidation(
@@ -160,11 +143,8 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         if (filesToValidate.Count == 1 && settings.Overlays.Length == 0)
         {
             ctx.Status("Running validation rules...");
-            var singleDiagnostics = SpecificationService.Validate(
-                baseSpec.Document,
-                baseFile,
-                strategy);
-            return DisplayValidationResults(singleDiagnostics);
+            var single = SpecificationPipeline.Validate(baseSpec.Document, [(baseFile, baseSpec.Content)], strategy);
+            return DisplayValidationResults(single.Diagnostics);
         }
 
         // Read part files
@@ -230,15 +210,14 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             document = overlaid;
         }
 
-        // Validate the merged document
+        // Validate the merged document: each diagnostic on the line of the file - the base or a part - that declares
+        // what it is about
         ctx.Status("Running validation rules on merged specification...");
-        var diagnostics = SpecificationService.Validate(
+        var merged = SpecificationPipeline.Validate(
             document,
-            baseFile,
+            [(baseFile, baseSpec.Content), .. partSpecs.Select(p => (p.FilePath, p.Content))],
             strategy);
-
-        // Display results
-        return DisplayValidationResults(diagnostics);
+        return DisplayValidationResults(merged.Diagnostics);
     }
 
     private static List<string> GetFilesToValidate(

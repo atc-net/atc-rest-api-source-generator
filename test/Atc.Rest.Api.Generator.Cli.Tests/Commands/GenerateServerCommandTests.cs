@@ -67,6 +67,44 @@ public sealed class GenerateServerCommandTests : IDisposable
         Assert.Contains("Shop_Orders.yml", await File.ReadAllTextAsync(contractsProject, TestContext.Current.CancellationToken), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The command reads a specification as the build does: a parameter the server could not bind stops it (the build
+    /// would fail), and so does an error in a part file - not only in the base file.
+    /// </summary>
+    [Theory]
+    [InlineData("Shop.yaml", "  /pets:\n    get:\n      operationId: listPets\n      parameters:\n        - name: filter\n          in: query\n          schema: { type: object, properties: { name: { type: string } } }\n      responses:\n        '204':\n          description: OK\n")]
+    [InlineData("Shop_Orders.yaml", "  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          style: label\n          schema: { type: string }\n      responses:\n        '204':\n          description: OK\n")]
+    public async Task GenerateServer_AParameterTheServerCannotBind_StopsTheCommand(
+        string fileName,
+        string paths)
+    {
+        // Arrange
+        var specDir = Path.Combine(tempOutputDir, "specs");
+        Directory.CreateDirectory(specDir);
+        const string header = "openapi: 3.0.3\ninfo:\n  title: Shop\n  version: 1.0.0\npaths:\n";
+        const string listPets = "  /pets:\n    get:\n      operationId: listPets\n      responses:\n        '204':\n          description: OK\n";
+        var basePath = Path.Combine(specDir, "Shop.yaml");
+        await File.WriteAllTextAsync(basePath, header + (fileName == "Shop.yaml" ? paths : listPets), TestContext.Current.CancellationToken);
+        if (fileName != "Shop.yaml")
+        {
+            await File.WriteAllTextAsync(Path.Combine(specDir, fileName), header + paths, TestContext.Current.CancellationToken);
+        }
+
+        var repoRoot = Path.Combine(tempOutputDir, "Shop");
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"generate server -s \"{basePath}\" -o \"{repoRoot}\" -n \"Shop\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.False(isSuccessful, cleanOutput);
+        Assert.Contains(RuleIdentifiers.ParameterValueNotBindable, cleanOutput, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(Path.Combine(repoRoot, "src")), cleanOutput);
+    }
+
     [Fact]
     public async Task GenerateServer_WithProjectNameOnly_WritesNamespaceToMarkerFile()
     {

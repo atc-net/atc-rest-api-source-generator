@@ -37,9 +37,7 @@ public static class TypeScriptClientGenerationService
 
         // Every extractor looks a body up by its media type: parameters, casing and model-carrying wildcards first.
         // A response declared for a status range is read as its first status, and a HEAD's responses have no content.
-        MediaTypeNormalizer.WithCanonicalMediaTypes(openApiDoc);
-        ResponseRangeNormalizer.WithExplicitStatuses(openApiDoc);
-        HeadResponseNormalizer.WithoutResponseBodies(openApiDoc);
+        openApiDoc = SpecificationPipeline.Normalize(openApiDoc);
 
         // Without includeDeprecated the deprecated operations go with the deprecated schemas they may return
         if (!config.IncludeDeprecated)
