@@ -189,6 +189,36 @@ public class GeneratorDiagnosticsTests
         Assert.DoesNotContain("ATC_API_DEP006", Run(new ApiServerGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server", "{}")], Without("Microsoft.AspNetCore.Authentication.JwtBearer")));
     }
 
+    /// <summary>
+    /// The handler scaffolds merge a multi-part specification the way the server does: with the server marker's merge
+    /// settings, not the defaults - a part that redeclares a path the server lets win was an MPT001 error for the
+    /// handlers alone.
+    /// </summary>
+    [Fact]
+    public void Domain_MergesAMultiPartSpecificationWithTheServerMarkersSettings()
+    {
+        const string part = """
+            openapi: 3.0.3
+            info:
+              title: Contoso
+              version: 1.0.0
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  summary: The part's own description of the list
+                  responses:
+                    '200':
+                      description: OK
+            """;
+        var server = Marker(".atc-rest-api-server", """{ "multiPartConfiguration": { "pathsMergeStrategy": "LastWins" } }""");
+        var handlers = Marker(".atc-rest-api-server-handlers", "{}");
+        var files = new[] { Spec(Yaml), Spec(part, ProjectName + "_Things.yaml"), server, handlers };
+
+        Assert.DoesNotContain(RuleIdentifiers.DuplicatePathInPart, Run(new ApiServerGenerator(), [Spec(Yaml), Spec(part, ProjectName + "_Things.yaml"), server], Full()));
+        Assert.DoesNotContain(RuleIdentifiers.DuplicatePathInPart, Run(new ApiServerDomainGenerator(), files, Full()));
+    }
+
     [Theory]
     [InlineData("useMinimalApiPackage")]
     [InlineData("useValidationFilter")]

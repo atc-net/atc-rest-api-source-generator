@@ -177,12 +177,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 if (partFiles.Count > 0)
                 {
                     // Multi-part mode: merge all files (and apply the overlays), then validate and normalize the result
-                    // like a single file
+                    // like a single file - with the server marker's merge settings, so the handlers see the
+                    // specification the contracts do
                     var merged = SpecificationLoader.MergeAndValidate(
                         productionContext,
                         baseFile.Value,
                         partFiles,
-                        MultiPartConfiguration.Default,
+                        MarkerFileHelper.MultiPartConfigurationOf(declaredServerMarkers.Values),
                         config.ValidateSpecificationStrategy,
                         overlays,
                         parametersMustBind: true,

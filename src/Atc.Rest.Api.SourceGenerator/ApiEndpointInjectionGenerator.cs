@@ -162,7 +162,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             OpenApiDocument? openApiDoc;
             if (partFiles.Count > 0)
             {
-                openApiDoc = SpecificationLoader.Merge(context, matchingYaml, partFiles, MultiPartConfigurationOf(markers), overlays);
+                openApiDoc = SpecificationLoader.Merge(context, matchingYaml, partFiles, MarkerFileHelper.MultiPartConfigurationOf(markers.Values), overlays);
             }
             else
             {
@@ -243,30 +243,6 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return null;
-        }
-    }
-
-    /// <summary>
-    /// The merge configuration of the project's server marker, as the server generator reads it - the default when
-    /// there is none or it cannot be read (the server generator reports that).
-    /// </summary>
-    private static MultiPartConfiguration MultiPartConfigurationOf(
-        EquatableArray<MarkerFileInfo> markers)
-    {
-        var serverMarker = markers.Values.FirstOrDefault(m => Path.GetFileName(m.Path).StartsWith(".atc-rest-api-server", StringComparison.OrdinalIgnoreCase) &&
-                                                                 !Path.GetFileName(m.Path).StartsWith(".atc-rest-api-server-handlers", StringComparison.OrdinalIgnoreCase));
-        if (string.IsNullOrEmpty(serverMarker.Content))
-        {
-            return MultiPartConfiguration.Default;
-        }
-
-        try
-        {
-            return MarkerConfigInspector.Read<ServerConfig>(serverMarker.Content, out _).MultiPartConfiguration ?? MultiPartConfiguration.Default;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            return MultiPartConfiguration.Default;
         }
     }
 

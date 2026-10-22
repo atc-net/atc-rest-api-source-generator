@@ -8,6 +8,32 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 internal static class MarkerFileHelper
 {
     /// <summary>
+    /// The merge configuration of a multi-part specification as the server generator reads it: from the first server
+    /// marker among <paramref name="markers"/> (the project's own, or a sibling project's), the default when there is
+    /// none or it cannot be read (the server generator reports that).
+    /// </summary>
+    /// <param name="markers">The marker files to look among.</param>
+    /// <returns>The server marker's merge configuration, or the default.</returns>
+    public static MultiPartConfiguration MultiPartConfigurationOf(
+        IEnumerable<MarkerFileInfo> markers)
+    {
+        var serverMarker = markers.FirstOrDefault(m => IsServerMarker(m.Path));
+        if (string.IsNullOrEmpty(serverMarker.Content))
+        {
+            return MultiPartConfiguration.Default;
+        }
+
+        try
+        {
+            return MarkerConfigInspector.Read<ServerConfig>(serverMarker.Content, out _).MultiPartConfiguration ?? MultiPartConfiguration.Default;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return MultiPartConfiguration.Default;
+        }
+    }
+
+    /// <summary>
     /// Whether a file is a server marker (<c>.atc-rest-api-server</c> or <c>.atc-rest-api-server.json</c>).
     /// </summary>
     /// <param name="path">The file's path.</param>
