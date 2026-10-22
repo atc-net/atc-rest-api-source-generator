@@ -54,7 +54,7 @@ internal static class TypeScriptSchemaImports
         OpenApiSchemaReference reference,
         HashSet<string> importTypes)
     {
-        var refName = reference.Reference.Id ?? reference.Id;
+        var refName = reference.ComponentName;
         if (refName is not null)
         {
             importTypes.Add(refName);

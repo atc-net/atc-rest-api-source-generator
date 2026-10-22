@@ -924,7 +924,7 @@ public static class TypeScriptOperationHelper
             var isFileUpload = operation.HasFileUpload();
             if (isFileUpload && bodySchema is OpenApiSchemaReference fileUploadRef)
             {
-                var refName = fileUploadRef.Reference.Id ?? fileUploadRef.Id;
+                var refName = fileUploadRef.ComponentName;
                 if (refName is not null)
                 {
                     importTypes.Remove(refName);
@@ -963,7 +963,7 @@ public static class TypeScriptOperationHelper
 
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id;
+            var refName = schemaRef.ComponentName;
             if (refName is null)
             {
                 return;
@@ -977,7 +977,7 @@ public static class TypeScriptOperationHelper
                 target.Type?.HasFlag(JsonSchemaType.Array) == true &&
                 target.Items is OpenApiSchemaReference itemRef)
             {
-                var itemName = itemRef.Reference.Id ?? itemRef.Id;
+                var itemName = itemRef.ComponentName;
                 if (itemName is not null)
                 {
                     importTypes.Add(itemName);
@@ -999,7 +999,7 @@ public static class TypeScriptOperationHelper
             {
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
-                    var refName = allOfRef.Reference.Id ?? allOfRef.Id;
+                    var refName = allOfRef.ComponentName;
                     if (refName is not null)
                     {
                         importTypes.Add(refName);
@@ -1022,7 +1022,7 @@ public static class TypeScriptOperationHelper
         // Handle array item references.
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference inlineItemRef)
         {
-            var refName = inlineItemRef.Reference.Id ?? inlineItemRef.Id;
+            var refName = inlineItemRef.ComponentName;
             if (refName is not null)
             {
                 importTypes.Add(refName);
@@ -1049,7 +1049,7 @@ public static class TypeScriptOperationHelper
         {
             if (actualSchema.Items is OpenApiSchemaReference itemRef)
             {
-                return itemRef.Reference.Id ?? itemRef.Id ?? "unknown";
+                return itemRef.ComponentName ?? "unknown";
             }
 
             if (actualSchema.Items is OpenApiSchema itemSchema)

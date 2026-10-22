@@ -89,7 +89,7 @@ public static class TypeScriptClientExtractor
             var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
             if (bodySchema is OpenApiSchemaReference bodyRef)
             {
-                var refName = bodyRef.Reference.Id ?? bodyRef.Id;
+                var refName = bodyRef.ComponentName;
                 if (refName is not null && writableSchemas.Contains(refName))
                 {
                     importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
@@ -115,7 +115,7 @@ public static class TypeScriptClientExtractor
                 if (resolved is OpenApiSchema resolvedSchema &&
                     resolvedSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
                 {
-                    var wrapperName = streamingRef.Reference.Id ?? streamingRef.Id;
+                    var wrapperName = streamingRef.ComponentName;
 
                     // Check if any non-streaming operation also uses this wrapper type
                     var usedByNonStreaming = false;
@@ -146,7 +146,7 @@ public static class TypeScriptClientExtractor
                     // Add the item type (e.g., "Account")
                     if (resolvedSchema.Items is OpenApiSchemaReference itemRef)
                     {
-                        var itemName = itemRef.Reference.Id ?? itemRef.Id;
+                        var itemName = itemRef.ComponentName;
                         if (itemName is not null)
                         {
                             importTypes.Add(itemName);
@@ -1125,7 +1125,7 @@ public static class TypeScriptClientExtractor
         string? bodyContentType = null)
     {
         var bodyType = bodySchema is OpenApiSchemaReference bodyRef &&
-                       (bodyRef.Reference.Id ?? bodyRef.Id) is { } refName &&
+                       bodyRef.ComponentName is { } refName &&
                        writableSchemas.Contains(refName)
             ? refName + TypeScriptModelExtractor.WritableSuffix
             : bodySchema.ToTypeScriptReturnType();

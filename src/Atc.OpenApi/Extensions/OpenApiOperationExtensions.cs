@@ -970,8 +970,8 @@ public static class OpenApiOperationExtensions
             return true;
         }
 
-        var firstId = first is OpenApiSchemaReference firstReference ? firstReference.Reference.Id ?? firstReference.Id : null;
-        var secondId = second is OpenApiSchemaReference secondReference ? secondReference.Reference.Id ?? secondReference.Id : null;
+        var firstId = first is OpenApiSchemaReference firstReference ? firstReference.ComponentName : null;
+        var secondId = second is OpenApiSchemaReference secondReference ? secondReference.ComponentName : null;
         return firstId is not null && string.Equals(firstId, secondId, StringComparison.Ordinal);
     }
 }

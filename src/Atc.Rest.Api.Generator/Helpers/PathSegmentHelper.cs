@@ -983,7 +983,7 @@ public static class PathSegmentHelper
 
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+            var refId = schemaRef.ComponentName;
             if (!string.IsNullOrEmpty(refId))
             {
                 schemaNames.Add(refId!);

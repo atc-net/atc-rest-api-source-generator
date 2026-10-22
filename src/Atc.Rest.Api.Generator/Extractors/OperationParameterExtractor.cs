@@ -785,7 +785,7 @@ public static class OperationParameterExtractor
             }
 
             // Use Reference.Id first (Microsoft.OpenApi v3.0+), fall back to Id
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
+            var refName = schemaRef.ComponentName ?? "object";
             refName = OpenApiSchemaExtensions.ResolveTypeName(refName, registry);
             return isRequired ? refName : $"{refName}?";
         }

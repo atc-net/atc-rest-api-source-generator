@@ -135,7 +135,7 @@ public static class BuiltInErrorContractNames
 
         if (schema is OpenApiSchemaReference reference)
         {
-            var name = reference.Reference.Id ?? reference.Id;
+            var name = reference.ComponentName;
             if (name is not null && IsReserved(name))
             {
                 result.Add(name);

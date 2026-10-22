@@ -497,7 +497,7 @@ internal static class TypeScriptHookModel
         // signature so consumers can't accidentally pass readOnly fields.
         if (hasBody && bodySchema is OpenApiSchemaReference bodyRef)
         {
-            var bodyRefName = bodyRef.Reference.Id ?? bodyRef.Id;
+            var bodyRefName = bodyRef.ComponentName;
             if (bodyRefName is not null && writableSchemas.Contains(bodyRefName))
             {
                 bodyType = bodyRefName + TypeScriptModelExtractor.WritableSuffix;

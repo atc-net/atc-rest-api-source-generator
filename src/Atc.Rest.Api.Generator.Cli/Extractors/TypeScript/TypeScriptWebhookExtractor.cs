@@ -117,7 +117,7 @@ public static class TypeScriptWebhookExtractor
                     continue;
                 }
 
-                var refName = bodyRef.Reference.Id ?? bodyRef.Id;
+                var refName = bodyRef.ComponentName;
                 if (refName is null)
                 {
                     continue;

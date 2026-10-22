@@ -406,7 +406,7 @@ public static class OpenApiSchemaExtensions
                         continue;
                     }
 
-                    var refName = branchRef.Reference.Id ?? branchRef.Id;
+                    var refName = branchRef.ComponentName;
                     if (!string.IsNullOrEmpty(refName) && !result.Contains(refName!, StringComparer.Ordinal))
                     {
                         result.Add(refName!);
@@ -1056,7 +1056,7 @@ public static class OpenApiSchemaExtensions
         {
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                return schemaRef.Reference.Id ?? schemaRef.Id;
+                return schemaRef.ComponentName;
             }
 
             return null;
@@ -1296,7 +1296,7 @@ public static class OpenApiSchemaExtensions
                 }
 
                 // Try Reference.Id first (Microsoft.OpenApi v3.0+), fall back to Id
-                var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
+                var refName = schemaRef.ComponentName ?? "object";
                 refName = ResolveTypeName(refName, registry);
                 return isRequired ? refName : $"{refName}?";
             }
@@ -1361,7 +1361,7 @@ public static class OpenApiSchemaExtensions
                     return aliasTarget.ToCSharpTypeForModel(isRequired, registry);
                 }
 
-                var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
+                var refName = schemaRef.ComponentName ?? "object";
                 var refTypeName = ResolveTypeName(refName, registry);
 
                 // A component that allows null (type: [object, 'null']) makes the property nullable
@@ -1398,7 +1398,7 @@ public static class OpenApiSchemaExtensions
                                 : "object";
                         }
 
-                        var refName = allOfRef.Reference.Id ?? allOfRef.Id ?? "object";
+                        var refName = allOfRef.ComponentName ?? "object";
                         var typeName = ResolveTypeName(refName, registry);
                         return isNullable ? $"{typeName}?" : typeName;
                     }
@@ -1653,7 +1653,7 @@ public static class OpenApiSchemaExtensions
                 {
                     if (subSchema is OpenApiSchemaReference schemaRef)
                     {
-                        var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+                        var refId = schemaRef.ComponentName;
                         if (!string.IsNullOrEmpty(refId))
                         {
                             result.Add(refId!);
@@ -1669,7 +1669,7 @@ public static class OpenApiSchemaExtensions
                 {
                     if (subSchema is OpenApiSchemaReference schemaRef)
                     {
-                        var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+                        var refId = schemaRef.ComponentName;
                         if (!string.IsNullOrEmpty(refId))
                         {
                             result.Add(refId!);
@@ -1864,7 +1864,7 @@ public static class OpenApiSchemaExtensions
             {
                 if (subSchema is OpenApiSchemaReference schemaRef)
                 {
-                    return schemaRef.Reference.Id ?? schemaRef.Id;
+                    return schemaRef.ComponentName;
                 }
             }
 
@@ -1988,7 +1988,7 @@ public static class OpenApiSchemaExtensions
             // Handle schema references first - this covers simple $ref cases
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+                var refId = schemaRef.ComponentName;
 
                 if (!string.IsNullOrEmpty(refId))
                 {

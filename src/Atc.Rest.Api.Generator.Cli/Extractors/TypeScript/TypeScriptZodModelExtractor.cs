@@ -425,7 +425,7 @@ public static class TypeScriptZodModelExtractor
     {
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id;
+            var refName = schemaRef.ComponentName;
             if (refName is not null)
             {
                 edges.Add(refName);
@@ -629,7 +629,7 @@ public static class TypeScriptZodModelExtractor
             {
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
-                    if ((allOfRef.Reference.Id ?? allOfRef.Id) is { } refName &&
+                    if (allOfRef.ComponentName is { } refName &&
                         !extendsTypeNames.Contains(refName, StringComparer.Ordinal))
                     {
                         extendsTypeNames.Add(refName);
@@ -797,7 +797,7 @@ public static class TypeScriptZodModelExtractor
     {
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id;
+            var refName = schemaRef.ComponentName;
             return string.Equals(refName, targetName, StringComparison.Ordinal);
         }
 
@@ -965,7 +965,7 @@ public static class TypeScriptZodModelExtractor
         string? itemSchemaName = null;
         if (arraySchema.Items is OpenApiSchemaReference itemRef)
         {
-            itemSchemaName = itemRef.Reference.Id ?? itemRef.Id;
+            itemSchemaName = itemRef.ComponentName;
             if (itemSchemaName is not null)
             {
                 sb.AppendLine();
@@ -1101,7 +1101,7 @@ public static class TypeScriptZodModelExtractor
         // Handle schema references ($ref): a nullable component makes the property nullable
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "unknown";
+            var refName = schemaRef.ComponentName ?? "unknown";
             sb.Append(refName).Append("Schema");
 
             // OpenAPI 3.1: a default next to the $ref is this property's own (the component's is the component's)
@@ -1128,7 +1128,7 @@ public static class TypeScriptZodModelExtractor
             {
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
-                    var refName = allOfRef.Reference.Id ?? allOfRef.Id ?? "unknown";
+                    var refName = allOfRef.ComponentName ?? "unknown";
                     sb.Append(refName).Append("Schema");
                     break;
                 }
@@ -1151,7 +1151,7 @@ public static class TypeScriptZodModelExtractor
             isNullable = isNullable || members.Count < union.Count;
             if (members.Count == 1 && members[0] is OpenApiSchemaReference oneOfRef)
             {
-                var refName = oneOfRef.Reference.Id ?? oneOfRef.Id ?? "unknown";
+                var refName = oneOfRef.ComponentName ?? "unknown";
                 sb.Append(refName).Append("Schema");
             }
             else
@@ -1169,7 +1169,7 @@ public static class TypeScriptZodModelExtractor
 
                     if (subSchema is OpenApiSchemaReference unionRef)
                     {
-                        var refName = unionRef.Reference.Id ?? unionRef.Id ?? "unknown";
+                        var refName = unionRef.ComponentName ?? "unknown";
                         sb.Append(refName).Append("Schema");
                     }
                     else
@@ -1202,7 +1202,7 @@ public static class TypeScriptZodModelExtractor
 
             if (actualSchema.Items is OpenApiSchemaReference itemRef)
             {
-                var refName = itemRef.Reference.Id ?? itemRef.Id ?? "unknown";
+                var refName = itemRef.ComponentName ?? "unknown";
                 sb.Append(refName).Append("Schema");
             }
             else if (actualSchema.Items is OpenApiSchema itemSchema)

@@ -96,7 +96,7 @@ public static class TypeScriptTypeMapper
             // Handle schema references
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "unknown";
+                var refName = schemaRef.ComponentName ?? "unknown";
                 return refName;
             }
 
@@ -116,7 +116,7 @@ public static class TypeScriptTypeMapper
                 {
                     if (subSchema is OpenApiSchemaReference allOfRef)
                     {
-                        var refName = allOfRef.Reference.Id ?? allOfRef.Id ?? "unknown";
+                        var refName = allOfRef.ComponentName ?? "unknown";
                         return isNullable ? $"{refName} | null" : refName;
                     }
                 }
@@ -186,7 +186,7 @@ public static class TypeScriptTypeMapper
             // Handle schema references
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                return schemaRef.Reference.Id ?? schemaRef.Id ?? "unknown";
+                return schemaRef.ComponentName ?? "unknown";
             }
 
             if (schema is not OpenApiSchema actualSchema)
@@ -286,7 +286,7 @@ public static class TypeScriptTypeMapper
                               itemTargetType.HasFlag(JsonSchemaType.Array)
                     ? elementRef
                     : itemRef;
-                itemSchemaName = element.Reference.Id ?? element.Id;
+                itemSchemaName = element.ComponentName;
                 if (itemSchemaName is null)
                 {
                     return false;
@@ -364,7 +364,7 @@ public static class TypeScriptTypeMapper
         }
 
         var parts = refs
-            .Select(r => r.Reference.Id ?? r.Id)
+            .Select(r => r.ComponentName)
             .Where(name => !string.IsNullOrEmpty(name))
             .Select(name => name!)
             .ToList();
@@ -442,7 +442,7 @@ public static class TypeScriptTypeMapper
                 return null;
             }
 
-            var refName = branchRef.Reference.Id ?? branchRef.Id;
+            var refName = branchRef.ComponentName;
             if (string.IsNullOrEmpty(refName))
             {
                 return null;
@@ -582,7 +582,7 @@ public static class TypeScriptTypeMapper
 
         if (arraySchema.Items is OpenApiSchemaReference itemRef)
         {
-            return itemRef.Reference.Id ?? itemRef.Id ?? "unknown";
+            return itemRef.ComponentName ?? "unknown";
         }
 
         if (arraySchema.Items is OpenApiSchema itemSchema)

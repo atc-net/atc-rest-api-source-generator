@@ -124,7 +124,7 @@ public static class TypeScriptReactQueryHookExtractor
             var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
             if (bodySchema is OpenApiSchemaReference bodyRef)
             {
-                var refName = bodyRef.Reference.Id ?? bodyRef.Id;
+                var refName = bodyRef.ComponentName;
                 if (refName is not null && writableSchemas.Contains(refName))
                 {
                     importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);

@@ -415,6 +415,6 @@ public static class XmlBodyHelper
         => reference.Target is OpenApiSchema target &&
            target.HasPolymorphicComposition() &&
            reference.Reference?.HostDocument is { } document &&
-           (reference.Reference.Id ?? reference.Id) is { } id &&
+           reference.ComponentName is { } id &&
            PolymorphicBases.GetValue(document, d => new HashSet<string>(PolymorphicTypeExtractor.ExtractPolymorphicConfigs(d)?.Keys ?? Enumerable.Empty<string>(), StringComparer.Ordinal)).Contains(id);
 }

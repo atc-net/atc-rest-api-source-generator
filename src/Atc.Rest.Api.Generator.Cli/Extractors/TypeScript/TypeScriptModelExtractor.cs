@@ -253,7 +253,7 @@ public static class TypeScriptModelExtractor
             if (isRecordAlias)
             {
                 if (actualSchema.AdditionalProperties is OpenApiSchemaReference valueRef &&
-                    (valueRef.Reference.Id ?? valueRef.Id) is { } valueName)
+                    valueRef.ComponentName is { } valueName)
                 {
                     sb.Append("import type { ").Append(valueName).Append(" } from './").Append(valueName).AppendLine("';");
                     sb.AppendLine();
@@ -453,7 +453,7 @@ public static class TypeScriptModelExtractor
                     continue;
                 }
 
-                var refName = variantRef.Reference.Id ?? variantRef.Id;
+                var refName = variantRef.ComponentName;
                 if (refName is not null && seen.Add(refName))
                 {
                     result.Add(refName);
@@ -487,7 +487,7 @@ public static class TypeScriptModelExtractor
     {
         if (arraySchema.Items is OpenApiSchemaReference itemRef)
         {
-            return itemRef.Reference.Id ?? itemRef.Id ?? "unknown";
+            return itemRef.ComponentName ?? "unknown";
         }
 
         if (arraySchema.Items is OpenApiSchema itemSchema)
@@ -528,7 +528,7 @@ public static class TypeScriptModelExtractor
             {
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
-                    if ((allOfRef.Reference.Id ?? allOfRef.Id) is { } refName &&
+                    if (allOfRef.ComponentName is { } refName &&
                         !extendsTypeNames.Contains(refName, StringComparer.Ordinal))
                     {
                         extendsTypeNames.Add(refName);

@@ -241,7 +241,7 @@ public static class OpenApiParameterExtensions
             if (parameter.In != ParameterLocation.Query ||
                 string.IsNullOrEmpty(parameter.Name) ||
                 parameter.Schema is not OpenApiSchemaReference { Target: OpenApiSchema model } reference ||
-                (reference.Reference.Id ?? reference.Id) is not { Length: > 0 } schemaName ||
+                reference.ComponentName is not { Length: > 0 } schemaName ||
                 model.Properties is not { Count: > 0 } properties ||
                 model.AllOf is { Count: > 0 } ||
                 model.OneOf is { Count: > 0 } ||

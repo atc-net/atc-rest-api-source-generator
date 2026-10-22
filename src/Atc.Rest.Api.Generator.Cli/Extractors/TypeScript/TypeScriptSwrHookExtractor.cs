@@ -104,7 +104,7 @@ public static class TypeScriptSwrHookExtractor
             // A body that's a $ref to a schema with the readOnly/writeOnly split uses <Name>Writable.
             var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
             if (bodySchema is OpenApiSchemaReference bodyRef &&
-                (bodyRef.Reference.Id ?? bodyRef.Id) is { } refName &&
+                bodyRef.ComponentName is { } refName &&
                 writableSchemas.Contains(refName))
             {
                 importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
