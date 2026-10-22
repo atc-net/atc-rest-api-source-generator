@@ -91,7 +91,7 @@ public static class MediaTypeNormalizer
         string mediaType,
         IOpenApiSchema? schema)
     {
-        var type = (mediaType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
+        var type = mediaType.BaseType.ToLowerInvariant();
         return (type is "*/*" or "application/*") && IsModel(schema)
             ? "application/json"
             : type;

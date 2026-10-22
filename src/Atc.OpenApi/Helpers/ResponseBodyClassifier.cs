@@ -17,7 +17,7 @@ public static class ResponseBodyClassifier
         string mediaType,
         IOpenApiSchema? schema)
     {
-        var type = (mediaType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
+        var type = mediaType.BaseType.ToLowerInvariant();
 
         // Every framing a stream comes in (StreamingFraming, one list): multipart/mixed too - boundary-delimited JSON
         // parts, not a file. Checked before JSON, so a "+json-seq" type is never read as one JSON document

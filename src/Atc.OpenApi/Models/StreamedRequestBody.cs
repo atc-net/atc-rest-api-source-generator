@@ -51,7 +51,7 @@ public sealed record StreamedRequestBody(
             {
                 foreach (var alias in JsonLinesMediaTypes)
                 {
-                    if (!accepted.Exists(m => string.Equals(m.Split(';')[0].Trim(), alias, StringComparison.OrdinalIgnoreCase)))
+                    if (!accepted.Exists(m => string.Equals(m.BaseType, alias, StringComparison.OrdinalIgnoreCase)))
                     {
                         accepted.Add(alias);
                     }

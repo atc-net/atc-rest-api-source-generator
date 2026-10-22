@@ -2150,7 +2150,7 @@ public static class EndpointPerOperationExtractor
         => defaultResponse is not null &&
            SharedWithDefault(responses, defaultResponse).Count > 0 &&
            defaultResponse.ContentType is not ("ProblemDetails" or "ValidationProblemDetails") &&
-           defaultResponse.ErrorMediaType?.Split(';')[0].Trim().EndsWith("problem+json", StringComparison.OrdinalIgnoreCase) != true;
+           defaultResponse.ErrorMediaType?.BaseType.EndsWith("problem+json", StringComparison.OrdinalIgnoreCase) != true;
 
     /// <summary>
     /// Extracts the item type from an IAsyncEnumerable type string.

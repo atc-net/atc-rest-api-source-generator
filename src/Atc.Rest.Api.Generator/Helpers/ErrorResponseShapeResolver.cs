@@ -27,16 +27,7 @@ public static class ErrorResponseShapeResolver
     /// <param name="mediaType">The media type.</param>
     /// <returns><see langword="true"/> for JSON media types.</returns>
     public static bool IsJsonMediaType(string? mediaType)
-    {
-        if (string.IsNullOrWhiteSpace(mediaType))
-        {
-            return false;
-        }
-
-        var type = mediaType!.Split(';')[0].Trim();
-        return type.Equals("application/json", StringComparison.OrdinalIgnoreCase) ||
-               type.EndsWith("+json", StringComparison.OrdinalIgnoreCase);
-    }
+        => mediaType.IsJson;
 
     /// <summary>
     /// The endpoint-metadata call (<c>.ProducesProblem(...)</c>, <c>.Produces&lt;T&gt;(...)</c>, ...) that

@@ -229,7 +229,7 @@ public static class OpenApiOperationExtensions
             }
 
             return content.Keys
-                .Where(key => key.Split(';')[0].Trim().EndsWith("+json", StringComparison.OrdinalIgnoreCase))
+                .Where(key => key.BaseType.EndsWith("+json", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault();
         }
@@ -267,7 +267,7 @@ public static class OpenApiOperationExtensions
             }
 
             return response.Content
-                .Where(kv => kv.Key.Split(';')[0].Trim().EndsWith("+json", StringComparison.OrdinalIgnoreCase) && kv.Value?.Schema is not null)
+                .Where(kv => kv.Key.BaseType.EndsWith("+json", StringComparison.OrdinalIgnoreCase) && kv.Value?.Schema is not null)
                 .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(kv => kv.Value!.Schema)
                 .FirstOrDefault();
@@ -844,7 +844,7 @@ public static class OpenApiOperationExtensions
             return false;
         }
 
-        var type = contentType.Split(';')[0].Trim();
+        var type = contentType.BaseType;
         return type.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
                type.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase);
     }
@@ -863,7 +863,7 @@ public static class OpenApiOperationExtensions
             return false;
         }
 
-        var type = contentType.Split(';')[0].Trim();
+        var type = contentType.BaseType;
         return !type.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase) &&
                !type.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase) &&
                ResponseBodyClassifier.Classify(type, schema: null) == ResponseBodyKind.Binary;

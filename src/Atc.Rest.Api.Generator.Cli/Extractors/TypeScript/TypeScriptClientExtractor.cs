@@ -1152,7 +1152,7 @@ public static class TypeScriptClientExtractor
             return;
         }
 
-        if (mediaType.Split(';')[0].Trim().EndsWith("+json", StringComparison.OrdinalIgnoreCase))
+        if (mediaType.BaseType.EndsWith("+json", StringComparison.OrdinalIgnoreCase))
         {
             sb.Append("      contentType: '").Append(mediaType).AppendLine("',");
         }

@@ -206,7 +206,7 @@ public static class FormBodyHelper
                          !string.IsNullOrWhiteSpace(fieldEncoding.ContentType)
             ? fieldEncoding.ContentType!
                 .Split(',')
-                .Select(m => m.Split(';')[0].Trim())
+                .Select(m => m.BaseType)
                 .Where(m => m.Length > 0)
                 .ToList()
             : [];
@@ -442,9 +442,7 @@ public static class FormBodyHelper
 
     // application/xml, text/xml and a structured syntax suffix (application/atom+xml)
     private static bool IsXmlMediaType(string mediaType)
-        => mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase) ||
-           mediaType.Equals("text/xml", StringComparison.OrdinalIgnoreCase) ||
-           mediaType.EndsWith("+xml", StringComparison.OrdinalIgnoreCase);
+        => mediaType.IsXml;
 
     // A model whose properties are each one value: the object a query sends as form with explode, by the same rule
     private static bool IsFlatModel(
@@ -465,7 +463,7 @@ public static class FormBodyHelper
         }.GetQueryObject();
 
     private static bool IsMultipartFormData(string mediaType)
-        => mediaType.Split(';')[0].Trim().Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase);
+        => mediaType.BaseType.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase);
 
     // An application/json part of the value, or one per item of a list
     private static void AppendObjectParts(
