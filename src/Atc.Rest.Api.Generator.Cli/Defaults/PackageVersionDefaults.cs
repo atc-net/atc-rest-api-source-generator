@@ -40,9 +40,10 @@ internal static class PackageVersionDefaults
     /// WithFormJsonField for an object field of a multipart form), its readers of streamed responses (2.4.0:
     /// StreamFraming, typed errors and headers on StreamingEndpointResponse&lt;T&gt;) and the default error response
     /// without a type (2.5.0); the typed client's Result style reads an event stream with its ServerSentEventReader
-    /// (2.6.0).
+    /// (2.6.0); a streamed request body is sent by its request builder (WithStreamedBody), and an empty text body is
+    /// read as the empty text (2.7.0).
     /// </remarks>
-    public static readonly Version RestClientMinFallback = new(2, 6, 0);
+    public static readonly Version RestClientMinFallback = new(2, 7, 0);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.

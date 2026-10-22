@@ -16,7 +16,6 @@ using JsonLines.Generated.Endpoints.Interfaces;
 using JsonLines.Generated.Endpoints.Results;
 using JsonLines.Generated.Models;
 using JsonLines.Generated.Client;
-using JsonLines.Generated.Streaming;
 
 namespace JsonLines.Generated.Endpoints;
 
@@ -30,16 +29,13 @@ public sealed class ImportReadingsEndpoint : IImportReadingsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
-    private readonly global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer;
 
     public ImportReadingsEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory,
-        global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer)
+        IHttpMessageFactory httpMessageFactory)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
-        this.contractSerializer = contractSerializer;
     }
 
     public async Task<ImportReadingsEndpointResult> ExecuteAsync(
@@ -50,9 +46,9 @@ public sealed class ImportReadingsEndpoint : IImportReadingsEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/readings/import");
+        requestBuilder.WithStreamedBody(parameters.Request, "application/jsonl");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
-        requestMessage.Content = StreamedRequestContent.Create(parameters.Request, contractSerializer, "application/jsonl");
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

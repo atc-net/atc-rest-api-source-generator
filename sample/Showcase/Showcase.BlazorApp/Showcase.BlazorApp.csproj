@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Atc.Rest.Api.SourceGenerator\Atc.Rest.Api.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <PackageReference Include="Atc.Rest.Client" Version="2.6.0" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.7.0" />
   </ItemGroup>
 
   <ItemGroup>

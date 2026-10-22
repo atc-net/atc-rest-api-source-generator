@@ -1549,6 +1549,63 @@ public class EndpointPerOperationExtractorTests
     }
 
     [Theory]
+    [InlineData("application/jsonl", "true")]
+    [InlineData("application/x-ndjson", "true")]
+    [InlineData("application/json-seq", "true")]
+    [InlineData("application/jsonl", "false")]
+    public void Extract_StreamedRequestBody_IsSentByTheRequestBuildersStreamedBody(
+        string mediaType,
+        string required)
+    {
+        // Atc.Rest.Client writes the records with its own contract serializer and framing, so the endpoint needs no
+        // IContractSerializer and no content of its own
+        var document = ParseYaml(StreamedRequestBodyYaml
+            .Replace("MEDIA_TYPE", mediaType, StringComparison.Ordinal)
+            .Replace("REQUIRED", required, StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "readings", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        var call = $"requestBuilder.WithStreamedBody(parameters.Request, \"{mediaType}\");";
+        if (required == "true")
+        {
+            Assert.Contains(call, content, StringComparison.Ordinal);
+        }
+        else
+        {
+            // An optional body that is not given is no body
+            Assert.Contains("if (parameters.Request is not null)", content, StringComparison.Ordinal);
+            Assert.Contains(call, content, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("IContractSerializer", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("contractSerializer", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("StreamedRequestContent", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("requestMessage.Content =", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("WithBody(parameters.Request", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_SuccessTextResponse_IsTheTextAtcRestClientReads()
+    {
+        // Atc.Rest.Client keeps a declared text body as it came (an empty text too), so the accessor reads ContentObject
+        // and needs no fallback to the raw Content
+        var document = ParseYaml(StreamedRequestBodyYaml
+            .Replace("MEDIA_TYPE", "application/jsonl", StringComparison.Ordinal)
+            .Replace("REQUIRED", "true", StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "readings", registry: null, includeDeprecated: false);
+
+        var result = Assert.Single(files).ResultClassContent!;
+        var okContent = result[result.IndexOf("public string OkContent", StringComparison.Ordinal)..];
+        okContent = okContent[..(okContent.IndexOf(';', StringComparison.Ordinal) + 1)];
+        Assert.Contains("ContentObject is string result", okContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("? Content", okContent, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("multipart/form-data; charset=utf-8", "{ $ref: '#/components/schemas/Upload' }", "requestBuilder.WithFormField(\"name\", ")]
     [InlineData("MULTIPART/FORM-DATA", "{ $ref: '#/components/schemas/Upload' }", "requestBuilder.WithFormField(\"name\", ")]
     [InlineData("multipart/form-data", "{ type: string, format: binary }", "requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", ")]
@@ -1610,6 +1667,32 @@ public class EndpointPerOperationExtractorTests
         components:
           schemas:
             Thing:
+              type: object
+              properties:
+                name: { type: string }
+        """;
+
+    private const string StreamedRequestBodyYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        paths:
+          /readings/import:
+            post:
+              operationId: importReadings
+              requestBody:
+                required: REQUIRED
+                content:
+                  MEDIA_TYPE:
+                    schema: { $ref: '#/components/schemas/Reading' }
+              responses:
+                '200':
+                  description: The names read
+                  content:
+                    text/plain:
+                      schema: { type: string }
+        components:
+          schemas:
+            Reading:
               type: object
               properties:
                 name: { type: string }

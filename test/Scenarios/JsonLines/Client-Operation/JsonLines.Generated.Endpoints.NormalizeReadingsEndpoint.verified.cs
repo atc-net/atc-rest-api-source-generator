@@ -17,7 +17,6 @@ using JsonLines.Generated.Endpoints.Interfaces;
 using JsonLines.Generated.Endpoints.Results;
 using JsonLines.Generated.Models;
 using JsonLines.Generated.Client;
-using JsonLines.Generated.Streaming;
 
 namespace JsonLines.Generated.Endpoints;
 
@@ -31,16 +30,13 @@ public sealed class NormalizeReadingsEndpoint : INormalizeReadingsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
-    private readonly global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer;
 
     public NormalizeReadingsEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory,
-        global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer)
+        IHttpMessageFactory httpMessageFactory)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
-        this.contractSerializer = contractSerializer;
     }
 
     public async Task<NormalizeReadingsEndpointResult> ExecuteAsync(
@@ -52,9 +48,9 @@ public sealed class NormalizeReadingsEndpoint : INormalizeReadingsEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/readings/normalize");
+        requestBuilder.WithStreamedBody(parameters.Request, "application/jsonl");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
-        requestMessage.Content = StreamedRequestContent.Create(parameters.Request, contractSerializer, "application/jsonl");
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

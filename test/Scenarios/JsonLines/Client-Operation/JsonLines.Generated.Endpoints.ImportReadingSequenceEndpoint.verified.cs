@@ -16,7 +16,6 @@ using JsonLines.Generated.Endpoints.Interfaces;
 using JsonLines.Generated.Endpoints.Results;
 using JsonLines.Generated.Models;
 using JsonLines.Generated.Client;
-using JsonLines.Generated.Streaming;
 
 namespace JsonLines.Generated.Endpoints;
 
@@ -30,16 +29,13 @@ public sealed class ImportReadingSequenceEndpoint : IImportReadingSequenceEndpoi
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
-    private readonly global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer;
 
     public ImportReadingSequenceEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory,
-        global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer)
+        IHttpMessageFactory httpMessageFactory)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
-        this.contractSerializer = contractSerializer;
     }
 
     public async Task<ImportReadingSequenceEndpointResult> ExecuteAsync(
@@ -50,9 +46,9 @@ public sealed class ImportReadingSequenceEndpoint : IImportReadingSequenceEndpoi
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/readings/import-seq");
+        requestBuilder.WithStreamedBody(parameters.Request, "application/json-seq");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
-        requestMessage.Content = StreamedRequestContent.Create(parameters.Request, contractSerializer, "application/json-seq");
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

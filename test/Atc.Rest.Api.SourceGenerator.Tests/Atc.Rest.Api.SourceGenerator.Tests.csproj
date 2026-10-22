@@ -47,9 +47,10 @@
     <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.0" />
     <!-- Referenced so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES), enabling real C#
          compilation and runs of generated client output (CompilationVerificationTests, the error-body matrix).
-         2.6.0: streamed responses read by the library (StreamFraming) and its default registrations, on the trim- and Native AOT-ready (URL-encoded form fields, a body with its own media type, repeated
+         2.7.0: a streamed request body sent by the request builder (WithStreamedBody) and an empty text body kept as
+         the text; streamed responses read by the library (StreamFraming) and its default registrations, on the trim- and Native AOT-ready (URL-encoded form fields, a body with its own media type, repeated
          multipart fields, a multipart field sent as a JSON part), and query parameter keys are URI-escaped. -->
-    <PackageReference Include="Atc.Rest.Client" Version="2.6.0" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.7.0" />
 
     <!-- The typed hub clients of x-signalr-hubs build on its HubConnection; a runtime test connects one to a hub. -->
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />

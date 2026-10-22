@@ -859,12 +859,6 @@ public static class EndpointPerOperationExtractor
             headerBuilder.AppendLine($"using {NamespaceBuilder.ForClient(projectName, pathSegment)};");
         }
 
-        // A streamed request body is written by the generated StreamedRequestContent
-        if (operation.GetStreamedRequestBody() is not null)
-        {
-            headerBuilder.AppendLine($"using {NamespaceBuilder.BuildBase(projectName)}.Streaming;");
-        }
-
         // Add blank line before namespace
         headerBuilder.AppendLine();
 
@@ -890,22 +884,6 @@ public static class EndpointPerOperationExtractor
                 CreateAsPrivateReadonlyMember: true,
                 CreateAaOneLiner: false),
         };
-
-        // A request body sent as a stream of records is written record by record with the client's contract serializer
-        // (the one its request builder serializes a JSON body with); the request builder has no streamed body
-        if (operation.GetStreamedRequestBody() is not null)
-        {
-            constructorParams.Add(
-                new(
-                    GenericTypeName: null,
-                    TypeName: "global::Atc.Rest.Client.Serialization.IContractSerializer",
-                    IsNullableType: false,
-                    Name: "contractSerializer",
-                    DefaultValue: null,
-                    PassToInheritedClass: false,
-                    CreateAsPrivateReadonlyMember: true,
-                    CreateAaOneLiner: false));
-        }
 
         var constructor = new ConstructorParameters(
             DocumentationTags: null,
@@ -1223,7 +1201,24 @@ public static class EndpointPerOperationExtractor
 
         // Add request body
         var streamedBody = operation.GetStreamedRequestBody();
-        if (operation.RequestBody?.Content is not null && streamedBody is null)
+        if (streamedBody is not null)
+        {
+            // A stream of records (JSON Lines, JSON Text Sequences): the request builder writes them record by record
+            // as the caller yields them, with its contract serializer; an optional body that is not given is no body
+            var call = $"requestBuilder.WithStreamedBody(parameters.Request, {CSharpLiteralHelper.ToStringLiteral(streamedBody.PrimaryMediaType)});";
+            if (streamedBody.IsRequired)
+            {
+                sb.AppendLine(call);
+            }
+            else
+            {
+                sb.AppendLine("if (parameters.Request is not null)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, call);
+                sb.AppendLine("}");
+            }
+        }
+        else if (operation.RequestBody?.Content is not null)
         {
             // Check if this is a file upload
             var isFileUpload = operation.HasFileUpload();
@@ -1299,12 +1294,6 @@ public static class EndpointPerOperationExtractor
         // Build and send request. Standard verbs use the HttpMethod static property;
         // OpenAPI 3.2 custom additionalOperations verbs (e.g. LINK) are constructed by name.
         sb.AppendLine($"using var requestMessage = requestBuilder.Build({EndpointMapHelper.BuildHttpMethodExpression(httpMethod)});");
-        if (streamedBody is not null)
-        {
-            // A stream of records (JSON Lines, JSON Text Sequences): written record by record as the caller yields them
-            sb.AppendLine($"requestMessage.Content = {StreamedRequestContentExtractor.CreateContentExpression("parameters.Request", "contractSerializer", streamedBody.PrimaryMediaType, streamedBody.IsRequired)};");
-        }
-
         if (resilienceStamp is not null)
         {
             sb.AppendLine(resilienceStamp);
@@ -1951,14 +1940,6 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine(16, $": Is{response.PropertyName}");
                 sb.AppendLine(20, "? Content");
                 sb.AppendLine(20, $": throw InvalidContentAccessException<string>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
-            }
-            else if (response.IsSuccess && response.ContentType == "string" && response.TextMediaType is not null)
-            {
-                // A text answer is its raw text: Atc.Rest.Client reads an empty (or whitespace-only) text body as no
-                // content, but an empty text is a text
-                sb.AppendLine(12, $": Is{response.PropertyName}");
-                sb.AppendLine(16, "? Content");
-                sb.AppendLine(16, $": throw InvalidContentAccessException<string>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
             }
             else
             {

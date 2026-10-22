@@ -65,9 +65,7 @@ public partial class ExportCsvEndpointResult : EndpointResponse, IExportCsvEndpo
     public string OkContent
         => IsOk && ContentObject is string result
             ? result
-            : IsOk
-                ? Content
-                : throw InvalidContentAccessException<string>(HttpStatusCode.OK, "OkContent");
+            : throw InvalidContentAccessException<string>(HttpStatusCode.OK, "OkContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

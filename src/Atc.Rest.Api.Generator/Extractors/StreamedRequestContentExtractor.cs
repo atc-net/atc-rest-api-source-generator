@@ -20,8 +20,7 @@ public static class StreamedRequestContentExtractor
     /// records); <see langword="null"/> content when an optional body is not given.
     /// </summary>
     /// <param name="recordsExpression">The records, e.g. <c>parameters.Request</c>.</param>
-    /// <param name="serializerExpression">The JSON options (typed client) or the contract serializer (endpoint per
-    /// operation) expression.</param>
+    /// <param name="serializerExpression">The typed client's JSON options expression.</param>
     /// <param name="mediaType">The media type sent.</param>
     /// <param name="isRequired">Whether the body is required (an optional one may be null: no body).</param>
     /// <param name="namespacePrefix">The type's namespace with a trailing dot, or empty when the file imports it.</param>
@@ -40,19 +39,15 @@ public static class StreamedRequestContentExtractor
     }
 
     /// <summary>
-    /// Generates <c>StreamedRequestContent&lt;T&gt;</c>.
+    /// Generates <c>StreamedRequestContent&lt;T&gt;</c> for the typed client, which serializes with its
+    /// <c>JsonSerializerOptions</c> (and the generated <c>TypeInfo&lt;T&gt;</c>). The endpoint-per-operation client
+    /// sends a streamed body with Atc.Rest.Client's request builder (<c>WithStreamedBody</c>) instead.
     /// </summary>
     /// <param name="projectName">The project name.</param>
-    /// <param name="withJsonOptions">True for the typed client, which serializes with its <c>JsonSerializerOptions</c>
-    /// (and the generated <c>TypeInfo&lt;T&gt;</c>); false for the endpoint-per-operation client, which serializes with
-    /// Atc.Rest.Client's <c>IContractSerializer</c>.</param>
     /// <returns>The source.</returns>
-    public static string GenerateContent(
-        string projectName,
-        bool withJsonOptions)
+    public static string GenerateContent(string projectName)
     {
-        var constructor = withJsonOptions
-            ? $$"""
+        var constructor = $$"""
                 /// <summary>
                 /// The records, serialized with the client's JSON options (always compact: a record is one line).
                 /// </summary>
@@ -69,30 +64,6 @@ public static class StreamedRequestContentExtractor
                     var typeInfo = compact.TypeInfo<T>();
                     write = (stream, record, cancellationToken) => new global::System.Threading.Tasks.ValueTask(
                         global::System.Text.Json.JsonSerializer.SerializeAsync(stream, record, typeInfo, cancellationToken));
-                }
-            """
-            : $$"""
-                /// <summary>
-                /// The records, serialized with the client's contract serializer. A line break of an indenting serializer is
-                /// whitespace (JSON escapes one inside a string), so a record stays one line.
-                /// </summary>
-                public {{TypeName}}(
-                    global::System.Collections.Generic.IAsyncEnumerable<T> records,
-                    global::Atc.Rest.Client.Serialization.IContractSerializer serializer,
-                    string mediaType)
-                    : this(records, mediaType)
-                {
-                    global::System.ArgumentNullException.ThrowIfNull(serializer);
-                    write = (stream, record, cancellationToken) =>
-                    {
-                        var json = record is null ? "null" : serializer.Serialize(record);
-                        if (!isSequence)
-                        {
-                            json = json.Replace('\r', ' ').Replace('\n', ' ');
-                        }
-
-                        return stream.WriteAsync(global::System.Text.Encoding.UTF8.GetBytes(json), cancellationToken);
-                    };
                 }
             """;
 
@@ -113,9 +84,9 @@ public static class StreamedRequestContentExtractor
                 /// </summary>
                 public static {{TypeName}}<T> Create<T>(
                     global::System.Collections.Generic.IAsyncEnumerable<T> records,
-                    {{(withJsonOptions ? "global::System.Text.Json.JsonSerializerOptions options" : "global::Atc.Rest.Client.Serialization.IContractSerializer serializer")}},
+                    global::System.Text.Json.JsonSerializerOptions options,
                     string mediaType)
-                    => new(records, {{(withJsonOptions ? "options" : "serializer")}}, mediaType);
+                    => new(records, options, mediaType);
             }
 
             /// <summary>

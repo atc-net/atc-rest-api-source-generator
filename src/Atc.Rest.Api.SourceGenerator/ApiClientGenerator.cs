@@ -14,8 +14,9 @@ public class ApiClientGenerator : IIncrementalGenerator
     // The Atc.Rest.Client an EndpointPerOperation client needs: 2.4.0 reads the streamed responses (StreamFraming,
     // typed errors and headers on StreamingEndpointResponse<T>) and looks response headers up whatever their casing;
     // 2.5.0 has the default error response without a type (a declared XML default) and the last event id of an
-    // event stream; 2.6.0 has ServerSentEventReader, which the typed client's Result style reads an event stream with
-    private static readonly Version MinimumAtcRestClientVersion = new(2, 6, 0);
+    // event stream; 2.6.0 has ServerSentEventReader, which the typed client's Result style reads an event stream with;
+    // 2.7.0 sends a streamed request body (WithStreamedBody) and keeps an empty text body as the empty text
+    private static readonly Version MinimumAtcRestClientVersion = new(2, 7, 0);
 
     /// <summary>
     /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the client code as the output.
@@ -558,13 +559,14 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
 
         // A request body sent as a stream of records (JSON Lines, JSON Text Sequences) is written by the generated
-        // StreamedRequestContent<T> - with the typed client's JSON options, or the endpoint-per-operation client's
-        // contract serializer
-        if (StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc))
+        // StreamedRequestContent<T> with the typed client's JSON options; the endpoint-per-operation client sends it
+        // with Atc.Rest.Client's request builder (WithStreamedBody)
+        if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
+            StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc))
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.{StreamedRequestContentExtractor.TypeName}.g.cs",
-                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName, withJsonOptions: config.GenerationMode != GenerationModeType.EndpointPerOperation).NormalizeForSourceOutput(), Encoding.UTF8));
+                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
         // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only).
@@ -1071,7 +1073,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.{StreamedRequestContentExtractor.TypeName}.g.cs",
-                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName, withJsonOptions: true).NormalizeForSourceOutput(), Encoding.UTF8));
+                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
         }
     }
 

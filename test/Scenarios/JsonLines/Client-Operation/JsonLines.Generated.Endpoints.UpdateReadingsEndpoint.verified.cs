@@ -16,7 +16,6 @@ using JsonLines.Generated.Endpoints.Interfaces;
 using JsonLines.Generated.Endpoints.Results;
 using JsonLines.Generated.Models;
 using JsonLines.Generated.Client;
-using JsonLines.Generated.Streaming;
 
 namespace JsonLines.Generated.Endpoints;
 
@@ -30,16 +29,13 @@ public sealed class UpdateReadingsEndpoint : IUpdateReadingsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
-    private readonly global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer;
 
     public UpdateReadingsEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory,
-        global::Atc.Rest.Client.Serialization.IContractSerializer contractSerializer)
+        IHttpMessageFactory httpMessageFactory)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
-        this.contractSerializer = contractSerializer;
     }
 
     public async Task<UpdateReadingsEndpointResult> ExecuteAsync(
@@ -50,9 +46,12 @@ public sealed class UpdateReadingsEndpoint : IUpdateReadingsEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/readings/import-optional");
+        if (parameters.Request is not null)
+        {
+            requestBuilder.WithStreamedBody(parameters.Request, "application/x-ndjson");
+        }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Put);
-        requestMessage.Content = (parameters.Request is null ? null : StreamedRequestContent.Create(parameters.Request, contractSerializer, "application/x-ndjson"));
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
