@@ -4,6 +4,7 @@ namespace Atc.Rest.Api.Generator.Extensions;
 /// Extension members for C# type checking and classification.
 /// </summary>
 [SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
+[SuppressMessage("", "CA1708:Names should differ by more than case", Justification = "OK - CLang14 - multiple extension(...) blocks")]
 public static class StringExtensions
 {
     /// <param name="csharpType">The C# type string (e.g., "int", "long?", "string").</param>
@@ -38,5 +39,22 @@ public static class StringExtensions
         public bool IsReferenceType()
             => !csharpType.IsValueType() ||
                csharpType.IsArrayType();
+    }
+
+    /// <param name="assemblyName">An assembly name, e.g. <c>Contoso.Api.Domain</c>.</param>
+    extension(string assemblyName)
+    {
+        /// <summary>
+        /// The last dot-separated term of an assembly name (<c>Domain</c>): the suffix of the generated
+        /// <c>AddApiHandlersFrom…</c> and <c>AddApiValidatorsFrom…</c> registration methods.
+        /// </summary>
+        public string LastAssemblyNameTerm
+        {
+            get
+            {
+                var parts = assemblyName.Split('.');
+                return parts[parts.Length - 1];
+            }
+        }
     }
 }

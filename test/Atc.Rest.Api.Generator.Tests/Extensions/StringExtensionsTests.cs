@@ -2,6 +2,15 @@ namespace Atc.Rest.Api.Generator.Tests.Extensions;
 
 public class StringExtensionsTests
 {
+    [Theory]
+    [InlineData("Contoso.Api.Domain", "Domain")]
+    [InlineData("Domain", "Domain")]
+    [InlineData("Contoso.Api.", "")]
+    public void LastAssemblyNameTerm_IsTheLastDotSeparatedTerm(
+        string assemblyName,
+        string expected)
+        => Assert.Equal(expected, assemblyName.LastAssemblyNameTerm);
+
     // ========== IsValueType Tests ==========
     [Theory]
     [InlineData("int", true)]

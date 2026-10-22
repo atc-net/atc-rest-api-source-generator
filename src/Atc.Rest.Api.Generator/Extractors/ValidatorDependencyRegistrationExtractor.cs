@@ -22,7 +22,7 @@ public static class ValidatorDependencyRegistrationExtractor
             return null;
         }
 
-        var methodSuffix = GetLastAssemblyNameTerm(assemblyName);
+        var methodSuffix = assemblyName.LastAssemblyNameTerm;
         var methodName = $"AddApiValidatorsFrom{methodSuffix}";
 
         // Build method content
@@ -86,16 +86,5 @@ public static class ValidatorDependencyRegistrationExtractor
         builder.Append("return services;");
 
         return builder.ToString();
-    }
-
-    private static string GetLastAssemblyNameTerm(string assemblyName)
-    {
-        var parts = assemblyName.Split('.');
-        if (parts.Length > 0)
-        {
-            return parts[parts.Length - 1];
-        }
-
-        return "Assembly";
     }
 }
