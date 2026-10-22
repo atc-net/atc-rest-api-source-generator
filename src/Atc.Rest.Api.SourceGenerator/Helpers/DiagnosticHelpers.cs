@@ -393,12 +393,13 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATC_API_DEP007: UseMinimalApiPackage enabled but Atc.Rest.MinimalApi package not referenced.
+    /// ATC_API_DEP007: useMinimalApiPackage, useValidationFilter or useGlobalErrorHandler enabled but Atc.Rest.MinimalApi
+    /// package not referenced.
     /// </summary>
     public static readonly DiagnosticDescriptor MinimalApiPackageRequired = new(
         RuleIdentifiers.MinimalApiPackageRequired,
         "Atc.Rest.MinimalApi Package Required",
-        "The marker file specifies useMinimalApiPackage: true but Atc.Rest.MinimalApi package is not referenced. Add a reference to Atc.Rest.MinimalApi or set useMinimalApiPackage to false or auto.",
+        "The marker file sets {0} to enabled, which needs the Atc.Rest.MinimalApi package, but it is not referenced. Add a reference to Atc.Rest.MinimalApi or set {0} to auto or disabled.",
         RuleIdentifiers.Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -988,14 +989,18 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
-    /// Reports that useMinimalApiPackage is enabled but Atc.Rest.MinimalApi package is not referenced.
+    /// Reports that a setting that builds on Atc.Rest.MinimalApi is enabled but the package is not referenced.
     /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="setting">The marker setting that asks for the package.</param>
     public static void ReportMinimalApiPackageRequired(
-        SourceProductionContext context)
+        SourceProductionContext context,
+        string setting)
     {
         context.ReportDiagnostic(Diagnostic.Create(
             MinimalApiPackageRequired,
-            Location.None));
+            Location.None,
+            setting));
     }
 
     /// <summary>

@@ -204,52 +204,25 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        // Validate MinimalApiPackage mode - report error if Enabled but package not referenced
-        if (config.UseMinimalApiPackage == MinimalApiPackageMode.Enabled && !hasMinimalApi)
+        // A setting enabled without Atc.Rest.MinimalApi: the generated code would not build, so say which setting asks for it
+        var missingFor = new[]
+            {
+                ("useMinimalApiPackage", config.UseMinimalApiPackage),
+                ("useValidationFilter", config.UseValidationFilter),
+                ("useGlobalErrorHandler", config.UseGlobalErrorHandler),
+            }
+            .FirstOrDefault(s => s.Item2.MissesPackage(hasMinimalApi))
+            .Item1;
+        if (missingFor is not null)
         {
-            DiagnosticHelpers.ReportMinimalApiPackageRequired(productionContext);
+            DiagnosticHelpers.ReportMinimalApiPackageRequired(productionContext, missingFor);
             return;
         }
 
-        // Validate ValidationFilter mode - report error if Enabled but package not referenced
-        if (config.UseValidationFilter == MinimalApiPackageMode.Enabled && !hasMinimalApi)
-        {
-            DiagnosticHelpers.ReportMinimalApiPackageRequired(productionContext);
-            return;
-        }
-
-        // Resolve effective useMinimalApiPackage mode:
-        // - Enabled: always use package interface (validated above)
-        // - Disabled: always generate interface
-        // - Auto: use package interface if package is referenced
-        var useMinimalApiPackage = config.UseMinimalApiPackage switch
-        {
-            MinimalApiPackageMode.Enabled => true,
-            MinimalApiPackageMode.Disabled => false,
-            _ => hasMinimalApi,
-        };
-
-        // Resolve effective useValidationFilter mode:
-        // - Enabled: always add ValidationFilter (validated above)
-        // - Disabled: never add ValidationFilter
-        // - Auto: add ValidationFilter if package is referenced
-        var useValidationFilter = config.UseValidationFilter switch
-        {
-            MinimalApiPackageMode.Enabled => true,
-            MinimalApiPackageMode.Disabled => false,
-            _ => hasMinimalApi,
-        };
-
-        // Resolve effective useGlobalErrorHandler mode:
-        // - Enabled: always generate (validated above similar to ValidationFilter)
-        // - Disabled: never generate
-        // - Auto: generate if package is referenced
-        var useGlobalErrorHandler = config.UseGlobalErrorHandler switch
-        {
-            MinimalApiPackageMode.Enabled => true,
-            MinimalApiPackageMode.Disabled => false,
-            _ => hasMinimalApi,
-        };
+        // Each setting: always when enabled, never when disabled, and when the package is referenced for auto
+        var useMinimalApiPackage = config.UseMinimalApiPackage.UsesPackage(hasMinimalApi);
+        var useValidationFilter = config.UseValidationFilter.UsesPackage(hasMinimalApi);
+        var useGlobalErrorHandler = config.UseGlobalErrorHandler.UsesPackage(hasMinimalApi);
 
         // ... in the version the generated server is written for
         if ((useMinimalApiPackage || useValidationFilter || useGlobalErrorHandler) &&

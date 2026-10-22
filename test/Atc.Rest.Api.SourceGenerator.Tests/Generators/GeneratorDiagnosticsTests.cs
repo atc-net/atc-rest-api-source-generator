@@ -192,11 +192,15 @@ public class GeneratorDiagnosticsTests
     [Theory]
     [InlineData("useMinimalApiPackage")]
     [InlineData("useValidationFilter")]
+    [InlineData("useGlobalErrorHandler")]
     public void Server_MinimalApiModeEnabledWithoutPackage_ReportsDEP007(
         string setting)
     {
+        // The diagnostic names the setting that asks for the package; without it the server would not build
         var marker = Marker(".atc-rest-api-server", $$$"""{ "{{{setting}}}": "Enabled" }""");
         Assert.Contains("ATC_API_DEP007", Run(new ApiServerGenerator(), [Spec(Yaml), marker], Full()));
+        var dep007 = Assert.Single(RunDiagnostics(new ApiServerGenerator(), [Spec(Yaml), marker], Full()), d => d.Id == "ATC_API_DEP007");
+        Assert.Contains(setting, dep007.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
         Assert.DoesNotContain("ATC_API_DEP007", Run(new ApiServerGenerator(), [Spec(Yaml), marker], Full(includeMinimalApi: true)));
     }
 
