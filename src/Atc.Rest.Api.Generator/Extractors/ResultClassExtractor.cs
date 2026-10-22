@@ -1640,116 +1640,12 @@ public static class ResultClassExtractor
         string pathSegment,
         string context,
         Dictionary<string, InlineSchemaInfo>? inlineSchemas)
-    {
-        if (schema is null)
-        {
-            return "object";
-        }
-
-        // Handle schema references - decide whether to use the type name or resolve to array
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refId = schemaRef.Reference.Id;
-
-            if (string.IsNullOrEmpty(refId))
-            {
-                return "object";
-            }
-
-            // Check if this reference points to an array alias (type: array with items but no prefixItems)
-            // Array aliases like "Pets" (type: array, items: $ref Pet) should resolve to Pet[]
-            // But tuple types with prefixItems (like Coordinate) should keep their type name
-            if (openApiDoc.Components?.Schemas is not null &&
-                openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema { Items: not null } arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
-                !arraySchema.HasPrefixItems)
-            {
-                // This is a simple array alias - resolve to the underlying array type
-                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
-            }
-
-            // A primitive alias (ProductCode: a string with a pattern) is no generated type: it is the primitive
-            if (schemaRef.AliasTarget is { } aliasTarget)
-            {
-                return GetSchemaTypeName(aliasTarget, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
-            }
-
-            // Return the resolved type name for schema references
-            return OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
-        }
-
-        if (schema is OpenApiSchema actualSchema)
-        {
-            // Handle allOf composition - delegate to ToCSharpTypeWithGenericSupport for PaginatedResult patterns
-            if (actualSchema.AllOf is { Count: > 0 })
-            {
-                return actualSchema.ToCSharpTypeWithGenericSupport(openApiDoc, isRequired: true, registry);
-            }
-
-            // Handle array type specially
-            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
-            {
-                // Check if this is a resolved schema reference (e.g., Coordinate tuple type)
-                // If it's a component schema (has prefixItems or is a named array), return the schema name
-                var schemaName = SchemaLookup.FindSchemaNameByReference(openApiDoc, actualSchema);
-                if (!string.IsNullOrEmpty(schemaName))
-                {
-                    return OpenApiSchemaExtensions.ResolveTypeName(schemaName!, registry);
-                }
-
-                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
-            }
-
-            // Handle inline object schemas with properties
-            if (actualSchema.IsInlineObject &&
-                !string.IsNullOrEmpty(operationId) &&
-                !string.IsNullOrEmpty(pathSegment) &&
-                !string.IsNullOrEmpty(context) &&
-                inlineSchemas is not null)
-            {
-                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId, context);
-                if (!inlineSchemas.ContainsKey(typeName))
-                {
-                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(actualSchema, typeName, registry);
-                    inlineSchemas[typeName] = new InlineSchemaInfo(typeName, pathSegment, recordParams);
-                }
-
-                return typeName;
-            }
-
-            // Use centralized primitive type mapping
-            return actualSchema.Type.ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object";
-        }
-
-        return "object";
-    }
-
-    private static string GetArraySchemaType(
-        OpenApiSchema schema,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry,
-        string operationId,
-        string pathSegment,
-        string? context,
-        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
-    {
-        if (schema.Items is null)
-        {
-            return "List<object>";
-        }
-
-        // Delegate to GetSchemaTypeName for proper handling of schema references, resolved schemas, and inline objects
-        // Array items get the context of the array: "ResponseItem" for a success body (ListReportsResponseItem),
-        // "{Status}ErrorItem" for an error body, so an error item never takes the success item's type.
-        var itemType = GetSchemaTypeName(
-            schema.Items,
+        => SchemaTypeResolver.Resolve(
+            schema,
             openApiDoc,
             registry,
-            operationId,
-            pathSegment,
-            context is null or "Response" ? "ResponseItem" : context + "Item",
-            inlineSchemas);
-
-        return $"List<{itemType}>";
-    }
+            collection: "List",
+            topCollection: null,
+            context,
+            SchemaTypeResolver.InlineRecords(inlineSchemas, operationId, pathSegment, registry));
 }

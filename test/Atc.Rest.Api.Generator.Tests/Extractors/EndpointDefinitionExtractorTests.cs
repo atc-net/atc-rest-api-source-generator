@@ -706,6 +706,63 @@ public class EndpointDefinitionExtractorTests
         Assert.Contains("new Credentials(User: user ?? string.Empty, Remember: remember)", handler.Content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_InlineResponsesOfAnOperationWithoutOperationId_ProducesTheResultClassTypes()
+    {
+        // Arrange: no operationId, so both name the inline records after method + path
+        const string yaml = """
+                            openapi: 3.1.0
+                            info:
+                              title: Reports
+                              version: 1.0.0
+                            paths:
+                              /reports:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: object
+                                              properties:
+                                                name:
+                                                  type: string
+                                post:
+                                  responses:
+                                    '201':
+                                      description: Created
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              id:
+                                                type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var registry = TypeConflictRegistry.Build(document, "Contoso", "Reports");
+        var systemTypeResolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var (_, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(document, "Contoso", "Reports", registry, systemTypeResolver);
+        var (_, classes) = EndpointDefinitionExtractor.Extract(document, "Contoso", "Reports", registry, systemTypeResolver);
+
+        // Assert
+        Assert.NotNull(classes);
+        var content = string.Join("\n", classes.SelectMany(c => c.Methods ?? []).Select(m => m.Content ?? string.Empty));
+        Assert.Equal(2, inlineSchemas.Count);
+        foreach (var typeName in inlineSchemas.Keys)
+        {
+            Assert.Contains(typeName, content, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("Unknown", content, StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// The chained calls of one endpoint registration: from its MapX up to the next blank line.
     /// </summary>

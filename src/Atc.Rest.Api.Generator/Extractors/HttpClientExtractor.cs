@@ -1930,29 +1930,14 @@ public static class HttpClientExtractor
         string? pathSegment,
         string? context,
         Dictionary<string, InlineSchemaInfo>? inlineSchemas)
-        => ClientSchemaTypeResolver.Resolve(
+        => SchemaTypeResolver.Resolve(
             schema,
             openApiDoc,
             registry,
             collection: "List",
             topCollection: null,
             context,
-            (inlineSchema, inlineContext) =>
-            {
-                if (string.IsNullOrEmpty(operationId) || pathSegment is null || inlineSchemas is null)
-                {
-                    return null;
-                }
-
-                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, inlineContext);
-                if (!inlineSchemas.ContainsKey(typeName))
-                {
-                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(inlineSchema, typeName, registry);
-                    inlineSchemas[typeName] = new InlineSchemaInfo(typeName, pathSegment, recordParams);
-                }
-
-                return typeName;
-            });
+            SchemaTypeResolver.InlineRecords(inlineSchemas, operationId, pathSegment, registry));
 
     /// <summary>
     /// Checks if the operation is a direct file upload (binary or array of binary schema).

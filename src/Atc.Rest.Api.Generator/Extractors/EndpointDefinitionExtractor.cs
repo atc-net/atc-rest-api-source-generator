@@ -967,7 +967,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // Add Produces metadata based on responses (includes auto-apply for common errors)
-        GenerateProducesMetadata(builder, openApiDoc, operation, pathItem!, httpMethod, projectName, segment, systemTypeResolver, registry);
+        GenerateProducesMetadata(builder, openApiDoc, operation, operationId, pathItem!, httpMethod, projectName, segment, systemTypeResolver, registry);
 
         // Add ValidationFilter if enabled and operation has parameters or request body
         if (useValidationFilter)
@@ -1398,6 +1398,7 @@ using Microsoft.AspNetCore.Builder;
         StringBuilder builder,
         OpenApiDocument openApiDoc,
         OpenApiOperation operation,
+        string operationId,
         IOpenApiPathItem pathItem,
         string httpMethod,
         string projectName,
@@ -1424,7 +1425,7 @@ using Microsoft.AspNetCore.Builder;
                 if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
                 {
                     builder.AppendLine();
-                    builder.Append(BuildErrorProducesCall(statusCode, openApiResponse, openApiDoc, operation, projectName, segment, systemTypeResolver, registry));
+                    builder.Append(BuildErrorProducesCall(statusCode, openApiResponse, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry));
                     continue;
                 }
 
@@ -1440,7 +1441,7 @@ using Microsoft.AspNetCore.Builder;
                 var fileMediaTypes = string.Concat(fileAlternatives.Select(m => $", \"{m}\""));
                 if (openApiResponse.Content is not null && openApiResponse.Content.JsonBody is { } mediaType)
                 {
-                    contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
+                    contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
                     if (openApiResponse.Content.XmlAlternative?.AlternativeMediaTypes is { } xmlMediaTypes)
                     {
                         negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
@@ -1453,7 +1454,7 @@ using Microsoft.AspNetCore.Builder;
                 else if (openApiResponse.Content.XmlOnlyBody is { } xmlBody)
                 {
                     // An XML-only model body: the model, with its XML media type (Produces<T>() alone means JSON)
-                    contentType = GetResponseContentType(openApiResponse.Content![xmlBody.MediaType].Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
+                    contentType = GetResponseContentType(openApiResponse.Content![xmlBody.MediaType].Schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
                     textResponseMediaType = xmlBody.MediaType;
                 }
                 else if (openApiResponse.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
@@ -1519,7 +1520,7 @@ using Microsoft.AspNetCore.Builder;
                             // application/json default - with the item type (an itemSchema), as the endpoint
                             // metadata drops the media type of an untyped Produces.
                             var itemType = operation.GetStreamingItemSchema() is { } itemSchema
-                                ? GetResponseContentType(itemSchema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry)
+                                ? GetResponseContentType(itemSchema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry)
                                 : null;
                             builder.Append(string.IsNullOrEmpty(itemType)
                                 ? $"    .Produces({statusCodeExpression}, contentType: \"{streamingResponse.MediaType}\")"
@@ -1598,7 +1599,7 @@ using Microsoft.AspNetCore.Builder;
         string statusCode,
         IOpenApiResponse response,
         OpenApiDocument openApiDoc,
-        OpenApiOperation operation,
+        string operationId,
         string projectName,
         string segment,
         SystemTypeConflictResolver systemTypeResolver,
@@ -1606,7 +1607,7 @@ using Microsoft.AspNetCore.Builder;
     {
         var shape = ErrorResponseShapeResolver.Resolve(response);
         var modelTypeName = shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject
-            ? GetResponseContentType(shape.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry, ErrorResponseShapeResolver.InlineTypeContext(statusCode))
+            ? GetResponseContentType(shape.Schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry, ErrorResponseShapeResolver.InlineTypeContext(statusCode))
             : null;
 
         return "    " + ErrorResponseShapeResolver.ToProducesCall(statusCode, shape, modelTypeName);
@@ -2030,71 +2031,29 @@ using Microsoft.AspNetCore.Builder;
     }
 
     /// <summary>
-    /// Gets the C# type for a response schema, handling inline object schemas properly.
+    /// The C# type of a response body - the result class's type (<see cref="SchemaTypeResolver"/>), a model that shadows
+    /// a System type written in full.
     /// </summary>
     private static string? GetResponseContentType(
         IOpenApiSchema? schema,
         OpenApiDocument openApiDoc,
-        OpenApiOperation operation,
+        string operationId,
         string projectName,
         string segment,
         SystemTypeConflictResolver systemTypeResolver,
         TypeConflictRegistry? registry,
         string inlineContext = "Response")
-    {
-        if (schema is null)
-        {
-            return null;
-        }
-
-        var operationId = OperationIdHelper.Effective(operation, "Unknown", string.Empty);
-        var schemaType = schema.GetSchemaType();
-
-        // Handle array types
-        if (schemaType == "array" && schema.Items is not null)
-        {
-            var itemType = GetSchemaItemType(schema.Items, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry, inlineContext == "Response" ? "ResponseItem" : inlineContext + "Item");
-            return $"List<{itemType}>";
-        }
-
-        // A $ref to a primitive alias (a string component with a pattern) is that primitive: no type is generated for it
-        if (schema.AliasTarget is { } aliasTarget)
-        {
-            return aliasTarget.ToCSharpType(isRequired: true, registry);
-        }
-
-        // Handle schema reference ($ref)
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refName = schemaRef.Reference?.Id ?? schemaRef.Id;
-            if (!string.IsNullOrEmpty(refName))
-            {
-                var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(refName!);
-                if (registry?.IsConflicting(typeName) == true)
-                {
-                    return registry.GetFullyQualifiedName(typeName);
-                }
-
-                return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
-            }
-        }
-
-        // Handle inline object schema
-        if (schemaType == "object" && schema.Properties is not null && schema.Properties.Count > 0)
-        {
-            // Generate inline type name using the same pattern as ResultClassExtractor
-            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, inlineContext);
-        }
-
-        // Fall back to ToCSharpTypeWithGenericSupport for other cases (allOf, primitives, etc.)
-        var fallbackType = schema.ToCSharpTypeWithGenericSupport(openApiDoc, isRequired: true, registry);
-        if (fallbackType is not null)
-        {
-            return ResolveModelTypeConflict(fallbackType, projectName, segment, systemTypeResolver);
-        }
-
-        return fallbackType;
-    }
+        => schema is null
+            ? null
+            : SchemaTypeResolver.Resolve(
+                schema,
+                openApiDoc,
+                registry,
+                collection: "List",
+                topCollection: null,
+                inlineContext,
+                (_, context) => InlineSchemaExtractor.GenerateInlineTypeName(operationId, context),
+                typeName => ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver));
 
     /// <summary>
     /// Resolves model type conflicts with System types by using full namespace.
@@ -2114,75 +2073,5 @@ using Microsoft.AspNetCore.Builder;
         }
 
         return typeName;
-    }
-
-    /// <summary>
-    /// Gets the C# type for array item schema.
-    /// </summary>
-    private static string GetSchemaItemType(
-        IOpenApiSchema itemSchema,
-        OpenApiDocument openApiDoc,
-        string operationId,
-        string projectName,
-        string segment,
-        SystemTypeConflictResolver systemTypeResolver,
-        TypeConflictRegistry? registry,
-        string itemContext = "ResponseItem")
-    {
-        // An item that names a primitive alias is that primitive
-        if (itemSchema.AliasTarget is { } itemAlias && !itemAlias.IsOfType(JsonSchemaType.Array))
-        {
-            return itemAlias.ToCSharpType(isRequired: true, registry);
-        }
-
-        // Handle reference
-        if (itemSchema is OpenApiSchemaReference itemRef)
-        {
-            var refName = itemRef.Reference?.Id ?? itemRef.Id;
-            if (!string.IsNullOrEmpty(refName))
-            {
-                var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(refName!);
-                if (registry?.IsConflicting(typeName) == true)
-                {
-                    return registry.GetFullyQualifiedName(typeName);
-                }
-
-                return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
-            }
-        }
-
-        var itemSchemaType = itemSchema.GetSchemaType();
-
-        // Handle inline object - "ResponseItem" for a success body, "{Status}ErrorItem" for an error body
-        if (itemSchemaType == "object" && itemSchema.Properties is not null && itemSchema.Properties.Count > 0)
-        {
-            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, itemContext);
-        }
-
-        // Try to find schema by Title property in components
-        if (itemSchema is OpenApiSchema openApiSchema && !string.IsNullOrEmpty(openApiSchema.Title))
-        {
-            var schemas = openApiDoc.Components?.Schemas;
-            if (schemas is not null)
-            {
-                foreach (var kvp in schemas)
-                {
-                    if (kvp.Value is OpenApiSchema componentSchema &&
-                        string.Equals(componentSchema.Title, openApiSchema.Title, StringComparison.Ordinal))
-                    {
-                        var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(kvp.Key);
-                        if (registry?.IsConflicting(typeName) == true)
-                        {
-                            return registry.GetFullyQualifiedName(typeName);
-                        }
-
-                        return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
-                    }
-                }
-            }
-        }
-
-        // Fall back to ToCSharpType for primitives
-        return itemSchema.ToCSharpType(isRequired: true, registry);
     }
 }

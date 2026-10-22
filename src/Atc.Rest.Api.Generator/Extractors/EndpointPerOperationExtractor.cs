@@ -2000,29 +2000,14 @@ public static class EndpointPerOperationExtractor
         string? context,
         Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         bool isAsyncEnumerable)
-        => ClientSchemaTypeResolver.Resolve(
+        => SchemaTypeResolver.Resolve(
             schema,
             openApiDoc,
             registry,
             collection: "IEnumerable",
             topCollection: isAsyncEnumerable ? "IAsyncEnumerable" : null,
             context,
-            (inlineSchema, inlineContext) =>
-            {
-                if (string.IsNullOrEmpty(operationId) || pathSegment is null || inlineSchemas is null)
-                {
-                    return null;
-                }
-
-                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, inlineContext);
-                if (!inlineSchemas.ContainsKey(typeName))
-                {
-                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(inlineSchema, typeName, registry);
-                    inlineSchemas[typeName] = new InlineSchemaInfo(typeName, pathSegment, recordParams);
-                }
-
-                return typeName;
-            });
+            SchemaTypeResolver.InlineRecords(inlineSchemas, operationId, pathSegment, registry));
 
     /// <summary>
     /// Normalizes HTTP status code names to proper PascalCase.
