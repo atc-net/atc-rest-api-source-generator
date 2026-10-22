@@ -672,7 +672,7 @@ public static class ResultClassExtractor
 
         // Determine response type - use generic support for allOf patterns like PaginatedResult<T>
         string? contentType = null;
-        if (!isFileDownload && responseValue.Content is not null && responseValue.Content.TryGetValue("application/json", out var mediaType))
+        if (!isFileDownload && responseValue.Content is not null && responseValue.Content.JsonBody is { } mediaType)
         {
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
         }

@@ -74,6 +74,17 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(GetPhotoParametersWire.Parameters, requireParameters: true);
+
+        pets
+            .MapGet("{id}/profile", GetPetProfile)
+            .WithName("GetPetProfile")
+            .WithSummary("A response declared only under another JSON media type (HAL).")
+            .Produces<Pet>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding(GetPetProfileParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> ListPets(
@@ -104,6 +115,15 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetPhoto(
         [FromServices] IGetPhotoHandler handler,
         [AsParameters] GetPhotoParameters parameters,
+        CancellationToken cancellationToken)
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
+
+    internal async Task<IResult> GetPetProfile(
+        [FromServices] IGetPetProfileHandler handler,
+        [AsParameters] GetPetProfileParameters parameters,
         CancellationToken cancellationToken)
         => (await handler.ExecuteAsync(
                 parameters,

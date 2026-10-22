@@ -54,3 +54,14 @@ public interface IGetPhotoHandler
         GetPhotoParameters parameters,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// A response declared only under another JSON media type (HAL).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IGetPetProfileHandler
+{
+    Task<GetPetProfileResult> ExecuteAsync(
+        GetPetProfileParameters parameters,
+        CancellationToken cancellationToken = default);
+}

@@ -83,6 +83,17 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<Pet> GetPetProfileAsync(
+        GetPetProfileParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}/profile";
+        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Pet>())!;
+    }
+
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

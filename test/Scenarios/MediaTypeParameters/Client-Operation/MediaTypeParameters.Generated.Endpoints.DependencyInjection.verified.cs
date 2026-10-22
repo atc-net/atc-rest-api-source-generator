@@ -45,6 +45,7 @@ public static class EndpointsServiceCollectionExtensions
         services.AddTransient<ICreatePetEndpoint, CreatePetEndpoint>();
         services.AddTransient<IGetPetEndpoint, GetPetEndpoint>();
         services.AddTransient<IGetPhotoEndpoint, GetPhotoEndpoint>();
+        services.AddTransient<IGetPetProfileEndpoint, GetPetProfileEndpoint>();
 
         return services;
     }

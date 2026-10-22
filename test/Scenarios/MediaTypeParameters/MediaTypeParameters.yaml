@@ -74,6 +74,23 @@ paths:
               schema:
                 type: string
                 format: binary
+  /pets/{id}/profile:
+    get:
+      operationId: getPetProfile
+      summary: A response declared only under another JSON media type (HAL).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The pet as a HAL resource.
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/Pet'
 components:
   schemas:
     Pet:

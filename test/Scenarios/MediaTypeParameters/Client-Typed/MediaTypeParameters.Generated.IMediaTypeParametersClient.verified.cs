@@ -29,4 +29,8 @@ public interface IMediaTypeParametersClient
     Task<DownloadedFile> GetPhotoAsync(
         GetPhotoParameters parameters,
         CancellationToken cancellationToken = default);
+
+    Task<Pet> GetPetProfileAsync(
+        GetPetProfileParameters parameters,
+        CancellationToken cancellationToken = default);
 }

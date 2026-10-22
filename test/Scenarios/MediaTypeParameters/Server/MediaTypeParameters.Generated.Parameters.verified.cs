@@ -39,3 +39,12 @@ public sealed record GetPetParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPhotoParameters(
     [property: FromRoute(Name = "id"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] int Id);
+
+/// <summary>
+/// Parameters for operation request.
+/// Description: A response declared only under another JSON media type (HAL)..
+/// Operation: GetPetProfile.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record GetPetProfileParameters(
+    [property: FromRoute(Name = "id"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] int Id);

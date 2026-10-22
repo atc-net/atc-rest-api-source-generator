@@ -563,7 +563,7 @@ public static class EndpointPerOperationExtractor
                 xmlBody = xml;
             }
             else if (response.Value?.Content is not null &&
-                response.Value.Content.TryGetValue("application/json", out var mediaType))
+                response.Value.Content.JsonBody is { } mediaType)
             {
                 // Use "Response" context for direct response objects
                 // Only apply async enumerable wrapper to success responses

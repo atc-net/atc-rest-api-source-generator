@@ -1126,6 +1126,45 @@ public class HttpClientExtractorTests
     }
 
     /// <summary>
+    /// A success body declared only under another JSON media type (<c>application/hal+json</c>,
+    /// <c>application/vnd.api+json</c>) is read as JSON, as a request body under one is written.
+    /// </summary>
+    [Theory]
+    [InlineData("application/hal+json")]
+    [InlineData("application/vnd.contoso.v1+json")]
+    public void Extract_ASuccessBodyUnderAnotherJsonMediaType_IsTheModel(
+        string mediaType)
+    {
+        var document = ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets/{petId}:
+                get:
+                  operationId: getPet
+                  parameters:
+                    - { name: petId, in: path, required: true, schema: { type: string } }
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        '{{mediaType}}':
+                          schema: { $ref: '#/components/schemas/Pet' }
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        Assert.Equal("Pet", clientClass!.Methods!.First(m => m.Name == "GetPetAsync").ReturnTypeName);
+    }
+
+    /// <summary>
     /// The parameters a path item declares for all its operations are sent - the typed client sent only the operation's
     /// own query and header parameters (the parameters record had the property, the request never carried it) - and
     /// one the operation redeclares is sent once, as the operation declares it.

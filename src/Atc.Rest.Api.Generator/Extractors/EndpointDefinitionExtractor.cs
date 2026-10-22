@@ -1438,7 +1438,7 @@ using Microsoft.AspNetCore.Builder;
                 var negotiatedMediaTypes = string.Empty;
                 var fileAlternatives = statusCode == "200" ? ResponseBodyClassifier.FileAlternatives(openApiResponse.Content) : [];
                 var fileMediaTypes = string.Concat(fileAlternatives.Select(m => $", \"{m}\""));
-                if (openApiResponse.Content is not null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
+                if (openApiResponse.Content is not null && openApiResponse.Content.JsonBody is { } mediaType)
                 {
                     contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
                     if (openApiResponse.Content.XmlAlternative?.AlternativeMediaTypes is { } xmlMediaTypes)

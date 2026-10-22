@@ -187,6 +187,42 @@ public sealed class GetPhotoResult : IResult, INestedHttpResult
 }
 
 /// <summary>
+/// A response declared only under another JSON media type (HAL).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class GetPetProfileResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private GetPetProfileResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The pet as a HAL resource.
+    /// </summary>
+    public static GetPetProfileResult Ok(Pet response)
+        => new(TypedResults.Ok(response));
+
+    public static implicit operator GetPetProfileResult(Pet response)
+        => Ok(response);
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts GetPetProfileResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(GetPetProfileResult result)
+        => result.Result;
+}
+
+/// <summary>
 /// A handler's problem as it is, with the status of the response it is written to.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

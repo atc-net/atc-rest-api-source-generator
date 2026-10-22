@@ -622,7 +622,7 @@ public static class HttpClientExtractor
         }
 
         // Check for JSON content first
-        if (response?.Content is not null && response.Content.TryGetValue("application/json", out var mediaType1))
+        if (response?.Content is not null && response.Content.JsonBody is { } mediaType1)
         {
             var contentType = GetSchemaTypeName(mediaType1.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
             if (!string.IsNullOrEmpty(contentType))
