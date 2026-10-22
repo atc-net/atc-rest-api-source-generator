@@ -473,17 +473,6 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR002: OperationId not using correct casing style.
-    /// </summary>
-    public static readonly DiagnosticDescriptor OperationIdInvalidCasing = new(
-        RuleIdentifiers.OperationIdCasing,
-        "OperationId Invalid Casing Style",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
-
-    /// <summary>
     /// ATCAPI_NAM002: Model name must use PascalCase.
     /// </summary>
     public static readonly DiagnosticDescriptor ModelNameMustBePascalCase = new(
