@@ -24,22 +24,6 @@ namespace Atc.Rest.Api.Generator.Helpers;
 public static class NamespaceResolver
 {
     /// <summary>
-    /// C# keywords that cannot be used as a namespace segment.
-    /// </summary>
-    private static readonly HashSet<string> ReservedKeywords = new(StringComparer.Ordinal)
-    {
-        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
-        "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
-        "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
-        "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
-        "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
-        "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
-        "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
-        "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
-        "void", "volatile", "while",
-    };
-
-    /// <summary>
     /// Resolves the root namespace using the three-rule precedence chain.
     /// </summary>
     /// <param name="configNamespace">The <c>namespace</c> value from the marker file, if any.</param>
@@ -123,7 +107,7 @@ public static class NamespaceResolver
     private static bool IsValidIdentifier(string segment)
     {
         if (segment.Length == 0 ||
-            ReservedKeywords.Contains(segment))
+            CSharpKeywords.IsKeyword(segment))
         {
             return false;
         }
@@ -155,7 +139,7 @@ public static class NamespaceResolver
             return segment;
         }
 
-        if (ReservedKeywords.Contains(segment))
+        if (CSharpKeywords.IsKeyword(segment))
         {
             return char.ToUpperInvariant(segment[0]) + segment.Substring(1);
         }
