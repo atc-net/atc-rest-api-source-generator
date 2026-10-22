@@ -2,6 +2,25 @@ namespace Atc.OpenApi.Tests.Extensions;
 
 public class OpenApiSchemaExtensionsTests
 {
+    [Theory]
+    [InlineData(JsonSchemaType.String, "date", "date")]
+    [InlineData(JsonSchemaType.String, "DATE", "date")]
+    [InlineData(JsonSchemaType.String, "date-time", "date-time")]
+    [InlineData(JsonSchemaType.String, "Date-Time", "date-time")]
+    [InlineData(JsonSchemaType.String | JsonSchemaType.Null, "date-time", "date-time")]
+    [InlineData(JsonSchemaType.String, "time", null)]
+    [InlineData(JsonSchemaType.String, null, null)]
+    [InlineData(JsonSchemaType.Integer, "date", null)]
+    public void DateFormat_IsTheLowerCaseDateFormatOfAString(
+        JsonSchemaType type,
+        string? format,
+        string? expected)
+    {
+        IOpenApiSchema schema = new OpenApiSchema { Type = type, Format = format };
+
+        Assert.Equal(expected, schema.DateFormat);
+    }
+
     [Fact]
     public void ToCSharpTypeForModel_WithOneOfSingleReference_ReturnsReferencedType()
     {

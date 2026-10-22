@@ -516,11 +516,9 @@ public sealed class TypeScriptWireNames
         }
 
         // A declared date (only with --convert-dates; a plain string that looks like a date is left alone)
-        if (convertDates &&
-            schema.Type?.HasFlag(JsonSchemaType.String) == true &&
-            schema.Format is "date" or "date-time")
+        if (convertDates && schema.DateFormat is { } dateFormat)
         {
-            return "{ date: '" + schema.Format + "' }";
+            return "{ date: '" + dateFormat + "' }";
         }
 
         // allOf on a property or an inline body is typed from its first $ref (and an intersection's inline members

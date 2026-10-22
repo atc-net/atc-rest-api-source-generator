@@ -697,20 +697,7 @@ public static class TypeScriptOperationHelper
     /// whether to type the parameter as <c>Date</c> and coerce with <c>.toISOString()</c>.
     /// </summary>
     public static bool IsDateParam(OpenApiParameter param)
-    {
-        if (param.Schema is not OpenApiSchema schema)
-        {
-            return false;
-        }
-
-        if (schema.Type?.HasFlag(JsonSchemaType.String) != true)
-        {
-            return false;
-        }
-
-        return string.Equals(schema.Format, "date-time", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(schema.Format, "date", StringComparison.OrdinalIgnoreCase);
-    }
+        => param.Schema is OpenApiSchema schema && schema.DateFormat is not null;
 
     /// <summary>
     /// The expression that writes a Date-typed parameter for the URL or a header: a <c>date-time</c> as ISO 8601
@@ -736,7 +723,7 @@ public static class TypeScriptOperationHelper
     /// <param name="schema">The schema.</param>
     /// <returns><see langword="true"/> for a date.</returns>
     public static bool IsDateOnly(IOpenApiSchema? schema)
-        => string.Equals(schema?.Format, "date", StringComparison.OrdinalIgnoreCase);
+        => schema?.DateFormat == "date";
 
     /// <summary>
     /// Emits <c>buildUrl</c> (shared by the Fetch and Axios ApiClient extractors): the base URL and the path, with the

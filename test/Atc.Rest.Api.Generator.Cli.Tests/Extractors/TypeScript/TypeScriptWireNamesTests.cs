@@ -142,6 +142,39 @@ public class TypeScriptWireNamesTests
         Assert.DoesNotContain("note:", file, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A format in another case (<c>Date-Time</c>, <c>DATE</c>) is a date as well: the model types it <c>Date</c>, so
+    /// the reviver must make it one - it left the string, and a property typed <c>Date</c> held text.
+    /// </summary>
+    [Fact]
+    public void ConvertDates_AFormatInAnotherCase_GetsTheSameDateShape()
+    {
+        const string yaml = """
+            openapi: 3.0.1
+            info:
+              title: Dates
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Event:
+                  type: object
+                  properties:
+                    day:
+                      type: string
+                      format: DATE
+                    at:
+                      type: string
+                      format: Date-Time
+            """;
+
+        var sut = new TypeScriptWireNames(OpenApiDocumentHelper.ParseYaml(yaml), TypeScriptNamingStrategy.Original, convertDates: true);
+
+        var file = sut.GenerateFile(headerContent: null)!;
+        Assert.Contains("day: ['day', { date: 'date' }],", file, StringComparison.Ordinal);
+        Assert.Contains("at: ['at', { date: 'date-time' }],", file, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ConvertDates_FormatDate_IsALocalCalendarDay()
     {

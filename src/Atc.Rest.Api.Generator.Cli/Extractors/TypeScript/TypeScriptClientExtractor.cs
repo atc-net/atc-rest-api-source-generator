@@ -1454,9 +1454,7 @@ public static class TypeScriptClientExtractor
         sb.AppendLine("      })(),");
 
         static bool IsDate(IOpenApiSchema? schema)
-            => schema?.IsOfType(JsonSchemaType.String) == true &&
-               (string.Equals(schema.Format, "date-time", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(schema.Format, "date", StringComparison.OrdinalIgnoreCase));
+            => schema?.DateFormat is not null;
 
         // The field's text: a Date as its ISO text (a date as the caller's calendar day), anything else as String()
         static string Text(
@@ -1487,8 +1485,8 @@ public static class TypeScriptClientExtractor
                 {
                     var access = TypeScriptOperationHelper.OptionalPropertyAccess(value, property.WireName.ApplyNamingStrategy(namingStrategy));
                     var schema = property.Schema is OpenApiSchemaReference reference ? reference.Target : property.Schema;
-                    var text = convertDates && schema?.Format is "date" or "date-time"
-                        ? $"({access} instanceof Date ? {(schema.Format == "date" ? $"dateOnly({access})" : access + ".toISOString()")} : {access} ?? undefined)"
+                    var text = convertDates && schema?.DateFormat is { } dateFormat
+                        ? $"({access} instanceof Date ? {(dateFormat == "date" ? $"dateOnly({access})" : access + ".toISOString()")} : {access} ?? undefined)"
                         : access + " ?? undefined";
                     sb.Append("        '").Append(queryObject.KeyOf(property).Replace("'", "\\'", StringComparison.Ordinal)).Append("': ").Append(text).AppendLine(",");
                 }

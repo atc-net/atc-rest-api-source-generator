@@ -137,6 +137,17 @@ public static class OpenApiSchemaExtensions
     extension(IOpenApiSchema schema)
     {
         /// <summary>
+        /// The date format of a string schema, lower case: <c>"date"</c> (a calendar day) or <c>"date-time"</c> (an
+        /// instant), whatever the case the specification writes it in (as the type mappers read it);
+        /// <see langword="null"/> for any other schema.
+        /// </summary>
+        public string? DateFormat
+            => schema.IsOfType(JsonSchemaType.String) &&
+               schema.Format?.ToLowerInvariant() is ("date" or "date-time") and var format
+                ? format
+                : null;
+
+        /// <summary>
         /// Checks if the schema is a schema reference.
         /// </summary>
         /// <returns>True if the schema is a reference.</returns>
