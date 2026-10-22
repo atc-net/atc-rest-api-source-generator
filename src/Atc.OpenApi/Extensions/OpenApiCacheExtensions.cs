@@ -16,84 +16,84 @@ public static class OpenApiCacheExtensions
         /// </summary>
         /// <returns>The cache type string, or null if not specified.</returns>
         public string? ExtractCacheType()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.Type);
+            => extensions.ReadString(CacheExtensionNameConstants.Type);
 
         /// <summary>
         /// Extracts the x-cache-policy value from extensions.
         /// </summary>
         /// <returns>The policy name, or null if not specified.</returns>
         public string? ExtractCachePolicy()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.Policy);
+            => extensions.ReadString(CacheExtensionNameConstants.Policy);
 
         /// <summary>
         /// Extracts the x-cache-enabled value from extensions.
         /// </summary>
         /// <returns>True if enabled, false if explicitly disabled, null if not specified.</returns>
         public bool? ExtractCacheEnabled()
-            => ExtractBoolValue(extensions, CacheExtensionNameConstants.Enabled);
+            => extensions.ReadBool(CacheExtensionNameConstants.Enabled);
 
         /// <summary>
         /// Extracts the x-cache-expiration-seconds value from extensions.
         /// </summary>
         /// <returns>The expiration in seconds, or null if not specified.</returns>
         public int? ExtractCacheExpirationSeconds()
-            => ExtractIntValue(extensions, CacheExtensionNameConstants.ExpirationSeconds);
+            => extensions.ReadInt(CacheExtensionNameConstants.ExpirationSeconds);
 
         /// <summary>
         /// Extracts the x-cache-tags value from extensions.
         /// </summary>
         /// <returns>The cache tags array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheTags()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.Tags);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.Tags);
 
         /// <summary>
         /// Extracts the x-cache-vary-by-query value from extensions.
         /// </summary>
         /// <returns>The query parameters array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheVaryByQuery()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.VaryByQuery);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.VaryByQuery);
 
         /// <summary>
         /// Extracts the x-cache-vary-by-header value from extensions.
         /// </summary>
         /// <returns>The headers array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheVaryByHeader()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.VaryByHeader);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.VaryByHeader);
 
         /// <summary>
         /// Extracts the x-cache-vary-by-route value from extensions (Output Caching only).
         /// </summary>
         /// <returns>The route values array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheVaryByRoute()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.VaryByRoute);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.VaryByRoute);
 
         /// <summary>
         /// Extracts the x-cache-mode value from extensions (HybridCache only).
         /// </summary>
         /// <returns>The cache mode string, or null if not specified.</returns>
         public string? ExtractCacheMode()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.Mode);
+            => extensions.ReadString(CacheExtensionNameConstants.Mode);
 
         /// <summary>
         /// Extracts the x-cache-sliding-expiration-seconds value from extensions (HybridCache only).
         /// </summary>
         /// <returns>The sliding expiration in seconds, or null if not specified.</returns>
         public int? ExtractCacheSlidingExpirationSeconds()
-            => ExtractIntValue(extensions, CacheExtensionNameConstants.SlidingExpirationSeconds);
+            => extensions.ReadInt(CacheExtensionNameConstants.SlidingExpirationSeconds);
 
         /// <summary>
         /// Extracts the x-cache-key-prefix value from extensions (HybridCache only).
         /// </summary>
         /// <returns>The key prefix, or null if not specified.</returns>
         public string? ExtractCacheKeyPrefix()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.KeyPrefix);
+            => extensions.ReadString(CacheExtensionNameConstants.KeyPrefix);
 
         /// <summary>
         /// Extracts the x-cache-shared value from extensions (Output Caching only).
         /// </summary>
         /// <returns>True when the answer is the same for every caller, false if not, null if not specified.</returns>
         public bool? ExtractCacheShared()
-            => ExtractBoolValue(extensions, CacheExtensionNameConstants.Shared);
+            => extensions.ReadBool(CacheExtensionNameConstants.Shared);
     }
 
     /// <summary>
@@ -423,155 +423,5 @@ public static class OpenApiCacheExtensions
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Extracts a string value from an OpenAPI extension.
-    /// </summary>
-    private static string? ExtractStringValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var stringValue))
-        {
-            return stringValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts a boolean value from an OpenAPI extension.
-    /// </summary>
-    private static bool? ExtractBoolValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
-        {
-            return boolValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts an integer value from an OpenAPI extension.
-    /// </summary>
-    private static int? ExtractIntValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<int>(out var intValue))
-            {
-                return intValue;
-            }
-
-            // Also try long and clamp to int range
-            if (jsonValue.TryGetValue<long>(out var longValue))
-            {
-                return longValue > int.MaxValue ? int.MaxValue : longValue < int.MinValue ? int.MinValue : (int)longValue;
-            }
-
-            // YAML-sourced integer scalars are boxed as decimal (JsonValuePrimitive<decimal>)
-            // by the OpenAPI YAML reader, not int/long, so neither branch above ever matches
-            // for a document parsed from YAML (the common case for this generator).
-            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
-            {
-                return decimalValue > int.MaxValue ? int.MaxValue : decimalValue < int.MinValue ? int.MinValue : (int)decimalValue;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts a string array value from an OpenAPI extension.
-    /// </summary>
-    private static IReadOnlyList<string>? ExtractStringArrayValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonArray jsonArray)
-        {
-            var result = new List<string>();
-            foreach (var item in jsonArray)
-            {
-                if (item is JsonValue itemValue && itemValue.TryGetValue<string>(out var stringValue))
-                {
-                    result.Add(stringValue);
-                }
-            }
-
-            return result.Count > 0 ? result : null;
-        }
-
-        return null;
     }
 }

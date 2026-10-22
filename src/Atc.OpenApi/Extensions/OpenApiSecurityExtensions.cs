@@ -19,79 +19,31 @@ public static class OpenApiSecurityExtensions
         /// </summary>
         /// <returns>True if required, false if explicitly disabled, null if not specified.</returns>
         public bool? ExtractAuthenticationRequired()
-        {
-            if (extensions is null)
-            {
-                return null;
-            }
-
-            if (!extensions.TryGetValue(SecurityExtensionNameConstants.AuthenticationRequired, out var extension) ||
-                extension is null)
-            {
-                return null;
-            }
-
-            // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-            var extensionType = extension.GetType();
-            var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty is null)
-            {
-                return null;
-            }
-
-            var node = nodeProperty.GetValue(extension);
-            if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
-            {
-                return boolValue;
-            }
-
-            return null;
-        }
+            => extensions.ReadBool(SecurityExtensionNameConstants.AuthenticationRequired);
 
         /// <summary>
         /// Extracts the x-authorize-roles array from extensions.
         /// </summary>
         /// <returns>A list of role names, or empty list if not specified.</returns>
         public IReadOnlyList<string> ExtractAuthorizeRoles()
-            => extensions is null ||
-               !extensions.TryGetValue(SecurityExtensionNameConstants.AuthorizeRoles, out var extension) ||
-               extension is null
-                ? []
-                : ExtractStringArray(extension);
+            => NonEmpty(extensions.ReadStringArray(SecurityExtensionNameConstants.AuthorizeRoles));
 
         /// <summary>
         /// Extracts the x-authentication-schemes array from extensions.
         /// </summary>
         /// <returns>A list of scheme names, or empty list if not specified.</returns>
         public IReadOnlyList<string> ExtractAuthenticationSchemes()
-            => extensions is null ||
-               !extensions.TryGetValue(SecurityExtensionNameConstants.AuthenticationSchemes, out var extension) ||
-               extension is null
-                ? []
-                : ExtractStringArray(extension);
+            => NonEmpty(extensions.ReadStringArray(SecurityExtensionNameConstants.AuthenticationSchemes));
 
         /// <summary>
         /// Extracts the x-authentication-scheme value from a security scheme's extensions.
         /// </summary>
         /// <returns>The ASP.NET Core authentication scheme name, or null if not specified.</returns>
         public string? ExtractAuthenticationScheme()
-        {
-            if (extensions is null ||
-                !extensions.TryGetValue(SecurityExtensionNameConstants.AuthenticationScheme, out var extension) ||
-                extension is null)
-            {
-                return null;
-            }
-
-            // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-            var node = extension.GetType().GetProperty("Node")?.GetValue(extension);
-
-            return node is JsonValue jsonValue &&
-                   jsonValue.TryGetValue<string>(out var value) &&
-                   !string.IsNullOrWhiteSpace(value)
-                ? value
+            => extensions.ReadString(SecurityExtensionNameConstants.AuthenticationScheme) is { } scheme &&
+               !string.IsNullOrWhiteSpace(scheme)
+                ? scheme
                 : null;
-        }
     }
 
     /// <summary>
@@ -750,33 +702,9 @@ public static class OpenApiSecurityExtensions
     /// <summary>
     /// Extracts a string array from an OpenAPI extension using reflection.
     /// </summary>
-    private static IReadOnlyList<string> ExtractStringArray(IOpenApiExtension extension)
-    {
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return [];
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is not JsonArray jsonArray)
-        {
-            return [];
-        }
-
-        var result = new List<string>();
-        foreach (var item in jsonArray)
-        {
-            if (item is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var value) && !string.IsNullOrEmpty(value))
-            {
-                result.Add(value);
-            }
-        }
-
-        return result;
-    }
+    // The non-empty texts of an array extension; none when it is absent
+    private static IReadOnlyList<string> NonEmpty(IReadOnlyList<string>? values)
+        => values is null ? [] : values.Where(v => v.Length > 0).ToList();
 
     /// <summary>
     /// Maps a securityScheme key to the ASP.NET Core authentication scheme name it stands for:

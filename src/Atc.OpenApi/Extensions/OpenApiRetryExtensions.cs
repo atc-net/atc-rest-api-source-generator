@@ -16,98 +16,98 @@ public static class OpenApiRetryExtensions
         /// </summary>
         /// <returns>The policy name, or null if not specified.</returns>
         public string? ExtractRetryPolicy()
-            => ExtractStringValue(extensions, RetryExtensionNameConstants.Policy);
+            => extensions.ReadString(RetryExtensionNameConstants.Policy);
 
         /// <summary>
         /// Extracts the x-retry-enabled value from extensions.
         /// </summary>
         /// <returns>True if enabled, false if explicitly disabled, null if not specified.</returns>
         public bool? ExtractRetryEnabled()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.Enabled);
+            => extensions.ReadBool(RetryExtensionNameConstants.Enabled);
 
         /// <summary>
         /// Extracts the x-retry-max-attempts value from extensions.
         /// </summary>
         /// <returns>The max attempts, or null if not specified.</returns>
         public int? ExtractMaxRetryAttempts()
-            => ExtractIntValue(extensions, RetryExtensionNameConstants.MaxAttempts);
+            => extensions.ReadInt(RetryExtensionNameConstants.MaxAttempts);
 
         /// <summary>
         /// Extracts the x-retry-delay-seconds value from extensions.
         /// </summary>
         /// <returns>The delay in seconds, or null if not specified.</returns>
         public double? ExtractRetryDelaySeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.DelaySeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.DelaySeconds);
 
         /// <summary>
         /// Extracts the x-retry-backoff value from extensions.
         /// </summary>
         /// <returns>The backoff type string, or null if not specified.</returns>
         public string? ExtractRetryBackoff()
-            => ExtractStringValue(extensions, RetryExtensionNameConstants.Backoff);
+            => extensions.ReadString(RetryExtensionNameConstants.Backoff);
 
         /// <summary>
         /// Extracts the x-retry-use-jitter value from extensions.
         /// </summary>
         /// <returns>True if jitter enabled, false if disabled, null if not specified.</returns>
         public bool? ExtractRetryUseJitter()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.UseJitter);
+            => extensions.ReadBool(RetryExtensionNameConstants.UseJitter);
 
         /// <summary>
         /// Extracts the x-retry-timeout-seconds value from extensions.
         /// </summary>
         /// <returns>The timeout in seconds, or null if not specified.</returns>
         public double? ExtractRetryTimeoutSeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.TimeoutSeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.TimeoutSeconds);
 
         /// <summary>
         /// Extracts the x-retry-total-timeout-seconds value from extensions.
         /// </summary>
         /// <returns>The timeout over all attempts in seconds, or null if not specified.</returns>
         public double? ExtractRetryTotalTimeoutSeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.TotalTimeoutSeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.TotalTimeoutSeconds);
 
         /// <summary>
         /// Extracts the x-retry-circuit-breaker value from extensions.
         /// </summary>
         /// <returns>True if circuit breaker enabled, false if disabled, null if not specified.</returns>
         public bool? ExtractRetryCircuitBreaker()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.CircuitBreaker);
+            => extensions.ReadBool(RetryExtensionNameConstants.CircuitBreaker);
 
         /// <summary>
         /// Extracts the x-retry-cb-failure-ratio value from extensions.
         /// </summary>
         /// <returns>The failure ratio (0.0-1.0), or null if not specified.</returns>
         public double? ExtractCircuitBreakerFailureRatio()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.CircuitBreakerFailureRatio);
+            => extensions.ReadDouble(RetryExtensionNameConstants.CircuitBreakerFailureRatio);
 
         /// <summary>
         /// Extracts the x-retry-cb-sampling-duration-seconds value from extensions.
         /// </summary>
         /// <returns>The sampling duration in seconds, or null if not specified.</returns>
         public double? ExtractCircuitBreakerSamplingDurationSeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.CircuitBreakerSamplingDurationSeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.CircuitBreakerSamplingDurationSeconds);
 
         /// <summary>
         /// Extracts the x-retry-cb-minimum-throughput value from extensions.
         /// </summary>
         /// <returns>The minimum throughput, or null if not specified.</returns>
         public int? ExtractCircuitBreakerMinimumThroughput()
-            => ExtractIntValue(extensions, RetryExtensionNameConstants.CircuitBreakerMinimumThroughput);
+            => extensions.ReadInt(RetryExtensionNameConstants.CircuitBreakerMinimumThroughput);
 
         /// <summary>
         /// Extracts the x-retry-cb-break-duration-seconds value from extensions.
         /// </summary>
         /// <returns>The break duration in seconds, or null if not specified.</returns>
         public double? ExtractCircuitBreakerBreakDurationSeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.CircuitBreakerBreakDurationSeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.CircuitBreakerBreakDurationSeconds);
 
         /// <summary>
         /// Extracts the x-retry-handle-429 value from extensions.
         /// </summary>
         /// <returns>True if 429 handling enabled, false if disabled, null if not specified.</returns>
         public bool? ExtractRetryHandle429()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.Handle429);
+            => extensions.ReadBool(RetryExtensionNameConstants.Handle429);
     }
 
     /// <summary>
@@ -500,170 +500,6 @@ public static class OpenApiRetryExtensions
 
     private static string? NullIfEmpty(string? value)
         => string.IsNullOrEmpty(value) ? null : value;
-
-    /// <summary>
-    /// Extracts a string value from an OpenAPI extension.
-    /// </summary>
-    private static string? ExtractStringValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var stringValue))
-        {
-            return stringValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts a boolean value from an OpenAPI extension.
-    /// </summary>
-    private static bool? ExtractBoolValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
-        {
-            return boolValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts an integer value from an OpenAPI extension.
-    /// </summary>
-    private static int? ExtractIntValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<int>(out var intValue))
-            {
-                return intValue;
-            }
-
-            // Also try long and clamp to int range
-            if (jsonValue.TryGetValue<long>(out var longValue))
-            {
-                return longValue > int.MaxValue ? int.MaxValue : longValue < int.MinValue ? int.MinValue : (int)longValue;
-            }
-
-            // YAML-sourced integer scalars are boxed as decimal (JsonValuePrimitive<decimal>)
-            // by the OpenAPI YAML reader, not int/long, so neither branch above ever matches
-            // for a document parsed from YAML (the common case for this generator).
-            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
-            {
-                return decimalValue > int.MaxValue ? int.MaxValue : decimalValue < int.MinValue ? int.MinValue : (int)decimalValue;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts a double value from an OpenAPI extension.
-    /// </summary>
-    private static double? ExtractDoubleValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<double>(out var doubleValue))
-            {
-                return doubleValue;
-            }
-
-            // Also try int/long and convert to double
-            if (jsonValue.TryGetValue<int>(out var intValue))
-            {
-                return intValue;
-            }
-
-            if (jsonValue.TryGetValue<long>(out var longValue))
-            {
-                return longValue;
-            }
-
-            // YAML-sourced numeric scalars (both whole and fractional) are boxed as
-            // decimal (JsonValuePrimitive<decimal>) by the OpenAPI YAML reader, not
-            // double/int/long, so none of the branches above ever match for a document
-            // parsed from YAML (the common case for this generator).
-            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
-            {
-                return (double)decimalValue;
-            }
-        }
-
-        return null;
-    }
 
     /// <summary>
     /// Parses a backoff type string to the enum value.

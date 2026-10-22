@@ -109,15 +109,7 @@ public static class SpecSuppressions
         IDictionary<string, IOpenApiExtension>? extensions)
     {
         var rules = new HashSet<string>(StringComparer.Ordinal);
-        if (extensions is null ||
-            !extensions.TryGetValue(ExtensionName, out var extension) ||
-            extension is null)
-        {
-            return rules;
-        }
-
-        // The extension's JSON node (Microsoft.OpenApi keeps it in a Node property)
-        switch (extension.GetType().GetProperty("Node")?.GetValue(extension))
+        switch (extensions.NodeOf(ExtensionName))
         {
             case JsonArray array:
                 foreach (var item in array)

@@ -2105,22 +2105,8 @@ public static class OpenApiSchemaExtensions
                 return result;
             }
 
-            // Look for x-implements extension
-            if (actualSchema.Extensions is null ||
-                !actualSchema.Extensions.TryGetValue("x-implements", out var extension))
-            {
-                return result;
-            }
-
-            // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-            var extensionType = extension.GetType();
-            var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty is null)
-            {
-                return result;
-            }
-
-            var node = nodeProperty.GetValue(extension);
+            // The x-implements extension: a list of names, or one text of comma-separated names
+            var node = actualSchema.Extensions.NodeOf("x-implements");
 
             // Handle array of interface names
             if (node is JsonArray jsonArray)
