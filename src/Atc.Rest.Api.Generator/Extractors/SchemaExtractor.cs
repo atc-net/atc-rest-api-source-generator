@@ -584,7 +584,7 @@ public static class SchemaExtractor
             // Making them optional allows omission in the context where they don't apply.
             if (isRequired)
             {
-                var resolvedPropSchema = prop.Value is OpenApiSchemaReference propRef ? propRef.Target : prop.Value;
+                var resolvedPropSchema = prop.Value.Dereferenced;
                 if (resolvedPropSchema is OpenApiSchema actualPropSchema &&
                     (actualPropSchema.ReadOnly || actualPropSchema.WriteOnly))
                 {
@@ -650,7 +650,7 @@ public static class SchemaExtractor
             var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
-            var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
+            var resolvedPropForRw = prop.Value.Dereferenced;
             if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
                 (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
                 string.IsNullOrEmpty(defaultValue))
@@ -958,7 +958,7 @@ public static class SchemaExtractor
             var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
-            var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
+            var resolvedPropForRw = prop.Value.Dereferenced;
             if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
                 (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
                 string.IsNullOrEmpty(defaultValue))

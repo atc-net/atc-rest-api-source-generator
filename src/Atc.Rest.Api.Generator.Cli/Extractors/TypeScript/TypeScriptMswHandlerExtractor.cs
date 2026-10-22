@@ -387,7 +387,7 @@ public static class TypeScriptMswHandlerExtractor
             var mergedProps = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
             foreach (var sub in actualSchema.AllOf)
             {
-                var resolved = sub is OpenApiSchemaReference r ? r.Target : sub;
+                var resolved = sub.Dereferenced;
                 if (resolved is OpenApiSchema s && s.Properties is not null)
                 {
                     foreach (var p in s.Properties)

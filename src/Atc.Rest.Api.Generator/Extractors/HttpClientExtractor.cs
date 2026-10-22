@@ -964,7 +964,7 @@ public static class HttpClientExtractor
                 // the same) - never as the list's ToString()
                 if (serialization.ValueKind == ParameterValueKind.Array)
                 {
-                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema), WireValueHelper.IsIntegerEnum((param.Schema is OpenApiSchemaReference r ? r.Target : param.Schema)?.Items));
+                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema), WireValueHelper.IsIntegerEnum(param.Schema.Dereferenced?.Items));
                     continue;
                 }
 
@@ -1837,7 +1837,7 @@ public static class HttpClientExtractor
         char delimiter,
         bool escapeItems)
     {
-        var itemsSchema = (param.Schema is OpenApiSchemaReference reference ? reference.Target : param.Schema)?.Items;
+        var itemsSchema = param.Schema.Dereferenced?.Items;
         var itemType = TryGetListElementType(paramType, out var elementType) ? elementType : "string";
         var itemText = WireValueHelper.IsIntegerEnum(itemsSchema)
             ? WireValueHelper.IntegerEnumWireExpression("item") + "!"

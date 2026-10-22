@@ -985,7 +985,7 @@ public static class EndpointPerOperationExtractor
         // percent-encodes (a list would be sent as repeated keys)
         if (param.GetArrayDelimiter() is { } delimiter)
         {
-            var itemsSchema = (param.Schema is OpenApiSchemaReference reference ? reference.Target : param.Schema)?.Items;
+            var itemsSchema = param.Schema.Dereferenced?.Items;
             var itemText = WireValueHelper.IsStringEnum(itemsSchema)
                 ? "item.ToWireValue()"
                 : WireValueHelper.TryBuildWireExpression("item", itemsSchema) is { } formatted

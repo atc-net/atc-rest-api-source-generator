@@ -385,7 +385,7 @@ internal static class TypeScriptResponseHeaders
         foreach (var field in header.Fields)
         {
             var propertySchema = properties[field.WireName];
-            var resolved = propertySchema is OpenApiSchemaReference propertyReference ? propertyReference.Target : propertySchema;
+            var resolved = propertySchema.Dereferenced;
 
             // A writeOnly property is not in the model a response is read into
             if (resolved is OpenApiSchema { WriteOnly: true })

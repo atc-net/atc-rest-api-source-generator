@@ -1669,7 +1669,7 @@ public static class XmlModelMapperExtractor
     }
 
     private static IOpenApiSchema? Resolve(IOpenApiSchema? schema)
-        => schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        => schema.Dereferenced;
 
     private static string? XmlName(OpenApiXml? xml)
         => xml?.Name is { Length: > 0 } name && name != "##default" ? name : null;

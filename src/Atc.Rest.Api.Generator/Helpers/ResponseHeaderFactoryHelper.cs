@@ -726,7 +726,7 @@ public static class ResponseHeaderFactoryHelper
                 propertyName += "Value";
             }
 
-            var resolved = property.Value is OpenApiSchemaReference propertyReference ? propertyReference.Target : property.Value;
+            var resolved = property.Value.Dereferenced;
             if (resolved is not OpenApiSchema propertySchema ||
                 propertySchema.Default is not null ||
                 propertySchema.IsOfType(JsonSchemaType.Object) ||

@@ -1484,7 +1484,7 @@ public static class TypeScriptClientExtractor
                 foreach (var property in queryObject.Properties)
                 {
                     var access = TypeScriptOperationHelper.OptionalPropertyAccess(value, property.WireName.ApplyNamingStrategy(namingStrategy));
-                    var schema = property.Schema is OpenApiSchemaReference reference ? reference.Target : property.Schema;
+                    var schema = property.Schema.Dereferenced;
                     var text = convertDates && schema?.DateFormat is { } dateFormat
                         ? $"({access} instanceof Date ? {(dateFormat == "date" ? $"dateOnly({access})" : access + ".toISOString()")} : {access} ?? undefined)"
                         : access + " ?? undefined";

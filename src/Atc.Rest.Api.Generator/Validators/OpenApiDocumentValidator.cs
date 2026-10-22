@@ -1525,7 +1525,7 @@ public static class OpenApiDocumentValidator
         var items = actualPropertySchema.Items;
 
         // A tuple (prefixItems) is an array whose positions are typed one by one: it needs no items
-        var tupleCandidate = actualPropertySchema is OpenApiSchemaReference tupleReference ? tupleReference.Target : actualPropertySchema;
+        var tupleCandidate = actualPropertySchema.Dereferenced;
         if (items is null && tupleCandidate?.HasPrefixItems() == true)
         {
             return;

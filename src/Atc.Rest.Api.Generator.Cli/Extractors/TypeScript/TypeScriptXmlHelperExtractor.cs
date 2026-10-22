@@ -358,7 +358,7 @@ public static class TypeScriptXmlHelperExtractor
         => schema is OpenApiSchemaReference reference ? reference.Reference?.Id ?? reference.Id : null;
 
     private static IOpenApiSchema? Resolve(IOpenApiSchema? schema)
-        => schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        => schema.Dereferenced;
 
     private static string? XmlName(OpenApiXml? xml)
         => xml?.Name is { Length: > 0 } name && name != "##default" ? name : null;

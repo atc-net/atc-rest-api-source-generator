@@ -29,7 +29,7 @@ public static class WireValueHelper
     /// <returns><see langword="true"/> for an integer enum.</returns>
     public static bool IsIntegerEnum(IOpenApiSchema? schema)
     {
-        var actual = schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        var actual = schema.Dereferenced;
         return actual is not null &&
                actual.Enum is { Count: > 0 } &&
                actual.IsOfType(JsonSchemaType.Integer);
@@ -79,7 +79,7 @@ public static class WireValueHelper
             return IntegerEnumWireExpression(accessExpression);
         }
 
-        var actualSchema = schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        var actualSchema = schema.Dereferenced;
         if (actualSchema is null || actualSchema.Enum is { Count: > 0 })
         {
             return null;
@@ -167,7 +167,7 @@ public static class WireValueHelper
         IOpenApiSchema? schema,
         int depth)
     {
-        var actual = schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        var actual = schema.Dereferenced;
         if (actual is null || depth > MaxDepth)
         {
             return false;
