@@ -13,6 +13,7 @@ using Pagination.Generated.Logs;
 using Pagination.Generated.Metrics;
 using Pagination.Generated.Orgs;
 using Pagination.Generated.Pages;
+using Pagination.Generated.Reports;
 using Pagination.Generated.Tags;
 
 namespace Pagination.Generated;
@@ -40,6 +41,7 @@ public static class PaginationEndpointsServiceCollectionExtensions
         services.AddMetricsEndpoints();
         services.AddOrgsEndpoints();
         services.AddPagesEndpoints();
+        services.AddReportsEndpoints();
         services.AddTagsEndpoints();
 
         if (configureJsonSerializerOptions is not null)

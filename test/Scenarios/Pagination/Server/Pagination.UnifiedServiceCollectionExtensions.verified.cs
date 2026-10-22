@@ -14,6 +14,7 @@ using Pagination.Generated.Logs.Handlers;
 using Pagination.Generated.Metrics.Handlers;
 using Pagination.Generated.Orgs.Handlers;
 using Pagination.Generated.Pages.Handlers;
+using Pagination.Generated.Reports.Handlers;
 using Pagination.Generated.Tags.Handlers;
 
 namespace Pagination.Generated.Extensions;

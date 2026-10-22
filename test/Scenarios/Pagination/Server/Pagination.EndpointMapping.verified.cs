@@ -28,6 +28,7 @@ public static class EndpointMappingExtensions
         app.MapMetricsEndpoints();
         app.MapOrgsEndpoints();
         app.MapPagesEndpoints();
+        app.MapReportsEndpoints();
         app.MapTagsEndpoints();
 
         return app;

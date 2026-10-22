@@ -120,6 +120,20 @@ public static class EndpointDefinitionExtensions
     /// <returns>
     /// The web application for method chaining.
     /// </returns>
+    public static WebApplication MapReportsEndpoints(this WebApplication app)
+    {
+        new ReportsEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
     public static WebApplication MapTagsEndpoints(this WebApplication app)
     {
         new TagsEndpointDefinition().DefineEndpoints(app);

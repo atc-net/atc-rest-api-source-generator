@@ -19,8 +19,6 @@ public static class OpenApiDocumentValidator
     // How deep a schema walk goes before it gives up: far beyond any real nesting, short of a stack overflow
     private const int MaxSchemaDepth = 64;
 
-    private static readonly string[] PaginationPropertyNames = ["items", "results", "data", "records", "values"];
-
     private static readonly string[] CollectionIntentPrefixes = ["list", "search", "find"];
 
     private static readonly string[] QueryVerbPrefixes = ["get", "list", "find", "search", "fetch", "retrieve"];
@@ -3038,7 +3036,7 @@ public static class OpenApiDocumentValidator
         {
             foreach (var prop in openApiSchema.Properties)
             {
-                if (PaginationPropertyNames.Contains(prop.Key, StringComparer.OrdinalIgnoreCase) &&
+                if (PaginationConventions.IsArrayPropertyName(prop.Key) &&
                     IsArraySchema(prop.Value, document))
                 {
                     return true;

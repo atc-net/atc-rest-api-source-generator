@@ -7,13 +7,6 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// </summary>
 public static class SchemaExtractor
 {
-    /// <summary>
-    /// Common property names for pagination result arrays.
-    /// These are used to detect generic pagination base schemas.
-    /// </summary>
-    private static readonly string[] PaginationArrayPropertyNames
-        = ["results", "items", "data", "values", "content"];
-
     // Cache for CollectAllOfBaseSchemas results, keyed by document. The result is a pure function
     // of the document, but ExtractIndividual is invoked once per path segment, so without this the
     // whole-document allOf pre-scan is recomputed N times. Mirrors PathSegmentHelper's cache; uses
@@ -177,16 +170,10 @@ public static class SchemaExtractor
             return false;
         }
 
-        // Look for common pagination array property names
-        IOpenApiSchema? resultsProp = null;
-        foreach (var propName in PaginationArrayPropertyNames)
-        {
-            if (schema.Properties.TryGetValue(propName, out var propValue))
-            {
-                resultsProp = propValue;
-                break;
-            }
-        }
+        // The page array, by the names every generator knows (PaginationConventions)
+        var resultsProp = PaginationConventions.ArrayPropertyNames
+            .Select(name => schema.Properties.FirstOrDefault(p => string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase)).Value)
+            .FirstOrDefault(p => p is not null);
 
         if (resultsProp is not OpenApiSchema resultsSchema)
         {
@@ -465,8 +452,7 @@ public static class SchemaExtractor
             var isGenericListType = false;
 
             // Special handling for pagination array properties - make it generic List<T>
-            if (PaginationArrayPropertyNames.Any(name =>
-                prop.Key.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            if (PaginationConventions.IsArrayPropertyName(prop.Key))
             {
                 csharpType = "List<T>";
                 genericTypeName = null;

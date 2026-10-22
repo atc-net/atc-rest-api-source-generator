@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.Helpers;
 
 /// <summary>
 /// The C# type of an <c>allOf</c> response that is a page (<c>PaginatedResult&lt;Item&gt;</c>: a <c>$ref</c> to a
-/// pagination base plus an inline member whose <c>items</c> / <c>results</c> array gives the item type), and of an
+/// pagination base plus an inline member whose page array - <c>items</c>, <c>results</c>, <c>data</c>, ... - gives the item type), and of an
 /// array's items. The typed and the per-operation client resolve them the same way; only the type of an inline item
 /// schema is theirs to decide.
 /// </summary>
@@ -61,11 +61,10 @@ public static class PaginationTypeResolver
             }
             else if (schemaItem is OpenApiSchema { Properties: not null } objSchema)
             {
-                // Look for "items" or "results" property which contains the array item type
+                // The page array (items, results, data, ... - PaginationConventions) gives the item type
                 foreach (var prop in objSchema.Properties)
                 {
-                    if (!prop.Key.Equals("items", StringComparison.OrdinalIgnoreCase) &&
-                        !prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
+                    if (!PaginationConventions.IsArrayPropertyName(prop.Key))
                     {
                         continue;
                     }

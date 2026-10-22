@@ -93,6 +93,64 @@ public class HttpClientExtractorTests
         Assert.Equal("PaginationResult<Device>", method.ReturnTypeName);
     }
 
+    /// <summary>
+    /// Every page array name the model knows is one the client knows: the base became <c>PaginationResult&lt;T&gt;</c>
+    /// for a <c>content</c>, <c>data</c> or <c>values</c> array, but the client named the page <c>PaginationResult</c>
+    /// without its item type (it did not build), and a <c>records</c> array made no generic base at all.
+    /// </summary>
+    [Theory]
+    [InlineData("items")]
+    [InlineData("results")]
+    [InlineData("data")]
+    [InlineData("values")]
+    [InlineData("content")]
+    [InlineData("records")]
+    public void Extract_APageOfAnyKnownArrayName_IsTheGenericBaseOfItsItems(
+        string arrayName)
+    {
+        var document = ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /devices:
+                get:
+                  operationId: getDevices
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/PaginationResult'
+                              - type: object
+                                properties:
+                                  {{arrayName}}:
+                                    type: array
+                                    items:
+                                      $ref: '#/components/schemas/Device'
+            components:
+              schemas:
+                PaginationResult:
+                  type: object
+                  properties:
+                    pageSize: { type: integer }
+                    {{arrayName}}:
+                      type: array
+                      items: {}
+                Device:
+                  type: object
+                  properties:
+                    id: { type: string }
+            """);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        Assert.Equal("PaginationResult<Device>", clientClass!.Methods!.First(m => m.Name == "GetDevicesAsync").ReturnTypeName);
+        Assert.True(SchemaExtractor.IsPaginationBaseSchema((OpenApiSchema)document.Components!.Schemas!["PaginationResult"]));
+    }
+
     [Fact]
     public void Extract_WithPaginatedResultAndResultsProperty_GeneratesGenericType()
     {

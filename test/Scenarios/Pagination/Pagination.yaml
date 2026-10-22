@@ -181,6 +181,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MetricPage'
+  /reports:
+    get:
+      operationId: listReports
+      summary: A page whose items are under content, not results
+      responses:
+        '200':
+          description: A page of reports
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PagedResult'
+                  - type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Account'
 components:
   parameters:
     continuation:
@@ -211,6 +229,14 @@ components:
         continuation:
           type: [string, 'null']
         results:
+          type: array
+          items: {}
+    PagedResult:
+      type: object
+      properties:
+        pageNumber:
+          type: integer
+        content:
           type: array
           items: {}
     AccountPage:
