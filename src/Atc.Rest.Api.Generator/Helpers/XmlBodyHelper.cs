@@ -186,7 +186,7 @@ public static class XmlBodyHelper
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns>True when one does.</returns>
     public static bool HasJsonOnlyListBody(OpenApiDocument openApiDoc)
-        => AllOperations(openApiDoc).Any(o => FindJsonOnlyModelBody(o.RequestBody?.Content) is { IsList: true, IsJsonOnly: true });
+        => openApiDoc.GetAllOperationsAndWebhooks().Any(o => FindJsonOnlyModelBody(o.RequestBody?.Content) is { IsList: true, IsJsonOnly: true });
 
     /// <summary>
     /// Whether any operation or webhook of the document has a body the generated server reads itself (so it declares
@@ -417,10 +417,4 @@ public static class XmlBodyHelper
            reference.Reference?.HostDocument is { } document &&
            (reference.Reference.Id ?? reference.Id) is { } id &&
            PolymorphicBases.GetValue(document, d => new HashSet<string>(PolymorphicTypeExtractor.ExtractPolymorphicConfigs(d)?.Keys ?? Enumerable.Empty<string>(), StringComparer.Ordinal)).Contains(id);
-
-    private static IEnumerable<OpenApiOperation> AllOperations(
-        OpenApiDocument openApiDoc)
-        => (openApiDoc?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
-            .Concat(openApiDoc?.Webhooks?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
-            .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>());
 }

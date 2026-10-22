@@ -2,6 +2,28 @@ namespace Atc.OpenApi.Tests.Extensions;
 
 public class OpenApiDocumentExtensionsTests
 {
+    [Fact]
+    public void GetAllOperationsAndWebhooks_ThePathsOperationsThenTheWebhooks()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets:
+                get: { operationId: listPets, responses: { '204': { description: OK } } }
+                post: { operationId: createPet, responses: { '204': { description: OK } } }
+            webhooks:
+              petAdded:
+                post: { operationId: onPetAdded, responses: { '204': { description: OK } } }
+            """);
+
+        Assert.Equal(
+            ["listPets", "createPet", "onPetAdded"],
+            document.GetAllOperationsAndWebhooks().Select(o => o.OperationId),
+            StringComparer.Ordinal);
+        Assert.Empty(((OpenApiDocument?)null).GetAllOperationsAndWebhooks());
+    }
+
     // ========== GetAllOperations Tests ==========
     [Fact]
     public void GetAllOperations_NoPaths_ReturnsEmpty()

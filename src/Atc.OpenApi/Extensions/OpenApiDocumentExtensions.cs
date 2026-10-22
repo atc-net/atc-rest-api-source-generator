@@ -47,6 +47,16 @@ public static class OpenApiDocumentExtensions
                 ? throw new ArgumentNullException(nameof(document))
                 : GetAllOperationsIterator(document);
 
+        /// <summary>
+        /// Gets the operations of every path and every webhook - each operation a request can reach the generated code
+        /// through.
+        /// </summary>
+        /// <returns>The operations, paths first.</returns>
+        public IEnumerable<OpenApiOperation> GetAllOperationsAndWebhooks()
+            => (document?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+                .Concat(document?.Webhooks?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+                .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>());
+
         // ========== Webhooks Support (OpenAPI 3.1) ==========
 
         /// <summary>

@@ -26,7 +26,7 @@ public static class StreamedRequestBodyExtractor
     /// <returns>True when the server needs <c>StreamedRequestBody&lt;T&gt;</c>.</returns>
     public static bool DocumentHasStreamedRequestBody(
         OpenApiDocument openApiDoc)
-        => Operations(openApiDoc).Any(operation => operation.GetStreamedRequestBody() is not null);
+        => openApiDoc.GetAllOperationsAndWebhooks().Any(operation => operation.GetStreamedRequestBody() is not null);
 
     /// <summary>
     /// The server's body type for a streamed request body of records of <paramref name="itemTypeName"/>.
@@ -665,31 +665,4 @@ public static class StreamedRequestBodyExtractor
                 }
             }
             """;
-
-    private static IEnumerable<OpenApiOperation> Operations(
-        OpenApiDocument openApiDoc)
-    {
-        if (openApiDoc is null)
-        {
-            yield break;
-        }
-
-        var pathItems = (openApiDoc.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
-            .Concat(openApiDoc.Webhooks?.Values ?? Enumerable.Empty<IOpenApiPathItem>());
-        foreach (var pathItem in pathItems)
-        {
-            if (pathItem?.Operations is null)
-            {
-                continue;
-            }
-
-            foreach (var operation in pathItem.Operations.Values)
-            {
-                if (operation is not null)
-                {
-                    yield return operation;
-                }
-            }
-        }
-    }
 }
