@@ -1108,19 +1108,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedInterface = contentGenerator.Generate();
 
             // Skip the header part and append just the interface
-            var lines = generatedInterface.SplitIntoLinesPreserveEmpty();
-            var namespaceFound = false;
-            foreach (var line in lines)
-            {
-                if (namespaceFound)
-                {
-                    allGeneratedCode.AppendLine(line);
-                }
-                else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-                {
-                    namespaceFound = true;
-                }
-            }
+            AppendTypeBody(allGeneratedCode, generatedInterface);
         }
 
         var normalizeForSourceOutput = allGeneratedCode
@@ -1254,28 +1242,6 @@ public class ApiServerGenerator : IIncrementalGenerator
             return sb;
         }
 
-        // IEndpointDefinition is now generated once in a shared file — no per-segment emission needed
-
-        // Appends the generated type body, skipping the generator's own header/namespace lines.
-        static void AppendTypeBody(
-            StringBuilder sb,
-            string generatedCode)
-        {
-            var lines = generatedCode.SplitIntoLinesPreserveEmpty();
-            var namespaceFound = false;
-            foreach (var line in lines)
-            {
-                if (namespaceFound)
-                {
-                    sb.AppendLine(line);
-                }
-                else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-                {
-                    namespaceFound = true;
-                }
-            }
-        }
-
         void AddTypeSource(
             string typeName,
             string generatedCode)
@@ -1351,18 +1317,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             new CodeDocumentationTagsGenerator(),
             extensionParams).Generate();
 
-        var namespaceFound = false;
-        foreach (var line in generatedClass.SplitIntoLinesPreserveEmpty())
-        {
-            if (namespaceFound)
-            {
-                builder.AppendLine(line);
-            }
-            else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-            {
-                namespaceFound = true;
-            }
-        }
+        AppendTypeBody(builder, generatedClass);
 
         context.AddGeneratedSource(
             $"{rootEndpointsNamespace}.{extensionParams.ClassTypeName}.g.cs",
@@ -1607,58 +1562,49 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedClass = contentGenerator.Generate();
 
             // Skip the header part and append just the class
-            var lines = generatedClass.SplitIntoLinesPreserveEmpty();
-            var namespaceFound = false;
-            foreach (var line in lines)
-            {
-                if (namespaceFound)
-                {
-                    allGeneratedCode.AppendLine(line);
-                }
-                else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-                {
-                    namespaceFound = true;
-                }
-            }
+            AppendTypeBody(allGeneratedCode, generatedClass);
         }
 
-        // 429 factories wrap their result to add Retry-After; emit the wrapper once per Results namespace.
-        if (allGeneratedCode.ToString().Contains("new RetryAfterHttpResult("))
+        // The helper types the result classes use, each emitted once per Results namespace - decided on the classes' text
+        var classesCode = allGeneratedCode.ToString();
+
+        // 429 factories wrap their result to add Retry-After
+        if (classesCode.Contains("new RetryAfterHttpResult("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.RetryAfterHttpResultSource());
         }
 
         // A problem factory passes the handler's problem through with the response status
-        if (allGeneratedCode.ToString().Contains("ProblemWithStatus.Of("))
+        if (classesCode.Contains("ProblemWithStatus.Of("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.ProblemWithStatusSource());
         }
 
-        if (allGeneratedCode.ToString().Contains("new LocationHttpResult("))
+        if (classesCode.Contains("new LocationHttpResult("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.LocationHttpResultSource());
         }
 
         // A factory writes the headers its response declares
-        if (allGeneratedCode.ToString().Contains(ResponseHeaderFactoryHelper.WriterCall))
+        if (classesCode.Contains(ResponseHeaderFactoryHelper.WriterCall))
         {
             allGeneratedCode.AppendLine(ResponseHeaderFactoryHelper.ResponseHeadersSource());
         }
 
         // An XML body's factories write the model's generated XML
-        if (allGeneratedCode.ToString().Contains("new XmlHttpResult("))
+        if (classesCode.Contains("new XmlHttpResult("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.XmlHttpResultSource());
         }
 
         // A body offered as JSON and XML is negotiated by Accept
-        if (allGeneratedCode.ToString().Contains("new NegotiatedHttpResult("))
+        if (classesCode.Contains("new NegotiatedHttpResult("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.NegotiatedHttpResultSource());
         }
 
         // A JSON body is written through the JsonTypeInfo the app's JSON options resolve (trim- and AOT-safe)
-        if (allGeneratedCode.ToString().Contains("JsonTypeInfoHttpResult.Of("))
+        if (classesCode.Contains("JsonTypeInfoHttpResult.Of("))
         {
             allGeneratedCode.AppendLine(ResultClassExtractor.JsonTypeInfoHttpResultSource(NamespaceBuilder.BuildBase(projectName)));
         }
@@ -2242,5 +2188,27 @@ public class ApiServerGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             $"{projectName}.Health.HealthCheckServiceExtensions.g.cs",
             SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+    }
+
+    /// <summary>
+    /// Appends a generated type's body - the lines after its <c>namespace</c> line - to a file that writes its own header
+    /// and namespace.
+    /// </summary>
+    private static void AppendTypeBody(
+        StringBuilder target,
+        string generatedCode)
+    {
+        var namespaceFound = false;
+        foreach (var line in generatedCode.SplitIntoLinesPreserveEmpty())
+        {
+            if (namespaceFound)
+            {
+                target.AppendLine(line);
+            }
+            else if (line.StartsWith("namespace ", StringComparison.Ordinal))
+            {
+                namespaceFound = true;
+            }
+        }
     }
 }
