@@ -23,16 +23,6 @@ public static class OpenApiOperationExtensions
         "cursor",
     ];
 
-    /// <summary>
-    /// Whether a schema is a string (also a nullable one, <c>type: [string, 'null']</c>).
-    /// </summary>
-    /// <param name="schema">The schema.</param>
-    /// <returns><see langword="true"/> for a string schema.</returns>
-    public static bool IsStringSchema(IOpenApiSchema? schema)
-        => schema?.Type is { } type &&
-           type.HasFlag(JsonSchemaType.String) &&
-           (type | JsonSchemaType.String | JsonSchemaType.Null) == (JsonSchemaType.String | JsonSchemaType.Null);
-
     /// <param name="operation">The OpenAPI operation.</param>
     extension(OpenApiOperation operation)
     {
@@ -629,7 +619,7 @@ public static class OpenApiOperationExtensions
                     // A continuation token is an opaque string.
                     var match = candidate.Properties?.FirstOrDefault(p =>
                         string.Equals(p.Key, tokenName, StringComparison.OrdinalIgnoreCase) &&
-                        IsStringSchema(p.Value));
+                        p.Value.IsString);
                     if (match?.Key is { } key)
                     {
                         return key;

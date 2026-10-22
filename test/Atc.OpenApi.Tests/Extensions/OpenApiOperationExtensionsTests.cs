@@ -799,25 +799,25 @@ public class OpenApiOperationExtensionsTests
         Assert.False(operation.IsStreamingResponse());
     }
 
-    // ========== IsStringSchema Tests ==========
+    // ========== IsString Tests ==========
     [Fact]
-    public void IsStringSchema_PlainString_ReturnsTrue()
-        => Assert.True(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.String }));
+    public void IsString_PlainString_ReturnsTrue()
+        => Assert.True(((IOpenApiSchema)new OpenApiSchema { Type = JsonSchemaType.String }).IsString);
 
     [Fact]
-    public void IsStringSchema_NullableString_ReturnsTrue()
-        => Assert.True(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Null }));
+    public void IsString_NullableString_ReturnsTrue()
+        => Assert.True(((IOpenApiSchema)new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Null }).IsString);
 
     [Fact]
-    public void IsStringSchema_StringOrInteger_ReturnsFalse()
-        => Assert.False(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Integer }));
+    public void IsString_StringOrInteger_ReturnsFalse()
+        => Assert.False(((IOpenApiSchema)new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Integer }).IsString);
 
     [Fact]
-    public void IsStringSchema_IntegerOrNull_ReturnsFalse()
+    public void IsString_IntegerOrNull_ReturnsFalse()
     {
-        Assert.False(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.Integer }));
-        Assert.False(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema()));
-        Assert.False(OpenApiOperationExtensions.IsStringSchema(schema: null));
+        Assert.False(((IOpenApiSchema)new OpenApiSchema { Type = JsonSchemaType.Integer }).IsString);
+        Assert.False(((IOpenApiSchema)new OpenApiSchema()).IsString);
+        Assert.False(((IOpenApiSchema?)null).IsString);
     }
 
     // ========== GetJsonRequestBodyMediaType Tests ==========

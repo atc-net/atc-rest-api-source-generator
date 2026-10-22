@@ -1,7 +1,7 @@
 namespace Atc.OpenApi.Extensions;
 
 /// <summary>
-/// Extension members for a <c>$ref</c> to a schema.
+/// Extension members for a schema or a <c>$ref</c> to one.
 /// </summary>
 [SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 [SuppressMessage("", "CA1708:Names should differ by more than case", Justification = "OK - CLang14 - multiple extension(...) blocks")]
@@ -29,5 +29,13 @@ public static class OpenApiSchemaReferenceExtensions
             => schema is OpenApiSchemaReference reference
                 ? reference.Target
                 : schema;
+
+        /// <summary>
+        /// Gets a value indicating whether the schema is a string (also a nullable one, <c>type: [string, 'null']</c>).
+        /// </summary>
+        public bool IsString
+            => schema?.Type is { } type &&
+               type.HasFlag(JsonSchemaType.String) &&
+               (type | JsonSchemaType.String | JsonSchemaType.Null) == (JsonSchemaType.String | JsonSchemaType.Null);
     }
 }

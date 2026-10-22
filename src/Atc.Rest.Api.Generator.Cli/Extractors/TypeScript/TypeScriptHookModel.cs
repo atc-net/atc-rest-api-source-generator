@@ -705,7 +705,7 @@ internal static class TypeScriptHookModel
         {
             var name = NormalizeParameterName(p.Name);
             return !p.Required &&
-                   OpenApiOperationExtensions.IsStringSchema(p.Schema) &&
+                   p.Schema.IsString &&
                    (string.Equals(name, wanted, StringComparison.Ordinal) || ContinuationParameterNames.Contains(name));
         }
 
