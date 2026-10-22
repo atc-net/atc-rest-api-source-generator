@@ -11,6 +11,66 @@ namespace Atc.Rest.Api.Generator.Validators;
 public static class OpenApiDocumentValidator
 {
     /// <summary>
+    /// The problems of a path template (<c>ATC_API_PTH001</c>), in the order they are checked: unbalanced braces, an
+    /// empty or a nested placeholder, a malformed parameter, then what the route or the generated code could not carry.
+    /// A problem that ends the checks is the last; the path's operations are not checked against it.
+    /// </summary>
+    /// <param name="pathKey">The path template.</param>
+    /// <returns>The problems; none for a well-formed template.</returns>
+    internal static List<PathTemplateProblem> PathTemplateProblems(
+        string pathKey)
+    {
+        var problems = new List<PathTemplateProblem>();
+
+        var openBraceCount = pathKey.Count(c => c == '{');
+        var closeBraceCount = pathKey.Count(c => c == '}');
+        if (openBraceCount != closeBraceCount)
+        {
+            problems.Add(new PathTemplateProblem(
+                $"Path '{pathKey}' has unbalanced braces: {openBraceCount} opening '{{', {closeBraceCount} closing '}}'.",
+                ["Ensure each '{' has a matching '}'", "Path parameters should be formatted as {parameterName}"],
+                EndsChecks: true));
+            return problems;
+        }
+
+        if (pathKey.IndexOf("{}", StringComparison.Ordinal) >= 0)
+        {
+            problems.Add(new PathTemplateProblem(
+                $"Path '{pathKey}' contains empty parameter placeholder '{{}}'.",
+                ["Provide a name for the path parameter (e.g., {id})"],
+                EndsChecks: false));
+        }
+
+        if (pathKey.IndexOf("{{", StringComparison.Ordinal) >= 0 ||
+            pathKey.IndexOf("}}", StringComparison.Ordinal) >= 0)
+        {
+            problems.Add(new PathTemplateProblem(
+                $"Path '{pathKey}' contains nested or escaped braces which are not valid in OpenAPI paths.",
+                ["Use single braces for path parameters (e.g., {id} not {{id}})"],
+                EndsChecks: false));
+        }
+
+        if (!ValidatePathParameterFormat(pathKey, out var errorMessage))
+        {
+            problems.Add(new PathTemplateProblem(
+                $"Path '{pathKey}' has malformed parameters: {errorMessage}",
+                ["Path parameters should be formatted as {parameterName}", "Parameter names should be valid identifiers (letters, digits, underscores)"],
+                EndsChecks: true));
+            return problems;
+        }
+
+        if (TemplateProblem(pathKey) is { } problem)
+        {
+            problems.Add(new PathTemplateProblem(
+                $"Path '{pathKey}' {problem}.",
+                ["A path starts with '/', has no empty segment, names each placeholder once, and holds no quote, backslash, whitespace, '?' or '#'"],
+                EndsChecks: true));
+        }
+
+        return problems;
+    }
+
+    /// <summary>
     /// Kestrel's default <c>MaxRequestLineSize</c>. A request line longer than this is rejected with
     /// <c>414 URI Too Long</c> before routing, so it never reaches a handler.
     /// </summary>
@@ -1621,93 +1681,19 @@ public static class OpenApiDocumentValidator
         {
             var pathKey = pathEntry.Key;
 
-            // Check for balanced braces
-            var openBraceCount = pathKey.Count(c => c == '{');
-            var closeBraceCount = pathKey.Count(c => c == '}');
-
-            if (openBraceCount != closeBraceCount)
+            // ATC_API_PTH001: a template the route or the generated code could not carry
+            var problems = PathTemplateProblems(pathKey);
+            diagnostics.AddRange(problems.Select(problem => new DiagnosticMessage(
+                RuleIdentifiers.PathParametersNotWellFormatted,
+                problem.Message,
+                DiagnosticSeverity.Error,
+                sourceFilePath,
+                LineNumber: null,
+                ColumnNumber: null,
+                Context: pathKey,
+                Suggestions: problem.Suggestions)));
+            if (problems.Any(problem => problem.EndsChecks))
             {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.PathParametersNotWellFormatted,
-                    $"Path '{pathKey}' has unbalanced braces: {openBraceCount} opening '{{', {closeBraceCount} closing '}}'.",
-                    DiagnosticSeverity.Error,
-                    sourceFilePath,
-                    LineNumber: null,
-                    ColumnNumber: null,
-                    Context: pathKey,
-                    Suggestions:
-                    [
-                        "Ensure each '{' has a matching '}'",
-                        "Path parameters should be formatted as {parameterName}"
-                    ]));
-                continue;
-            }
-
-            if (pathKey.IndexOf("{}", StringComparison.Ordinal) >= 0)
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.PathParametersNotWellFormatted,
-                    $"Path '{pathKey}' contains empty parameter placeholder '{{}}'.",
-                    DiagnosticSeverity.Error,
-                    sourceFilePath,
-                    LineNumber: null,
-                    ColumnNumber: null,
-                    Context: pathKey,
-                    Suggestions:
-                    [
-                        "Provide a name for the path parameter (e.g., {id})"
-                    ]));
-            }
-
-            // Check for nested braces {{param}}
-            if (pathKey.IndexOf("{{", StringComparison.Ordinal) >= 0 ||
-                pathKey.IndexOf("}}", StringComparison.Ordinal) >= 0)
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.PathParametersNotWellFormatted,
-                    $"Path '{pathKey}' contains nested or escaped braces which are not valid in OpenAPI paths.",
-                    DiagnosticSeverity.Error,
-                    sourceFilePath,
-                    LineNumber: null,
-                    ColumnNumber: null,
-                    Context: pathKey,
-                    Suggestions:
-                    [
-                        "Use single braces for path parameters (e.g., {id} not {{id}})"
-                    ]));
-            }
-
-            // Check for proper parameter format using detailed validation
-            if (!ValidatePathParameterFormat(pathKey, out var errorMessage))
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.PathParametersNotWellFormatted,
-                    $"Path '{pathKey}' has malformed parameters: {errorMessage}",
-                    DiagnosticSeverity.Error,
-                    sourceFilePath,
-                    LineNumber: null,
-                    ColumnNumber: null,
-                    Context: pathKey,
-                    Suggestions:
-                    [
-                        "Path parameters should be formatted as {parameterName}",
-                        "Parameter names should be valid identifiers (letters, digits, underscores)"
-                    ]));
-                continue;
-            }
-
-            // What the route or the generated code could not carry
-            if (TemplateProblem(pathKey) is { } problem)
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.PathParametersNotWellFormatted,
-                    $"Path '{pathKey}' {problem}.",
-                    DiagnosticSeverity.Error,
-                    sourceFilePath,
-                    LineNumber: null,
-                    ColumnNumber: null,
-                    Context: pathKey,
-                    Suggestions: ["A path starts with '/', has no empty segment, names each placeholder once, and holds no quote, backslash, whitespace, '?' or '#'"]));
                 continue;
             }
 
@@ -1941,9 +1927,6 @@ public static class OpenApiDocumentValidator
                 }
             }
 
-            // Get parameters from path
-            var pathParametersFromRoute = GetParametersFromPath(pathKey);
-
             if (pathItem.Operations is null)
             {
                 continue;
@@ -1966,9 +1949,7 @@ public static class OpenApiDocumentValidator
                     pathKey,
                     pathItem,
                     httpMethod,
-                    operation,
-                    globalPathParameters,
-                    pathParametersFromRoute);
+                    operation);
                 InScope(diagnostics, operationStart, SpecSuppressions.Operation(httpMethod, pathKey));
             }
 
@@ -1985,9 +1966,7 @@ public static class OpenApiDocumentValidator
         string pathKey,
         IOpenApiPathItem pathItem,
         string httpMethod,
-        OpenApiOperation operation,
-        List<string?> globalPathParameters,
-        List<string> pathParametersFromRoute)
+        OpenApiOperation operation)
     {
         var httpMethodUpper = httpMethod.ToUpperInvariant();
 
@@ -2005,21 +1984,7 @@ public static class OpenApiDocumentValidator
         var operationId = operation.OperationId!;
 
         // ATC_API_OPR002: OperationId not using correct casing style
-        if (!CasingHelper.IsValidOperationIdCasing(operationId))
-        {
-            var detectedStyle = CasingHelper.GetDetectedCasingStyle(operationId);
-            var suggestedCamelCase = CasingHelper.SuggestCamelCase(operationId);
-
-            diagnostics.Add(new DiagnosticMessage(
-                RuleIdentifiers.OperationIdCasing,
-                $"OperationId '{operationId}' is not using a valid casing style. " +
-                $"Detected: {detectedStyle}. " +
-                $"Expected: camelCase or kebab-case. " +
-                $"Suggestion: '{suggestedCamelCase}'. " +
-                $"Location: {httpMethodUpper} {pathKey}",
-                DiagnosticSeverity.Warning,
-                sourceFilePath));
-        }
+        ValidateOperationIdCasing(diagnostics, sourceFilePath, httpMethodUpper, pathKey, operationId);
 
         // ATC_API_OPR003-007: HTTP method prefix validations
         ValidateOperationIdPrefix(diagnostics, sourceFilePath, httpMethod, operationId, pathKey);
@@ -2048,37 +2013,10 @@ public static class OpenApiDocumentValidator
         // ATC_API_OPR012 (a placeholder no parameter declares) is checked under every strategy, with the paths
 
         // ATC_API_OPR013: Operation path parameter not present in route
-        var opPathParams = operation.Parameters?
-            .Where(p => p.In == ParameterLocation.Path)
-            .ToList() ?? [];
-
-        foreach (var pathParam in opPathParams)
-        {
-            if (pathKey.IndexOf($"{{{pathParam.Name}}}", StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.OperationPathParameterNotInRoute,
-                    $"Defined path parameter '{pathParam.Name}' does not exist in route '{pathKey}' for operation '{operationId}'.",
-                    DiagnosticSeverity.Error,
-                    sourceFilePath));
-            }
-        }
+        ValidateOperationPathParametersInRoute(diagnostics, sourceFilePath, pathKey, operation, operationId);
 
         // ATC_API_OPR014: GET with path parameter missing NotFound response
-        if (string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase))
-        {
-            var hasPathParam = (pathItem.Parameters?.Any(p => p.In == ParameterLocation.Path) ?? false) ||
-                               (operation.Parameters?.Any(p => p.In == ParameterLocation.Path) ?? false);
-
-            if (hasPathParam && !operation.HasNotFoundResponse())
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.GetMissingNotFoundResponse,
-                    $"Missing NotFound (404) response type for operation '{operationId}', required by path parameter.",
-                    DiagnosticSeverity.Warning,
-                    sourceFilePath));
-            }
-        }
+        ValidateGetWithPathParameterNotFound(diagnostics, sourceFilePath, pathItem, httpMethod, operation, operationId);
 
         // ATC_API_OPR015/016: Path parameter validation
         ValidatePathParameters(diagnostics, sourceFilePath, operation);
@@ -2102,6 +2040,91 @@ public static class OpenApiDocumentValidator
         ValidateQueryOperationShape(diagnostics, sourceFilePath, httpMethodUpper, operation, operationId);
 
         // ATC_API_OPR026: Parameter serialization not supported
+        ValidateParameterSerialization(diagnostics, sourceFilePath, operation);
+    }
+
+    // ATC_API_OPR002: an operationId neither camelCase nor kebab-case
+    private static void ValidateOperationIdCasing(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        string httpMethodUpper,
+        string pathKey,
+        string operationId)
+    {
+        if (!CasingHelper.IsValidOperationIdCasing(operationId))
+        {
+            var detectedStyle = CasingHelper.GetDetectedCasingStyle(operationId);
+            var suggestedCamelCase = CasingHelper.SuggestCamelCase(operationId);
+
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.OperationIdCasing,
+                $"OperationId '{operationId}' is not using a valid casing style. " +
+                $"Detected: {detectedStyle}. " +
+                $"Expected: camelCase or kebab-case. " +
+                $"Suggestion: '{suggestedCamelCase}'. " +
+                $"Location: {httpMethodUpper} {pathKey}",
+                DiagnosticSeverity.Warning,
+                sourceFilePath));
+        }
+    }
+
+    // ATC_API_OPR013: an operation's path parameter the route does not have
+    private static void ValidateOperationPathParametersInRoute(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        string pathKey,
+        OpenApiOperation operation,
+        string operationId)
+    {
+        var opPathParams = operation.Parameters?
+            .Where(p => p.In == ParameterLocation.Path)
+            .ToList() ?? [];
+
+        foreach (var pathParam in opPathParams)
+        {
+            if (pathKey.IndexOf($"{{{pathParam.Name}}}", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.OperationPathParameterNotInRoute,
+                    $"Defined path parameter '{pathParam.Name}' does not exist in route '{pathKey}' for operation '{operationId}'.",
+                    DiagnosticSeverity.Error,
+                    sourceFilePath));
+            }
+        }
+    }
+
+    // ATC_API_OPR014: a GET by a path parameter without a 404 response
+    private static void ValidateGetWithPathParameterNotFound(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        IOpenApiPathItem pathItem,
+        string httpMethod,
+        OpenApiOperation operation,
+        string operationId)
+    {
+        if (string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase))
+        {
+            var hasPathParam = (pathItem.Parameters?.Any(p => p.In == ParameterLocation.Path) ?? false) ||
+                               (operation.Parameters?.Any(p => p.In == ParameterLocation.Path) ?? false);
+
+            if (hasPathParam && !operation.HasNotFoundResponse())
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.GetMissingNotFoundResponse,
+                    $"Missing NotFound (404) response type for operation '{operationId}', required by path parameter.",
+                    DiagnosticSeverity.Warning,
+                    sourceFilePath));
+            }
+        }
+    }
+
+    // ATC_API_OPR026: a parameter serialization the generated code does not support (one that cannot be bound at all
+    // is ATC_API_OPR037, under every strategy)
+    private static void ValidateParameterSerialization(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiOperation operation)
+    {
         if (operation.Parameters is not null)
         {
             foreach (var parameter in operation.Parameters)
