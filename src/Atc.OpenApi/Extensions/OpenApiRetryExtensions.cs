@@ -123,14 +123,15 @@ public static class OpenApiRetryExtensions
         IOpenApiPathItem pathItem,
         OpenApiDocument document)
     {
+        // operation → path → document: the nearest level that sets a value wins
+        var inherited = new OpenApiExtensionScope(operation.Extensions, pathItem.Extensions, document.Extensions);
+
         // Check for operation-level explicit disable
         var operationEnabled = operation.Extensions.ExtractRetryEnabled();
         if (operationEnabled == false)
         {
             // Return a disabled configuration with timeout if specified
-            var timeout = operation.Extensions.ExtractRetryTimeoutSeconds()
-                          ?? pathItem.Extensions.ExtractRetryTimeoutSeconds()
-                          ?? document.Extensions.ExtractRetryTimeoutSeconds();
+            var timeout = inherited.First(e => e.ExtractRetryTimeoutSeconds());
 
             return new RetryConfiguration
             {
@@ -140,9 +141,7 @@ public static class OpenApiRetryExtensions
         }
 
         // Get effective policy (operation → path → document)
-        var policy = operation.Extensions.ExtractRetryPolicy()
-                     ?? pathItem.Extensions.ExtractRetryPolicy()
-                     ?? document.Extensions.ExtractRetryPolicy();
+        var policy = inherited.First(e => e.ExtractRetryPolicy());
 
         if (string.IsNullOrEmpty(policy))
         {
@@ -150,62 +149,38 @@ public static class OpenApiRetryExtensions
         }
 
         // Get configuration values (operation → path → document)
-        var maxAttempts = operation.Extensions.ExtractMaxRetryAttempts()
-                          ?? pathItem.Extensions.ExtractMaxRetryAttempts()
-                          ?? document.Extensions.ExtractMaxRetryAttempts()
+        var maxAttempts = inherited.First(e => e.ExtractMaxRetryAttempts())
                           ?? 3;
 
-        var delaySeconds = operation.Extensions.ExtractRetryDelaySeconds()
-                           ?? pathItem.Extensions.ExtractRetryDelaySeconds()
-                           ?? document.Extensions.ExtractRetryDelaySeconds()
+        var delaySeconds = inherited.First(e => e.ExtractRetryDelaySeconds())
                            ?? 1.0;
 
-        var backoffString = operation.Extensions.ExtractRetryBackoff()
-                            ?? pathItem.Extensions.ExtractRetryBackoff()
-                            ?? document.Extensions.ExtractRetryBackoff()
+        var backoffString = inherited.First(e => e.ExtractRetryBackoff())
                             ?? "exponential";
 
-        var useJitter = operation.Extensions.ExtractRetryUseJitter()
-                        ?? pathItem.Extensions.ExtractRetryUseJitter()
-                        ?? document.Extensions.ExtractRetryUseJitter()
+        var useJitter = inherited.First(e => e.ExtractRetryUseJitter())
                         ?? true;
 
-        var timeoutSeconds = operation.Extensions.ExtractRetryTimeoutSeconds()
-                             ?? pathItem.Extensions.ExtractRetryTimeoutSeconds()
-                             ?? document.Extensions.ExtractRetryTimeoutSeconds();
+        var timeoutSeconds = inherited.First(e => e.ExtractRetryTimeoutSeconds());
 
-        var totalTimeoutSeconds = operation.Extensions.ExtractRetryTotalTimeoutSeconds()
-                                  ?? pathItem.Extensions.ExtractRetryTotalTimeoutSeconds()
-                                  ?? document.Extensions.ExtractRetryTotalTimeoutSeconds();
+        var totalTimeoutSeconds = inherited.First(e => e.ExtractRetryTotalTimeoutSeconds());
 
-        var circuitBreaker = operation.Extensions.ExtractRetryCircuitBreaker()
-                             ?? pathItem.Extensions.ExtractRetryCircuitBreaker()
-                             ?? document.Extensions.ExtractRetryCircuitBreaker()
+        var circuitBreaker = inherited.First(e => e.ExtractRetryCircuitBreaker())
                              ?? false;
 
-        var circuitBreakerFailureRatio = operation.Extensions.ExtractCircuitBreakerFailureRatio()
-                                          ?? pathItem.Extensions.ExtractCircuitBreakerFailureRatio()
-                                          ?? document.Extensions.ExtractCircuitBreakerFailureRatio()
+        var circuitBreakerFailureRatio = inherited.First(e => e.ExtractCircuitBreakerFailureRatio())
                                           ?? 0.5;
 
-        var circuitBreakerSamplingDuration = operation.Extensions.ExtractCircuitBreakerSamplingDurationSeconds()
-                                              ?? pathItem.Extensions.ExtractCircuitBreakerSamplingDurationSeconds()
-                                              ?? document.Extensions.ExtractCircuitBreakerSamplingDurationSeconds()
+        var circuitBreakerSamplingDuration = inherited.First(e => e.ExtractCircuitBreakerSamplingDurationSeconds())
                                               ?? 30.0;
 
-        var circuitBreakerMinimumThroughput = operation.Extensions.ExtractCircuitBreakerMinimumThroughput()
-                                               ?? pathItem.Extensions.ExtractCircuitBreakerMinimumThroughput()
-                                               ?? document.Extensions.ExtractCircuitBreakerMinimumThroughput()
+        var circuitBreakerMinimumThroughput = inherited.First(e => e.ExtractCircuitBreakerMinimumThroughput())
                                                ?? 10;
 
-        var circuitBreakerBreakDuration = operation.Extensions.ExtractCircuitBreakerBreakDurationSeconds()
-                                           ?? pathItem.Extensions.ExtractCircuitBreakerBreakDurationSeconds()
-                                           ?? document.Extensions.ExtractCircuitBreakerBreakDurationSeconds()
+        var circuitBreakerBreakDuration = inherited.First(e => e.ExtractCircuitBreakerBreakDurationSeconds())
                                            ?? 30.0;
 
-        var handle429 = operation.Extensions.ExtractRetryHandle429()
-                        ?? pathItem.Extensions.ExtractRetryHandle429()
-                        ?? document.Extensions.ExtractRetryHandle429()
+        var handle429 = inherited.First(e => e.ExtractRetryHandle429())
                         ?? true;
 
         var backoffType = ParseBackoffType(backoffString);

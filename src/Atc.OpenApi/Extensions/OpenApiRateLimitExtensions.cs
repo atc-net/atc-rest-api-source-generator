@@ -96,10 +96,24 @@ public static class OpenApiRateLimitExtensions
             return new RateLimitConfiguration { Enabled = false };
         }
 
+        return ResolveRateLimit(new OpenApiExtensionScope(operation.Extensions, pathItem.Extensions, document.Extensions));
+    }
+
+    /// <summary>
+    /// The rate limit configuration the <c>x-ratelimit-*</c> settings give, each read from the nearest level that sets
+    /// it.
+    /// </summary>
+    /// <param name="inherited">The operation's, path item's and document's extensions.</param>
+    /// <returns>The configuration, or <see langword="null"/> when no level names a rate limit policy.</returns>
+    public static RateLimitConfiguration? ResolveRateLimit(OpenApiExtensionScope inherited)
+    {
+        if (inherited is null)
+        {
+            throw new ArgumentNullException(nameof(inherited));
+        }
+
         // Get effective policy (operation → path → document)
-        var policy = operation.Extensions.ExtractRateLimitPolicy()
-                     ?? pathItem.Extensions.ExtractRateLimitPolicy()
-                     ?? document.Extensions.ExtractRateLimitPolicy();
+        var policy = inherited.First(e => e.ExtractRateLimitPolicy());
 
         if (string.IsNullOrEmpty(policy))
         {
@@ -107,42 +121,28 @@ public static class OpenApiRateLimitExtensions
         }
 
         // Get configuration values (operation → path → document)
-        var permitLimit = operation.Extensions.ExtractPermitLimit()
-                          ?? pathItem.Extensions.ExtractPermitLimit()
-                          ?? document.Extensions.ExtractPermitLimit()
+        var permitLimit = inherited.First(e => e.ExtractPermitLimit())
                           ?? 100;
 
-        var windowSeconds = operation.Extensions.ExtractWindowSeconds()
-                            ?? pathItem.Extensions.ExtractWindowSeconds()
-                            ?? document.Extensions.ExtractWindowSeconds()
+        var windowSeconds = inherited.First(e => e.ExtractWindowSeconds())
                             ?? 60;
 
-        var queueLimit = operation.Extensions.ExtractQueueLimit()
-                         ?? pathItem.Extensions.ExtractQueueLimit()
-                         ?? document.Extensions.ExtractQueueLimit()
+        var queueLimit = inherited.First(e => e.ExtractQueueLimit())
                          ?? 0;
 
-        var algorithmString = operation.Extensions.ExtractRateLimitAlgorithm()
-                              ?? pathItem.Extensions.ExtractRateLimitAlgorithm()
-                              ?? document.Extensions.ExtractRateLimitAlgorithm()
+        var algorithmString = inherited.First(e => e.ExtractRateLimitAlgorithm())
                               ?? "fixed";
 
         var algorithm = ParseAlgorithm(algorithmString);
 
-        var emitRetryAfter = operation.Extensions.ExtractRateLimitEmitRetryAfter()
-                             ?? pathItem.Extensions.ExtractRateLimitEmitRetryAfter()
-                             ?? document.Extensions.ExtractRateLimitEmitRetryAfter()
+        var emitRetryAfter = inherited.First(e => e.ExtractRateLimitEmitRetryAfter())
                              ?? true;
 
-        var partitionString = operation.Extensions.ExtractRateLimitPartition()
-                              ?? pathItem.Extensions.ExtractRateLimitPartition()
-                              ?? document.Extensions.ExtractRateLimitPartition();
+        var partitionString = inherited.First(e => e.ExtractRateLimitPartition());
 
         var partition = ParsePartitionStrategy(partitionString);
 
-        var partitionClaim = operation.Extensions.ExtractRateLimitPartitionClaim()
-                             ?? pathItem.Extensions.ExtractRateLimitPartitionClaim()
-                             ?? document.Extensions.ExtractRateLimitPartitionClaim();
+        var partitionClaim = inherited.First(e => e.ExtractRateLimitPartitionClaim());
 
         return new RateLimitConfiguration
         {

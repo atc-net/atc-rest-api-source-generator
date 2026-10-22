@@ -117,10 +117,24 @@ public static class OpenApiCacheExtensions
             return new CacheConfiguration { Enabled = false };
         }
 
+        return ResolveCache(new OpenApiExtensionScope(operation.Extensions, pathItem.Extensions, document.Extensions));
+    }
+
+    /// <summary>
+    /// The cache configuration the <c>x-cache-*</c> settings give, each read from the nearest level that sets it (tags
+    /// merged over all levels).
+    /// </summary>
+    /// <param name="inherited">The operation's, path item's and document's extensions.</param>
+    /// <returns>The configuration, or <see langword="null"/> when no level names a cache policy.</returns>
+    public static CacheConfiguration? ResolveCache(OpenApiExtensionScope inherited)
+    {
+        if (inherited is null)
+        {
+            throw new ArgumentNullException(nameof(inherited));
+        }
+
         // Get effective policy (operation → path → document)
-        var policy = operation.Extensions.ExtractCachePolicy()
-                     ?? pathItem.Extensions.ExtractCachePolicy()
-                     ?? document.Extensions.ExtractCachePolicy();
+        var policy = inherited.First(e => e.ExtractCachePolicy());
 
         if (string.IsNullOrEmpty(policy))
         {
@@ -128,63 +142,45 @@ public static class OpenApiCacheExtensions
         }
 
         // Get cache type (operation → path → document), default to Output
-        var cacheTypeString = operation.Extensions.ExtractCacheType()
-                              ?? pathItem.Extensions.ExtractCacheType()
-                              ?? document.Extensions.ExtractCacheType()
+        var cacheTypeString = inherited.First(e => e.ExtractCacheType())
                               ?? "output";
 
         var cacheType = ParseCacheType(cacheTypeString);
 
         // Get expiration (operation → path → document)
-        var expirationSeconds = operation.Extensions.ExtractCacheExpirationSeconds()
-                                ?? pathItem.Extensions.ExtractCacheExpirationSeconds()
-                                ?? document.Extensions.ExtractCacheExpirationSeconds()
+        var expirationSeconds = inherited.First(e => e.ExtractCacheExpirationSeconds())
                                 ?? 300;
 
         // Merge tags from all levels (not override)
         var tags = MergeTags(
-            document.Extensions.ExtractCacheTags(),
-            pathItem.Extensions.ExtractCacheTags(),
-            operation.Extensions.ExtractCacheTags());
+            inherited.Document.ExtractCacheTags(),
+            inherited.Path.ExtractCacheTags(),
+            inherited.Operation.ExtractCacheTags());
 
         // Get vary-by-query (operation → path → document)
-        var varyByQuery = operation.Extensions.ExtractCacheVaryByQuery()
-                          ?? pathItem.Extensions.ExtractCacheVaryByQuery()
-                          ?? document.Extensions.ExtractCacheVaryByQuery()
+        var varyByQuery = inherited.First(e => e.ExtractCacheVaryByQuery())
                           ?? [];
 
         // Get vary-by-header (operation → path → document)
-        var varyByHeader = operation.Extensions.ExtractCacheVaryByHeader()
-                           ?? pathItem.Extensions.ExtractCacheVaryByHeader()
-                           ?? document.Extensions.ExtractCacheVaryByHeader()
+        var varyByHeader = inherited.First(e => e.ExtractCacheVaryByHeader())
                            ?? [];
 
         // Output Caching specific: vary-by-route
-        var varyByRoute = operation.Extensions.ExtractCacheVaryByRoute()
-                          ?? pathItem.Extensions.ExtractCacheVaryByRoute()
-                          ?? document.Extensions.ExtractCacheVaryByRoute()
+        var varyByRoute = inherited.First(e => e.ExtractCacheVaryByRoute())
                           ?? [];
 
         // HybridCache specific
-        var cacheModeString = operation.Extensions.ExtractCacheMode()
-                              ?? pathItem.Extensions.ExtractCacheMode()
-                              ?? document.Extensions.ExtractCacheMode()
+        var cacheModeString = inherited.First(e => e.ExtractCacheMode())
                               ?? "hybrid";
 
         var cacheMode = ParseCacheMode(cacheModeString);
 
-        var slidingExpirationSeconds = operation.Extensions.ExtractCacheSlidingExpirationSeconds()
-                                       ?? pathItem.Extensions.ExtractCacheSlidingExpirationSeconds()
-                                       ?? document.Extensions.ExtractCacheSlidingExpirationSeconds();
+        var slidingExpirationSeconds = inherited.First(e => e.ExtractCacheSlidingExpirationSeconds());
 
-        var keyPrefix = operation.Extensions.ExtractCacheKeyPrefix()
-                        ?? pathItem.Extensions.ExtractCacheKeyPrefix()
-                        ?? document.Extensions.ExtractCacheKeyPrefix();
+        var keyPrefix = inherited.First(e => e.ExtractCacheKeyPrefix());
 
         // Output Caching specific: the same answer for every caller
-        var shared = operation.Extensions.ExtractCacheShared()
-                     ?? pathItem.Extensions.ExtractCacheShared()
-                     ?? document.Extensions.ExtractCacheShared()
+        var shared = inherited.First(e => e.ExtractCacheShared())
                      ?? false;
 
         return new CacheConfiguration
