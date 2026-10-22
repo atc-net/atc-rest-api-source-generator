@@ -9,23 +9,23 @@ namespace Atc.Rest.Api.Generator.Validators;
 /// </summary>
 internal static class RetrySettingValidator
 {
-    private const string TimeoutSetting = "x-retry-timeout-seconds";
+    private const string TimeoutSetting = RetryExtensionNameConstants.TimeoutSeconds;
 
     // The settings a policy reads; x-retry-policy names one and x-retry-enabled is read per operation
     private static readonly string[] PolicySettings =
     [
-        "x-retry-max-attempts",
-        "x-retry-delay-seconds",
-        "x-retry-backoff",
-        "x-retry-use-jitter",
-        "x-retry-timeout-seconds",
-        "x-retry-total-timeout-seconds",
-        "x-retry-circuit-breaker",
-        "x-retry-cb-failure-ratio",
-        "x-retry-cb-sampling-duration-seconds",
-        "x-retry-cb-minimum-throughput",
-        "x-retry-cb-break-duration-seconds",
-        "x-retry-handle-429",
+        RetryExtensionNameConstants.MaxAttempts,
+        RetryExtensionNameConstants.DelaySeconds,
+        RetryExtensionNameConstants.Backoff,
+        RetryExtensionNameConstants.UseJitter,
+        RetryExtensionNameConstants.TimeoutSeconds,
+        RetryExtensionNameConstants.TotalTimeoutSeconds,
+        RetryExtensionNameConstants.CircuitBreaker,
+        RetryExtensionNameConstants.CircuitBreakerFailureRatio,
+        RetryExtensionNameConstants.CircuitBreakerSamplingDurationSeconds,
+        RetryExtensionNameConstants.CircuitBreakerMinimumThroughput,
+        RetryExtensionNameConstants.CircuitBreakerBreakDurationSeconds,
+        RetryExtensionNameConstants.Handle429,
     ];
 
     public static List<DiagnosticMessage> Validate(
