@@ -804,8 +804,8 @@ public static class OpenApiDocumentValidator
 
         if (document.Extensions is { Count: > 0 })
         {
-            globalAuthorizeRoles.AddRange(ExtractAuthorizationRoles(document.Extensions));
-            globalAuthenticationSchemes.AddRange(ExtractAuthenticationSchemes(document.Extensions));
+            globalAuthorizeRoles.AddRange(document.Extensions.ExtractAuthorizeRoles());
+            globalAuthenticationSchemes.AddRange(document.Extensions.ExtractAuthenticationSchemes());
         }
 
         if (document.Paths is null)
@@ -863,9 +863,9 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        var pathAuthenticationRequired = ExtractAuthenticationRequired(pathItem.Extensions);
-        var pathAuthorizeRoles = ExtractAuthorizationRoles(pathItem.Extensions);
-        var pathAuthenticationSchemes = ExtractAuthenticationSchemes(pathItem.Extensions);
+        var pathAuthenticationRequired = pathItem.Extensions.ExtractAuthenticationRequired();
+        var pathAuthorizeRoles = pathItem.Extensions.ExtractAuthorizeRoles();
+        var pathAuthenticationSchemes = pathItem.Extensions.ExtractAuthenticationSchemes();
 
         // ATCAPI_SEC010: Path has authenticationRequired=false but has roles/schemes
         if (pathAuthenticationRequired.HasValue &&
@@ -948,9 +948,9 @@ public static class OpenApiDocumentValidator
         }
 
         var operationName = operation.OperationId ?? $"operation at {pathKey}";
-        var operationAuthenticationRequired = ExtractAuthenticationRequired(operation.Extensions);
-        var operationAuthorizeRoles = ExtractAuthorizationRoles(operation.Extensions);
-        var operationAuthenticationSchemes = ExtractAuthenticationSchemes(operation.Extensions);
+        var operationAuthenticationRequired = operation.Extensions.ExtractAuthenticationRequired();
+        var operationAuthorizeRoles = operation.Extensions.ExtractAuthorizeRoles();
+        var operationAuthenticationSchemes = operation.Extensions.ExtractAuthenticationSchemes();
 
         // ATCAPI_SEC005: Operation has authenticationRequired=false but has roles/schemes
         if (operationAuthenticationRequired.HasValue &&
@@ -1014,93 +1014,6 @@ public static class OpenApiDocumentValidator
                     sourceFilePath));
             }
         }
-    }
-
-    /// <summary>
-    /// Extracts the x-authentication-required boolean value from extensions.
-    /// </summary>
-    private static bool? ExtractAuthenticationRequired<TExtension>(
-        IDictionary<string, TExtension> extensions)
-        where TExtension : class
-    {
-        const string extensionKey = "x-authentication-required";
-
-        if (!extensions.TryGetValue(extensionKey, out var extension) || extension is null)
-        {
-            return null;
-        }
-
-        // Try to get the value using reflection on Node property (JsonNodeExtension)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is not null)
-        {
-            var node = nodeProperty.GetValue(extension);
-            if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
-            {
-                return boolValue;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts the x-authorize-roles string array from extensions.
-    /// </summary>
-    private static List<string> ExtractAuthorizationRoles<TExtension>(
-        IDictionary<string, TExtension> extensions)
-        where TExtension : class
-        => ExtractStringArrayExtension(extensions, "x-authorize-roles");
-
-    /// <summary>
-    /// Extracts the x-authentication-schemes string array from extensions.
-    /// </summary>
-    private static List<string> ExtractAuthenticationSchemes<TExtension>(
-        IDictionary<string, TExtension> extensions)
-        where TExtension : class
-        => ExtractStringArrayExtension(extensions, "x-authentication-schemes");
-
-    /// <summary>
-    /// Extracts a string array from an OpenAPI extension.
-    /// </summary>
-    private static List<string> ExtractStringArrayExtension<TExtension>(
-        IDictionary<string, TExtension> extensions,
-        string extensionKey)
-        where TExtension : class
-    {
-        var result = new List<string>();
-
-        if (!extensions.TryGetValue(extensionKey, out var extension) || extension is null)
-        {
-            return result;
-        }
-
-        // Try to get the value using reflection on Node property (JsonNodeExtension)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return result;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is not JsonArray jsonArray)
-        {
-            return result;
-        }
-
-        foreach (var item in jsonArray)
-        {
-            if (item is JsonValue jsonValue &&
-                jsonValue.TryGetValue<string>(out var stringValue) &&
-                !result.Contains(stringValue, StringComparer.OrdinalIgnoreCase))
-            {
-                result.Add(stringValue);
-            }
-        }
-
-        return result;
     }
 
     /// <summary>
