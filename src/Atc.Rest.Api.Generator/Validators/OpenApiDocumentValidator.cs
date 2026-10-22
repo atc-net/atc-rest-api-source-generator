@@ -539,7 +539,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates the OpenAPI specification version (ATCAPI_VAL002: OpenAPI 2.0 not supported).
+    /// Validates the OpenAPI specification version (ATC_API_VAL002: OpenAPI 2.0 not supported).
     /// Recognizes 3.0 / 3.1 / 3.2 as supported and rejects Swagger/OpenAPI 2.0.
     /// The spec version is read from the parsed document's metadata (see
     /// <c>OpenApiDocument.GetOpenApiSpecVersion()</c>), not from <c>info.version</c>
@@ -564,7 +564,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates naming conventions (ATCAPI_NAM001-006).
+    /// Validates naming conventions (ATC_API_NAM001-006).
     /// </summary>
     private static List<DiagnosticMessage> ValidateNamingConventions(
         OpenApiDocument document,
@@ -579,7 +579,7 @@ public static class OpenApiDocumentValidator
         {
             var operationStart = diagnostics.Count;
 
-            // ATCAPI_NAM001: OperationId must start with lowercase letter (camelCase).
+            // ATC_API_NAM001: OperationId must start with lowercase letter (camelCase).
             // Only validate when the user explicitly declared an operationId — do NOT run this
             // check against synthetic names produced by GetOperationId(), because those start
             // with the uppercase HTTP method (e.g. "GET_...") and would fire a spurious NAM001
@@ -600,7 +600,7 @@ public static class OpenApiDocumentValidator
                 }
             }
 
-            // ATCAPI_NAM004: Parameter name must use camelCase
+            // ATC_API_NAM004: Parameter name must use camelCase
             // Note: Header parameters are excluded because HTTP headers traditionally use hyphenated names (e.g., X-Continuation, Content-Type)
             if (operation.Parameters is not null)
             {
@@ -628,7 +628,7 @@ public static class OpenApiDocumentValidator
                 }
             }
 
-            // ATCAPI_NAM006: Tag name must use kebab-case
+            // ATC_API_NAM006: Tag name must use kebab-case
             if (operation.Tags is not null)
             {
                 foreach (var tag in operation.Tags)
@@ -652,9 +652,9 @@ public static class OpenApiDocumentValidator
             InScope(diagnostics, operationStart, SpecSuppressions.Operation(httpMethod, path));
         }
 
-        // ATCAPI_NAM002: Model name must use PascalCase
-        // ATCAPI_NAM003: Property name must use camelCase
-        // ATCAPI_NAM005: Enum value must use PascalCase or UPPER_SNAKE_CASE
+        // ATC_API_NAM002: Model name must use PascalCase
+        // ATC_API_NAM003: Property name must use camelCase
+        // ATC_API_NAM005: Enum value must use PascalCase or UPPER_SNAKE_CASE
         diagnostics.AddRange(ValidateSchemaNameConventions(document, sourceFilePath));
 
         // Also validate global tags
@@ -664,7 +664,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates schema naming conventions (ATCAPI_NAM002, ATCAPI_NAM003, ATCAPI_NAM005).
+    /// Validates schema naming conventions (ATC_API_NAM002, ATC_API_NAM003, ATC_API_NAM005).
     /// </summary>
     private static List<DiagnosticMessage> ValidateSchemaNameConventions(
         OpenApiDocument document,
@@ -685,7 +685,7 @@ public static class OpenApiDocumentValidator
             var schema = schemaEntry.Value;
             var schemaStart = diagnostics.Count;
 
-            // ATCAPI_NAM002: Model name must use PascalCase
+            // ATC_API_NAM002: Model name must use PascalCase
             if (!string.IsNullOrWhiteSpace(schemaName) && !CasingHelper.IsPascalCase(schemaName))
             {
                 var suggested = CasingHelper.SuggestPascalCase(schemaName);
@@ -706,7 +706,7 @@ public static class OpenApiDocumentValidator
                 actualSchema = schemaRef.Target;
             }
 
-            // ATCAPI_NAM003: Property name must use camelCase
+            // ATC_API_NAM003: Property name must use camelCase
             if (actualSchema.Properties is not null)
             {
                 foreach (var propertyEntry in actualSchema.Properties)
@@ -727,7 +727,7 @@ public static class OpenApiDocumentValidator
                 }
             }
 
-            // ATCAPI_NAM005: Enum values are PascalCase, UPPER_SNAKE_CASE or one other casing throughout the document
+            // ATC_API_NAM005: Enum values are PascalCase, UPPER_SNAKE_CASE or one other casing throughout the document
             if (actualSchema.Enum is { Count: > 0 } && enumCasing is { } casing)
             {
                 foreach (var enumValue in actualSchema.Enum)
@@ -756,7 +756,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates global tag naming conventions (ATCAPI_NAM006).
+    /// Validates global tag naming conventions (ATC_API_NAM006).
     /// </summary>
     private static List<DiagnosticMessage> ValidateGlobalTagNamingConventions(
         OpenApiDocument document,
@@ -790,7 +790,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates security configuration (ATCAPI_SEC001-010).
+    /// Validates security configuration (ATC_API_SEC001-010).
     /// </summary>
     private static List<DiagnosticMessage> ValidateSecurityConfiguration(
         OpenApiDocument document,
@@ -867,7 +867,7 @@ public static class OpenApiDocumentValidator
         var pathAuthorizeRoles = pathItem.Extensions.ExtractAuthorizeRoles();
         var pathAuthenticationSchemes = pathItem.Extensions.ExtractAuthenticationSchemes();
 
-        // ATCAPI_SEC010: Path has authenticationRequired=false but has roles/schemes
+        // ATC_API_SEC010: Path has authenticationRequired=false but has roles/schemes
         if (pathAuthenticationRequired.HasValue &&
             !pathAuthenticationRequired.Value &&
             (pathAuthorizeRoles.Count > 0 || pathAuthenticationSchemes.Count > 0))
@@ -880,8 +880,8 @@ public static class OpenApiDocumentValidator
                 sourceFilePath));
         }
 
-        // ATCAPI_SEC001: Path authorize role not defined in global section
-        // ATCAPI_SEC008: Path authorize role has incorrect casing vs global section
+        // ATC_API_SEC001: Path authorize role not defined in global section
+        // ATC_API_SEC008: Path authorize role has incorrect casing vs global section
         foreach (var pathRole in pathAuthorizeRoles)
         {
             if (!globalAuthorizeRoles.Contains(pathRole, StringComparer.OrdinalIgnoreCase))
@@ -905,8 +905,8 @@ public static class OpenApiDocumentValidator
             }
         }
 
-        // ATCAPI_SEC002: Path authentication scheme not defined in global section
-        // ATCAPI_SEC009: Path authentication scheme has incorrect casing vs global
+        // ATC_API_SEC002: Path authentication scheme not defined in global section
+        // ATC_API_SEC009: Path authentication scheme has incorrect casing vs global
         foreach (var pathScheme in pathAuthenticationSchemes)
         {
             if (!globalAuthenticationSchemes.Contains(pathScheme, StringComparer.OrdinalIgnoreCase))
@@ -952,7 +952,7 @@ public static class OpenApiDocumentValidator
         var operationAuthorizeRoles = operation.Extensions.ExtractAuthorizeRoles();
         var operationAuthenticationSchemes = operation.Extensions.ExtractAuthenticationSchemes();
 
-        // ATCAPI_SEC005: Operation has authenticationRequired=false but has roles/schemes
+        // ATC_API_SEC005: Operation has authenticationRequired=false but has roles/schemes
         if (operationAuthenticationRequired.HasValue &&
             !operationAuthenticationRequired.Value &&
             (operationAuthorizeRoles.Count > 0 || operationAuthenticationSchemes.Count > 0))
@@ -965,8 +965,8 @@ public static class OpenApiDocumentValidator
                 sourceFilePath));
         }
 
-        // ATCAPI_SEC003: Operation authorize role not defined in global section
-        // ATCAPI_SEC006: Operation authorize role has incorrect casing vs global section
+        // ATC_API_SEC003: Operation authorize role not defined in global section
+        // ATC_API_SEC006: Operation authorize role has incorrect casing vs global section
         foreach (var operationRole in operationAuthorizeRoles)
         {
             if (!globalAuthorizeRoles.Contains(operationRole, StringComparer.OrdinalIgnoreCase))
@@ -990,8 +990,8 @@ public static class OpenApiDocumentValidator
             }
         }
 
-        // ATCAPI_SEC004: Operation authentication scheme not defined in global section
-        // ATCAPI_SEC007: Operation authentication scheme has incorrect casing vs global
+        // ATC_API_SEC004: Operation authentication scheme not defined in global section
+        // ATC_API_SEC007: Operation authentication scheme has incorrect casing vs global
         foreach (var operationScheme in operationAuthenticationSchemes)
         {
             if (!globalAuthenticationSchemes.Contains(operationScheme, StringComparer.OrdinalIgnoreCase))
@@ -1017,7 +1017,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates schemas (ATCAPI_SCH001-012, ATCAPI_SCH014).
+    /// Validates schemas (ATC_API_SCH001-012, ATC_API_SCH014).
     /// </summary>
     private static List<DiagnosticMessage> ValidateSchemas(
         OpenApiDocument document,
@@ -1043,19 +1043,19 @@ public static class OpenApiDocumentValidator
                 actualSchema = schemaRef.Target;
             }
 
-            // ATCAPI_SCH014: Multiple non-null types (OpenAPI 3.1 type arrays)
+            // ATC_API_SCH014: Multiple non-null types (OpenAPI 3.1 type arrays)
             ValidateMultipleNonNullTypes(diagnostics, sourceFilePath, schemaName, actualSchema);
 
-            // ATCAPI_SCH015: $ref with sibling properties (OpenAPI 3.1)
+            // ATC_API_SCH015: $ref with sibling properties (OpenAPI 3.1)
             ValidateRefWithSiblingProperties(diagnostics, sourceFilePath, schemaName, schema);
 
-            // ATCAPI_SCH016: const value (JSON Schema 2020-12)
+            // ATC_API_SCH016: const value (JSON Schema 2020-12)
             ValidateConstValue(diagnostics, sourceFilePath, schemaName, actualSchema);
 
-            // ATCAPI_SCH017: unevaluatedProperties (JSON Schema 2020-12)
+            // ATC_API_SCH017: unevaluatedProperties (JSON Schema 2020-12)
             ValidateUnevaluatedProperties(diagnostics, sourceFilePath, schemaName, actualSchema);
 
-            // ATCAPI_SCH022: properties but no required list - every property optional, generated nullable
+            // ATC_API_SCH022: properties but no required list - every property optional, generated nullable
             if (actualSchema.Properties is { Count: > 0 } &&
                 actualSchema.Required is not { Count: > 0 } &&
                 actualSchema.GetSchemaType() == "object")
@@ -1081,7 +1081,7 @@ public static class OpenApiDocumentValidator
                 ValidateObjectSchema(diagnostics, sourceFilePath, schemaName, schema, actualSchema);
             }
 
-            // ATCAPI_SCH008: Enum name not using correct casing style
+            // ATC_API_SCH008: Enum name not using correct casing style
             if (actualSchema.Enum is { Count: > 0 } &&
                 !CasingHelper.IsPascalCase(schemaName))
             {
@@ -1367,7 +1367,7 @@ public static class OpenApiDocumentValidator
         string schemaName,
         IOpenApiSchema actualSchema)
     {
-        // ATCAPI_SCH001: Missing title on array type
+        // ATC_API_SCH001: Missing title on array type
         if (string.IsNullOrEmpty(actualSchema.Title))
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -1387,7 +1387,7 @@ public static class OpenApiDocumentValidator
                 sourceFilePath));
         }
 
-        // ATCAPI_SCH006: Object name not using correct casing style (applies to arrays too)
+        // ATC_API_SCH006: Object name not using correct casing style (applies to arrays too)
         if (!CasingHelper.IsPascalCase(schemaName))
         {
             var suggested = CasingHelper.SuggestPascalCase(schemaName);
@@ -1408,7 +1408,7 @@ public static class OpenApiDocumentValidator
         IOpenApiSchema schema,
         IOpenApiSchema actualSchema)
     {
-        // ATCAPI_SCH003: Missing title on object type
+        // ATC_API_SCH003: Missing title on object type
         if (string.IsNullOrEmpty(actualSchema.Title))
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -1428,7 +1428,7 @@ public static class OpenApiDocumentValidator
                 sourceFilePath));
         }
 
-        // ATCAPI_SCH006: Object name not using correct casing style
+        // ATC_API_SCH006: Object name not using correct casing style
         if (!CasingHelper.IsPascalCase(schemaName))
         {
             var suggested = CasingHelper.SuggestPascalCase(schemaName);
@@ -1462,7 +1462,7 @@ public static class OpenApiDocumentValidator
         string propertyKey,
         IOpenApiSchema propertySchema)
     {
-        // ATCAPI_SCH012: Missing key/name for object property
+        // ATC_API_SCH012: Missing key/name for object property
         if (string.IsNullOrEmpty(propertyKey))
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -1473,7 +1473,7 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        // ATCAPI_SCH007: Object property name not using correct casing style
+        // ATC_API_SCH007: Object property name not using correct casing style
         if (!CasingHelper.IsCamelCase(propertyKey))
         {
             var suggested = CasingHelper.SuggestCamelCase(propertyKey);
@@ -1495,7 +1495,7 @@ public static class OpenApiDocumentValidator
 
         var propertyType = actualPropertySchema.GetSchemaType();
 
-        // ATCAPI_SCH010: Implicit object definition on property not supported
+        // ATC_API_SCH010: Implicit object definition on property not supported
         if (propertyType == "object")
         {
             if (!propertySchema.IsSchemaReference() &&
@@ -1531,7 +1531,7 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        // ATCAPI_SCH011: Array property missing items specification
+        // ATC_API_SCH011: Array property missing items specification
         if (items is null)
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -1552,7 +1552,7 @@ public static class OpenApiDocumentValidator
 
         var itemsType = actualItems.GetSchemaType();
 
-        // ATCAPI_SCH009: Array property missing data type specification
+        // ATC_API_SCH009: Array property missing data type specification
         if (string.IsNullOrEmpty(itemsType) && !IsSpecialPropertyName(propertyKey))
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -1563,7 +1563,7 @@ public static class OpenApiDocumentValidator
                 sourceFilePath));
         }
 
-        // ATCAPI_SCH005: Implicit object definition in array property not supported
+        // ATC_API_SCH005: Implicit object definition in array property not supported
         if (!string.IsNullOrEmpty(itemsType) &&
             itemsType == "object" &&
             !items.IsSchemaReference() &&
@@ -1604,7 +1604,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates paths (ATCAPI_PTH001).
+    /// Validates paths (ATC_API_PTH001).
     /// </summary>
     private static List<DiagnosticMessage> ValidatePaths(
         OpenApiDocument document,
@@ -1903,7 +1903,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates operations (ATCAPI_OPR001-018).
+    /// Validates operations (ATC_API_OPR001-018).
     /// </summary>
     private static List<DiagnosticMessage> ValidateOperations(
         OpenApiDocument document,
@@ -1928,7 +1928,7 @@ public static class OpenApiDocumentValidator
                 .Select(p => p.Name)
                 .ToList() ?? [];
 
-            // ATCAPI_OPR011: Global path parameter not present in route
+            // ATC_API_OPR011: Global path parameter not present in route
             foreach (var globalParam in globalPathParameters)
             {
                 if (pathKey.IndexOf($"{{{globalParam}}}", StringComparison.OrdinalIgnoreCase) < 0)
@@ -1991,7 +1991,7 @@ public static class OpenApiDocumentValidator
     {
         var httpMethodUpper = httpMethod.ToUpperInvariant();
 
-        // ATCAPI_OPR001: Missing operationId
+        // ATC_API_OPR001: Missing operationId
         if (string.IsNullOrEmpty(operation.OperationId))
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -2004,7 +2004,7 @@ public static class OpenApiDocumentValidator
 
         var operationId = operation.OperationId!;
 
-        // ATCAPI_OPR002: OperationId not using correct casing style
+        // ATC_API_OPR002: OperationId not using correct casing style
         if (!CasingHelper.IsValidOperationIdCasing(operationId))
         {
             var detectedStyle = CasingHelper.GetDetectedCasingStyle(operationId);
@@ -2021,33 +2021,33 @@ public static class OpenApiDocumentValidator
                 sourceFilePath));
         }
 
-        // ATCAPI_OPR003-007: HTTP method prefix validations
+        // ATC_API_OPR003-007: HTTP method prefix validations
         ValidateOperationIdPrefix(diagnostics, sourceFilePath, httpMethod, operationId, pathKey);
 
-        // ATCAPI_OPR008/009: Pluralization validation
+        // ATC_API_OPR008/009: Pluralization validation
         ValidateOperationIdPluralization(diagnostics, sourceFilePath, document, operation, operationId, pathKey, httpMethod);
 
-        // ATCAPI_OPR010: BadRequest without parameters
+        // ATC_API_OPR010: BadRequest without parameters
         ValidateBadRequestResponse(diagnostics, sourceFilePath, pathItem, operation, operationId);
 
-        // ATCAPI_OPR021: Unauthorized without security
+        // ATC_API_OPR021: Unauthorized without security
         ValidateUnauthorizedResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
 
-        // ATCAPI_OPR022: Forbidden without authorization
+        // ATC_API_OPR022: Forbidden without authorization
         ValidateForbiddenResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
 
-        // ATCAPI_OPR023: NotFound on POST operation
+        // ATC_API_OPR023: NotFound on POST operation
         ValidateNotFoundResponse(diagnostics, sourceFilePath, httpMethod, pathKey, operation, operationId);
 
-        // ATCAPI_OPR024: Conflict on non-mutating operation
+        // ATC_API_OPR024: Conflict on non-mutating operation
         ValidateConflictResponse(diagnostics, sourceFilePath, httpMethod, operation, operationId);
 
-        // ATCAPI_OPR025: TooManyRequests without rate limiting
+        // ATC_API_OPR025: TooManyRequests without rate limiting
         ValidateTooManyRequestsResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
 
-        // ATCAPI_OPR012 (a placeholder no parameter declares) is checked under every strategy, with the paths
+        // ATC_API_OPR012 (a placeholder no parameter declares) is checked under every strategy, with the paths
 
-        // ATCAPI_OPR013: Operation path parameter not present in route
+        // ATC_API_OPR013: Operation path parameter not present in route
         var opPathParams = operation.Parameters?
             .Where(p => p.In == ParameterLocation.Path)
             .ToList() ?? [];
@@ -2064,7 +2064,7 @@ public static class OpenApiDocumentValidator
             }
         }
 
-        // ATCAPI_OPR014: GET with path parameter missing NotFound response
+        // ATC_API_OPR014: GET with path parameter missing NotFound response
         if (string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase))
         {
             var hasPathParam = (pathItem.Parameters?.Any(p => p.In == ParameterLocation.Path) ?? false) ||
@@ -2080,13 +2080,13 @@ public static class OpenApiDocumentValidator
             }
         }
 
-        // ATCAPI_OPR015/016: Path parameter validation
+        // ATC_API_OPR015/016: Path parameter validation
         ValidatePathParameters(diagnostics, sourceFilePath, operation);
 
-        // ATCAPI_OPR017: RequestBody with inline model not supported
+        // ATC_API_OPR017: RequestBody with inline model not supported
         ValidateRequestBody(diagnostics, sourceFilePath, operation, operationId);
 
-        // ATCAPI_OPR018: Multiple 2xx status codes not supported
+        // ATC_API_OPR018: Multiple 2xx status codes not supported
         ValidateResponseStatusCodes(diagnostics, sourceFilePath, operation, operationId);
 
         // ATC_API_CACHE001: Output caching configured on a method the middleware never caches
@@ -2101,7 +2101,7 @@ public static class OpenApiDocumentValidator
         // ATC_API_OPR028/029: QUERY operation whose shape contradicts what the method means
         ValidateQueryOperationShape(diagnostics, sourceFilePath, httpMethodUpper, operation, operationId);
 
-        // ATCAPI_OPR026: Parameter serialization not supported
+        // ATC_API_OPR026: Parameter serialization not supported
         if (operation.Parameters is not null)
         {
             foreach (var parameter in operation.Parameters)
@@ -2136,7 +2136,7 @@ public static class OpenApiDocumentValidator
 
         if (string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase))
         {
-            // ATCAPI_OPR003: GET operationId should start with 'Get' or 'List'
+            // ATC_API_OPR003: GET operationId should start with 'Get' or 'List'
             if (!operationId.StartsWith("get", StringComparison.OrdinalIgnoreCase) &&
                 !operationId.StartsWith("list", StringComparison.OrdinalIgnoreCase))
             {
@@ -2149,7 +2149,7 @@ public static class OpenApiDocumentValidator
         }
         else if (string.Equals(httpMethod, "post", StringComparison.OrdinalIgnoreCase))
         {
-            // ATCAPI_OPR004: POST operationId should not start with 'Delete'
+            // ATC_API_OPR004: POST operationId should not start with 'Delete'
             if (operationId.StartsWith("delete", StringComparison.OrdinalIgnoreCase))
             {
                 diagnostics.Add(new DiagnosticMessage(
@@ -2161,7 +2161,7 @@ public static class OpenApiDocumentValidator
         }
         else if (string.Equals(httpMethod, "put", StringComparison.OrdinalIgnoreCase))
         {
-            // ATCAPI_OPR005: PUT operationId should start with 'Update'
+            // ATC_API_OPR005: PUT operationId should start with 'Update'
             if (!operationId.StartsWith("update", StringComparison.OrdinalIgnoreCase))
             {
                 diagnostics.Add(new DiagnosticMessage(
@@ -2173,7 +2173,7 @@ public static class OpenApiDocumentValidator
         }
         else if (string.Equals(httpMethod, "patch", StringComparison.OrdinalIgnoreCase))
         {
-            // ATCAPI_OPR006: PATCH operationId should start with 'Patch' or 'Update'
+            // ATC_API_OPR006: PATCH operationId should start with 'Patch' or 'Update'
             if (!operationId.StartsWith("patch", StringComparison.OrdinalIgnoreCase) &&
                 !operationId.StartsWith("update", StringComparison.OrdinalIgnoreCase))
             {
@@ -2188,7 +2188,7 @@ public static class OpenApiDocumentValidator
             !operationId.StartsWith("delete", StringComparison.OrdinalIgnoreCase) &&
             !operationId.StartsWith("remove", StringComparison.OrdinalIgnoreCase))
         {
-            // ATCAPI_OPR007: DELETE operationId should start with 'Delete' or 'Remove'
+            // ATC_API_OPR007: DELETE operationId should start with 'Delete' or 'Remove'
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.DeleteOperationIdPrefix,
                 $"OperationId '{operationId}' should start with 'delete' or 'remove' for DELETE operation. Location: {httpMethodUpper} {pathKey}",
@@ -2247,7 +2247,7 @@ public static class OpenApiDocumentValidator
         // Wrapper object containing an array (only applies to OPR008)
         var isWrapperWithArray = IsObjectContainingArray(responseSchema, document);
 
-        // ATCAPI_OPR008: Pluralized operationId but response is single item
+        // ATC_API_OPR008: Pluralized operationId but response is single item
         // Allow if response is direct array, paginated, OR wrapper containing array
         if (isPluralized && !isDirectArrayResponse && !isWrapperWithArray)
         {
@@ -2265,7 +2265,7 @@ public static class OpenApiDocumentValidator
                 DocumentationUrl: Constants.Documentation.GetRuleUrl(RuleIdentifiers.OperationIdPluralizationMismatch)));
         }
 
-        // ATCAPI_OPR009: Singular operationId but response is array
+        // ATC_API_OPR009: Singular operationId but response is array
         // Only trigger for direct arrays or paginated responses, NOT for wrappers with arrays
         if (!isPluralized && isDirectArrayResponse && !isWrapperWithArray)
         {
@@ -2304,7 +2304,7 @@ public static class OpenApiDocumentValidator
                            (operation.RequestBody is not null) ||
                            (pathItem.Parameters?.Count > 0);
 
-        // ATCAPI_OPR010: Has BadRequest response but no parameters
+        // ATC_API_OPR010: Has BadRequest response but no parameters
         if (!hasParameters)
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -2335,7 +2335,7 @@ public static class OpenApiDocumentValidator
         var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
         var hasSecurity = securityConfig is { AuthenticationRequired: true };
 
-        // ATCAPI_OPR021: Has 401 Unauthorized but no security requirements
+        // ATC_API_OPR021: Has 401 Unauthorized but no security requirements
         if (!hasSecurity)
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -2375,7 +2375,7 @@ public static class OpenApiDocumentValidator
              securityConfig.Policies.Count > 0 ||
              securityConfig.Scopes.Count > 0);
 
-        // ATCAPI_OPR022: Has 403 Forbidden but no security requirement at all (anonymous)
+        // ATC_API_OPR022: Has 403 Forbidden but no security requirement at all (anonymous)
         if (!hasSecurity)
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -2403,7 +2403,7 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        // ATCAPI_OPR023: Has 404 NotFound on POST operation
+        // ATC_API_OPR023: Has 404 NotFound on POST operation
         if (string.Equals(httpMethod, "post", StringComparison.OrdinalIgnoreCase))
         {
             // Skip warning if POST has path parameters - the referenced resource might not exist
@@ -2439,7 +2439,7 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        // ATCAPI_OPR024: Has 409 Conflict on read-only operation (GET)
+        // ATC_API_OPR024: Has 409 Conflict on read-only operation (GET)
         var isReadOnly = string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase);
 
         if (isReadOnly)
@@ -2472,7 +2472,7 @@ public static class OpenApiDocumentValidator
         var rateLimitConfig = operation.ExtractRateLimitConfiguration(pathItem, document);
         var hasRateLimiting = rateLimitConfig is not null;
 
-        // ATCAPI_OPR025: Has 429 TooManyRequests but no rate limiting configured
+        // ATC_API_OPR025: Has 429 TooManyRequests but no rate limiting configured
         if (!hasRateLimiting)
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -2498,7 +2498,7 @@ public static class OpenApiDocumentValidator
 
         foreach (var parameter in operation.Parameters.Where(p => p.In == ParameterLocation.Path))
         {
-            // ATCAPI_OPR015: Path parameter missing required=true
+            // ATC_API_OPR015: Path parameter missing required=true
             if (!parameter.Required)
             {
                 diagnostics.Add(new DiagnosticMessage(
@@ -2508,7 +2508,7 @@ public static class OpenApiDocumentValidator
                     sourceFilePath));
             }
 
-            // ATCAPI_OPR016: Path parameter must not be nullable
+            // ATC_API_OPR016: Path parameter must not be nullable
             if (parameter.Schema is OpenApiSchema schema && schema.IsNullable())
             {
                 diagnostics.Add(new DiagnosticMessage(
@@ -2549,7 +2549,7 @@ public static class OpenApiDocumentValidator
                 continue;
             }
 
-            // ATCAPI_OPR017: RequestBody with inline model not supported
+            // ATC_API_OPR017: RequestBody with inline model not supported
             if (schema is not OpenApiSchemaReference &&
                 schema is OpenApiSchema { Properties.Count: > 0 })
             {
@@ -2580,7 +2580,7 @@ public static class OpenApiDocumentValidator
             .Where(k => k.StartsWith("2", StringComparison.Ordinal))
             .ToList();
 
-        // ATCAPI_OPR018: Multiple 2xx status codes not supported
+        // ATC_API_OPR018: Multiple 2xx status codes not supported
         if (successResponses.Count > 1)
         {
             diagnostics.Add(new DiagnosticMessage(
@@ -3026,7 +3026,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates servers (ATCAPI_SRV001).
+    /// Validates servers (ATC_API_SRV001).
     /// </summary>
     private static List<DiagnosticMessage> ValidateServers(
         OpenApiDocument document,

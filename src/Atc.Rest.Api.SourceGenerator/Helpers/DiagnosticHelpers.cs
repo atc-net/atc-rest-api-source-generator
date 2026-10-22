@@ -440,7 +440,7 @@ internal static class DiagnosticHelpers
     // ========== OpenAPI Validation Diagnostics ==========
 
     /// <summary>
-    /// ATCAPI_VAL001: OpenAPI core parsing error from Microsoft.OpenApi library.
+    /// ATC_API_VAL001: OpenAPI core parsing error from Microsoft.OpenApi library.
     /// </summary>
     public static readonly DiagnosticDescriptor OpenApiCoreError = new(
         RuleIdentifiers.OpenApiCoreError,
@@ -451,7 +451,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_VAL002: OpenAPI 2.0 not supported - must use OpenAPI 3.0.x.
+    /// ATC_API_VAL002: OpenAPI 2.0 not supported - must use OpenAPI 3.0.x.
     /// </summary>
     public static readonly DiagnosticDescriptor OpenApi20NotSupported = new(
         RuleIdentifiers.OpenApi20NotSupported,
@@ -462,7 +462,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_NAM001: OperationId must start with lowercase letter (camelCase).
+    /// ATC_API_NAM001: OperationId must start with lowercase letter (camelCase).
     /// </summary>
     public static readonly DiagnosticDescriptor OperationIdMustBeCamelCase = new(
         RuleIdentifiers.OperationIdMustBeCamelCase,
@@ -473,7 +473,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_NAM002: Model name must use PascalCase.
+    /// ATC_API_NAM002: Model name must use PascalCase.
     /// </summary>
     public static readonly DiagnosticDescriptor ModelNameMustBePascalCase = new(
         RuleIdentifiers.ModelNameMustBePascalCase,
@@ -484,7 +484,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_NAM003: Property name must use camelCase.
+    /// ATC_API_NAM003: Property name must use camelCase.
     /// </summary>
     public static readonly DiagnosticDescriptor PropertyNameMustBeCamelCase = new(
         RuleIdentifiers.PropertyNameMustBeCamelCase,
@@ -495,7 +495,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_NAM004: Parameter name must use camelCase.
+    /// ATC_API_NAM004: Parameter name must use camelCase.
     /// </summary>
     public static readonly DiagnosticDescriptor ParameterNameMustBeCamelCase = new(
         RuleIdentifiers.ParameterNameMustBeCamelCase,
@@ -506,7 +506,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_NAM005: Enum value must use PascalCase or UPPER_SNAKE_CASE.
+    /// ATC_API_NAM005: Enum value must use PascalCase or UPPER_SNAKE_CASE.
     /// </summary>
     public static readonly DiagnosticDescriptor EnumValueCasing = new(
         RuleIdentifiers.EnumValueCasing,
@@ -517,7 +517,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_NAM006: Tag name must use kebab-case.
+    /// ATC_API_NAM006: Tag name must use kebab-case.
     /// </summary>
     public static readonly DiagnosticDescriptor TagNameMustBeKebabCase = new(
         RuleIdentifiers.TagNameMustBeKebabCase,
@@ -1030,7 +1030,7 @@ internal static class DiagnosticHelpers
     // ========== Schema Validation Diagnostics ==========
 
     /// <summary>
-    /// ATCAPI_SCH001: Missing title on array type.
+    /// ATC_API_SCH001: Missing title on array type.
     /// </summary>
     public static readonly DiagnosticDescriptor ArrayTitleMissing = new(
         RuleIdentifiers.ArrayTitleMissing,
@@ -1041,7 +1041,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH002: Array type title not starting with uppercase.
+    /// ATC_API_SCH002: Array type title not starting with uppercase.
     /// </summary>
     public static readonly DiagnosticDescriptor ArrayTitleNotUppercase = new(
         RuleIdentifiers.ArrayTitleNotUppercase,
@@ -1052,7 +1052,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH003: Missing title on object type.
+    /// ATC_API_SCH003: Missing title on object type.
     /// </summary>
     public static readonly DiagnosticDescriptor ObjectTitleMissing = new(
         RuleIdentifiers.ObjectTitleMissing,
@@ -1063,7 +1063,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH004: Object type title not starting with uppercase.
+    /// ATC_API_SCH004: Object type title not starting with uppercase.
     /// </summary>
     public static readonly DiagnosticDescriptor ObjectTitleNotUppercase = new(
         RuleIdentifiers.ObjectTitleNotUppercase,
@@ -1074,7 +1074,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH005: Implicit object definition in array property not supported.
+    /// ATC_API_SCH005: Implicit object definition in array property not supported.
     /// </summary>
     public static readonly DiagnosticDescriptor ImplicitArrayObjectNotSupported = new(
         RuleIdentifiers.ImplicitArrayObjectNotSupported,
@@ -1085,7 +1085,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH006: Object name not using correct casing style.
+    /// ATC_API_SCH006: Object name not using correct casing style.
     /// </summary>
     public static readonly DiagnosticDescriptor ObjectNameCasing = new(
         RuleIdentifiers.ObjectNameCasing,
@@ -1096,7 +1096,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH007: Object property name not using correct casing style.
+    /// ATC_API_SCH007: Object property name not using correct casing style.
     /// </summary>
     public static readonly DiagnosticDescriptor PropertyNameCasing = new(
         RuleIdentifiers.PropertyNameCasing,
@@ -1107,7 +1107,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH008: Enum name not using correct casing style.
+    /// ATC_API_SCH008: Enum name not using correct casing style.
     /// </summary>
     public static readonly DiagnosticDescriptor EnumNameCasing = new(
         RuleIdentifiers.EnumNameCasing,
@@ -1118,7 +1118,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH009: Array property missing data type specification.
+    /// ATC_API_SCH009: Array property missing data type specification.
     /// </summary>
     public static readonly DiagnosticDescriptor ArrayPropertyMissingType = new(
         RuleIdentifiers.ArrayPropertyMissingType,
@@ -1129,7 +1129,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH010: Implicit object definition on property not supported.
+    /// ATC_API_SCH010: Implicit object definition on property not supported.
     /// </summary>
     public static readonly DiagnosticDescriptor ImplicitObjectNotSupported = new(
         RuleIdentifiers.ImplicitObjectNotSupported,
@@ -1140,7 +1140,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH011: Array property missing items specification.
+    /// ATC_API_SCH011: Array property missing items specification.
     /// </summary>
     public static readonly DiagnosticDescriptor ArrayPropertyMissingItems = new(
         RuleIdentifiers.ArrayPropertyMissingItems,
@@ -1151,7 +1151,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH012: Missing key/name for object property.
+    /// ATC_API_SCH012: Missing key/name for object property.
     /// </summary>
     public static readonly DiagnosticDescriptor PropertyKeyMissing = new(
         RuleIdentifiers.PropertyKeyMissing,
@@ -1162,7 +1162,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SCH013: Schema reference does not exist in components.schemas.
+    /// ATC_API_SCH013: Schema reference does not exist in components.schemas.
     /// </summary>
     public static readonly DiagnosticDescriptor InvalidSchemaReference = new(
         RuleIdentifiers.InvalidSchemaReference,
@@ -1175,7 +1175,7 @@ internal static class DiagnosticHelpers
     // ========== Operation Validation Diagnostics ==========
 
     /// <summary>
-    /// ATCAPI_OPR001: Missing operationId.
+    /// ATC_API_OPR001: Missing operationId.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationIdMissing = new(
         RuleIdentifiers.OperationIdMissing,
@@ -1186,7 +1186,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR003: GET operationId should start with 'Get' or 'List'.
+    /// ATC_API_OPR003: GET operationId should start with 'Get' or 'List'.
     /// </summary>
     public static readonly DiagnosticDescriptor GetOperationIdPrefix = new(
         RuleIdentifiers.GetOperationIdPrefix,
@@ -1197,7 +1197,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR004: POST operationId should not start with 'Delete'.
+    /// ATC_API_OPR004: POST operationId should not start with 'Delete'.
     /// </summary>
     public static readonly DiagnosticDescriptor PostOperationIdPrefix = new(
         RuleIdentifiers.PostOperationIdPrefix,
@@ -1208,7 +1208,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR005: PUT operationId should start with 'Update'.
+    /// ATC_API_OPR005: PUT operationId should start with 'Update'.
     /// </summary>
     public static readonly DiagnosticDescriptor PutOperationIdPrefix = new(
         RuleIdentifiers.PutOperationIdPrefix,
@@ -1219,7 +1219,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR006: PATCH operationId should start with 'Patch' or 'Update'.
+    /// ATC_API_OPR006: PATCH operationId should start with 'Patch' or 'Update'.
     /// </summary>
     public static readonly DiagnosticDescriptor PatchOperationIdPrefix = new(
         RuleIdentifiers.PatchOperationIdPrefix,
@@ -1230,7 +1230,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR007: DELETE operationId should start with 'Delete' or 'Remove'.
+    /// ATC_API_OPR007: DELETE operationId should start with 'Delete' or 'Remove'.
     /// </summary>
     public static readonly DiagnosticDescriptor DeleteOperationIdPrefix = new(
         RuleIdentifiers.DeleteOperationIdPrefix,
@@ -1241,7 +1241,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR008: Pluralized operationId but response is single item.
+    /// ATC_API_OPR008: Pluralized operationId but response is single item.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationIdPluralizationMismatch = new(
         RuleIdentifiers.OperationIdPluralizationMismatch,
@@ -1252,7 +1252,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR009: Singular operationId but response is array.
+    /// ATC_API_OPR009: Singular operationId but response is array.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationIdSingularMismatch = new(
         RuleIdentifiers.OperationIdSingularMismatch,
@@ -1263,7 +1263,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR010: Has BadRequest response but no parameters.
+    /// ATC_API_OPR010: Has BadRequest response but no parameters.
     /// </summary>
     public static readonly DiagnosticDescriptor BadRequestWithoutParameters = new(
         RuleIdentifiers.BadRequestWithoutParameters,
@@ -1274,7 +1274,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR011: Global path parameter not present in route.
+    /// ATC_API_OPR011: Global path parameter not present in route.
     /// </summary>
     public static readonly DiagnosticDescriptor GlobalPathParameterNotInRoute = new(
         RuleIdentifiers.GlobalPathParameterNotInRoute,
@@ -1285,7 +1285,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR012: Operation missing path parameter defined in route.
+    /// ATC_API_OPR012: Operation missing path parameter defined in route.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationMissingPathParameter = new(
         RuleIdentifiers.OperationMissingPathParameter,
@@ -1296,7 +1296,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR013: Operation path parameter not present in route.
+    /// ATC_API_OPR013: Operation path parameter not present in route.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationPathParameterNotInRoute = new(
         RuleIdentifiers.OperationPathParameterNotInRoute,
@@ -1307,7 +1307,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR014: GET with path parameter missing NotFound response.
+    /// ATC_API_OPR014: GET with path parameter missing NotFound response.
     /// </summary>
     public static readonly DiagnosticDescriptor GetMissingNotFoundResponse = new(
         RuleIdentifiers.GetMissingNotFoundResponse,
@@ -1318,7 +1318,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR015: Path parameter missing required=true.
+    /// ATC_API_OPR015: Path parameter missing required=true.
     /// </summary>
     public static readonly DiagnosticDescriptor PathParameterNotRequired = new(
         RuleIdentifiers.PathParameterNotRequired,
@@ -1329,7 +1329,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR016: Path parameter must not be nullable.
+    /// ATC_API_OPR016: Path parameter must not be nullable.
     /// </summary>
     public static readonly DiagnosticDescriptor PathParameterNullable = new(
         RuleIdentifiers.PathParameterNullable,
@@ -1340,7 +1340,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR017: RequestBody with inline model not supported.
+    /// ATC_API_OPR017: RequestBody with inline model not supported.
     /// </summary>
     public static readonly DiagnosticDescriptor RequestBodyInlineModel = new(
         RuleIdentifiers.RequestBodyInlineModel,
@@ -1351,7 +1351,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR018: Multiple 2xx status codes not supported.
+    /// ATC_API_OPR018: Multiple 2xx status codes not supported.
     /// </summary>
     public static readonly DiagnosticDescriptor Multiple2xxStatusCodes = new(
         RuleIdentifiers.Multiple2xxStatusCodes,
@@ -1364,7 +1364,7 @@ internal static class DiagnosticHelpers
     // ========== Response Code Consistency Diagnostics (OPR021-OPR025) ==========
 
     /// <summary>
-    /// ATCAPI_OPR021: 401 Unauthorized response defined but no security requirements.
+    /// ATC_API_OPR021: 401 Unauthorized response defined but no security requirements.
     /// </summary>
     public static readonly DiagnosticDescriptor UnauthorizedWithoutSecurity = new(
         RuleIdentifiers.UnauthorizedWithoutSecurity,
@@ -1375,7 +1375,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR022: 403 Forbidden response defined on an operation without any security requirement.
+    /// ATC_API_OPR022: 403 Forbidden response defined on an operation without any security requirement.
     /// </summary>
     public static readonly DiagnosticDescriptor ForbiddenWithoutAuthorization = new(
         RuleIdentifiers.ForbiddenWithoutAuthorization,
@@ -1386,7 +1386,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR023: 404 NotFound response on POST operation (unusual).
+    /// ATC_API_OPR023: 404 NotFound response on POST operation (unusual).
     /// </summary>
     public static readonly DiagnosticDescriptor NotFoundOnPostOperation = new(
         RuleIdentifiers.NotFoundOnPostOperation,
@@ -1397,7 +1397,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR024: 409 Conflict response on read-only operation (GET).
+    /// ATC_API_OPR024: 409 Conflict response on read-only operation (GET).
     /// </summary>
     public static readonly DiagnosticDescriptor ConflictOnNonMutatingOperation = new(
         RuleIdentifiers.ConflictOnNonMutatingOperation,
@@ -1408,7 +1408,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR025: 429 TooManyRequests response defined but no rate limiting configured.
+    /// ATC_API_OPR025: 429 TooManyRequests response defined but no rate limiting configured.
     /// </summary>
     public static readonly DiagnosticDescriptor TooManyRequestsWithoutRateLimiting = new(
         RuleIdentifiers.TooManyRequestsWithoutRateLimiting,
@@ -1421,7 +1421,7 @@ internal static class DiagnosticHelpers
     // ========== Security Validation DiagnosticDescriptors ==========
 
     /// <summary>
-    /// ATCAPI_SEC001: Path authorize role not defined in global section.
+    /// ATC_API_SEC001: Path authorize role not defined in global section.
     /// </summary>
     public static readonly DiagnosticDescriptor PathAuthorizeRoleNotDefined = new(
         RuleIdentifiers.PathAuthorizeRoleNotDefined,
@@ -1432,7 +1432,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC002: Path authentication scheme not defined in global section.
+    /// ATC_API_SEC002: Path authentication scheme not defined in global section.
     /// </summary>
     public static readonly DiagnosticDescriptor PathAuthenticationSchemeNotDefined = new(
         RuleIdentifiers.PathAuthenticationSchemeNotDefined,
@@ -1443,7 +1443,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC003: Operation authorize role not defined in global section.
+    /// ATC_API_SEC003: Operation authorize role not defined in global section.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationAuthorizeRoleNotDefined = new(
         RuleIdentifiers.OperationAuthorizeRoleNotDefined,
@@ -1454,7 +1454,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC004: Operation authentication scheme not defined in global section.
+    /// ATC_API_SEC004: Operation authentication scheme not defined in global section.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationAuthenticationSchemeNotDefined = new(
         RuleIdentifiers.OperationAuthenticationSchemeNotDefined,
@@ -1465,7 +1465,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC005: Operation has authenticationRequired=false but has roles/schemes.
+    /// ATC_API_SEC005: Operation has authenticationRequired=false but has roles/schemes.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationAuthenticationConflict = new(
         RuleIdentifiers.OperationAuthenticationConflict,
@@ -1476,7 +1476,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC006: Operation authorize role has incorrect casing vs global section.
+    /// ATC_API_SEC006: Operation authorize role has incorrect casing vs global section.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationAuthorizeRoleCasing = new(
         RuleIdentifiers.OperationAuthorizeRoleCasing,
@@ -1487,7 +1487,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC007: Operation authentication scheme has incorrect casing vs global.
+    /// ATC_API_SEC007: Operation authentication scheme has incorrect casing vs global.
     /// </summary>
     public static readonly DiagnosticDescriptor OperationAuthenticationSchemeCasing = new(
         RuleIdentifiers.OperationAuthenticationSchemeCasing,
@@ -1498,7 +1498,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC008: Path authorize role has incorrect casing vs global section.
+    /// ATC_API_SEC008: Path authorize role has incorrect casing vs global section.
     /// </summary>
     public static readonly DiagnosticDescriptor PathAuthorizeRoleCasing = new(
         RuleIdentifiers.PathAuthorizeRoleCasing,
@@ -1509,7 +1509,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC009: Path authentication scheme has incorrect casing vs global.
+    /// ATC_API_SEC009: Path authentication scheme has incorrect casing vs global.
     /// </summary>
     public static readonly DiagnosticDescriptor PathAuthenticationSchemeCasing = new(
         RuleIdentifiers.PathAuthenticationSchemeCasing,
@@ -1520,7 +1520,7 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_SEC010: Path has authenticationRequired=false but has roles/schemes.
+    /// ATC_API_SEC010: Path has authenticationRequired=false but has roles/schemes.
     /// </summary>
     public static readonly DiagnosticDescriptor PathAuthenticationConflict = new(
         RuleIdentifiers.PathAuthenticationConflict,
