@@ -874,7 +874,7 @@ public static class OpenApiSchemaExtensions
             }
 
             var references = allOf.OfType<OpenApiSchemaReference>().ToList();
-            return references.Count == 1 && allOf.All(part => part is OpenApiSchemaReference || IsEmptySchema(part))
+            return references.Count == 1 && allOf.All(part => part is OpenApiSchemaReference || part.IsUntyped())
                 ? references[0]
                 : null;
         }
@@ -2223,24 +2223,6 @@ public static class OpenApiSchemaExtensions
     // A type other than null ('nullable: true' alone says nothing about the value)
     private static bool HasValueType(JsonSchemaType? type)
         => type is { } value && (value | JsonSchemaType.Null) != JsonSchemaType.Null;
-
-    // A schema that says nothing about the value ({}, or one with only a description)
-    private static bool IsEmptySchema(IOpenApiSchema part)
-    {
-        if (part is not OpenApiSchema empty)
-        {
-            return false;
-        }
-
-        return !HasValueType(empty.Type) &&
-               empty.Properties is null or { Count: 0 } &&
-               empty.AllOf is null or { Count: 0 } &&
-               empty.OneOf is null or { Count: 0 } &&
-               empty.AnyOf is null or { Count: 0 } &&
-               empty.Enum is null or { Count: 0 } &&
-               empty.Items is null &&
-               string.IsNullOrEmpty(empty.Format);
-    }
 
     // The C# type of a dictionary's value: a referenced model by its name, a primitive by its type, an array as a
     // List of its item type, a nested map as a Dictionary - anything else (untyped, an inline object) object
