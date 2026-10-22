@@ -262,6 +262,38 @@ public class OpenApiDocumentHelperTests
     }
 
     [Fact]
+    public void TryParseYamlWithDiagnostic_SamePathChangedContentOfSameLength_ParsesTheNewContent()
+    {
+        // Arrange
+        const string yamlPath = "same-length-edit.yaml";
+        const string before = """
+            openapi: 3.1.0
+            info:
+              title: Same Length A
+              version: 1.0.0
+            paths: {}
+            """;
+        const string after = """
+            openapi: 3.1.0
+            info:
+              title: Same Length B
+              version: 1.0.0
+            paths: {}
+            """;
+
+        // Act
+        var (first, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(before, yamlPath);
+        var (second, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(after, yamlPath);
+        var (third, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(after, yamlPath);
+
+        // Assert
+        Assert.Equal(before.Length, after.Length);
+        Assert.NotSame(first, second);
+        Assert.Equal("Same Length B", second!.Info.Title);
+        Assert.Same(second, third);
+    }
+
+    [Fact]
     public void TryParseYamlWithDiagnostic_SameContentDifferentPaths_ReturnsDifferentInstances()
     {
         // Arrange

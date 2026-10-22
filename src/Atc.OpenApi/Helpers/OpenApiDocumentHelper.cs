@@ -13,14 +13,14 @@ public static class OpenApiDocumentHelper
 
     /// <summary>
     /// In-process cache for parsed OpenAPI documents, keyed by yamlPath.
-    /// Each entry stores a content hash to detect when the file has changed,
-    /// so stale entries are automatically replaced (one slot per path).
+    /// Each entry keeps the text it was parsed from and is used only for that exact text,
+    /// so a changed file replaces its entry (one slot per path).
     /// This prevents unbounded memory growth in long-running processes
     /// (e.g., IDE source generators) where each edit would otherwise add a new entry.
     /// Uses <see cref="ConcurrentDictionary{TKey,TValue}"/>
     /// for thread safety.
     /// </summary>
-    private static readonly ConcurrentDictionary<string, (int ContentHash, int ContentLength, OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, (string Content, OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new(StringComparer.Ordinal);
 
     // A "namespace" key and its one-token value, in YAML (block or flow) or JSON; a value that starts an object or an
     // array (a property named namespace) is no match
@@ -113,14 +113,10 @@ public static class OpenApiDocumentHelper
             throw new ArgumentNullException(nameof(yamlPath));
         }
 
-        // Return cached result if the same path+content was already parsed.
-        // Uses content hash + length (one cache slot per path) to prevent unbounded growth.
-        // Combining hash with length virtually eliminates collision risk vs hash alone.
-        var contentHash = StringComparer.Ordinal.GetHashCode(yamlContent);
-        var contentLength = yamlContent.Length;
+        // Return the cached result when this path was parsed from exactly this text (one slot per path, so it does
+        // not grow); the text itself is compared, so two different texts never share a document
         if (ParseCache.TryGetValue(yamlPath, out var cached) &&
-            cached.ContentHash == contentHash &&
-            cached.ContentLength == contentLength)
+            string.Equals(cached.Content, yamlContent, StringComparison.Ordinal))
         {
             return (cached.Document, cached.Diagnostic);
         }
@@ -160,7 +156,7 @@ public static class OpenApiDocumentHelper
 
         StashSpecVersion(document, diagnostic);
 
-        ParseCache[yamlPath] = (contentHash, contentLength, document, diagnostic);
+        ParseCache[yamlPath] = (yamlContent, document, diagnostic);
 
         return (document, diagnostic);
     }
