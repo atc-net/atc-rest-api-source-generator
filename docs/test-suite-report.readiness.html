@@ -4,7 +4,7 @@
   <li><code>Atc.Rest.MinimalApi</code> 3.0.0 is released on nuget.org, then 3.0.1 (dependency updates) and 3.1.0 on 16
     October: a form endpoint's request is validated as a JSON body of the same model, and the unused Scalar dependency is
     gone. The tests and the samples use 3.1.0, which is now the minimum (<code>ATC_API_DEP013</code>).</li>
-  <li><code>Atc.Rest.Client</code> is released up to 2.6.0, with every library issue this branch raised. 2.6.0 is the
+  <li><code>Atc.Rest.Client</code> is released up to 2.7.0, with every library issue this branch raised. 2.7.0 is the
     minimum for the EndpointPerOperation client and the TypedClient's Result style (<code>ATC_API_DEP011</code>).</li>
   <li>The generator 3.0 is <b>not released</b>. The branch and the wiki are committed locally and not pushed yet.</li>
 </ul>
@@ -37,7 +37,7 @@
     </ul>
   </td></tr>
 <tr><td>3</td><td><b>What belongs in Atc.Rest.Client, not in generated workarounds.</b></td>
-  <td><span class="v pass">released in 2.1.0 - 2.6.0</span>
+  <td><span class="v pass">released in 2.1.0 - 2.7.0</span>
     <ul class="tight">
       <li>Error bodies of every media type are read as text; binary responses keep an error's content type, headers and
         typed error (2.1.0).</li>
@@ -47,6 +47,8 @@
         headers, record and error-body limits, and the default error registrations (2.4.0, 2.5.0).</li>
       <li>Server-Sent Events with their event state: the last event id for a resume, in the EndpointPerOperation client
         and the TypedClient's Result style (2.6.0).</li>
+      <li>A request body sent as a stream of records (JSON Lines, JSON Text Sequences) by the request builder, and an
+        empty text answer read as the empty text (2.7.0).</li>
     </ul>
     The generated code uses the library for each and keeps no workaround for them.</td></tr>
 <tr><td>4</td><td><b>Release the generator 3.0?</b></td>
@@ -147,7 +149,7 @@
 <h3>Release sequence once we agree</h3>
 <ol class="tight">
   <li>Push the generator branch and the wiki.</li>
-  <li>Review with the coworkers. (<code>Atc.Rest.MinimalApi</code> 3.1.0 and <code>Atc.Rest.Client</code> 2.6.0: done,
+  <li>Review with the coworkers. (<code>Atc.Rest.MinimalApi</code> 3.1.0 and <code>Atc.Rest.Client</code> 2.7.0: done,
     released and in use.)</li>
   <li>Merge the generator branch and release 3.0.</li>
 </ol>
