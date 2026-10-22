@@ -37,47 +37,8 @@ public static class TypeScriptZodModelExtractor
         var cycleMembers = BuildCycleMemberMap(openApiDoc);
         var discriminators = TypeScriptDiscriminatorLiterals.Collect(openApiDoc);
 
-        foreach (var schema in openApiDoc.Components.Schemas)
+        foreach (var (schemaName, actualSchema) in TypeScriptSchemaCatalog.ObjectModels(openApiDoc, config.IncludeDeprecated))
         {
-            var schemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            // Skip schema references
-            if (schemaValue is OpenApiSchemaReference)
-            {
-                continue;
-            }
-
-            // Skip deprecated schemas if not including them
-            if (!config.IncludeDeprecated && schemaValue is OpenApiSchema { Deprecated: true })
-            {
-                continue;
-            }
-
-            if (schemaValue is not OpenApiSchema actualSchema)
-            {
-                continue;
-            }
-
-            // Skip array and dictionary schemas - handled by ExtractArrayTypeAliases
-            if (actualSchema.IsOfType(JsonSchemaType.Array) || TypeScriptModelExtractor.IsRecordAliasSchema(actualSchema))
-            {
-                continue;
-            }
-
-            // Skip enum schemas - handled by TypeScriptZodEnumExtractor
-            if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
-            {
-                continue;
-            }
-
-            // Only process object schemas - the same set the TypeScript models are emitted for,
-            // including allOf compositions without an explicit `type`.
-            if (!TypeScriptModelExtractor.IsObjectSchema(actualSchema))
-            {
-                continue;
-            }
-
             cycleMembers.TryGetValue(schemaName, out var cyclePeers);
             var content = GenerateZodObject(schemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, cyclePeers, discriminators, config.ConvertDates);
             if (content is not null)
@@ -182,36 +143,15 @@ public static class TypeScriptZodModelExtractor
         // whichever module loads first reads the other's binding before it is initialized
         var cycleMembers = BuildCycleMemberMap(openApiDoc);
 
-        foreach (var schema in openApiDoc.Components.Schemas)
+        foreach (var (schemaName, actualSchema, kind) in TypeScriptSchemaCatalog.Aliases(openApiDoc, config.IncludeDeprecated))
         {
-            var schemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            if (schemaValue is not OpenApiSchema actualSchema)
-            {
-                continue;
-            }
-
-            var isScalarAlias = TypeScriptModelExtractor.IsScalarAliasSchema(actualSchema);
-            var isRecordAlias = TypeScriptModelExtractor.IsRecordAliasSchema(actualSchema);
-            if (!actualSchema.IsOfType(JsonSchemaType.Array) && !isScalarAlias && !isRecordAlias)
-            {
-                continue;
-            }
-
-            // Skip deprecated schemas if not including them
-            if (!config.IncludeDeprecated && actualSchema.Deprecated)
-            {
-                continue;
-            }
-
-            if (isScalarAlias)
+            if (kind == TypeScriptAliasKind.Scalar)
             {
                 results.Add((schemaName, GenerateZodScalarAlias(schemaName, actualSchema, headerContent, config.ConvertDates, config.ExtensibleEnums)));
                 continue;
             }
 
-            if (isRecordAlias)
+            if (kind == TypeScriptAliasKind.Record)
             {
                 results.Add((schemaName, GenerateZodRecordAlias(schemaName, actualSchema, headerContent, config.ConvertDates)));
                 continue;

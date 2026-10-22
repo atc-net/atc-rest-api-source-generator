@@ -27,40 +27,8 @@ public static class TypeScriptEnumExtractor
 
         var headerContent = config.FileHeader;
 
-        foreach (var schema in openApiDoc.Components.Schemas)
+        foreach (var (schemaName, actualSchema, enumValues) in TypeScriptSchemaCatalog.StringEnums(openApiDoc, config.IncludeDeprecated))
         {
-            var schemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            // Skip schema references
-            if (schemaValue is OpenApiSchemaReference)
-            {
-                continue;
-            }
-
-            if (schemaValue is not OpenApiSchema actualSchema)
-            {
-                continue;
-            }
-
-            // Only process string enums
-            if (!actualSchema.IsOfType(JsonSchemaType.String) || actualSchema.Enum is not { Count: > 0 })
-            {
-                continue;
-            }
-
-            // Skip deprecated if not including them
-            if (!config.IncludeDeprecated && actualSchema.Deprecated)
-            {
-                continue;
-            }
-
-            var enumValues = ExtractEnumValues(actualSchema.Enum);
-            if (enumValues is null || enumValues.Count == 0)
-            {
-                continue;
-            }
-
             // Build JSDoc from schema description plus @deprecated when the spec marks
             // the enum deprecated (e.g. legacy status values being phased out).
             JsDocComment? docTags = null;
@@ -189,42 +157,5 @@ public static class TypeScriptEnumExtractor
             parameters);
 
         return generator.Generate();
-    }
-
-    /// <summary>
-    /// Extracts string values from OpenAPI enum nodes.
-    /// </summary>
-    private static List<string>? ExtractEnumValues(IList<JsonNode>? enumValues)
-    {
-        if (enumValues is null || enumValues.Count == 0)
-        {
-            return null;
-        }
-
-        var result = new List<string>();
-
-        foreach (var enumValue in enumValues)
-        {
-            // `null` in the enum list (the OpenAPI 3.1 nullable enum) is no member: null is the absence of a value.
-            if (enumValue is null || JsonNullSentinel.IsJsonNullSentinel(enumValue))
-            {
-                continue;
-            }
-
-            var valueStr = enumValue.ToString();
-            if (string.IsNullOrEmpty(valueStr))
-            {
-                continue;
-            }
-
-            // Clean up the value - remove quotes if present; a value listed twice is one member
-            var cleanValue = valueStr.Trim('"');
-            if (!result.Contains(cleanValue, StringComparer.Ordinal))
-            {
-                result.Add(cleanValue);
-            }
-        }
-
-        return result.Count > 0 ? result : null;
     }
 }

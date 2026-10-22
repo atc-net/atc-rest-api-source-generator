@@ -35,47 +35,8 @@ public static class TypeScriptModelExtractor
         var headerContent = config.FileHeader;
         var discriminators = TypeScriptDiscriminatorLiterals.Collect(openApiDoc);
 
-        foreach (var schema in openApiDoc.Components.Schemas)
+        foreach (var (originalSchemaName, actualSchema) in TypeScriptSchemaCatalog.ObjectModels(openApiDoc, config.IncludeDeprecated))
         {
-            var originalSchemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            // Skip schema references
-            if (schemaValue is OpenApiSchemaReference)
-            {
-                continue;
-            }
-
-            // Skip deprecated schemas if not including them
-            if (!config.IncludeDeprecated && schemaValue is OpenApiSchema { Deprecated: true })
-            {
-                continue;
-            }
-
-            if (schemaValue is not OpenApiSchema actualSchema)
-            {
-                continue;
-            }
-
-            // Skip array and dictionary schemas - they are handled by ExtractArrayTypeAliases
-            if (actualSchema.IsOfType(JsonSchemaType.Array) || IsRecordAliasSchema(actualSchema))
-            {
-                continue;
-            }
-
-            // Skip enum schemas - handled by TypeScriptEnumExtractor
-            if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
-            {
-                continue;
-            }
-
-            // Only process object schemas - including composed ones that leave `type` out
-            // (allOf: [$ref, { properties }] is how inheritance is usually written).
-            if (!IsObjectSchema(actualSchema))
-            {
-                continue;
-            }
-
             var hasReadOnly = SchemaHasMarker(actualSchema, readOnly: true);
             var hasWriteOnly = SchemaHasMarker(actualSchema, readOnly: false);
 
@@ -206,28 +167,10 @@ public static class TypeScriptModelExtractor
 
         var headerContent = config.FileHeader;
 
-        foreach (var schema in openApiDoc.Components.Schemas)
+        foreach (var (schemaName, actualSchema, kind) in TypeScriptSchemaCatalog.Aliases(openApiDoc, config.IncludeDeprecated))
         {
-            var schemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            if (schemaValue is not OpenApiSchema actualSchema)
-            {
-                continue;
-            }
-
-            var isScalarAlias = IsScalarAliasSchema(actualSchema);
-            var isRecordAlias = IsRecordAliasSchema(actualSchema);
-            if (!actualSchema.IsOfType(JsonSchemaType.Array) && !isScalarAlias && !isRecordAlias)
-            {
-                continue;
-            }
-
-            // Skip deprecated schemas if not including them
-            if (!config.IncludeDeprecated && actualSchema.Deprecated)
-            {
-                continue;
-            }
+            var isScalarAlias = kind == TypeScriptAliasKind.Scalar;
+            var isRecordAlias = kind == TypeScriptAliasKind.Record;
 
             var sb = new StringBuilder();
 

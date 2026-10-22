@@ -27,40 +27,8 @@ public static class TypeScriptZodEnumExtractor
 
         var headerContent = config.FileHeader;
 
-        foreach (var schema in openApiDoc.Components.Schemas)
+        foreach (var (schemaName, actualSchema, enumValues) in TypeScriptSchemaCatalog.StringEnums(openApiDoc, config.IncludeDeprecated))
         {
-            var schemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            // Skip schema references
-            if (schemaValue is OpenApiSchemaReference)
-            {
-                continue;
-            }
-
-            if (schemaValue is not OpenApiSchema actualSchema)
-            {
-                continue;
-            }
-
-            // Only process string enums
-            if (!actualSchema.IsOfType(JsonSchemaType.String) || actualSchema.Enum is not { Count: > 0 })
-            {
-                continue;
-            }
-
-            // Skip deprecated if not including them
-            if (!config.IncludeDeprecated && actualSchema.Deprecated)
-            {
-                continue;
-            }
-
-            var enumValues = ExtractEnumValues(actualSchema.Enum);
-            if (enumValues is null || enumValues.Count == 0)
-            {
-                continue;
-            }
-
             var content = GenerateZodEnum(headerContent, schemaName, enumValues, config.ExtensibleEnums);
             results.Add((schemaName, content));
         }
@@ -97,35 +65,5 @@ public static class TypeScriptZodEnumExtractor
         sb.AppendLine(open ? "]), z.string()]);" : "]);");
 
         return sb.ToString();
-    }
-
-    private static List<string>? ExtractEnumValues(IList<JsonNode>? enumValues)
-    {
-        if (enumValues is null || enumValues.Count == 0)
-        {
-            return null;
-        }
-
-        var result = new List<string>();
-
-        foreach (var enumValue in enumValues)
-        {
-            // `null` in the enum list (the OpenAPI 3.1 nullable enum) is no member: null is the absence of a value.
-            if (enumValue is null || JsonNullSentinel.IsJsonNullSentinel(enumValue))
-            {
-                continue;
-            }
-
-            var valueStr = enumValue.ToString();
-            if (string.IsNullOrEmpty(valueStr))
-            {
-                continue;
-            }
-
-            var cleanValue = valueStr.Trim('"');
-            result.Add(cleanValue);
-        }
-
-        return result.Count > 0 ? result : null;
     }
 }

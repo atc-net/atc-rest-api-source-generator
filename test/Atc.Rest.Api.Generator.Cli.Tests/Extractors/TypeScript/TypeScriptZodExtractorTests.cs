@@ -83,6 +83,30 @@ public class TypeScriptZodExtractorTests
         Assert.Contains("'inactive'", content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A value listed twice is one member of the Zod enum, as it is one member of the TypeScript enum.
+    /// </summary>
+    [Fact]
+    public void ZodEnum_DuplicateValueIsOneMember()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                State:
+                                  type: string
+                                  enum: [active, Active, archived, archived]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodEnumExtractor.Extract(doc, new TypeScriptClientConfig { ExtensibleEnums = false }));
+
+        Assert.Contains("export const StateSchema = z.enum(['active', 'Active', 'archived']);", content, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(true, "export const StatusSchema = z.union([z.enum(['active', 'inactive']), z.string()]);")]
     [InlineData(false, "export const StatusSchema = z.enum(['active', 'inactive']);")]
