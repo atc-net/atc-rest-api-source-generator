@@ -4,8 +4,19 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// Extracts inline object schemas from OpenAPI operations and generates record types for them.
 /// Inline schemas are those defined directly in request bodies or responses rather than as $ref to components/schemas.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class InlineSchemaExtractor
 {
+    /// <param name="schema">The schema.</param>
+    extension(IOpenApiSchema? schema)
+    {
+        /// <summary>
+        /// Gets a value indicating whether the schema is an inline object with properties, not a <c>$ref</c> (<see cref="IsInlineObjectSchema"/>).
+        /// </summary>
+        public bool IsInlineObject
+            => IsInlineObjectSchema(schema);
+    }
+
     /// <summary>
     /// Checks if a schema is an inline object with properties (not a $ref to components/schemas).
     /// </summary>
@@ -174,7 +185,7 @@ public static class InlineSchemaExtractor
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
 
             string csharpType;
-            if (InlineEnumExtractor.IsInlineEnumSchema(prop.Value))
+            if (prop.Value.IsInlineEnum)
             {
                 var actualSchema = (OpenApiSchema)prop.Value;
                 var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, typeName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);

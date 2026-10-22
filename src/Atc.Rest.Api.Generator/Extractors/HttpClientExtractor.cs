@@ -1907,7 +1907,7 @@ public static class HttpClientExtractor
         string propName)
     {
         if (param.Schema is OpenApiSchema actualSchema &&
-            InlineEnumExtractor.IsInlineEnumSchema(actualSchema) &&
+            actualSchema.IsInlineEnum &&
             !string.IsNullOrEmpty(param.Name))
         {
             return InlineEnumExtractor.GenerateInlineEnumTypeName(parametersClassName, propName, TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc));

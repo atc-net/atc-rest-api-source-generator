@@ -33,7 +33,7 @@ public class InlineEnumExtractorTests
         var statusProperty = testSchema.Properties["status"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(statusProperty);
+        var result = statusProperty.IsInlineEnum;
 
         // Assert
         Assert.True(result);
@@ -72,7 +72,7 @@ public class InlineEnumExtractorTests
         var statusProperty = testSchema.Properties["status"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(statusProperty);
+        var result = statusProperty.IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -106,7 +106,7 @@ public class InlineEnumExtractorTests
         var nameProperty = testSchema.Properties["name"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(nameProperty);
+        var result = nameProperty.IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -140,7 +140,7 @@ public class InlineEnumExtractorTests
         var countProperty = testSchema.Properties["count"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(countProperty);
+        var result = countProperty.IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -150,7 +150,7 @@ public class InlineEnumExtractorTests
     public void IsInlineEnumSchema_NullSchema_ReturnsFalse()
     {
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(null);
+        var result = ((IOpenApiSchema?)null).IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -720,7 +720,7 @@ public class InlineEnumExtractorTests
 
         Assert.True(result);
         Assert.NotNull(itemSchema);
-        Assert.True(InlineEnumExtractor.IsInlineEnumSchema(itemSchema));
+        Assert.True(itemSchema.IsInlineEnum);
     }
 
     [Fact]
@@ -772,7 +772,7 @@ public class InlineEnumExtractorTests
 
         var schema = document.Components.Schemas["Severity"] as OpenApiSchema;
         Assert.NotNull(schema);
-        Assert.True(InlineEnumExtractor.IsInlineEnumSchema(schema));
+        Assert.True(schema.IsInlineEnum);
     }
 
     [Fact]

@@ -935,14 +935,14 @@ public static class ResponseHeaderFactoryHelper
     // The enum a header's schema declares inline: the schema itself, or its array's items
     private static OpenApiSchema? InlineEnumSchemaOf(IOpenApiSchema? schema)
     {
-        if (InlineEnumExtractor.IsInlineEnumSchema(schema))
+        if (schema.IsInlineEnum)
         {
             return (OpenApiSchema)schema!;
         }
 
         return schema is OpenApiSchema { Items: { } items } array &&
                array.IsOfType(JsonSchemaType.Array) &&
-               InlineEnumExtractor.IsInlineEnumSchema(items)
+               items.IsInlineEnum
             ? (OpenApiSchema)items
             : null;
     }
@@ -965,7 +965,7 @@ public static class ResponseHeaderFactoryHelper
         string? inlineEnumTypeName = null)
     {
         if (inlineEnumTypeName is not null &&
-            InlineEnumExtractor.IsInlineEnumSchema(schema) &&
+            schema.IsInlineEnum &&
             schema is OpenApiSchema inline)
         {
             return inline.IsOfType(JsonSchemaType.String)

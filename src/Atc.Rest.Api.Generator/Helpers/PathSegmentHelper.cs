@@ -1083,13 +1083,13 @@ public static class PathSegmentHelper
 
     private static bool SchemaYieldsInlineModel(IOpenApiSchema? schema)
     {
-        if (InlineSchemaExtractor.IsInlineObjectSchema(schema))
+        if (schema.IsInlineObject)
         {
             return true;
         }
 
         // An array of anonymous objects yields an inline "…ResponseItem" record.
         return schema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
-               InlineSchemaExtractor.IsInlineObjectSchema(arraySchema.Items);
+               arraySchema.Items.IsInlineObject;
     }
 }

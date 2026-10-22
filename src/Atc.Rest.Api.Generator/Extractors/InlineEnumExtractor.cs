@@ -4,8 +4,19 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// Extracts inline enum definitions from OpenAPI property schemas.
 /// Inline enums are defined directly on properties rather than as standalone schemas in components/schemas.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class InlineEnumExtractor
 {
+    /// <param name="schema">The schema.</param>
+    extension(IOpenApiSchema? schema)
+    {
+        /// <summary>
+        /// Gets a value indicating whether the schema is an inline string enum, not a <c>$ref</c> (<see cref="IsInlineEnumSchema"/>).
+        /// </summary>
+        public bool IsInlineEnum
+            => IsInlineEnumSchema(schema);
+    }
+
     /// <summary>
     /// Checks if a schema represents an inline enum (string type with enum values, not a reference).
     /// </summary>

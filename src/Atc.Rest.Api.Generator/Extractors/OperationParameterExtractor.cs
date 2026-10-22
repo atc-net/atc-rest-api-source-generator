@@ -844,7 +844,7 @@ public static class OperationParameterExtractor
         // enum) or the array items. The generated type name is the same in both
         // cases; only the wrapping differs (List&lt;T&gt; vs T).
         OpenApiSchema? enumSchema = null;
-        if (InlineEnumExtractor.IsInlineEnumSchema(actualSchema))
+        if (actualSchema.IsInlineEnum)
         {
             enumSchema = actualSchema;
         }

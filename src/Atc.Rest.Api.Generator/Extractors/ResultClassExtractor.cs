@@ -1701,7 +1701,7 @@ public static class ResultClassExtractor
             }
 
             // Handle inline object schemas with properties
-            if (InlineSchemaExtractor.IsInlineObjectSchema(actualSchema) &&
+            if (actualSchema.IsInlineObject &&
                 !string.IsNullOrEmpty(operationId) &&
                 !string.IsNullOrEmpty(pathSegment) &&
                 !string.IsNullOrEmpty(context) &&

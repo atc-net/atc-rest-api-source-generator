@@ -872,7 +872,7 @@ public static class SchemaExtractor
             string csharpType;
 
             // Check for inline enum before standard type resolution
-            if (InlineEnumExtractor.IsInlineEnumSchema(prop.Value))
+            if (prop.Value.IsInlineEnum)
             {
                 var actualSchema = (OpenApiSchema)prop.Value;
                 var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);

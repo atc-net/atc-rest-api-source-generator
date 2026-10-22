@@ -89,7 +89,7 @@ public static class ClientSchemaTypeResolver
 
         if (context is not null &&
             inlineTypeName is not null &&
-            InlineSchemaExtractor.IsInlineObjectSchema(actualSchema) &&
+            actualSchema.IsInlineObject &&
             inlineTypeName(actualSchema, context) is { } inlineType)
         {
             return inlineType;

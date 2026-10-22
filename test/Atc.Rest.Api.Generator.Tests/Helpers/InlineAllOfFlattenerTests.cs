@@ -86,7 +86,7 @@ public class InlineAllOfFlattenerTests
 
         var flattened = Assert.IsType<OpenApiSchema>(schema);
         Assert.Null(flattened.AllOf);
-        Assert.True(InlineSchemaExtractor.IsInlineObjectSchema(flattened));
+        Assert.True(flattened.IsInlineObject);
         Assert.Equal(["continuationToken", "totalCount", "items"], flattened.Properties!.Keys);
         Assert.Equal(["items", "totalCount"], flattened.Required!.OrderBy(r => r, StringComparer.Ordinal), StringComparer.Ordinal);
     }
