@@ -29,7 +29,9 @@ public static class XmlBodyHelper
     /// </summary>
     public const string JsonRequestBodyListTypeName = "JsonRequestBodyList";
 
-    // The polymorphic bases of each document, found once per document
+    // The polymorphic bases of each document, found once per document. Process-wide state keyed by
+    // document identity: valid only while a document is not changed after its first extraction - see
+    // the note on SchemaExtractor's AllOfBaseSchemasCache.
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<OpenApiDocument, HashSet<string>> PolymorphicBases = new();
 
     /// <summary>

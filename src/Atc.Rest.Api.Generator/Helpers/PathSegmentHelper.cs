@@ -12,6 +12,8 @@ public static class PathSegmentHelper
 {
     // Cache for GetSchemasUsedBySegment results per document+segment.
     // Uses ConditionalWeakTable so entries are GC'd when the document is collected.
+    // Process-wide state keyed by document identity: valid only while a document is not changed after
+    // its first extraction - see the note on SchemaExtractor's AllOfBaseSchemasCache.
     private static readonly ConditionalWeakTable<OpenApiDocument, Dictionary<string, HashSet<string>>> SchemasPerSegmentCache = new();
 
     /// <summary>

@@ -11,6 +11,12 @@ public static class SchemaExtractor
     // of the document, but ExtractIndividual is invoked once per path segment, so without this the
     // whole-document allOf pre-scan is recomputed N times. Mirrors PathSegmentHelper's cache; uses
     // ConditionalWeakTable so entries are GC'd with the document.
+    //
+    // Process-wide state keyed by document identity (one of three such caches, with PathSegmentHelper's
+    // and XmlBodyHelper's). It is correct because a document is only changed before its first
+    // extraction: the generators normalize and flatten it (idempotent - a second pass changes nothing,
+    // so an entry made after the first stays valid) and a path filter makes a new document. A change to
+    // a document after extraction has started must make a new one, not edit it in place.
     private static readonly ConditionalWeakTable<OpenApiDocument, HashSet<string>> AllOfBaseSchemasCache = new();
 
     /// <summary>
