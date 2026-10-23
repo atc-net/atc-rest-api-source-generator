@@ -1457,6 +1457,9 @@ for (const [key, tab, base, title, sameAs] of [
   const familyOf = (r) => r.id.replace(/^ATC_API_/, '').replace(/\d+$/, '');
   const families = [...new Set(d.rules.map(familyOf))];
   const statuses = ['tested', 'untested'];
+  // The test classes this run ran (the Test suites tab's TRX results): a rule's class that is not among them did not run
+  const ranClasses = new Set((REPORT?.testSuites?.suites ?? []).flatMap((s) => (s.areas ?? []).flatMap((a) => a.classes.map((c) => c.fullName))));
+  const testsOf = (r) => (r.tests ?? []).map((t) => ranClasses.size === 0 || ranClasses.has(t) ? esc(t.split('.').pop()) : `${esc(t.split('.').pop())} <span class="v fail" title="Not in this run's test results">did not run</span>`).join(', ');
   $('#diagnostics').innerHTML = `<h2>Diagnostics coverage</h2>
     <p>Every diagnostic the generator can report (<code>RuleIdentifiers</code>) and the test classes that exercise it: a class marked <code>[RuleTest("ATC_API_...")]</code> in either test project, or a test named after the rule's code (<code>RuleCoverageTests</code> fails the build for a rule without one). ${count('tested')} tested, ${count('untested')} untested of ${d.rules.length}. The Test suites tab shows each class's tests.</p>
     <div class="filters"><div class="row">
@@ -1473,7 +1476,7 @@ for (const [key, tab, base, title, sameAs] of [
     $('#d-list').innerHTML = families.map((fam) => {
       const rows = shown.filter((r) => familyOf(r) === fam);
       const every = d.rules.filter((r) => familyOf(r) === fam);
-      return rows.length === 0 ? '' : `<h3>${esc(fam)} <span class="counts">${every.filter((r) => r.status === 'tested').length} of ${every.length} tested</span></h3><div class="table-wrap"><table><tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.id)}</td><td>${r.status === 'untested' ? '<span class="v fail">untested</span>' : '<span class="v pass">tested</span>'}</td><td class="counts">${(r.tests ?? []).map((t) => esc(t.split('.').pop())).join(', ')}${r.note ? ` ${esc(r.note)}` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+      return rows.length === 0 ? '' : `<h3>${esc(fam)} <span class="counts">${every.filter((r) => r.status === 'tested').length} of ${every.length} tested</span></h3><div class="table-wrap"><table><tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.id)}</td><td>${r.status === 'untested' ? '<span class="v fail">untested</span>' : '<span class="v pass">tested</span>'}</td><td class="counts">${testsOf(r)}${r.note ? ` ${esc(r.note)}` : ''}</td></tr>`).join('')}</tbody></table></div>`;
     }).join('') || '<p class="empty">No rule matches the filters.</p>';
   }
   $('#d-q').addEventListener('input', render); $('#d-status').addEventListener('change', render);
@@ -1508,6 +1511,7 @@ for (const [key, tab, base, title, sameAs] of [
       <div class="stat"><b>${classes.filter((c) => c.rules.length).length}</b><span>classes that cover a rule</span></div>
       <div class="stat"><b>${ms(sum('ms'))}</b><span>test time (summed)</span></div>
     </div>
+    ${coverageBlock()}
     <div class="suite-cards">${suites.map((s, i) => `<button class="suite-card" data-suite="${i}" title="Open this suite"><b>${esc(s.project.replace(/^Atc\./, ''))}</b><span class="what">${esc(s.covers)}</span><span class="nums">${s.missing ? '<span class="v na">no results</span>' : `${badges(s)}<span class="counts">${s.areas.length} areas · ${ms(s.ms)}</span>`}</span></button>`).join('')}</div>
     <div class="filters"><div class="row">
       <span class="label">Find</span><input type="search" id="ts-q" placeholder="a class, a test or a rule (OPR018)" size="34">
@@ -1517,6 +1521,18 @@ for (const [key, tab, base, title, sameAs] of [
     </div></div>
     <div id="ts-tree" class="tree"></div>
     <details><summary style="cursor:pointer">The 15 slowest test classes</summary><div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Class</th><th>Suite</th><th class="num">Tests</th><th class="num">Time</th></tr></thead><tbody>${[...classes].sort((a, b) => b.ms - a.ms).slice(0, 15).map((c) => `<tr><td class="mono">${esc(c.name)}</td><td>${esc(c.suite)}</td><td class="num">${c.tests}</td><td class="num">${ms(c.ms)}</td></tr>`).join('')}</tbody></table></div></details>`;
+
+  // The code coverage of the same run, merged over the suites: per product assembly, and per file from the least covered
+  function coverageBlock() {
+    const cov = REPORT?.coverage;
+    if (!cov) return '<p class="counts">No code coverage in this run: run the tests with <code>--coverage --coverage-output-format cobertura</code> and regenerate the report.</p>';
+    const pct = (n) => `${n.toFixed(1)} %`;
+    const bar = (n) => `<span class="bar" style="display:inline-flex;vertical-align:middle;width:110px;min-width:0;margin-right:6px"><i class="pass" style="width:${n}%"></i></span>`;
+    return `<h3>Code coverage</h3>
+      <p>The lines and branches of the product code the tests ran, merged over the ${cov.suites} suites of this run (a line counts as covered when any suite ran it): <b>${pct(cov.linePct)}</b> of the lines, <b>${pct(cov.branchPct)}</b> of the branches.${cov.stale ? ' <span class="v lossy">older than the commit</span>' : ''} The generated code itself is checked by the snapshots and the runtime matrices, not by these numbers.</p>
+      <div class="table-wrap"><table><thead><tr><th>Assembly</th><th>What it is</th><th class="num">Lines</th><th class="num">Line coverage</th><th class="num">Branch coverage</th></tr></thead><tbody>${cov.assemblies.map((a) => `<tr><td class="mono">${esc(a.assembly)}</td><td>${esc(a.what)}</td><td class="num">${a.covered.toLocaleString('en')} / ${a.lines.toLocaleString('en')}</td><td class="num">${bar(a.linePct)} ${pct(a.linePct)}</td><td class="num">${pct(a.branchPct)}</td></tr>`).join('')}</tbody></table></div>
+      <details><summary style="cursor:pointer">Coverage per file, the least covered first</summary><div class="table-wrap" style="margin-top:8px;max-height:480px"><table><thead><tr><th>File</th><th class="num">Lines</th><th class="num">Line coverage</th><th class="num">Branch coverage</th></tr></thead><tbody>${cov.assemblies.flatMap((a) => a.files).sort((x, y) => x.linePct - y.linePct || y.lines - x.lines).map((f) => `<tr><td class="mono">${esc(f.file)}</td><td class="num">${f.covered} / ${f.lines}</td><td class="num">${bar(f.linePct)} ${pct(f.linePct)}</td><td class="num">${pct(f.branchPct)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  }
 
   const order = (xs, by) => [...xs].sort(by === 'slow' ? (a, b) => b.ms - a.ms : by === 'most' ? (a, b) => b.tests - a.tests : (a, b) => a.name.localeCompare(b.name));
   // A class's tests under the filters: the tests whose name has the words looked for, else every test of a class whose
