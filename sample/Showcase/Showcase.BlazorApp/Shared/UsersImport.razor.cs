@@ -17,20 +17,22 @@ public partial class UsersImport
 
     protected override void OnInitialized()
     {
-        // Unique emails, so every import creates new users
+        // Unique emails and surnames, so every import creates new users (the server refuses a second user with the same
+        // name, an item of a list as well as a single user)
         var stamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var suffix = Guid.NewGuid().ToString("N")[..5];
         List<CreateUserRequest> requests =
         [
             new CreateUserRequest(
                 FirstName: "Ada",
-                LastName: "Lovelace",
+                LastName: $"Lovelace-{suffix}",
                 Email: $"ada.{stamp}@example.com",
                 DateOfBirth: new DateOnly(1815, 12, 10),
                 Role: UserRole.Admin,
                 Address: new AddressRequest(Street: "12 St James's Square", City: "London", PostalCode: "SW1Y 4JH", Country: "England", CountryCode: "GB")),
             new CreateUserRequest(
                 FirstName: "Grace",
-                LastName: "Hopper",
+                LastName: $"Hopper-{suffix}",
                 Email: $"grace.{stamp}@example.com",
                 DateOfBirth: new DateOnly(1906, 12, 9),
                 Role: UserRole.Manager,

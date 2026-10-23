@@ -25,13 +25,15 @@ function indentXml(xml: string): string {
     .join('\n');
 }
 
-// Two users with unique emails, so every import creates new users
+// Two users with unique emails and surnames, so every import creates new users (the server refuses a second user with
+// the same name, an item of a list as well as a single user)
 function sampleXml(): string {
   const stamp = Date.now();
+  const suffix = `${stamp.toString(36).slice(-4)}${Math.floor(Math.random() * 1296).toString(36)}`;
   const users: CreateUserRequest[] = [
     {
       firstName: 'Ada',
-      lastName: 'Lovelace',
+      lastName: `Lovelace-${suffix}`,
       email: `ada.${stamp}@example.com`,
       dateOfBirth: '1815-12-10',
       role: 'Admin',
@@ -39,7 +41,7 @@ function sampleXml(): string {
     },
     {
       firstName: 'Grace',
-      lastName: 'Hopper',
+      lastName: `Hopper-${suffix}`,
       email: `grace.${stamp}@example.com`,
       dateOfBirth: '1906-12-09',
       role: 'Manager',
