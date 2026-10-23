@@ -446,6 +446,7 @@
 
   <section id="tab-diagnostics" role="tabpanel" hidden>
     <div class="panel" id="diagnostics"></div>
+    <div class="panel" id="fuzz"></div>
   </section>
 
   <section id="tab-playwright" role="tabpanel" hidden>
@@ -1493,6 +1494,47 @@ for (const [key, tab, base, title, sameAs] of [
   render();
 })();
 
+// Robustness fuzzing: every scenario mutated, through every generator - reported or compiled, never a crash
+(function renderFuzz() {
+  const f = REPORT?.fuzz;
+  const host = $('#fuzz');
+  if (!f) { host.innerHTML = '<h2>Broken specifications</h2><p>No fuzz results: run <code>GeneratorRobustnessFuzzTests</code> over every scenario (it writes <code>docs/test-suite-report.fuzz.json</code>).</p>'; return; }
+  const mutants = f.scenarios.flatMap((s) => s.mutants.map((m) => ({ ...m, scenario: s.name })));
+  const crashes = mutants.reduce((n, m) => n + m.crashes.length, 0) + f.markers.crashes.length + f.overlays.crashes.length + f.scenarios.reduce((n, s) => n + (s.parts?.crashes ?? 0), 0);
+  const sum = (k) => mutants.reduce((n, m) => n + m[k], 0);
+  const kinds = [...new Set(mutants.map((m) => m.kind))].sort();
+  const ts = (o) => mutants.filter((m) => m.typeScript === o).length;
+  const parts = f.scenarios.reduce((n, s) => n + (s.parts?.mutants ?? 0), 0);
+  const tsBadge = { generated: 'pass', reported: 'known', 'not parsed': 'na', crashed: 'fail' };
+  host.innerHTML = `<h2>Broken specifications</h2>
+    <p>A broken specification is reported, never a crash; one that is not reported generates code that compiles. Every scenario (and two third-party specifications) is mutated from a fixed seed - a member removed, a value of another kind, an odd string, a dangling or circular schema, a colliding name, an odd media type or status, a number out of range, a 3.1 type array, or two at once - and goes through the ${f.generators.length - 1} C# generators and the TypeScript generator. ${f.mutantsPerScenario} mutants per scenario; compiled: ${esc(f.compile)}. Hostile marker files and overlays too. Same seed, same mutant: a failure reproduces (<code>ATC_FUZZ_SCENARIO</code>, <code>ATC_FUZZ_MUTANTS</code>, <code>ATC_FUZZ_COMPILE=all</code>). Last changed ${esc(f.generatedAt)}.</p>
+    <div class="stats">
+      <div class="stat ${crashes ? 'bad' : 'good'}"><b>${crashes}</b><span>crashes</span></div>
+      <div class="stat"><b>${mutants.length}</b><span>mutants of ${f.scenarios.length} specifications, ${kinds.length} kinds</span></div>
+      <div class="stat"><b>${sum('reported')} / ${sum('silent')}</b><span>C# generator runs reported / silent</span></div>
+      <div class="stat good"><b>${sum('compiled')}</b><span>silent outputs compiled, clean</span></div>
+      <div class="stat"><b>${ts('reported')} / ${ts('generated')}</b><span>TypeScript reported / generated</span></div>
+      <div class="stat"><b>${parts + f.markers.cases + f.overlays.cases}</b><span>part files, marker files, overlays</span></div>
+    </div>
+    <div class="filters"><div class="row">
+      <span class="label">Kind</span><select id="fz-kind"><option value="">every kind</option>${kinds.map((k) => `<option>${esc(k)}</option>`).join('')}</select>
+      <span class="label">Find</span><input type="search" id="fz-q" placeholder="scenario, path, schema" size="24">
+      <span class="counts" id="fz-count"></span>
+    </div></div>
+    <div class="table-wrap"><table><thead><tr><th>Specification</th><th>Mutation</th><th class="num">Reported</th><th class="num">Silent</th><th class="num">Compiled</th><th>TypeScript</th><th>Result</th></tr></thead><tbody id="fz-rows"></tbody></table></div>`;
+  function render() {
+    const kind = $('#fz-kind').value;
+    const q = $('#fz-q').value.trim().toLowerCase();
+    const shown = mutants.filter((m) => (!kind || m.kind === kind) && (!q || `${m.scenario} ${m.mutation}`.toLowerCase().includes(q)));
+    $('#fz-count').textContent = `${shown.length} of ${mutants.length} mutants`;
+    $('#fz-rows').innerHTML = shown.map((m) => `<tr><td>${esc(m.scenario)}</td><td class="mono" style="word-break:break-all">${esc(m.mutation)}</td><td class="num">${m.reported}</td><td class="num">${m.silent}</td><td class="num">${m.compiled}</td><td><span class="v ${tsBadge[m.typeScript] ?? 'na'}">${esc(m.typeScript)}</span></td><td>${m.crashes.length ? `<span class="v fail">${m.crashes.length} crash</span> <span class="counts">${esc(m.crashes[0])}</span>` : '<span class="v pass">no crash</span>'}</td></tr>`).join('')
+      || '<tr><td colspan="7" class="empty">No mutant matches.</td></tr>';
+  }
+  $('#fz-kind').addEventListener('change', render);
+  $('#fz-q').addEventListener('input', render);
+  render();
+})();
+
 // Test suites: every test the five test projects ran, as suite > area > class > test, from their last TRX files
 (function renderSuites() {
   const data = REPORT?.testSuites;
@@ -1980,11 +2022,46 @@ document.addEventListener('click', (e) => {
     return `<button class="tcol" data-run="${index}" title="${esc(day(r))} · ${esc(r.commit ?? '')} · ${r.cells.toLocaleString()} cells · ${esc(countsText(r))}"><span style="height:${(r.cells / maxCells * 100).toFixed(1)}%">${segments}</span></button>`;
   }).join('');
 
+  // The suites, coverage, fuzzing and Playwright over time: a line per metric, oldest on the left, for the runs that
+  // recorded them (older runs did not)
+  function trendTable() {
+    const withTrend = [...runs].reverse().filter((r) => r.trend && Object.keys(r.trend).length);
+    if (!withTrend.length) return '';
+    const metrics = [
+      ['tests', 'Tests in the five suites', (v) => Number(v).toLocaleString('en-US')],
+      ['failed', 'Failed tests', (v) => Number(v).toLocaleString('en-US')],
+      ['seconds', 'Suite time (s, summed)', (v) => Number(v).toLocaleString('en-US')],
+      ['linePct', 'Line coverage', (v) => `${v}%`],
+      ['branchPct', 'Branch coverage', (v) => `${v}%`],
+      ['fuzzMutants', 'Fuzz mutants', (v) => v],
+      ['fuzzCrashes', 'Fuzz crashes', (v) => v],
+      ['playwright', 'Playwright tests', (v) => v],
+      ['playwrightFailed', 'Playwright failed', (v) => v],
+    ].filter(([k]) => withTrend.some((r) => r.trend[k] !== undefined && r.trend[k] !== null));
+    const spark = (values) => {
+      const nums = values.filter((v) => typeof v === 'number');
+      if (nums.length < 2) return '';
+      const lo = Math.min(...nums); const hi = Math.max(...nums); const span = hi - lo || 1;
+      const step = 120 / (values.length - 1);
+      const pts = values.map((v, i) => typeof v === 'number' ? `${(i * step).toFixed(1)},${(22 - 20 * (v - lo) / span).toFixed(1)}` : null).filter(Boolean).join(' ');
+      return `<svg width="124" height="24" viewBox="-2 0 124 24" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>`;
+    };
+    return `<h3 style="margin-top:18px">Suites over time <span class="counts">${withTrend.length} run${withTrend.length === 1 ? '' : 's'} with these totals</span></h3>
+      <div class="table-wrap"><table><thead><tr><th>Metric</th><th>Trend</th><th class="num">First</th><th class="num">Previous</th><th class="num">This run</th></tr></thead><tbody>${metrics.map(([k, label, fmt]) => {
+        const values = withTrend.map((r) => r.trend[k]);
+        const known = values.filter((v) => v !== undefined && v !== null);
+        const last = runs[0].trend?.[k];
+        const prev = known.length > 1 ? known[known.length - 2] : undefined;
+        return `<tr><td>${esc(label)}</td><td>${spark(values)}</td><td class="num">${known.length ? esc(fmt(known[0])) : '-'}</td><td class="num">${prev !== undefined ? esc(fmt(prev)) : '-'}</td><td class="num"><b>${last !== undefined && last !== null ? esc(fmt(last)) : '-'}</b></td></tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+
   const first = runs[runs.length - 1];
   $('#history').innerHTML = `<h2>Run history</h2>
     <p>Every run that was committed, newest first: ${runs.length} runs since ${esc(day(first))}. Each line says what the run changed against the run before it - cells whose verdict changed, cells that are new, cells that are gone. Open a run for the cells. The data comes from git: each committed version of <code>docs/test-suite-report.history.jsonl</code> is one run.</p>
     <div class="trend" role="img" aria-label="Cells checked per run, oldest on the left">${trend}</div>
     <div class="counts">cells checked per run, oldest on the left - ${first.cells.toLocaleString()} then, ${runs[0].cells.toLocaleString()} now · click a column to open its run</div>
+    ${trendTable()}
     <div class="runs">${runs.map((r, i) => {
       const fails = (r.verdicts?.fail ?? 0) + (r.verdicts?.harness ?? 0);
       const changed = r.changed ?? [];

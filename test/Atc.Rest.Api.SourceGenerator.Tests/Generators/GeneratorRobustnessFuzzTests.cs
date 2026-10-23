@@ -20,17 +20,17 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </summary>
 [SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Seeded on purpose: a mutant must reproduce from its seed; nothing here is a secret.")]
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Any exception out of a generator is the crash the test is for.")]
-public sealed class GeneratorRobustnessFuzzTests
+public sealed class GeneratorRobustnessFuzzTests : IClassFixture<FuzzResultsLog>
 {
-    private const string SpecificationFileName = "Contoso.yaml";
-
-    private static readonly int MutantsPerScenario =
+    internal static readonly int MutantsPerScenario =
         int.TryParse(Environment.GetEnvironmentVariable("ATC_FUZZ_MUTANTS"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) && count > 0
             ? count
             : 3;
 
-    private static readonly bool CompileEverySilentMutant =
+    internal static readonly bool CompileEverySilentMutant =
         string.Equals(Environment.GetEnvironmentVariable("ATC_FUZZ_COMPILE"), "all", StringComparison.OrdinalIgnoreCase);
+
+    private const string SpecificationFileName = "Contoso.yaml";
 
     private static readonly string[] CrashDiagnostics = ["ATC_API_GEN001", "ATC_API_GEN003", "ATC_API_GEN005", "CS8785"];
 
@@ -40,6 +40,14 @@ public sealed class GeneratorRobustnessFuzzTests
         (new ApiServerDomainGenerator(), ".atc-rest-api-server-handlers"),
         (new ApiClientGenerator(), ".atc-rest-api-client"),
     ];
+
+    private readonly FuzzResultsLog log;
+
+    public GeneratorRobustnessFuzzTests(FuzzResultsLog log)
+        => this.log = log;
+
+    internal static IEnumerable<string> GeneratorMarkers
+        => Generators.Select(g => g.Marker);
 
     /// <summary>
     /// Marker files a project may hold: not JSON, JSON of another shape, values of the wrong kind, names that are
@@ -122,14 +130,27 @@ public sealed class GeneratorRobustnessFuzzTests
 
         using var folder = new TempFolder();
         var compiled = new bool[Generators.Length];
+        var mutants = new JsonArray();
         for (var mutant = 0; mutant < MutantsPerScenario; mutant++)
         {
             var (specification, mutation) = Mutate(yaml, StableSeed(scenario) + mutant);
             var label = $"mutant {mutant} ({mutation})";
-            RunEveryGenerator(folder.Path, "{}", specification, label, crashes, compiled);
-            FuzzTypeScript(specification, label, crashes);
+            var before = crashes.Count;
+            var (reported, silent, compiledNow) = RunEveryGenerator(folder.Path, "{}", specification, label, crashes, compiled);
+            var typeScript = FuzzTypeScript(specification, label, crashes);
+            mutants.Add(new JsonObject
+            {
+                ["mutation"] = mutation.Length > 160 ? mutation[..160] + "..." : mutation,
+                ["kind"] = FuzzResultsLog.KindOf(mutation),
+                ["reported"] = reported,
+                ["silent"] = silent,
+                ["compiled"] = compiledNow,
+                ["typeScript"] = typeScript,
+                ["crashes"] = new JsonArray([.. crashes.Skip(before).Select(c => (JsonNode)c)]),
+            });
         }
 
+        log.AddScenario(scenario, StableSeed(scenario), mutants);
         Assert.True(crashes.Count == 0, string.Join("\n", crashes));
     }
 
@@ -155,6 +176,7 @@ public sealed class GeneratorRobustnessFuzzTests
             }
         }
 
+        log.AddPart(scenario, System.Math.Min(MutantsPerScenario, 2), crashes.Count);
         Assert.True(crashes.Count == 0, string.Join("\n", crashes));
     }
 
@@ -172,6 +194,7 @@ public sealed class GeneratorRobustnessFuzzTests
             crashes.AddRange(Crashes(diagnostics, marker));
         }
 
+        log.AddMarker(crashes);
         Assert.True(crashes.Count == 0, string.Join("\n", crashes));
     }
 
@@ -192,6 +215,7 @@ public sealed class GeneratorRobustnessFuzzTests
             new bool[Generators.Length],
             (Path.Combine(folder.Path, "Contoso.overlay.yaml"), overlayContent));
 
+        log.AddOverlay(crashes);
         Assert.True(crashes.Count == 0, string.Join("\n", crashes));
     }
 
@@ -245,7 +269,7 @@ public sealed class GeneratorRobustnessFuzzTests
     /// compiled (the handler scaffolds together with the server output they implement against) - the first time per
     /// generator, or every time on a deep run - and code that does not compile is a hole in the validation.
     /// </summary>
-    private static void RunEveryGenerator(
+    private static (int Reported, int Silent, int Compiled) RunEveryGenerator(
         string folder,
         string markerContent,
         string specification,
@@ -255,6 +279,7 @@ public sealed class GeneratorRobustnessFuzzTests
         params (string Path, string Content)[] extraFiles)
     {
         var serverSources = new List<(string HintName, string Source)>();
+        var (reported, silentCount, compiledCount) = (0, 0, 0);
         for (var index = 0; index < Generators.Length; index++)
         {
             var (generator, marker) = Generators[index];
@@ -266,12 +291,22 @@ public sealed class GeneratorRobustnessFuzzTests
             }
 
             var silent = !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error) && sources.Count > 0;
+            if (silent)
+            {
+                silentCount++;
+            }
+            else
+            {
+                reported++;
+            }
+
             if (!silent || (compiled[index] && !CompileEverySilentMutant))
             {
                 continue;
             }
 
             compiled[index] = true;
+            compiledCount++;
             List<(string HintName, string Source)> toCompile = generator is ApiServerDomainGenerator ? [.. serverSources, .. sources] : sources;
             var errors = CompilationVerificationHarness.CompileGeneratedSources(toCompile, includeMinimalApi: true);
             if (errors.Count > 0)
@@ -279,6 +314,8 @@ public sealed class GeneratorRobustnessFuzzTests
                 crashes.Add($"{label} {marker}: silent, but the generated code does not compile:\n    " + string.Join("\n    ", errors.Take(5)));
             }
         }
+
+        return (reported, silentCount, compiledCount);
     }
 
     private static IEnumerable<string> Crashes(
@@ -293,11 +330,12 @@ public sealed class GeneratorRobustnessFuzzTests
     /// with every optional output on. The CLI turns an exception into "Error generating TypeScript files" - that is a
     /// crash, not a report.
     /// </summary>
-    private static void FuzzTypeScript(
+    private static string FuzzTypeScript(
         string specification,
         string label,
         List<string> crashes)
     {
+        var outcome = "generated";
         foreach (var httpClient in new[] { TypeScriptHttpClient.Fetch, TypeScriptHttpClient.Axios })
         {
             OpenApiDocument? document;
@@ -306,7 +344,7 @@ public sealed class GeneratorRobustnessFuzzTests
                 var (parsed, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(specification, SpecificationFileName);
                 if (parsed is null)
                 {
-                    return;
+                    return "not parsed";
                 }
 
                 var diagnostics = OpenApiDocumentValidator.Validate(
@@ -317,7 +355,7 @@ public sealed class GeneratorRobustnessFuzzTests
                     specification);
                 if (diagnostics.Any(d => d.Severity == GeneratorSeverity.Error))
                 {
-                    return;
+                    return "reported";
                 }
 
                 document = parsed;
@@ -325,7 +363,7 @@ public sealed class GeneratorRobustnessFuzzTests
             catch (Exception ex)
             {
                 crashes.Add($"{label} TypeScript parse/validate: {ex.GetType().Name}: {ex.Message}");
-                return;
+                return "crashed";
             }
 
             try
@@ -347,8 +385,11 @@ public sealed class GeneratorRobustnessFuzzTests
             catch (Exception ex)
             {
                 crashes.Add($"{label} TypeScript {httpClient}: {ex.GetType().Name}: {ex.Message}");
+                outcome = "crashed";
             }
         }
+
+        return outcome;
     }
 
     private static (List<Diagnostic> Diagnostics, List<(string HintName, string Source)> Sources) Run(

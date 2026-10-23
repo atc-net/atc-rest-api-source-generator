@@ -145,6 +145,7 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["coverage"] = CollectCoverage(root);
         matrix["openApiConstructs"] = CollectOpenApiConstructs(root);
         matrix["testLayers"] = CollectTestLayers(matrix);
+        matrix["fuzz"] = ReadReportData(root, "test-suite-report.fuzz.json");
         matrix["ratchet"] = Ratchets();
         matrix["ratchetReasons"] = RatchetReasons();
         matrix["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1);
@@ -601,8 +602,48 @@ public partial class ErrorResponseBodyRuntimeTests
             ["commit"] = (string?)matrix["provenance"]?["commit"],
             ["uncommittedFiles"] = (int?)matrix["provenance"]?["uncommittedFiles"],
             ["totals"] = totals,
+            ["trend"] = TrendTotals(matrix),
             ["cells"] = cells,
         };
+    }
+
+    /// <summary>
+    /// The run's totals beside the matrix cells, so the history can show them over time: the test suites' tests,
+    /// failures and time, the merged line and branch coverage, the fuzz mutants and crashes, the Playwright tests.
+    /// A part this run did not have is left out.
+    /// </summary>
+    private static JsonObject TrendTotals(JsonObject matrix)
+    {
+        var trend = new JsonObject();
+        var suites = matrix["testSuites"]?["suites"]?.AsArray().Where(s => s?["missing"] is null).ToList() ?? [];
+        if (suites.Count > 0)
+        {
+            trend["suites"] = suites.Count;
+            trend["tests"] = suites.Sum(s => (int?)s!["tests"] ?? 0);
+            trend["failed"] = suites.Sum(s => (int?)s!["failed"] ?? 0);
+            trend["seconds"] = System.Math.Round(suites.Sum(s => (double?)s!["ms"] ?? 0) / 1000, 1);
+        }
+
+        if (matrix["coverage"] is { } coverage)
+        {
+            trend["linePct"] = coverage["linePct"]?.DeepClone();
+            trend["branchPct"] = coverage["branchPct"]?.DeepClone();
+        }
+
+        if (matrix["fuzz"]?["scenarios"]?.AsArray() is { } fuzz)
+        {
+            var mutants = fuzz.SelectMany(s => s!["mutants"]!.AsArray()).ToList();
+            trend["fuzzMutants"] = mutants.Count;
+            trend["fuzzCrashes"] = mutants.Sum(m => m!["crashes"]!.AsArray().Count);
+        }
+
+        if (matrix["playwright"]?["apps"]?.AsObject() is { } apps)
+        {
+            trend["playwright"] = apps.Sum(a => a.Value!.AsObject().Sum(s => (int?)s.Value ?? 0));
+            trend["playwrightFailed"] = apps.Sum(a => (int?)a.Value!["unexpected"] ?? 0);
+        }
+
+        return trend;
     }
 
     private static IEnumerable<(string Key, IEnumerable<JsonObject> Cases)> MatrixCases(
@@ -759,6 +800,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 ["cells"] = now.Count,
                 ["verdicts"] = new JsonObject(now.Values.GroupBy(v => v, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => new KeyValuePair<string, JsonNode?>(g.Key, g.Count()))),
                 ["totals"] = entry["totals"]?.DeepClone(),
+                ["trend"] = entry["trend"]?.DeepClone(),
                 ["changed"] = new JsonArray(),
             };
             if (before is not null)
