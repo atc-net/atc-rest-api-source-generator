@@ -977,12 +977,73 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine("var client = factory.CreateClient(httpClientName);");
         sb.AppendLine();
 
+        // The request builder from the path template (the server's base path first when used; an OAS 3.2 query string
+        // as given)
+        var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
+        AppendRequestBuilder(sb, path, operation, pathLevelParameters, openApiDoc, propertyNames, useServersBasePath);
+
+        // The path, query, header and cookie parameters
+        AppendParameters(sb, operation, pathLevelParameters, propertyNames);
+
+        // An XML answer: ask for its media type (the request builder asks for application/json by default, under
+        // the key "accept"), and for the errors as they are read: the declared error media types, else a ProblemDetails
+        // (an Accept without it lets a host decline to write the problem, e.g. for an empty-body status)
+        // A model or a file: ask for the file media types too
+        if (XmlBodyHelper.AcceptFor(responses.Where(r => r.IsSuccess && r.Xml is not null).Select(r => r.Xml!).ToList(), XmlBodyHelper.ErrorMediaTypes(operation), preferXml, responses.FirstOrDefault(r => r.FileMediaTypes is not null)?.FileMediaTypes) is { } accept)
+        {
+            sb.AppendLine($"requestBuilder.WithHeaderParameter(\"accept\", \"{accept}\");");
+        }
+
+        // The request body: a stream of records, a file, a multipart or URL-encoded form, XML or JSON
+        AppendRequestBody(sb, operation, openApiDoc, preferXml);
+        sb.AppendLine();
+
+        // Build and send request. Standard verbs use the HttpMethod static property;
+        // OpenAPI 3.2 custom additionalOperations verbs (e.g. LINK) are constructed by name.
+        sb.AppendLine($"using var requestMessage = requestBuilder.Build({EndpointMapHelper.BuildHttpMethodExpression(httpMethod)});");
+        if (resilienceStamp is not null)
+        {
+            sb.AppendLine(resilienceStamp);
+        }
+
+        // Use ResponseHeadersRead for streaming (IAsyncEnumerable) to enable true HTTP streaming
+        // instead of buffering the entire response before iteration.
+        // For streaming, don't use 'using' - StreamingEndpointResponse manages the response lifecycle.
+        // A streamed download (x-return-stream) hands the open content stream to the caller, so the response is not
+        // disposed here either (StreamBinaryEndpointResponse disposes the stream).
+        if ((isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint)
+        {
+            sb.AppendLine("var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);");
+        }
+        else
+        {
+            sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);");
+        }
+
+        sb.AppendLine();
+
+        // The response: a streamed download, a stream of items, or the registered bodies by status
+        AppendResponseBuild(sb, operation, operationName, responses, defaultResponse, isBinaryEndpoint, isAsyncEnumerable, streamingItemType);
+
+        return sb.ToString();
+    }
+
+    // The request builder statement: the path template (the server's base path first when used), and an OAS 3.2 query
+    // string as given (an operation that has one has no query parameters, so the builder adds none after it)
+    private static void AppendRequestBuilder(
+        StringBuilder sb,
+        string path,
+        OpenApiOperation operation,
+        IList<IOpenApiParameter>? pathLevelParameters,
+        OpenApiDocument openApiDoc,
+        ParameterPropertyNames propertyNames,
+        bool useServersBasePath)
+    {
         // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
         var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
 
         // Build URL template with path parameters (optionally prepend server base path)
         var templatePath = serverBasePath is not null ? $"{serverBasePath}{path}" : path;
-        var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
 
         // OAS 3.2 in: querystring is the whole query string, as given (an operation that has one has no query
         // parameters, so the builder adds none after it)
@@ -998,7 +1059,15 @@ public static class EndpointPerOperationExtractor
         {
             sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{templatePath}\");");
         }
+    }
 
+    // The path, query, header and cookie parameters on the request builder; a value the client cannot send is left out
+    private static void AppendParameters(
+        StringBuilder sb,
+        OpenApiOperation operation,
+        IList<IOpenApiParameter>? pathLevelParameters,
+        ParameterPropertyNames propertyNames)
+    {
         // Add path parameters
         // The parameters the operation is called with: its path item's, except one it redeclares, then its own
         var allParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
@@ -1019,7 +1088,36 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine($"requestBuilder.WithPathParameter({CSharpLiteralHelper.ToStringLiteral(param.Name!)}, {WireValue(param, propName)});");
         }
 
-        // Add query parameters
+        AppendQueryParameters(sb, allParams, propertyNames);
+
+        // Add header parameters
+        foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Header))
+        {
+            var propName = propertyNames.Get(param, referenceId);
+            var headerName = CSharpLiteralHelper.ToStringLiteral(param.Name!);
+
+            if (param.Required)
+            {
+                sb.AppendLine($"requestBuilder.WithHeaderParameter({headerName}, {WireValue(param, propName)});");
+            }
+            else
+            {
+                sb.AppendLine($"if (parameters.{propName} is not null)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"requestBuilder.WithHeaderParameter({headerName}, {WireValue(param, propName)});");
+                sb.AppendLine("}");
+            }
+        }
+
+        AppendCookieParameters(sb, allParams, propertyNames);
+    }
+
+    // The query parameters: an object by each set property's key, a value by its name - an optional one when it is set
+    private static void AppendQueryParameters(
+        StringBuilder sb,
+        List<(OpenApiParameter Param, string? ReferenceId)> allParams,
+        ParameterPropertyNames propertyNames)
+    {
         foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Query))
         {
             var propName = propertyNames.Get(param, referenceId);
@@ -1067,27 +1165,14 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine("}");
             }
         }
+    }
 
-        // Add header parameters
-        foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Header))
-        {
-            var propName = propertyNames.Get(param, referenceId);
-            var headerName = CSharpLiteralHelper.ToStringLiteral(param.Name!);
-
-            if (param.Required)
-            {
-                sb.AppendLine($"requestBuilder.WithHeaderParameter({headerName}, {WireValue(param, propName)});");
-            }
-            else
-            {
-                sb.AppendLine($"if (parameters.{propName} is not null)");
-                sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithHeaderParameter({headerName}, {WireValue(param, propName)});");
-                sb.AppendLine("}");
-            }
-        }
-
-        // Cookie parameters: one RFC 6265 Cookie header, each value percent-encoded (the server decodes it)
+    // The cookie parameters: one RFC 6265 Cookie header, each value percent-encoded (the server decodes it)
+    private static void AppendCookieParameters(
+        StringBuilder sb,
+        List<(OpenApiParameter Param, string? ReferenceId)> allParams,
+        ParameterPropertyNames propertyNames)
+    {
         var cookieParams = allParams.Where(p => p.Param.In == ParameterLocation.Cookie).ToList();
         if (cookieParams.Count > 0)
         {
@@ -1121,17 +1206,16 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine("}");
             sb.AppendLine();
         }
+    }
 
-        // An XML answer: ask for its media type (the request builder asks for application/json by default, under
-        // the key "accept"), and for the errors as they are read: the declared error media types, else a ProblemDetails
-        // (an Accept without it lets a host decline to write the problem, e.g. for an empty-body status)
-        // A model or a file: ask for the file media types too
-        if (XmlBodyHelper.AcceptFor(responses.Where(r => r.IsSuccess && r.Xml is not null).Select(r => r.Xml!).ToList(), XmlBodyHelper.ErrorMediaTypes(operation), preferXml, responses.FirstOrDefault(r => r.FileMediaTypes is not null)?.FileMediaTypes) is { } accept)
-        {
-            sb.AppendLine($"requestBuilder.WithHeaderParameter(\"accept\", \"{accept}\");");
-        }
-
-        // Add request body
+    // The request body on the request builder: a stream of records, a raw file, a multipart form (its files or a model's
+    // fields), a URL-encoded form, XML, or JSON (under its declared JSON media type)
+    private static void AppendRequestBody(
+        StringBuilder sb,
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
+        bool preferXml)
+    {
         var streamedBody = operation.GetStreamedRequestBody();
         if (streamedBody is not null)
         {
@@ -1220,33 +1304,20 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
             }
         }
+    }
 
-        sb.AppendLine();
-
-        // Build and send request. Standard verbs use the HttpMethod static property;
-        // OpenAPI 3.2 custom additionalOperations verbs (e.g. LINK) are constructed by name.
-        sb.AppendLine($"using var requestMessage = requestBuilder.Build({EndpointMapHelper.BuildHttpMethodExpression(httpMethod)});");
-        if (resilienceStamp is not null)
-        {
-            sb.AppendLine(resilienceStamp);
-        }
-
-        // Use ResponseHeadersRead for streaming (IAsyncEnumerable) to enable true HTTP streaming
-        // instead of buffering the entire response before iteration.
-        // For streaming, don't use 'using' - StreamingEndpointResponse manages the response lifecycle.
-        // A streamed download (x-return-stream) hands the open content stream to the caller, so the response is not
-        // disposed here either (StreamBinaryEndpointResponse disposes the stream).
-        if ((isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint)
-        {
-            sb.AppendLine("var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);");
-        }
-        else
-        {
-            sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);");
-        }
-
-        sb.AppendLine();
-
+    // The response: a streamed download (the open content stream), a stream of items in the operation's framing, or the
+    // bodies registered by status
+    private static void AppendResponseBuild(
+        StringBuilder sb,
+        OpenApiOperation operation,
+        string operationName,
+        List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse,
+        bool isBinaryEndpoint,
+        bool isAsyncEnumerable,
+        string? streamingItemType)
+    {
         // Build response
         sb.AppendLine("var responseBuilder = httpMessageFactory.FromResponse(response);");
 
@@ -1309,8 +1380,6 @@ public static class EndpointPerOperationExtractor
                 ? $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithXmlProblemBody(x)), cancellationToken).ConfigureAwait(false);"
                 : $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(x), cancellationToken).ConfigureAwait(false);");
         }
-
-        return sb.ToString();
     }
 
     /// <summary>
