@@ -53,8 +53,12 @@ public class OpenApiVersionValidationTests
         Assert.DoesNotContain(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.OpenApi20NotSupported);
     }
 
-    [Fact]
-    public void Validate_Swagger20Document_ReportsOpenApi20NotSupported()
+    // Nothing is generated from a 2.0 document, so it is reported whatever the strategy, not only under Strict
+    [Theory]
+    [InlineData(ValidateSpecificationStrategy.None)]
+    [InlineData(ValidateSpecificationStrategy.Standard)]
+    [InlineData(ValidateSpecificationStrategy.Strict)]
+    public void Validate_Swagger20Document_ReportsOpenApi20NotSupported(ValidateSpecificationStrategy strategy)
     {
         // Arrange - a real Swagger/OpenAPI 2.0 document.
         var document = ParseYaml("""
@@ -68,7 +72,7 @@ public class OpenApiVersionValidationTests
 
         // Act
         var diagnostics = OpenApiDocumentValidator.Validate(
-            ValidateSpecificationStrategy.Strict,
+            strategy,
             document,
             [],
             TestFilePath);

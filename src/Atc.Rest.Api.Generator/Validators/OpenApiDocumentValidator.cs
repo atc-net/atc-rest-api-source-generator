@@ -60,6 +60,8 @@ public static partial class OpenApiDocumentValidator
 
         // What the generated code would name and not find: a $ref to a component that is not there, a parameter
         // with no type, a schema with no type but null; and a document with nothing to generate from
+        // An OpenAPI 2.0 (Swagger) document generates nothing: reported whatever the strategy
+        diagnostics.AddRange(ValidateOpenApiVersion(document, sourceFilePath));
         diagnostics.AddRange(DanglingReferenceValidator.Validate(document, sourceFilePath));
         diagnostics.AddRange(SignalRHubValidator.Validate(document, sourceFilePath));
         diagnostics.AddRange(ValidateParameterSchemas(document, sourceFilePath));
@@ -235,9 +237,6 @@ public static partial class OpenApiDocumentValidator
         string sourceFilePath)
     {
         var diagnostics = new List<DiagnosticMessage>();
-
-        // Check OpenAPI version (must be 3.0.x)
-        diagnostics.AddRange(ValidateOpenApiVersion(document, sourceFilePath));
 
         // Naming convention validations
         diagnostics.AddRange(ValidateNamingConventions(document, sourceFilePath));
