@@ -1,0 +1,93 @@
+ATC_API_AOT001 | Warning | Atc.Rest.Api.Generator | The Request Delegate Generator does not see the generated endpoints | EnableRequestDelegateGenerator is on (PublishAot sets it), but the Request Delegate Generator does not see the endpoints this generator emits - one source generator's output is not another's input. They are bound by reflection at run time (RequestDelegateFactory), which trimming and Native AOT do not support, and the build's trim and AOT analysis does not report it. A Native AOT server is not supported yet.
+ATC_API_AOT002 | Warning | Atc.Rest.Api.Generator | The root namespace names an ASP.NET Core type or namespace | The root namespace '{0}' starts with '{1}', which inside Microsoft.AspNetCore.Http.Generated is {2}. The Request Delegate Generator writes an [AsParameters] type without 'global::' there, so its generated code does not compile (CS0426) for an endpoint with parameters whose types are in this namespace. Give the project another root namespace (the marker's 'namespace', or the name of the specification file).
+ATC_API_DEP001 | Error | Atc.Rest.Api.Generator | ASP.NET Core References Required | The .atc-rest-api-server marker file requires ASP.NET Core references. Add a reference to Microsoft.AspNetCore.App or remove the marker file.
+ATC_API_DEP002 | Error | Atc.Rest.Api.Generator | ASP.NET Core References Required | The .atc-rest-api-server-handlers marker file requires ASP.NET Core references. Add a reference to Microsoft.AspNetCore.App or remove the marker file.
+ATC_API_DEP003 | Error | Atc.Rest.Api.Generator | Atc.Rest.Client Reference Required | The EndpointPerOperation generation mode requires a reference to the Atc.Rest.Client NuGet package. Add a reference to Atc.Rest.Client or change generationMode to TypedClient.
+ATC_API_DEP005 | Warning | Atc.Rest.Api.Generator | HTTP Resilience Package Recommended | The OpenAPI specification contains x-retry-* extensions. Ensure the Microsoft.Extensions.Http.Resilience package is installed in the consuming client project.
+ATC_API_DEP006 | Info | Atc.Rest.Api.Generator | Bearer authentication handler package recommended | The OpenAPI specification has a bearer security scheme, so the generated endpoints ask for an authentication scheme named "Bearer". Register one - AddJwtBearer() from Microsoft.AspNetCore.Authentication.JwtBearer or AddMicrosoftIdentityWebApi() from Microsoft.Identity.Web - unless the project registers its own handler under that name.
+ATC_API_DEP007 | Error | Atc.Rest.Api.Generator | Atc.Rest.MinimalApi Package Required | The marker file sets {0} to enabled, which needs the Atc.Rest.MinimalApi package, but it is not referenced. Add a reference to Atc.Rest.MinimalApi or set {0} to auto or disabled.
+ATC_API_DEP008 | Warning | Atc.Rest.Api.Generator | Microsoft.Extensions.Logging Package Required | The marker file specifies injectLogger: true but Microsoft.Extensions.Logging.Abstractions is not available. Add a FrameworkReference to Microsoft.AspNetCore.App or a PackageReference to Microsoft.Extensions.Logging.Abstractions.
+ATC_API_DEP009 | Warning | Atc.Rest.Api.Generator | Health Check Path Conflict | The marker file has healthChecks.enabled but the OpenAPI spec also defines paths under '{0}'. This will produce duplicate endpoint registrations. Remove the health paths from the spec or disable healthChecks in the marker file.
+ATC_API_DEP010 | Info | Atc.Rest.Api.Generator | Atc.Rest.HealthChecks Package Recommended | Health checks are enabled but Atc.Rest.HealthChecks package is not referenced. Add a PackageReference to Atc.Rest.HealthChecks for structured JSON health responses with per-check details.
+ATC_API_DEP011 | Error | Atc.Rest.Api.Generator | Atc.Rest.Client Version Too Old | The EndpointPerOperation generation mode requires Atc.Rest.Client {0} or later, and the project references {1}. Update the Atc.Rest.Client package reference.
+ATC_API_DEP012 | Info | Atc.Rest.Api.Generator | SignalR Client Package Not Referenced | The specification declares {0} SignalR hub(s) with x-signalr-hubs, and the project does not reference Microsoft.AspNetCore.SignalR.Client: the typed hub client(s) ({1}) are not generated. Add the package reference to get them.
+ATC_API_DEP013 | Error | Atc.Rest.Api.Generator | Atc.Rest.MinimalApi Version Too Old | The generated server builds on Atc.Rest.MinimalApi {0} or later (its validation keys, a handler's ValidationException with its field errors, its problem bodies, the validation of a form endpoint's request), and the project references {1}. Update the Atc.Rest.MinimalApi package reference, or turn useMinimalApiPackage, useValidationFilter and useGlobalErrorHandler off in the marker.
+ATC_API_GEN001 | Error | Atc.Rest.Api.Generator | OpenAPI Generation Error | Failed to generate API from {0}: {1}
+ATC_API_GEN002 | Error | Atc.Rest.Api.Generator | OpenAPI Parsing Error | Failed to parse OpenAPI document from {0}
+ATC_API_GEN003 | Error | Atc.Rest.Api.Generator | OpenAPI Client Generation Error | Failed to generate API client from {0}: {1}
+ATC_API_GEN004 | Error | Atc.Rest.Api.Generator | OpenAPI Client Parsing Error | Failed to parse OpenAPI document for client from {0}
+ATC_API_GEN005 | Error | Atc.Rest.Api.Generator | Handler Scaffold Generation Error | Failed to generate handler scaffolds from {0}: {1}
+ATC_API_GEN006 | Error | Atc.Rest.Api.Generator | OpenAPI Parsing Error for Domain Generator | Failed to parse OpenAPI document from {0}
+ATC_API_GEN007 | Warning | Atc.Rest.Api.Generator | Output Directory Not Specified | Cannot generate handler scaffolds: no marker file found and no outputPath configured
+ATC_API_GEN008 | Error | Atc.Rest.Api.Generator | Endpoint Injection Generation Error | Failed to generate endpoint injection for {0}: {1}
+ATC_API_GEN009 | Warning | Atc.Rest.Api.Generator | No Endpoints Found for Injection | No endpoint interfaces found matching project name '{0}'. Ensure the client generator has run and generated endpoints in namespace '{0}.Generated.*.Endpoints.Interfaces'.
+ATC_API_GEN010 | Info | Atc.Rest.Api.Generator | ATC API Generation Summary | {0}
+ATC_API_GEN011 | Error | Atc.Rest.Api.Generator | Contracts Namespace Cannot Be Auto-Detected | Cannot auto-detect contracts namespace for Domain project '{0}'. Multiple sibling .atc-rest-api-server markers exist and none match the directory-name convention (<X>.Domain ↔ <X>.Contracts). Set 'contractsNamespace' explicitly in .atc-rest-api-server-handlers.
+ATC_API_GEN012 | Warning | Atc.Rest.Api.Generator | Handler Stub Shadowed by User Handler | Handler '{0}' is implemented in '{1}' and also has a leftover scaffolded stub in '{2}'. The user handler is registered; delete the stub to avoid confusion.
+ATC_API_GEN013 | Error | Atc.Rest.Api.Generator | Marker File Could Not Be Read | The marker file '{0}' could not be read: {1}. Nothing is generated until it is fixed.
+ATC_API_GEN014 | Warning | Atc.Rest.Api.Generator | Unknown Marker File Setting | The marker file '{0}': {1}
+ATC_API_GEN015 | Error | Atc.Rest.Api.Generator | Overlay Not Found | The marker file '{0}' lists the overlay '{1}', which is not an AdditionalFiles item of the project (add <AdditionalFiles Include="{1}" /> next to the specification's); nothing is generated
+ATC_API_GEN016 | Error | Atc.Rest.Api.Generator | Overlay Cannot Be Applied | The overlay '{0}'{1} cannot be applied, so nothing is generated: {2}
+ATC_API_GEN017 | Warning | Atc.Rest.Api.Generator | Overlay Target Selects Nothing | The overlay '{0}'{1} changes nothing - has the specification changed (a renamed path or schema)? {2}
+ATC_API_GEN018 | Info | Atc.Rest.Api.Generator | Overlay Not Listed | '{0}' is an overlay, but the marker file '{1}' does not list it in "overlays", so it is not applied
+ATC_API_GEN019 | Warning | Atc.Rest.Api.Generator | Handler Scaffold Not Written | The handler scaffold '{0}' cannot be written to '{1}': {2}. It is part of this build, but no file is created; check "generateHandlersOutput" and the folder.
+ATC_API_GEN020 | Error | Atc.Rest.Api.Generator | More Than One Marker File | The project has {0} '{1}' marker files ({2}); the generator takes one configuration per project. Nothing is generated until one is left.
+ATC_API_GEN021 | Error | Atc.Rest.Api.Generator | More Than One Specification | The project has {0} specifications ({1}); the generator reads one specification per project, with its parts named '{2}_{{Part}}.yaml'. Nothing is generated until one is left.
+ATC_API_GEN022 | Info | Atc.Rest.Api.Generator | The marker's namespace was rewritten | The marker's namespace '{0}' is no C# namespace: the generated code is in '{1}'. Write that in the marker to say what is generated.
+ATC_API_GEN023 | Info | Atc.Rest.Api.Generator | readEnumMemberNames is on | readEnumMemberNames is on in '{0}': string enums are also read by their C# member names, as a peer built on 2.x wrote them. Remove it once no such peer is left - until then a peer that sends a member name instead of the specification's value is not told.
+ATC_API_GEN024 | Warning | Atc.Rest.Api.Generator | Handler Not Implemented | The operation's handler '{0}' is not implemented: the scaffold that answers 501 is part of this build, but '{1}' is not written because AtcRestApiScaffoldHandlers is false (a CI build). Build the project where the scaffolds are written, and commit the handler.
+ATC_API_NAM001 | Warning | Atc.Rest.Api.Generator | OperationId Must Use camelCase | {0}
+ATC_API_NAM002 | Warning | Atc.Rest.Api.Generator | Model Name Must Use PascalCase | {0}
+ATC_API_NAM003 | Warning | Atc.Rest.Api.Generator | Property Name Must Use camelCase | {0}
+ATC_API_NAM004 | Warning | Atc.Rest.Api.Generator | Parameter Name Must Use camelCase | {0}
+ATC_API_NAM005 | Warning | Atc.Rest.Api.Generator | Enum Value Must Use PascalCase or UPPER_SNAKE_CASE | {0}
+ATC_API_NAM006 | Warning | Atc.Rest.Api.Generator | Tag Name Must Use kebab-case | {0}
+ATC_API_OPR001 | Error | Atc.Rest.Api.Generator | Missing OperationId | {0}
+ATC_API_OPR003 | Warning | Atc.Rest.Api.Generator | GET OperationId Should Start With 'Get' or 'List' | {0}
+ATC_API_OPR004 | Warning | Atc.Rest.Api.Generator | POST OperationId Should Not Start With 'Delete' | {0}
+ATC_API_OPR005 | Warning | Atc.Rest.Api.Generator | PUT OperationId Should Start With 'Update' | {0}
+ATC_API_OPR006 | Warning | Atc.Rest.Api.Generator | PATCH OperationId Should Start With 'Patch' or 'Update' | {0}
+ATC_API_OPR007 | Warning | Atc.Rest.Api.Generator | DELETE OperationId Should Start With 'Delete' or 'Remove' | {0}
+ATC_API_OPR008 | Warning | Atc.Rest.Api.Generator | Pluralized OperationId But Response Is Single Item | {0}
+ATC_API_OPR009 | Warning | Atc.Rest.Api.Generator | Singular OperationId But Response Is Array | {0}
+ATC_API_OPR010 | Warning | Atc.Rest.Api.Generator | BadRequest Response Without Parameters | {0}
+ATC_API_OPR011 | Error | Atc.Rest.Api.Generator | Global Path Parameter Not In Route | {0}
+ATC_API_OPR012 | Error | Atc.Rest.Api.Generator | Operation Missing Path Parameter | {0}
+ATC_API_OPR013 | Error | Atc.Rest.Api.Generator | Operation Path Parameter Not In Route | {0}
+ATC_API_OPR014 | Warning | Atc.Rest.Api.Generator | GET Missing NotFound Response | {0}
+ATC_API_OPR015 | Warning | Atc.Rest.Api.Generator | Path Parameter Missing required=true | {0}
+ATC_API_OPR016 | Warning | Atc.Rest.Api.Generator | Path Parameter Must Not Be Nullable | {0}
+ATC_API_OPR017 | Error | Atc.Rest.Api.Generator | RequestBody With Inline Model Not Supported | {0}
+ATC_API_OPR018 | Error | Atc.Rest.Api.Generator | Multiple 2xx Status Codes Not Supported | {0}
+ATC_API_OPR021 | Warning | Atc.Rest.Api.Generator | Unauthorized Response Without Security | {0}
+ATC_API_OPR022 | Warning | Atc.Rest.Api.Generator | Forbidden Response On Anonymous Operation | {0}
+ATC_API_OPR023 | Warning | Atc.Rest.Api.Generator | NotFound Response on POST Operation | {0}
+ATC_API_OPR024 | Warning | Atc.Rest.Api.Generator | Conflict Response on Read-Only Operation | {0}
+ATC_API_OPR025 | Warning | Atc.Rest.Api.Generator | TooManyRequests Response Without Rate Limiting | {0}
+ATC_API_OPR035 | Info | Atc.Rest.Api.Generator | Operation Validation | Response links are declared on {0}: nothing is generated from them, a client follows them by hand
+ATC_API_SCH001 | Warning | Atc.Rest.Api.Generator | Missing Title on Array Type | {0}
+ATC_API_SCH002 | Warning | Atc.Rest.Api.Generator | Array Title Not Starting With Uppercase | {0}
+ATC_API_SCH003 | Warning | Atc.Rest.Api.Generator | Missing Title on Object Type | {0}
+ATC_API_SCH004 | Warning | Atc.Rest.Api.Generator | Object Title Not Starting With Uppercase | {0}
+ATC_API_SCH005 | Error | Atc.Rest.Api.Generator | Implicit Object Definition in Array Not Supported | {0}
+ATC_API_SCH006 | Warning | Atc.Rest.Api.Generator | Object Name Must Use PascalCase | {0}
+ATC_API_SCH007 | Warning | Atc.Rest.Api.Generator | Property Name Must Use camelCase | {0}
+ATC_API_SCH008 | Warning | Atc.Rest.Api.Generator | Enum Name Must Use PascalCase | {0}
+ATC_API_SCH009 | Error | Atc.Rest.Api.Generator | Array Property Missing Data Type | {0}
+ATC_API_SCH010 | Error | Atc.Rest.Api.Generator | Implicit Object Definition Not Supported | {0}
+ATC_API_SCH011 | Error | Atc.Rest.Api.Generator | Array Property Missing Items Specification | {0}
+ATC_API_SCH012 | Error | Atc.Rest.Api.Generator | Missing Property Key/Name | {0}
+ATC_API_SCH013 | Error | Atc.Rest.Api.Generator | Invalid Schema Reference | Schema reference '{0}' at path '{1}' does not exist in components.schemas
+ATC_API_SEC001 | Error | Atc.Rest.Api.Generator | Path Authorize Role Not Defined | {0}
+ATC_API_SEC002 | Error | Atc.Rest.Api.Generator | Path Authentication Scheme Not Defined | {0}
+ATC_API_SEC003 | Error | Atc.Rest.Api.Generator | Operation Authorize Role Not Defined | {0}
+ATC_API_SEC004 | Error | Atc.Rest.Api.Generator | Operation Authentication Scheme Not Defined | {0}
+ATC_API_SEC005 | Warning | Atc.Rest.Api.Generator | Operation Authentication Conflict | {0}
+ATC_API_SEC006 | Warning | Atc.Rest.Api.Generator | Operation Authorize Role Casing Mismatch | {0}
+ATC_API_SEC007 | Warning | Atc.Rest.Api.Generator | Operation Authentication Scheme Casing Mismatch | {0}
+ATC_API_SEC008 | Warning | Atc.Rest.Api.Generator | Path Authorize Role Casing Mismatch | {0}
+ATC_API_SEC009 | Warning | Atc.Rest.Api.Generator | Path Authentication Scheme Casing Mismatch | {0}
+ATC_API_SEC010 | Warning | Atc.Rest.Api.Generator | Path Authentication Conflict | {0}
+ATC_API_SRV002 | Warning | Atc.Rest.Api.Generator | Validation 400 Declared As String | '{0}' declares its 400 as a string, but the ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json): the client reads its title as the string, and the field errors are only in the response content. Declare the 400 as ValidationProblemDetails to keep them typed.
+ATC_API_VAL001 | Error | Atc.Rest.Api.Generator | OpenAPI Core Parsing Error | {0}
+ATC_API_VAL002 | Error | Atc.Rest.Api.Generator | OpenAPI 2.0 Not Supported | {0}
