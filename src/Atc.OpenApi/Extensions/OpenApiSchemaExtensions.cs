@@ -1107,11 +1107,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Gets validation attributes for a schema based on OpenAPI constraints.
-        /// </summary>
-        /// <param name="isRequired">Whether the property is required.</param>
-        /// <returns>A list of validation attribute strings (e.g., "Required", "Range(0, 100)").</returns>
-        /// <summary>
         /// The validation attributes of a model property. A property that is required and nullable must be present
         /// and may be null: it gets <c>[JsonRequired]</c> (presence, checked by the JSON reader) instead of
         /// <c>[Required]</c>, which would answer an explicit null with a validation error.
@@ -1133,6 +1128,11 @@ public static class OpenApiSchemaExtensions
             return attributes;
         }
 
+        /// <summary>
+        /// Gets validation attributes for a schema based on OpenAPI constraints.
+        /// </summary>
+        /// <param name="isRequired">Whether the property is required.</param>
+        /// <returns>A list of validation attribute strings (e.g., "Required", "Range(0, 100)").</returns>
         public IList<string> GetValidationAttributes(bool isRequired)
         {
             var attributes = new List<string>();

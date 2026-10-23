@@ -246,7 +246,7 @@ public sealed class GenerateServerCommandTests : IDisposable
     [InlineData("Swagger", "swagger")]
     public async Task GenerateServer_WritesLaunchSettings_AndRedirectsOnlyWhereTheUiIsMapped(
         string hostUi,
-        string launchUrl)
+        string launchPath)
     {
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
         var repoRoot = Path.Combine(tempOutputDir, "LaunchSettings" + hostUi);
@@ -263,7 +263,7 @@ public sealed class GenerateServerCommandTests : IDisposable
         foreach (var profile in new[] { "http", "https" })
         {
             Assert.Equal("Development", (string?)launchSettings["profiles"]![profile]!["environmentVariables"]!["ASPNETCORE_ENVIRONMENT"]);
-            Assert.Equal(launchUrl, (string?)launchSettings["profiles"]![profile]!["launchUrl"]);
+            Assert.Equal(launchPath, (string?)launchSettings["profiles"]![profile]!["launchUrl"]);
             Assert.True((bool?)launchSettings["profiles"]![profile]!["launchBrowser"]);
         }
 
@@ -272,7 +272,7 @@ public sealed class GenerateServerCommandTests : IDisposable
         var program = (await File.ReadAllTextAsync(Path.Combine(hostFolder, "Program.cs"), TestContext.Current.CancellationToken)).Replace("\r\n", "\n", StringComparison.Ordinal);
         var developmentBlock = program[program.IndexOf("if (app.Environment.IsDevelopment())\n{", StringComparison.Ordinal)..];
         developmentBlock = developmentBlock[..developmentBlock.IndexOf("\n}", StringComparison.Ordinal)];
-        Assert.Contains("Results.Redirect(\"/" + launchUrl + "\")", developmentBlock, StringComparison.Ordinal);
+        Assert.Contains("Results.Redirect(\"/" + launchPath + "\")", developmentBlock, StringComparison.Ordinal);
         Assert.Equal(1, program.Split("Results.Redirect(").Length - 1);
     }
 

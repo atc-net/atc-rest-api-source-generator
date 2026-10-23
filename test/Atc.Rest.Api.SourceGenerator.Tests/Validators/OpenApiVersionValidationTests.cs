@@ -58,7 +58,8 @@ public class OpenApiVersionValidationTests
     [InlineData(ValidateSpecificationStrategy.None)]
     [InlineData(ValidateSpecificationStrategy.Standard)]
     [InlineData(ValidateSpecificationStrategy.Strict)]
-    public void Validate_Swagger20Document_ReportsOpenApi20NotSupported(ValidateSpecificationStrategy strategy)
+    public void Validate_Swagger20Document_ReportsOpenApi20NotSupported(
+        ValidateSpecificationStrategy strategy)
     {
         // Arrange - a real Swagger/OpenAPI 2.0 document.
         var document = ParseYaml("""

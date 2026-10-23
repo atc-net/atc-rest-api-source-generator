@@ -25,7 +25,8 @@ public sealed class TypedClientWithoutAtcRestClientTests
 
     [Theory]
     [MemberData(nameof(Scenarios))]
-    public void TypedClient_WithoutAtcRestClient_CompilesOrNamesThePackage(string scenarioName)
+    public void TypedClient_WithoutAtcRestClient_CompilesOrNamesThePackage(
+        string scenarioName)
     {
         var references = CompilationVerificationHarness.GetFullFrameworkReferencesWithout("Atc.Rest.Client");
 
