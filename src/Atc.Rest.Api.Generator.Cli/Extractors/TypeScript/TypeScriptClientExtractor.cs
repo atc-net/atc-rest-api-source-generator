@@ -633,7 +633,34 @@ public static class TypeScriptClientExtractor
                 }
             }
 
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions, preferXml), modelOrFileAccept, rawUploadMediaTypes, securityOption, bodyMediaType, wireNames, headerReadersOption, bodyOptional: operation.GetStreamedRequestBody() is { IsRequired: false });
+            var operationModel = new TypeScriptOperationModel(
+                MethodName: methodName,
+                Path: path,
+                HttpMethod: httpMethod,
+                PathParams: pathParams,
+                QueryParams: queryParams,
+                HeaderParams: headerParams,
+                CookieParams: cookieParams,
+                QuerystringParams: querystringParams,
+                BodySchema: bodySchema,
+                BodyContentType: bodyContentType,
+                IsFileUpload: isFileUpload,
+                IsFileDownload: isFileDownload,
+                IsTextDownload: isTextDownload,
+                ReturnType: returnType,
+                PerOpResultTypeName: perOpResultTypeName,
+                ZodSpec: zodSpec,
+                RetryOption: retryOption,
+                ArmsOption: armsOption,
+                WireOption: wireOption,
+                XmlOption: BuildXmlOption(operation, xmlFunctions, preferXml),
+                ModelOrFileAccept: modelOrFileAccept,
+                RawUploadMediaTypes: rawUploadMediaTypes,
+                SecurityOption: securityOption,
+                BodyMediaType: bodyMediaType,
+                HeaderReadersOption: headerReadersOption,
+                BodyOptional: operation.GetStreamedRequestBody() is { IsRequired: false });
+            AppendStandardMethod(sb, operationModel, new TypeScriptEmitContext(namingStrategy, convertDates, writableSchemas, brandedIds, wireNames));
         }
     }
 
@@ -722,38 +749,41 @@ public static class TypeScriptClientExtractor
 
     private static void AppendStandardMethod(
         StringBuilder sb,
-        string methodName,
-        string path,
-        string httpMethod,
-        List<OpenApiParameter> pathParams,
-        List<OpenApiParameter> queryParams,
-        List<OpenApiParameter> headerParams,
-        List<OpenApiParameter> cookieParams,
-        List<OpenApiParameter> querystringParams,
-        IOpenApiSchema? bodySchema,
-        string bodyContentType,
-        bool isFileUpload,
-        bool isFileDownload,
-        bool isTextDownload,
-        string returnType,
-        TypeScriptNamingStrategy namingStrategy,
-        bool convertDates,
-        string? perOpResultTypeName,
-        HashSet<string> writableSchemas,
-        bool brandedIds,
-        ZodResponseSchemaSpec? zodSpec,
-        string? retryOption,
-        string? armsOption = null,
-        string? wireOption = null,
-        string? xmlOption = null,
-        string? modelOrFileAccept = null,
-        IReadOnlyList<string>? rawUploadMediaTypes = null,
-        string? securityOption = null,
-        IOpenApiMediaType? bodyMediaType = null,
-        TypeScriptWireNames? wireNames = null,
-        IReadOnlyList<string>? headerReadersOption = null,
-        bool bodyOptional = false)
+        TypeScriptOperationModel operation,
+        TypeScriptEmitContext emit)
     {
+        var methodName = operation.MethodName;
+        var path = operation.Path;
+        var httpMethod = operation.HttpMethod;
+        var pathParams = operation.PathParams;
+        var queryParams = operation.QueryParams;
+        var headerParams = operation.HeaderParams;
+        var cookieParams = operation.CookieParams;
+        var querystringParams = operation.QuerystringParams;
+        var bodySchema = operation.BodySchema;
+        var bodyContentType = operation.BodyContentType;
+        var isFileUpload = operation.IsFileUpload;
+        var isFileDownload = operation.IsFileDownload;
+        var isTextDownload = operation.IsTextDownload;
+        var returnType = operation.ReturnType;
+        var perOpResultTypeName = operation.PerOpResultTypeName;
+        var zodSpec = operation.ZodSpec;
+        var retryOption = operation.RetryOption;
+        var armsOption = operation.ArmsOption;
+        var wireOption = operation.WireOption;
+        var xmlOption = operation.XmlOption;
+        var modelOrFileAccept = operation.ModelOrFileAccept;
+        var rawUploadMediaTypes = operation.RawUploadMediaTypes;
+        var securityOption = operation.SecurityOption;
+        var bodyMediaType = operation.BodyMediaType;
+        var headerReadersOption = operation.HeaderReadersOption;
+        var bodyOptional = operation.BodyOptional;
+        var namingStrategy = emit.NamingStrategy;
+        var convertDates = emit.ConvertDates;
+        var writableSchemas = emit.WritableSchemas;
+        var brandedIds = emit.BrandedIds;
+        var wireNames = emit.WireNames;
+
         // Build parameter list
         var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path, bodyOptional);
 
