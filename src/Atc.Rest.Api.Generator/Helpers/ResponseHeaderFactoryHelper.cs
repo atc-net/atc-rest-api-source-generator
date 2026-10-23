@@ -606,6 +606,7 @@ public static class ResponseHeaderFactoryHelper
                 "long" => $"(long.TryParse({text}, global::System.Globalization.NumberStyles.Integer, {invariant}, out var {variable}) ? {variable} : (long?)null)",
                 "float" => $"(float.TryParse({text}, global::System.Globalization.NumberStyles.Float, {invariant}, out var {variable}) ? {variable} : (float?)null)",
                 "double" => $"(double.TryParse({text}, global::System.Globalization.NumberStyles.Float, {invariant}, out var {variable}) ? {variable} : (double?)null)",
+                "decimal" => $"(decimal.TryParse({text}, global::System.Globalization.NumberStyles.Float, {invariant}, out var {variable}) ? {variable} : (decimal?)null)",
                 "global::System.Guid" => $"(global::System.Guid.TryParse({text}, out var {variable}) ? {variable} : (global::System.Guid?)null)",
                 "global::System.DateOnly" => $"(global::System.DateOnly.TryParseExact({text}, \"yyyy-MM-dd\", {invariant}, global::System.Globalization.DateTimeStyles.None, out var {variable}) ? {variable} : (global::System.DateOnly?)null)",
                 _ => $"(global::System.DateTimeOffset.TryParse({text}, {invariant}, global::System.Globalization.DateTimeStyles.AssumeUniversal, out var {variable}) ? {variable} : (global::System.DateTimeOffset?)null)",
@@ -999,8 +1000,13 @@ public static class ResponseHeaderFactoryHelper
 
         if (schema.IsOfType(JsonSchemaType.Number))
         {
-            // As a model's property: float for format float, double for any other
-            return string.Equals(schema.Format, "float", StringComparison.Ordinal) ? "float" : "double";
+            // As a model's property: float for format float, decimal for format decimal, double for any other
+            return schema.Format switch
+            {
+                "float" => "float",
+                "decimal" => "decimal",
+                _ => "double",
+            };
         }
 
         if (!schema.IsOfType(JsonSchemaType.String))

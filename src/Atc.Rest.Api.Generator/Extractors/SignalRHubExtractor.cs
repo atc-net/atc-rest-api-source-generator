@@ -85,6 +85,7 @@ public static class SignalRHubExtractor
             { Type: "integer", Format: "int64" } => "long",
             { Type: "integer" } => "int",
             { Type: "number", Format: "float" } => "float",
+            { Type: "number", Format: "decimal" } => "decimal",
             { Type: "number" } => "double",
             { Type: "boolean" } => "bool",
             { Type: "string", Format: "uuid" } => "Guid",

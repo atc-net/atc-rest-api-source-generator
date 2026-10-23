@@ -15,4 +15,4 @@ public sealed record Order(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "customerId")] string CustomerId,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "status")] OrderStatus Status,
-    double? TotalAmount = null);
+    decimal? TotalAmount = null);

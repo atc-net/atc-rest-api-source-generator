@@ -13,5 +13,5 @@ namespace SecurityHybrid.Generated.Products.Models;
 public sealed record Product(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] Guid Id,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "name")] string Name,
-    double? Price = null,
+    decimal? Price = null,
     bool? InStock = null);

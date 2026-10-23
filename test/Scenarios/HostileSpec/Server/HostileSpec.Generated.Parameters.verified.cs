@@ -26,7 +26,7 @@ public sealed record ListNotesParameters(
     string Filter = "say \"hi\" \\ bye",
     string OddNameHere = null,
 #nullable restore annotations
-    [property: FromQuery(Name = "discount"), DefaultValue(0.25)] double? Discount = 0.25,
+    [property: FromQuery(Name = "discount"), DefaultValue(0.25)] decimal? Discount = 0.25m,
     [property: FromQuery(Name = "factor"), DefaultValue(2.5f)] float? Factor = 2.5f,
     [property: FromQuery(Name = "kind")] NoteKind? Kind = null)
 {

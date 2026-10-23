@@ -1049,6 +1049,7 @@ public static class OpenApiSchemaExtensions
                 "integer" when format == "int64" => "long",
                 "integer" => "int",
                 "number" when format == "float" => "float",
+                "number" when format == "decimal" => "decimal",
                 "number" => "double",
                 "boolean" => "bool",
                 _ => "object",

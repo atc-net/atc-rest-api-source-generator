@@ -21,6 +21,6 @@ namespace HostileSpec.Generated;
 public sealed record ListNotesParameters(
     [property: DefaultValue("say \"hi\" \\ bye")] string? Filter = "say \"hi\" \\ bye",
     string? OddNameHere = null,
-    [property: DefaultValue(0.25)] double? Discount = 0.25,
+    [property: DefaultValue(0.25)] decimal? Discount = 0.25m,
     [property: DefaultValue(2.5f)] float? Factor = 2.5f,
     NoteKind? Kind = null);

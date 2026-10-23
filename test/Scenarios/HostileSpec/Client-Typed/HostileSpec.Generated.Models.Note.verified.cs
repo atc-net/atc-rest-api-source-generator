@@ -39,7 +39,7 @@ public sealed record Note(
     [property: JsonPropertyName("user_name")] string? UserName = null,
     [property: JsonPropertyName("userName")] string? UserName2 = null,
     [property: Range(1, 5)] int? Rating = null,
-    double Price = 9.95,
+    decimal Price = 9.95m,
     float Ratio = 1.5f,
     Note_Size? Size = null,
     _3DModel? Model = null,

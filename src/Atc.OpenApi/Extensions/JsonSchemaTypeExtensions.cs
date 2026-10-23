@@ -330,6 +330,7 @@ public static class JsonSchemaTypeExtensions
             "int64" => "long",
             "float" => "float",
             "double" => "double",
+            "decimal" => "decimal",
             _ => "double",
         };
 

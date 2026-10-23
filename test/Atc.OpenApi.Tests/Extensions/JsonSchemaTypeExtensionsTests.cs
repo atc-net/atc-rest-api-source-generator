@@ -45,6 +45,7 @@ public class JsonSchemaTypeExtensionsTests
     [InlineData("int64", "long")]
     [InlineData("float", "float")]
     [InlineData("double", "double")]
+    [InlineData("decimal", "decimal")]
     [InlineData("unknown", "double")]
     public void ToCSharpTypeName_Number_ReturnsExpectedType(
         string? format,
