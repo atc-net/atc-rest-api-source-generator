@@ -302,10 +302,10 @@ public sealed class XmlRequestBodyTests
     }
 
     /// <summary>
-    /// A model only an XML request carries is validated as XML only, so its messages name a field by its XML name, as
-    /// the key does (nested models too). A model a JSON request carries as well keeps the JSON name in its messages:
-    /// a message is fixed at build time, and only the key follows the request's media type. A property whose only rule
-    /// has arguments (a length here) is named by its wire name too; it used to keep its C# name.
+    /// A message names a field by its XML name for an XML request, as the key does (nested models too): for a model
+    /// only an XML request carries the generator writes the XML name into the message; for a model a JSON request
+    /// carries as well, Atc.Rest.MinimalApi renames the field in the message per request (after 3.1.0). A property whose
+    /// only rule has arguments (a length here) is named by its wire name too; it used to keep its C# name.
     /// </summary>
     [Fact]
     public async Task Server_ValidationMessages_OfAModelOnlyXmlCarries_NameTheXmlNames()
@@ -415,7 +415,7 @@ public sealed class XmlRequestBodyTests
             """
             400 application/problem+json errors=surname: The field surname must be a string or array type with a maximum length of '5'.
             400 application/problem+json errors=address.town: The field town must be a string or array type with a maximum length of '3'.
-            400 application/problem+json errors=alias: The field nickName must be a string or array type with a maximum length of '3'.
+            400 application/problem+json errors=alias: The field alias must be a string or array type with a maximum length of '3'.
             400 application/problem+json errors=nickName: The field nickName must be a string or array type with a maximum length of '3'.
             """,
             string.Join("\n", rows),
