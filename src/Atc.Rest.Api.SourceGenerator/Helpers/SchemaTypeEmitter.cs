@@ -39,7 +39,7 @@ internal static class SchemaTypeEmitter
             // The file name mirrors the namespace the enum is emitted into
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName),
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                generatedContent);
         }
     }
 
@@ -70,7 +70,7 @@ internal static class SchemaTypeEmitter
             // The file name mirrors the namespace the tuple is emitted into
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(ns, tupleParams.Name),
-                SourceText.From(TupleExtractor.GenerateTupleContent(tupleParams, ns).NormalizeForSourceOutput(), Encoding.UTF8));
+                TupleExtractor.GenerateTupleContent(tupleParams, ns));
         }
     }
 }

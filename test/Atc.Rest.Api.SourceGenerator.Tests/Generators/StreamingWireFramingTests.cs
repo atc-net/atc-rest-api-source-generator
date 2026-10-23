@@ -188,7 +188,7 @@ public class StreamingWireFramingTests
         };
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
-        // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
+        // Must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
         var executeAsync = jsonLinesResultType.GetMethod("ExecuteAsync");
         await (Task)executeAsync.Invoke(result, [httpContext]);
 
@@ -197,7 +197,7 @@ public class StreamingWireFramingTests
         var text = Encoding.UTF8.GetString(innerStream.ToArray());
         Assert.EndsWith("\n", text, StringComparison.Ordinal);
 
-        // C2: camelCase property names prove the configured IOptions<JsonOptions> was used, not the
+        // camelCase property names prove the configured IOptions<JsonOptions> was used, not the
         // bare-default fallback (which would emit PascalCase "Id"/"Type").
         using var doc = JsonDocument.Parse(text.TrimEnd('\n'));
         Assert.True(doc.RootElement.TryGetProperty("id", out var idProp));
@@ -371,7 +371,7 @@ public class StreamingWireFramingTests
         };
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
-        // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
+        // Must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
         var executeAsync = jsonSequenceResultType.GetMethod("ExecuteAsync");
         await (Task)executeAsync.Invoke(result, [httpContext]);
 
@@ -382,7 +382,7 @@ public class StreamingWireFramingTests
         // RFC 7464 framing: the body starts with the RS byte (0x1E).
         Assert.Equal(0x1E, bytes[0]);
 
-        // C2: camelCase property names prove the configured IOptions<JsonOptions> was used, not the
+        // camelCase property names prove the configured IOptions<JsonOptions> was used, not the
         // bare-default fallback (which would emit PascalCase "Id"/"Type"). Parse from the first JSON
         // brace so the leading RS framing byte and trailing LF are ignored without a control-char literal.
         var text = Encoding.UTF8.GetString(bytes);
@@ -483,7 +483,7 @@ public class StreamingWireFramingTests
         };
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
-        // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
+        // Must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
         var executeAsync = multipartResultType.GetMethod("ExecuteAsync");
         await (Task)executeAsync.Invoke(result, [httpContext]);
 
@@ -492,7 +492,7 @@ public class StreamingWireFramingTests
         var text = Encoding.UTF8.GetString(innerStream.ToArray());
         Assert.Contains("--atc-stream-boundary", text, StringComparison.Ordinal);
 
-        // C2: camelCase property names prove the configured IOptions<JsonOptions> was used, not the
+        // camelCase property names prove the configured IOptions<JsonOptions> was used, not the
         // bare-default fallback (which would emit PascalCase "Id"/"Type"). Parse from the first JSON
         // brace so the multipart framing (boundary + part headers) is ignored.
         var jsonStart = text.IndexOf('{', StringComparison.Ordinal);

@@ -78,12 +78,12 @@ internal static class PolymorphicTypeEmitter
                     .Replace($"public sealed record {config.BaseTypeName}(", $"public sealed partial record {config.BaseTypeName}(");
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(modelsNamespace, config.BaseTypeName + "Binding"),
-                    SourceText.From(XmlModelMapperExtractor.GenerateBinding(config.BaseTypeName, modelsNamespace, projectName, bound).NormalizeForSourceOutput(), Encoding.UTF8));
+                    XmlModelMapperExtractor.GenerateBinding(config.BaseTypeName, modelsNamespace, projectName, bound));
             }
 
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, config.BaseTypeName),
-                SourceText.From(baseContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                baseContent);
 
             var converterContent = GetConverterContent(config, projectName, pathSegment, additionalUsings);
             if (converterContent is null)
@@ -93,7 +93,7 @@ internal static class PolymorphicTypeEmitter
 
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, $"{config.BaseTypeName}JsonConverter"),
-                SourceText.From(converterContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                converterContent);
         }
     }
 

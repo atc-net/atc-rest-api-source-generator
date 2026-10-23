@@ -525,7 +525,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         context.AddGeneratedSource(
             "ApiHandlerDependencyRegistration.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     /// <summary>
@@ -563,7 +563,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         context.AddGeneratedSource(
             "ApiValidatorDependencyRegistration.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     /// <summary>

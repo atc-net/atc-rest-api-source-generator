@@ -3079,15 +3079,18 @@ public partial class ErrorResponseBodyRuntimeTests
         ]);
     }
 
-    // A loopback address no server listens on: the port of a listener that was started and stopped again
+    // A loopback address no server listens on: a port held by a socket that is bound and never listens, for as long as
+    // the tests run - a connection to it is refused, and no server another test starts can be given it (a listener
+    // started and stopped again frees its port for the next one)
     private static string ClosedLoopbackAddress()
+        => $"http://127.0.0.1:{((System.Net.IPEndPoint)ReservedLoopbackPort.Value.LocalEndPoint!).Port}";
+
+    private static readonly Lazy<System.Net.Sockets.Socket> ReservedLoopbackPort = new(() =>
     {
-        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return $"http://127.0.0.1:{port}";
-    }
+        var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+        socket.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 0));
+        return socket;
+    });
 
     private static Dictionary<string, Dictionary<string, JsonObject>> RunFeatureTypeScriptClients(
         Uri baseAddress,

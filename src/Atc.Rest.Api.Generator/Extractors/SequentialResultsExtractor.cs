@@ -324,7 +324,7 @@ public static class SequentialResultsExtractor
                     httpContext.Response.ContentType = contentType;
             """,
 
-            // Same DI-configured JSON options lookup as JsonLinesResult (the C2 fix).
+            // Same DI-configured JSON options lookup as JsonLinesResult.
             $$"""
                     var options = httpContext.RequestServices
                         .GetRequiredService<IOptions<JsonOptions>>()
@@ -348,7 +348,7 @@ public static class SequentialResultsExtractor
                     httpContext.Response.ContentType = $"multipart/mixed; boundary={SequentialStreamWriter.MultipartBoundary}";
             """,
 
-            // Same DI-configured JSON options lookup as the other result types (the C2 fix).
+            // Same DI-configured JSON options lookup as the other result types.
             $$"""
                     var options = httpContext.RequestServices
                         .GetRequiredService<IOptions<JsonOptions>>()

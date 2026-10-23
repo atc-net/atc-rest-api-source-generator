@@ -10,6 +10,19 @@ internal static class SourceProductionContextExtensions
     extension(SourceProductionContext context)
     {
         /// <summary>
+        /// Adds a generated file to the compilation from its text: normalized for source output, with the
+        /// missing-XML-comment warning suppressed in it and the implicit usings of its own.
+        /// </summary>
+        /// <param name="hintName">The file's hint name.</param>
+        /// <param name="content">The file's text.</param>
+        public void AddGeneratedSource(
+            string hintName,
+            string content)
+            => context.AddSource(
+                hintName,
+                SourceText.From(Finish(content.NormalizeForSourceOutput()), Encoding.UTF8));
+
+        /// <summary>
         /// Adds a generated file to the compilation, with the missing-XML-comment warning suppressed in it and the implicit usings of its own.
         /// </summary>
         /// <param name="hintName">The file's hint name.</param>
@@ -42,7 +55,16 @@ internal static class SourceProductionContextExtensions
                     sourceText.Encoding ?? Encoding.UTF8));
     }
 
-    private static string Finish(SourceText sourceText)
+    /// <summary>
+    /// The finishing every generated file gets: the missing-XML-comment warning suppressed in it and the implicit
+    /// usings of its own.
+    /// </summary>
+    /// <param name="content">The file's text.</param>
+    /// <returns>The finished text.</returns>
+    internal static string Finish(string content)
         => ImplicitUsingsHelper.AddImplicitUsings(
-            GeneratedCodeAttributeHelper.SuppressMissingXmlComment(sourceText.ToString()));
+            GeneratedCodeAttributeHelper.SuppressMissingXmlComment(content));
+
+    private static string Finish(SourceText sourceText)
+        => Finish(sourceText.ToString());
 }

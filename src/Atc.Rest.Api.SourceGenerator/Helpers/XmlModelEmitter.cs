@@ -31,7 +31,7 @@ internal static class XmlModelEmitter
             var content = XmlModelMapperExtractor.GenerateCompanion(source, headerContent, modelsNamespace, projectName, xmlModels, extensibleEnums);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, source.TypeName + "Xml"),
-                SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+                content);
         }
     }
 
@@ -53,7 +53,7 @@ internal static class XmlModelEmitter
 
         context.AddGeneratedSource(
             $"{projectName}.XmlProblemDetailsWriter.g.cs",
-            SourceText.From(XmlModelMapperExtractor.GenerateProblemDetailsWriter(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+            XmlModelMapperExtractor.GenerateProblemDetailsWriter(projectName));
     }
 
     /// <summary>
@@ -74,6 +74,6 @@ internal static class XmlModelEmitter
 
         context.AddGeneratedSource(
             $"{projectName}.{XmlModelMapperExtractor.SupportTypeName}.g.cs",
-            SourceText.From(XmlModelMapperExtractor.GenerateSupport(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+            XmlModelMapperExtractor.GenerateSupport(projectName));
     }
 }

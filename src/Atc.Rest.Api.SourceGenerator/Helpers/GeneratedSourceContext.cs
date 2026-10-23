@@ -48,17 +48,37 @@ internal readonly struct GeneratedSourceContext(
     /// </summary>
     public IReadOnlyList<GeneratedEnumDeclaration> Enums => enums;
 
+    /// <summary>
+    /// Adds a generated file from its text, normalized for source output.
+    /// </summary>
+    /// <param name="hintName">The file's hint name.</param>
+    /// <param name="content">The file's text.</param>
+    public void AddGeneratedSource(
+        string hintName,
+        string content)
+        => context.AddSource(hintName, SourceText.From(SourceProductionContextExtensions.Finish(Finish(content.NormalizeForSourceOutput())), Encoding.UTF8));
+
+    /// <summary>
+    /// Adds a generated file as it is.
+    /// </summary>
+    /// <param name="hintName">The file's hint name.</param>
+    /// <param name="sourceText">The file's source.</param>
     public void AddGeneratedSource(
         string hintName,
         SourceText sourceText)
+        => context.AddGeneratedSource(hintName, SourceText.From(Finish(sourceText.ToString()), sourceText.Encoding ?? Encoding.UTF8));
+
+    // The project's finishing: [ExcludeFromCodeCoverage] when configured, the obsolete warnings suppressed for a
+    // specification with deprecated members; the enums it declares are noted
+    private string Finish(string content)
     {
-        var content = GeneratedCodeAttributeHelper.ApplyExcludeFromCodeCoverage(sourceText.ToString(), excludeFromCodeCoverage);
+        content = GeneratedCodeAttributeHelper.ApplyExcludeFromCodeCoverage(content, excludeFromCodeCoverage);
         if (suppressObsolete)
         {
             content = GeneratedCodeAttributeHelper.SuppressObsolete(content);
         }
 
         enums.AddRange(GeneratedEnumDeclaration.FindIn(content));
-        context.AddGeneratedSource(hintName, SourceText.From(content, sourceText.Encoding ?? Encoding.UTF8));
+        return content;
     }
 }

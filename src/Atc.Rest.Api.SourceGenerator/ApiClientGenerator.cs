@@ -241,7 +241,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Generated.LengthLimitAttributes.g.cs",
-                SourceText.From(LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+                LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)));
         }
 
         // The attributes a pattern (on a value or on the items of an array) and a format: uri are written with
@@ -249,7 +249,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Generated.ValueAttributes.g.cs",
-                SourceText.From(LengthLimitAttributesExtractor.GenerateValueAttributes(NamespaceBuilder.BuildBase(projectName), valueAttributes).NormalizeForSourceOutput(), Encoding.UTF8));
+                LengthLimitAttributesExtractor.GenerateValueAttributes(NamespaceBuilder.BuildBase(projectName), valueAttributes));
         }
 
         // The SignalR hubs of the specification (x-signalr-hubs): a typed client per hub, where the project has the
@@ -318,7 +318,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var consolidatedDiContent = GenerateConsolidatedDiExtension(projectName, generatedPathSegments);
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Endpoints.DependencyInjection.g.cs",
-                SourceText.From(consolidatedDiContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                consolidatedDiContent);
         }
 
         // Resilience (x-retry-*) and OAuth token management, where the specification declares them
@@ -376,11 +376,11 @@ public class ApiClientGenerator : IIncrementalGenerator
         var exceptionName = ApiExceptionExtractor.ClassNameFor(modelNames);
         generatedContext.AddGeneratedSource(
             $"{projectName}.Generated.{exceptionName}.g.cs",
-            SourceText.From(ApiExceptionExtractor.Generate(NamespaceBuilder.BuildBase(projectName), exceptionName).NormalizeForSourceOutput(), Encoding.UTF8));
+            ApiExceptionExtractor.Generate(NamespaceBuilder.BuildBase(projectName), exceptionName));
 
         generatedContext.AddGeneratedSource(
             $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
-            SourceText.From(GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+            GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)));
     }
 
     // The endpoint-per-operation client's support types: the ProblemDetails and its factory, the result interface, the
@@ -458,7 +458,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             foreach (var (hintName, content) in hubClients)
             {
-                generatedContext.AddGeneratedSource(hintName, SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+                generatedContext.AddGeneratedSource(hintName, content);
             }
         }
         else if (hubClients.Count > 0)
@@ -554,7 +554,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName);
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.StreamReaders.g.cs",
-                SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                streamReadersContent);
         }
 
         // A request body sent as a stream of records (JSON Lines, JSON Text Sequences) is written by the generated
@@ -564,7 +564,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.{StreamedRequestContentExtractor.TypeName}.g.cs",
-                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+                StreamedRequestContentExtractor.GenerateContent(projectName));
         }
     }
 
@@ -635,7 +635,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
-                SourceText.From(EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName), generatedContext.Enums, generatedContext.ReadEnumMemberNames).NormalizeForSourceOutput(), Encoding.UTF8));
+                EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName), generatedContext.Enums, generatedContext.ReadEnumMemberNames));
         }
     }
 
@@ -650,7 +650,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             context.AddGeneratedSource(
                 $"{projectName}.Resilience.Policies.g.cs",
-                SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+                content);
         }
     }
 
@@ -665,7 +665,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             context.AddGeneratedSource(
                 $"{projectName}.Resilience.DependencyInjection.g.cs",
-                SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+                content);
         }
     }
 
@@ -687,20 +687,20 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             context.AddGeneratedSource(
                 $"{projectName}.OAuth.OAuthClientOptions.g.cs",
-                SourceText.From(optionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                optionsContent);
         }
 
         // Generate OAuthTokenResponse model
         var tokenResponseContent = OAuthTokenProviderExtractor.ExtractTokenResponse(projectName);
         context.AddGeneratedSource(
             $"{projectName}.OAuth.OAuthTokenResponse.g.cs",
-            SourceText.From(tokenResponseContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            tokenResponseContent);
 
         // Generate IOAuthTokenProvider interface
         var interfaceContent = OAuthTokenProviderExtractor.ExtractInterface(projectName);
         context.AddGeneratedSource(
             $"{projectName}.OAuth.IOAuthTokenProvider.g.cs",
-            SourceText.From(interfaceContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            interfaceContent);
 
         // Generate OAuthTokenProvider implementation
         var implementationContent = OAuthTokenProviderExtractor.ExtractImplementation(oauthConfig, projectName);
@@ -708,14 +708,14 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             context.AddGeneratedSource(
                 $"{projectName}.OAuth.OAuthTokenProvider.g.cs",
-                SourceText.From(implementationContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                implementationContent);
         }
 
         // Generate OAuthAuthenticationHandler
         var handlerContent = OAuthHandlerExtractor.Extract(projectName);
         context.AddGeneratedSource(
             $"{projectName}.OAuth.OAuthAuthenticationHandler.g.cs",
-            SourceText.From(handlerContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            handlerContent);
 
         // Generate OAuth DI extensions
         var diContent = OAuthDependencyInjectionExtractor.Extract(oauthConfig, projectName);
@@ -723,7 +723,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             context.AddGeneratedSource(
                 $"{projectName}.OAuth.DependencyInjection.g.cs",
-                SourceText.From(diContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                diContent);
         }
     }
 
@@ -768,7 +768,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
-                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                enumContent);
         }
 
         if (recordsParameters is null || recordsParameters.Parameters.Count == 0)
@@ -809,7 +809,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
             context.AddGeneratedSource(
                 fileName,
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                generatedContent);
         }
 
         if (xmlModels is not null)
@@ -969,14 +969,14 @@ public class ApiClientGenerator : IIncrementalGenerator
             var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName);
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.StreamReaders.g.cs",
-                SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                streamReadersContent);
         }
 
         if (StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc))
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.{StreamedRequestContentExtractor.TypeName}.g.cs",
-                SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+                StreamedRequestContentExtractor.GenerateContent(projectName));
         }
     }
 
@@ -1038,7 +1038,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     {
                         context.AddGeneratedSource(
                             NamespaceBuilder.ToFileName(clientNamespace, typeName),
-                            SourceText.From(InlineEnumExtractor.GenerateEnumContent(enumParameters, extensible: extensibleEnums).NormalizeForSourceOutput(), Encoding.UTF8));
+                            InlineEnumExtractor.GenerateEnumContent(enumParameters, extensible: extensibleEnums));
                     }
                 }
 
@@ -1046,7 +1046,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 var content = ResponseHeaderFactoryHelper.TypedClientHeadersSource(clientNamespace, usings, className, operationId, headers, extensibleEnums);
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(clientNamespace, className),
-                    SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+                    content);
             }
         }
     }
@@ -1116,7 +1116,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         context.AddGeneratedSource(
             NamespaceBuilder.ToFileName(clientNamespace, clientTypeName),
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
 
         GenerateTypedClientResponseHeaders(context, openApiDoc, projectName, pathSegment, clientNamespace, modelsNamespace, registry, includeDeprecated, hasSegmentModels, hasSharedModels, extensibleEnums);
 
@@ -1131,7 +1131,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(clientNamespace, interfaceParameters.InterfaceTypeName),
-                SourceText.From(interfaceContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                interfaceContent);
 
             // The DI extension calls AddHttpClient<TInterface, TClient>(), which lives in
             // Microsoft.Extensions.Http. Typed-client projects are not required to reference it,
@@ -1146,7 +1146,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(clientNamespace, $"{clientTypeName}ServiceCollectionExtensions"),
-                    SourceText.From(diContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                    diContent);
             }
         }
 
@@ -1166,7 +1166,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(modelsNamespace, inlineType.TypeName),
-                    SourceText.From(inlineContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                    inlineContent);
             }
         }
     }
@@ -1211,7 +1211,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         context.AddGeneratedSource(
             $"{projectName}.ApiClientJsonOptions.g.cs",
-            SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            sb.ToString());
     }
 
     /// <summary>
@@ -1337,7 +1337,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
                 context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(modelsNamespace, inlineType.TypeName),
-                    SourceText.From(inlineContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                    inlineContent);
             }
         }
 
@@ -1350,19 +1350,19 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Endpoint Interface
             context.AddGeneratedSource(
                 opFiles.EndpointInterfaceFileName,
-                SourceText.From(opFiles.EndpointInterfaceContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                opFiles.EndpointInterfaceContent);
 
             // Endpoint Class
             context.AddGeneratedSource(
                 opFiles.EndpointClassFileName,
-                SourceText.From(opFiles.EndpointClassContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                opFiles.EndpointClassContent);
 
             // Result Interface (null for binary endpoints that use BinaryEndpointResponse)
             if (opFiles is { ResultInterfaceFileName: not null, ResultInterfaceContent: not null })
             {
                 context.AddGeneratedSource(
                     opFiles.ResultInterfaceFileName,
-                    SourceText.From(opFiles.ResultInterfaceContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                    opFiles.ResultInterfaceContent);
             }
 
             // Result Class (null for binary endpoints that use BinaryEndpointResponse)
@@ -1370,7 +1370,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 context.AddGeneratedSource(
                     opFiles.ResultClassFileName,
-                    SourceText.From(opFiles.ResultClassContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                    opFiles.ResultClassContent);
             }
 
             // The enums the operation's response headers declare inline
@@ -1378,7 +1378,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 context.AddGeneratedSource(
                     fileName,
-                    SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+                    content);
             }
         }
 
@@ -1388,7 +1388,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var diExtensionContent = GenerateEndpointDiExtension(projectName, namespaceSegment, endpointNames, EnumWireConverterExtractor.HasEnums(openApiDoc));
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(NamespaceBuilder.ForEndpoints(projectName, namespaceSegment), "DependencyInjection"),
-                SourceText.From(diExtensionContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                diExtensionContent);
             return true;
         }
 
@@ -1614,7 +1614,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         string projectName)
         => context.AddGeneratedSource(
             $"{projectName}.StreamedFile.g.cs",
-            SourceText.From(ClientRuntimeTypesExtractor.StreamedFile(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+            ClientRuntimeTypesExtractor.StreamedFile(projectName));
 
     /// <summary>
     /// Whether any operation answers a model or a file (a 200 that declares both).
@@ -1629,7 +1629,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         string projectName)
         => context.AddGeneratedSource(
             $"{projectName}.ContentOrFile.g.cs",
-            SourceText.From(ClientRuntimeTypesExtractor.ContentOrFile(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+            ClientRuntimeTypesExtractor.ContentOrFile(projectName));
 
     private static void GenerateDownloadedFile(
         GeneratedSourceContext context,
@@ -1637,21 +1637,21 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool includeEndpointResponse)
         => context.AddGeneratedSource(
             $"{projectName}.DownloadedFile.g.cs",
-            SourceText.From(ClientRuntimeTypesExtractor.DownloadedFile(projectName, includeEndpointResponse).NormalizeForSourceOutput(), Encoding.UTF8));
+            ClientRuntimeTypesExtractor.DownloadedFile(projectName, includeEndpointResponse));
 
     private static void GenerateProblemDetails(
         GeneratedSourceContext context,
         string projectName)
         => context.AddGeneratedSource(
             $"{projectName}.ProblemDetails.g.cs",
-            SourceText.From(ClientRuntimeTypesExtractor.ProblemDetails(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+            ClientRuntimeTypesExtractor.ProblemDetails(projectName));
 
     private static void GenerateEndpointResultInterface(
         GeneratedSourceContext context,
         string projectName)
         => context.AddGeneratedSource(
             $"{projectName}.IEndpointResult.g.cs",
-            SourceText.From(ClientRuntimeTypesExtractor.EndpointResultInterface(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+            ClientRuntimeTypesExtractor.EndpointResultInterface(projectName));
 
     private static void GenerateProblemDetailsFactory(
         GeneratedSourceContext context,
@@ -1659,7 +1659,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool hasXml = false)
         => context.AddGeneratedSource(
             $"{projectName}.ProblemDetailsFactory.g.cs",
-            SourceText.From(ClientRuntimeTypesExtractor.ProblemDetailsFactory(projectName, hasXml).NormalizeForSourceOutput(), Encoding.UTF8));
+            ClientRuntimeTypesExtractor.ProblemDetailsFactory(projectName, hasXml));
 
     /// <summary>
     /// Generates a Constants class with the HttpClientName for DI wireup.
@@ -1725,7 +1725,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
-                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                enumContent);
         }
 
         if (parameterRecords is not { Count: > 0 })
@@ -1748,7 +1748,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var generatedParamContent = RecordContentGenerator.Generate(codeDocGenerator, recordsContainer);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(clientNamespace, paramRecord.Name),
-                SourceText.From(generatedParamContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                generatedParamContent);
         }
     }
 
