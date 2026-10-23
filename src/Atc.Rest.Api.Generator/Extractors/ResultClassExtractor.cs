@@ -1116,22 +1116,7 @@ public static class ResultClassExtractor
 
         if (!string.IsNullOrEmpty(contentType))
         {
-            // For async enumerable operations, wrap the content type with IAsyncEnumerable<>
-            var parameterType = contentType!;
-            if (isAsyncEnumerable)
-            {
-                if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
-                {
-                    // For List<T>, extract T and wrap as IAsyncEnumerable<T>
-                    var elementType = contentType.Substring(5, contentType.Length - 6);
-                    parameterType = $"IAsyncEnumerable<{elementType}>";
-                }
-                else
-                {
-                    // For other types like PaginationResult<T>, wrap the entire type
-                    parameterType = $"IAsyncEnumerable<{contentType}>";
-                }
-            }
+            var parameterType = OkParameterType(contentType!, isAsyncEnumerable);
 
             // For textual responses (text/plain, text/csv, application/xml, ...) the body must
             // be returned verbatim (no JSON quoting). Use TypedResults.Text(content, mediaType)
@@ -1141,67 +1126,8 @@ public static class ResultClassExtractor
                 ? "response"
                 : parameterType == "string" ? "message" : "response";
 
-            // Server-Sent Events use the first-party TypedResults.ServerSentEvents writer; JSON
-            // Lines uses the emitted JsonLinesResult<T> writer (fully-qualified — the Results file
-            // has no Streaming using); all other framing's (JsonArray, ...) keep TypedResults.Ok.
-            string content;
-            if (isTextResponse)
-            {
-                content = $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))";
-            }
-            else if (xmlBody is not null)
-            {
-                content = XmlResultExpression(200, contentType!, xmlBody, paramName, $"TypedResults.Ok({paramName})");
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.StartedStreamResult<{StreamItemType(parameterType)}>({paramName}, static items => TypedResults.ServerSentEvents(items)))";
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonLines)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/jsonl")}))";
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonSequence)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/json-seq")}))";
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.MultipartMixed)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.MultipartMixedResult<{contentType}>({paramName}))";
-            }
-            else if (isAsyncEnumerable)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.JsonArrayResult<{StreamItemType(parameterType)}>({paramName}))";
-            }
-            else
-            {
-                content = $"new(TypedResults.Ok({paramName}))";
-            }
-
-            // Factory method with parameter
-            var okMethod = new MethodParameters(
-                DocumentationTags: doc,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.PublicStatic,
-                ReturnGenericTypeName: null,
-                ReturnTypeName: className,
-                Name: "Ok",
-                Parameters: new List<ParameterBaseParameters>
-                {
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: parameterType,
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: paramName,
-                        DefaultValue: null),
-                },
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: true,
-                Content: content);
-            methods.Add(okMethod);
+            var content = OkContentExpression(projectName, contentType!, parameterType, paramName, isAsyncEnumerable, streamingFraming, isTextResponse, textResponseMediaType, xmlBody, streamingMediaType);
+            methods.Add(OkMethod(doc, className, parameterType, paramName, content));
 
             // An event stream can also be given as the events themselves: a handler that sets an event's id (what a
             // client sends back as Last-Event-ID to continue after it), its name or the retry time yields SseItem<T>
@@ -1211,115 +1137,19 @@ public static class ResultClassExtractor
                 parameterType.StartsWith(asyncEnumerableOf, StringComparison.Ordinal))
             {
                 var itemType = parameterType.Substring(asyncEnumerableOf.Length, parameterType.Length - asyncEnumerableOf.Length - 1);
-                methods.Add(new MethodParameters(
-                    DocumentationTags: new CodeDocumentationTags("200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets."),
-                    Attributes: null,
-                    DeclarationModifier: DeclarationModifiers.PublicStatic,
-                    ReturnGenericTypeName: null,
-                    ReturnTypeName: className,
-                    Name: "Ok",
-                    Parameters: new List<ParameterBaseParameters>
-                    {
-                        new(
-                            Attributes: null,
-                            GenericTypeName: null,
-                            IsGenericListType: false,
-                            TypeName: $"IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<{itemType}>>",
-                            IsNullableType: false,
-                            IsReferenceType: true,
-                            Name: "events",
-                            DefaultValue: null),
-                    },
-                    AlwaysBreakDownParameters: false,
-                    UseExpressionBody: true,
-                    Content: $"new(new {projectName}.Generated.Streaming.StartedStreamResult<global::System.Net.ServerSentEvents.SseItem<{itemType}>>(events, static items => TypedResults.ServerSentEvents(items)))"));
+                methods.Add(OkMethod(
+                    new CodeDocumentationTags("200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets."),
+                    className,
+                    $"IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<{itemType}>>",
+                    "events",
+                    $"new(new {projectName}.Generated.Streaming.StartedStreamResult<global::System.Net.ServerSentEvents.SseItem<{itemType}>>(events, static items => TypedResults.ServerSentEvents(items)))"));
             }
 
             // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
             // Skip implicit operators for IAsyncEnumerable - they don't make sense for streaming
             if (contentType != "object" && !isAsyncEnumerable)
             {
-                if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
-                {
-                    var elementType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
-
-                    // List implicit operator (direct)
-                    var listOperator = new MethodParameters(
-                        DocumentationTags: null,
-                        Attributes: null,
-                        DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
-                        ReturnGenericTypeName: null,
-                        ReturnTypeName: className,
-                        Name: string.Empty, // Name is not used for implicit operator
-                        Parameters: new List<ParameterBaseParameters>
-                        {
-                            new(
-                                Attributes: null,
-                                GenericTypeName: "List",
-                                IsGenericListType: true,
-                                TypeName: elementType,
-                                IsNullableType: false,
-                                IsReferenceType: true,
-                                Name: "response",
-                                DefaultValue: null),
-                        },
-                        AlwaysBreakDownParameters: false,
-                        UseExpressionBody: true,
-                        Content: "Ok(response)");
-                    methods.Add(listOperator);
-
-                    // Array to List implicit operator (for backwards compatibility)
-                    var arrayOperator = new MethodParameters(
-                        DocumentationTags: null,
-                        Attributes: null,
-                        DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
-                        ReturnGenericTypeName: null,
-                        ReturnTypeName: className,
-                        Name: string.Empty, // Name is not used for implicit operator
-                        Parameters: new List<ParameterBaseParameters>
-                        {
-                            new(
-                                Attributes: null,
-                                GenericTypeName: null,
-                                IsGenericListType: false,
-                                TypeName: $"{elementType}[]",
-                                IsNullableType: false,
-                                IsReferenceType: true,
-                                Name: "response",
-                                DefaultValue: null),
-                        },
-                        AlwaysBreakDownParameters: false,
-                        UseExpressionBody: true,
-                        Content: "Ok(response.ToList())");
-                    methods.Add(arrayOperator);
-                }
-                else
-                {
-                    // Single type implicit operator - use same parameter name as Ok method
-                    var implicitOperator = new MethodParameters(
-                        DocumentationTags: null,
-                        Attributes: null,
-                        DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
-                        ReturnGenericTypeName: null,
-                        ReturnTypeName: className,
-                        Name: string.Empty, // Name is not used for implicit operator
-                        Parameters: new List<ParameterBaseParameters>
-                        {
-                            new(
-                                Attributes: null,
-                                GenericTypeName: null,
-                                IsGenericListType: false,
-                                TypeName: contentType,
-                                IsNullableType: false,
-                                IsReferenceType: true,
-                                Name: paramName,
-                                DefaultValue: null),
-                        },
-                        AlwaysBreakDownParameters: false,
-                        UseExpressionBody: true,
-                        Content: $"Ok({paramName})");
-                    methods.Add(implicitOperator);
-                }
+                methods.AddRange(OkImplicitOperators(className, contentType!, paramName));
             }
         }
         else
@@ -1341,6 +1171,172 @@ public static class ResultClassExtractor
 
         return methods;
     }
+
+    /// <summary>
+    /// The Ok parameter's type: the content type, or for a stream the items as <c>IAsyncEnumerable&lt;T&gt;</c>.
+    /// </summary>
+    private static string OkParameterType(
+        string contentType,
+        bool isAsyncEnumerable)
+    {
+        var parameterType = contentType!;
+        if (isAsyncEnumerable)
+        {
+            if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
+            {
+                // For List<T>, extract T and wrap as IAsyncEnumerable<T>
+                var elementType = contentType.Substring(5, contentType.Length - 6);
+                parameterType = $"IAsyncEnumerable<{elementType}>";
+            }
+            else
+            {
+                // For other types like PaginationResult<T>, wrap the entire type
+                parameterType = $"IAsyncEnumerable<{contentType}>";
+            }
+        }
+
+        return parameterType;
+    }
+
+    /// <summary>
+    /// What Ok(...) returns: the text, the XML body, the stream writer of the framing, or TypedResults.Ok.
+    /// </summary>
+    private static string OkContentExpression(
+        string projectName,
+        string contentType,
+        string parameterType,
+        string paramName,
+        bool isAsyncEnumerable,
+        StreamingFraming streamingFraming,
+        bool isTextResponse,
+        string? textResponseMediaType,
+        XmlBody? xmlBody,
+        string? streamingMediaType)
+    {
+        // Server-Sent Events use the first-party TypedResults.ServerSentEvents writer; JSON
+        // Lines uses the emitted JsonLinesResult<T> writer (fully-qualified — the Results file
+        // has no Streaming using); all other framing's (JsonArray, ...) keep TypedResults.Ok.
+        string content;
+        if (isTextResponse)
+        {
+            content = $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))";
+        }
+        else if (xmlBody is not null)
+        {
+            content = XmlResultExpression(200, contentType!, xmlBody, paramName, $"TypedResults.Ok({paramName})");
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.StartedStreamResult<{StreamItemType(parameterType)}>({paramName}, static items => TypedResults.ServerSentEvents(items)))";
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonLines)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/jsonl")}))";
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonSequence)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/json-seq")}))";
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.MultipartMixed)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.MultipartMixedResult<{contentType}>({paramName}))";
+        }
+        else if (isAsyncEnumerable)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.JsonArrayResult<{StreamItemType(parameterType)}>({paramName}))";
+        }
+        else
+        {
+            content = $"new(TypedResults.Ok({paramName}))";
+        }
+
+        return content;
+    }
+
+    /// <summary>
+    /// A static Ok factory with one parameter.
+    /// </summary>
+    private static MethodParameters OkMethod(
+        CodeDocumentationTags doc,
+        string className,
+        string parameterType,
+        string parameterName,
+        string content)
+        => new(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: "Ok",
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: parameterType,
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: parameterName,
+                    DefaultValue: null),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: content);
+
+    /// <summary>
+    /// The implicit conversions to the result: from a List&lt;T&gt; and a T[] for a list, else from the content type.
+    /// </summary>
+    private static IEnumerable<MethodParameters> OkImplicitOperators(
+        string className,
+        string contentType,
+        string paramName)
+    {
+        if (contentType.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
+        {
+            var elementType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
+
+            // List implicit operator (direct), and array to List (for backwards compatibility)
+            yield return ImplicitOperator(className, "List", isGenericListType: true, elementType, "response", "Ok(response)");
+            yield return ImplicitOperator(className, genericTypeName: null, isGenericListType: false, $"{elementType}[]", "response", "Ok(response.ToList())");
+        }
+        else
+        {
+            // Single type implicit operator - use same parameter name as Ok method
+            yield return ImplicitOperator(className, genericTypeName: null, isGenericListType: false, contentType, paramName, $"Ok({paramName})");
+        }
+    }
+
+    private static MethodParameters ImplicitOperator(
+        string className,
+        string? genericTypeName,
+        bool isGenericListType,
+        string typeName,
+        string parameterName,
+        string content)
+        => new(
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: string.Empty, // Name is not used for implicit operator
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: genericTypeName,
+                    IsGenericListType: isGenericListType,
+                    TypeName: typeName,
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: parameterName,
+                    DefaultValue: null),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: content);
 
     private static List<MethodParameters> GenerateCreatedMethods(
         string className,

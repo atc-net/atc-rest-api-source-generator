@@ -1500,6 +1500,9 @@ using Microsoft.AspNetCore.Builder;
         // Track which response codes are defined in the spec
         var definedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        string? TypeOf(IOpenApiSchema? schema)
+            => GetResponseContentType(schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
+
         if (operation.Responses is not null)
         {
             foreach (var response in operation.Responses)
@@ -1520,40 +1523,7 @@ using Microsoft.AspNetCore.Builder;
                     continue;
                 }
 
-                // Get response content type - handle inline schemas properly
-                string? contentType = null;
-                string? textResponseMediaType = null;
-
-                // A JSON body offered as XML too lists both media types (Produces<T>() alone means JSON only); so does a
-                // model or a file, with its file media types (the endpoint metadata holds one type per status: a second
-                // Produces for the file would replace the model's)
-                var negotiatedMediaTypes = string.Empty;
-                var fileAlternatives = statusCode == "200" ? ResponseBodyClassifier.FileAlternatives(openApiResponse.Content) : [];
-                var fileMediaTypes = string.Concat(fileAlternatives.Select(m => $", \"{m}\""));
-                if (openApiResponse.Content is not null && openApiResponse.Content.JsonBody is { } mediaType)
-                {
-                    contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
-                    if (openApiResponse.Content.XmlAlternative?.AlternativeMediaTypes is { } xmlMediaTypes)
-                    {
-                        negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
-                    }
-                    else if (fileAlternatives.Count > 0)
-                    {
-                        negotiatedMediaTypes = ", \"application/json\"" + fileMediaTypes;
-                    }
-                }
-                else if (openApiResponse.Content.XmlOnlyBody is { } xmlBody)
-                {
-                    // An XML-only model body: the model, with its XML media type (Produces<T>() alone means JSON)
-                    contentType = GetResponseContentType(openApiResponse.Content![xmlBody.MediaType].Schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
-                    textResponseMediaType = xmlBody.MediaType;
-                }
-                else if (openApiResponse.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
-                {
-                    // text/plain, text/csv, application/xml, ... — surface as a raw string body.
-                    contentType = "string";
-                    textResponseMediaType = matchedTextMediaType;
-                }
+                var (contentType, textResponseMediaType, negotiatedMediaTypes, fileMediaTypes) = ResolveProducesBody(statusCode, openApiResponse, TypeOf);
 
                 // Parse the status code to determine the category
                 if (!int.TryParse(statusCode, out var statusCodeInt))
@@ -1571,88 +1541,7 @@ using Microsoft.AspNetCore.Builder;
                 var statusCodeExpression = HttpStatusCodeHelper.ToStatusCodesExpression(statusCodeInt);
 
                 builder.AppendLine();
-
-                switch (statusCodeInt)
-                {
-                    // 4xx and 5xx use ProducesProblem
-                    case >= 400:
-                        builder.Append($"    .ProducesProblem({statusCodeExpression})");
-                        break;
-
-                    // 2xx success codes: 204 and 205 never have content
-                    case >= 200 and < 300 when statusCodeInt == 204 || statusCodeInt == 205:
-                        builder.Append($"    .Produces({statusCodeExpression})");
-                        break;
-                    case >= 200 and < 300 when statusCodeInt == 200:
-                    {
-                        // Text responses: must explicitly pass contentType because Produces<T>()
-                        // defaults to "application/json".
-                        if (textResponseMediaType is not null)
-                        {
-                            builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\"{fileMediaTypes})");
-                        }
-                        else if (operation.GetFileDownloadContentType() is { } fileMediaType)
-                        {
-                            // A file: its declared media types, as a Stream (a binary body in the OpenAPI document) - without a
-                            // type the endpoint metadata drops the media type
-                            var downloadMediaTypes = ResponseBodyClassifier.ClassifyContent(openApiResponse.Content)
-                                .Where(b => b.Kind == ResponseBodyKind.Binary)
-                                .Select(b => $"\"{b.MediaType}\"")
-                                .DefaultIfEmpty($"\"{fileMediaType}\"");
-                            builder.Append($"    .Produces({statusCodeExpression}, typeof(System.IO.Stream), {string.Join(", ", downloadMediaTypes)})");
-                        }
-                        else if (string.IsNullOrEmpty(contentType) &&
-                                 operation.IsStreamingResponse() &&
-                                 operation.GetStreamingResponse() is { } streamingResponse)
-                        {
-                            // Wire-framed streaming responses (SSE, JSON Lines, ...) advertise their
-                            // declared media type (text/event-stream, application/jsonl, ...) so
-                            // OpenAPI/Swagger reflects the actual streamed framing rather than the
-                            // application/json default - with the item type (an itemSchema), as the endpoint
-                            // metadata drops the media type of an untyped Produces.
-                            var itemType = operation.GetStreamingItemSchema() is { } itemSchema
-                                ? GetResponseContentType(itemSchema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry)
-                                : null;
-                            builder.Append(string.IsNullOrEmpty(itemType)
-                                ? $"    .Produces({statusCodeExpression}, contentType: \"{streamingResponse.MediaType}\")"
-                                : $"    .Produces<{itemType}>({statusCodeExpression}, \"{streamingResponse.MediaType}\")");
-                        }
-                        else
-                        {
-                            // 200 is the default status code for Produces<T>()
-                            builder.Append(string.IsNullOrEmpty(contentType)
-                                ? $"    .Produces({statusCodeExpression})"
-                                : negotiatedMediaTypes.Length > 0
-                                    ? $"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})"
-                                    : $"    .Produces<{contentType}>()");
-                        }
-
-                        break;
-                    }
-
-                    // Other 2xx codes need explicit status code
-                    case >= 200 and < 300 when textResponseMediaType is not null:
-                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
-                        break;
-                    case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
-                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})");
-                        break;
-                    case >= 200 and < 300:
-                        builder.Append($"    .Produces({statusCodeExpression})");
-                        break;
-
-                    // A 3xx with a body (e.g. 300 Multiple Choices) - never 304, which has none.
-                    case >= 300 and < 400 when statusCodeInt != 304 && textResponseMediaType is not null && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
-                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
-                        break;
-                    case >= 300 and < 400 when statusCodeInt != 304 && !string.IsNullOrEmpty(contentType) && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
-                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression})");
-                        break;
-                    default:
-                        // Other 3xx: the status only (a redirect's Location is a header)
-                        builder.Append($"    .Produces({statusCodeExpression})");
-                        break;
-                }
+                AppendProducesCall(builder, operation, openApiResponse, statusCodeInt, statusCodeExpression, contentType, textResponseMediaType, negotiatedMediaTypes, fileMediaTypes, TypeOf);
             }
         }
 
@@ -1666,6 +1555,151 @@ using Microsoft.AspNetCore.Builder;
             builder.Append(statusCode == "400"
                 ? "    .ProducesValidationProblem()"
                 : $"    .ProducesProblem(StatusCodes.Status{statusCode}{ImplicitStatusName(statusCode)})");
+        }
+    }
+
+    /// <summary>
+    /// A success response's body as Produces describes it: the type, the media type of a text or XML-only body, the
+    /// media types a negotiated body lists, and those of a file it may be instead.
+    /// </summary>
+    private static (string? ContentType, string? TextResponseMediaType, string NegotiatedMediaTypes, string FileMediaTypes) ResolveProducesBody(
+        string statusCode,
+        IOpenApiResponse openApiResponse,
+        Func<IOpenApiSchema?, string?> typeOf)
+    {
+        string? contentType = null;
+        string? textResponseMediaType = null;
+
+        // A JSON body offered as XML too lists both media types (Produces<T>() alone means JSON only); so does a
+        // model or a file, with its file media types (the endpoint metadata holds one type per status: a second
+        // Produces for the file would replace the model's)
+        var negotiatedMediaTypes = string.Empty;
+        var fileAlternatives = statusCode == "200" ? ResponseBodyClassifier.FileAlternatives(openApiResponse.Content) : [];
+        var fileMediaTypes = string.Concat(fileAlternatives.Select(m => $", \"{m}\""));
+        if (openApiResponse.Content is not null && openApiResponse.Content.JsonBody is { } mediaType)
+        {
+            contentType = typeOf(mediaType.Schema);
+            if (openApiResponse.Content.XmlAlternative?.AlternativeMediaTypes is { } xmlMediaTypes)
+            {
+                negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
+            }
+            else if (fileAlternatives.Count > 0)
+            {
+                negotiatedMediaTypes = ", \"application/json\"" + fileMediaTypes;
+            }
+        }
+        else if (openApiResponse.Content.XmlOnlyBody is { } xmlBody)
+        {
+            // An XML-only model body: the model, with its XML media type (Produces<T>() alone means JSON)
+            contentType = typeOf(openApiResponse.Content![xmlBody.MediaType].Schema);
+            textResponseMediaType = xmlBody.MediaType;
+        }
+        else if (openApiResponse.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
+        {
+            // text/plain, text/csv, application/xml, ... — surface as a raw string body.
+            contentType = "string";
+            textResponseMediaType = matchedTextMediaType;
+        }
+
+        return (contentType, textResponseMediaType, negotiatedMediaTypes, fileMediaTypes);
+    }
+
+    /// <summary>
+    /// The Produces call of one non-error status: Produces&lt;T&gt; with its media types, a file as a Stream, a
+    /// stream with its framing, or the status alone.
+    /// </summary>
+    private static void AppendProducesCall(
+        StringBuilder builder,
+        OpenApiOperation operation,
+        IOpenApiResponse openApiResponse,
+        int statusCodeInt,
+        string statusCodeExpression,
+        string? contentType,
+        string? textResponseMediaType,
+        string negotiatedMediaTypes,
+        string fileMediaTypes,
+        Func<IOpenApiSchema?, string?> typeOf)
+    {
+        switch (statusCodeInt)
+        {
+            // 4xx and 5xx use ProducesProblem
+            case >= 400:
+                builder.Append($"    .ProducesProblem({statusCodeExpression})");
+                break;
+
+            // 2xx success codes: 204 and 205 never have content
+            case >= 200 and < 300 when statusCodeInt == 204 || statusCodeInt == 205:
+                builder.Append($"    .Produces({statusCodeExpression})");
+                break;
+            case >= 200 and < 300 when statusCodeInt == 200:
+            {
+                // Text responses: must explicitly pass contentType because Produces<T>()
+                // defaults to "application/json".
+                if (textResponseMediaType is not null)
+                {
+                    builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\"{fileMediaTypes})");
+                }
+                else if (operation.GetFileDownloadContentType() is { } fileMediaType)
+                {
+                    // A file: its declared media types, as a Stream (a binary body in the OpenAPI document) - without a
+                    // type the endpoint metadata drops the media type
+                    var downloadMediaTypes = ResponseBodyClassifier.ClassifyContent(openApiResponse.Content)
+                        .Where(b => b.Kind == ResponseBodyKind.Binary)
+                        .Select(b => $"\"{b.MediaType}\"")
+                        .DefaultIfEmpty($"\"{fileMediaType}\"");
+                    builder.Append($"    .Produces({statusCodeExpression}, typeof(System.IO.Stream), {string.Join(", ", downloadMediaTypes)})");
+                }
+                else if (string.IsNullOrEmpty(contentType) &&
+                         operation.IsStreamingResponse() &&
+                         operation.GetStreamingResponse() is { } streamingResponse)
+                {
+                    // Wire-framed streaming responses (SSE, JSON Lines, ...) advertise their
+                    // declared media type (text/event-stream, application/jsonl, ...) so
+                    // OpenAPI/Swagger reflects the actual streamed framing rather than the
+                    // application/json default - with the item type (an itemSchema), as the endpoint
+                    // metadata drops the media type of an untyped Produces.
+                    var itemType = operation.GetStreamingItemSchema() is { } itemSchema
+                        ? typeOf(itemSchema)
+                        : null;
+                    builder.Append(string.IsNullOrEmpty(itemType)
+                        ? $"    .Produces({statusCodeExpression}, contentType: \"{streamingResponse.MediaType}\")"
+                        : $"    .Produces<{itemType}>({statusCodeExpression}, \"{streamingResponse.MediaType}\")");
+                }
+                else
+                {
+                    // 200 is the default status code for Produces<T>()
+                    builder.Append(string.IsNullOrEmpty(contentType)
+                        ? $"    .Produces({statusCodeExpression})"
+                        : negotiatedMediaTypes.Length > 0
+                            ? $"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})"
+                            : $"    .Produces<{contentType}>()");
+                }
+
+                break;
+            }
+
+            // Other 2xx codes need explicit status code
+            case >= 200 and < 300 when textResponseMediaType is not null:
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
+                break;
+            case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})");
+                break;
+            case >= 200 and < 300:
+                builder.Append($"    .Produces({statusCodeExpression})");
+                break;
+
+            // A 3xx with a body (e.g. 300 Multiple Choices) - never 304, which has none.
+            case >= 300 and < 400 when statusCodeInt != 304 && textResponseMediaType is not null && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
+                break;
+            case >= 300 and < 400 when statusCodeInt != 304 && !string.IsNullOrEmpty(contentType) && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression})");
+                break;
+            default:
+                // Other 3xx: the status only (a redirect's Location is a header)
+                builder.Append($"    .Produces({statusCodeExpression})");
+                break;
         }
     }
 
