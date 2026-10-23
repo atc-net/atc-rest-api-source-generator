@@ -9,10 +9,14 @@ using System.Text.Json.Serialization;
 namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 
 /// <summary>
-/// Polymorphic base type (anyOf) with discriminator property 'color'.
-/// Note: Discriminator was auto-detected from common properties.
-/// Note: Uses a custom JsonConverter because discriminator was auto-detected (fallback: Circle).
+/// Union type (anyOf) without discriminator — uses try-parse deserialization.
+/// Variants: Circle, Square, Triangle
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonConverter(typeof(ShapeJsonConverter))]
-public abstract record Shape;
+public sealed record Shape(object Value)
+{
+    public static implicit operator Shape(Circle value) => new(value);
+    public static implicit operator Shape(Square value) => new(value);
+    public static implicit operator Shape(Triangle value) => new(value);
+}

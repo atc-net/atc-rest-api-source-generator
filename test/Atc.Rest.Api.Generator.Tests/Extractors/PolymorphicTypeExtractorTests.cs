@@ -161,6 +161,83 @@ public class PolymorphicTypeExtractorTests
         Assert.Equal("SmsNotification", sms.DiscriminatorValue);
     }
 
+    // An auto-detected discriminator has no fallback: an unknown value is a JsonException, as with a declared one
+    [Fact]
+    public void ExtractPolymorphicConfigs_AutoDetectedDiscriminator_HasNoFallbackVariant()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Notification:
+                                  anyOf:
+                                    - $ref: '#/components/schemas/EmailNotification'
+                                    - $ref: '#/components/schemas/SmsNotification'
+                                EmailNotification:
+                                  type: object
+                                  properties:
+                                    kind:
+                                      type: string
+                                SmsNotification:
+                                  type: object
+                                  properties:
+                                    kind:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var config = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document)!["Notification"];
+
+        Assert.Null(config.DefaultVariantTypeName);
+        Assert.True(config.UsesDiscriminatorConverter);
+        Assert.Contains("_ => throw new JsonException(", PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, "Test"), StringComparison.Ordinal);
+    }
+
+    // A variant that pins the property to a value of its own is read by that value, not by its schema name
+    [Fact]
+    public void ExtractPolymorphicConfigs_AutoDetectedPinnedDiscriminator_UsesThePinnedValues()
+    {
+        const string yaml = """
+                            openapi: 3.1.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Shape:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/Circle'
+                                    - $ref: '#/components/schemas/Square'
+                                Circle:
+                                  type: object
+                                  properties:
+                                    shape:
+                                      type: string
+                                      enum: [circle]
+                                Square:
+                                  type: object
+                                  properties:
+                                    shape:
+                                      const: square
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var config = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document)!["Shape"];
+
+        Assert.Equal("shape", config.DiscriminatorPropertyName);
+        Assert.Equal("circle", config.Variants.Single(v => v.TypeName == "Circle").DiscriminatorValue);
+        Assert.Equal("square", config.Variants.Single(v => v.TypeName == "Square").DiscriminatorValue);
+    }
+
     [Fact]
     public void ExtractPolymorphicConfigs_WithoutDiscriminator_ReturnsUnionConfig()
     {

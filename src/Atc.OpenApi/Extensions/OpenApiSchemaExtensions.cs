@@ -1706,8 +1706,12 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Auto-detects a discriminator property from polymorphic variant schemas.
-        /// Looks for a common string property with priority: "type", "kind", "discriminator", "$type".
+        /// Auto-detects the discriminator property of a <c>oneOf</c> / <c>anyOf</c> without a <c>propertyName</c>.
+        /// With a <c>discriminator</c> block (OpenAPI 3.2 allows one without <c>propertyName</c>) the block says there
+        /// is one: a string property every variant has is it ("type", "kind", "discriminator", "$type" first). Without
+        /// a block, a property every variant has is a discriminator only when each variant pins it to a value of its
+        /// own (<c>const</c> or a one-value <c>enum</c>), or when it has one of those names; any other common property
+        /// (a <c>color</c> on every shape) is data, and the variants are told apart by their properties instead.
         /// </summary>
         /// <param name="document">The OpenAPI document for resolving schema references.</param>
         /// <returns>The detected discriminator property name, or null if not found.</returns>
@@ -1727,67 +1731,93 @@ public static class OpenApiSchemaExtensions
             // Priority list of common discriminator property names
             var priorityNames = new[] { "type", "kind", "discriminator", "$type" };
 
-            // Get all string properties from each variant schema
-            var variantProperties = new List<HashSet<string>>();
+            // The string properties of each variant (a pinned const without a type is a string too)
+            var variants = new List<OpenApiSchema>();
             foreach (var variantName in variantNames)
             {
-                if (document.Components?.Schemas is null ||
-                    !document.Components.Schemas.TryGetValue(variantName, out var variantSchema))
+                if (document.Components?.Schemas is not null &&
+                    document.Components.Schemas.TryGetValue(variantName, out var variantSchema) &&
+                    variantSchema is OpenApiSchema { Properties: not null } actualVariant)
                 {
-                    continue;
+                    variants.Add(actualVariant);
                 }
-
-                if (variantSchema is not OpenApiSchema actualVariant || actualVariant.Properties is null)
-                {
-                    continue;
-                }
-
-                var stringProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var prop in actualVariant.Properties)
-                {
-                    if (prop.Value is OpenApiSchema propSchema &&
-                        propSchema.Type?.HasFlag(JsonSchemaType.String) == true)
-                    {
-                        stringProps.Add(prop.Key);
-                    }
-                }
-
-                variantProperties.Add(stringProps);
             }
 
-            if (variantProperties.Count == 0)
+            if (variants.Count == 0)
             {
                 return null;
             }
 
-            // Find common properties across all variants
-            var commonProps = variantProperties[0];
-            for (var i = 1; i < variantProperties.Count; i++)
-            {
-                commonProps = new HashSet<string>(
-                    commonProps.Where(p => variantProperties[i].Contains(p, StringComparer.OrdinalIgnoreCase)),
+            HashSet<string> StringProperties(OpenApiSchema variant)
+                => new(
+                    variant.Properties!
+                        .Where(p => p.Value is OpenApiSchema propSchema &&
+                                    (propSchema.Type?.HasFlag(JsonSchemaType.String) == true || variant.GetPinnedStringValue(p.Key) is not null))
+                        .Select(p => p.Key),
                     StringComparer.OrdinalIgnoreCase);
-            }
 
-            // Check priority names first
-            foreach (var priorityName in priorityNames)
+            // Find common properties across all variants
+            var commonProps = StringProperties(variants[0]);
+            foreach (var variant in variants.Skip(1))
             {
-                if (commonProps.Contains(priorityName, StringComparer.OrdinalIgnoreCase))
-                {
-                    // Return the actual property name with correct casing
-                    foreach (var prop in commonProps)
-                    {
-                        if (prop.Equals(priorityName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return prop;
-                        }
-                    }
-                }
+                commonProps.IntersectWith(StringProperties(variant));
             }
 
-            // If no priority name found, return the alphabetically first common string property
-            // (sorted for deterministic output across GC runs and .NET versions)
-            return commonProps.Count > 0 ? commonProps.OrderBy(p => p, StringComparer.Ordinal).First() : null;
+            if (commonProps.Count == 0)
+            {
+                return null;
+            }
+
+            // The property with its declared casing, priority names first, then in order
+            var ordered = commonProps
+                .OrderBy(p => Array.FindIndex(priorityNames, n => n.Equals(p, StringComparison.OrdinalIgnoreCase)) is var i and >= 0 ? i : priorityNames.Length)
+                .ThenBy(p => p, StringComparer.Ordinal)
+                .ToList();
+
+            if (schema is OpenApiSchema { Discriminator: not null })
+            {
+                return ordered[0];
+            }
+
+            // Without a block: a property each variant pins to a distinct value, else one with a discriminator's name
+            var pinned = ordered.FirstOrDefault(p =>
+            {
+                var values = variants.Select(v => v.GetPinnedStringValue(p)).ToList();
+                return values.All(v => v is not null) && values.Distinct(StringComparer.Ordinal).Count() == values.Count;
+            });
+
+            return pinned ?? ordered.FirstOrDefault(p => priorityNames.Contains(p, StringComparer.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// The one value a property of this object schema is pinned to: its <c>const</c>, or the single value of its
+        /// <c>enum</c> - what a variant of a discriminated union says its discriminator is.
+        /// </summary>
+        /// <param name="propertyName">The property name (compared without case).</param>
+        /// <returns>The pinned string value, or null when the property is not pinned to one string.</returns>
+        public string? GetPinnedStringValue(string propertyName)
+        {
+            if (schema is not OpenApiSchema { Properties: not null } actualSchema)
+            {
+                return null;
+            }
+
+            var property = actualSchema.Properties
+                .FirstOrDefault(p => string.Equals(p.Key, propertyName, StringComparison.OrdinalIgnoreCase))
+                .Value as OpenApiSchema;
+            if (property is null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(property.Const))
+            {
+                return property.Const;
+            }
+
+            return property.Enum is { Count: 1 } values && values[0] is JsonValue value && value.TryGetValue<string>(out var text)
+                ? text
+                : null;
         }
 
         /// <summary>

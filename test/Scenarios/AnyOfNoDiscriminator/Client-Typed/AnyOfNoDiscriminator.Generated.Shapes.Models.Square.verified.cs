@@ -11,4 +11,4 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Square(
     [property: Required] double SideLength,
-    string? Color = null) : Shape;
+    string? Color = null);

@@ -10,42 +10,112 @@ using System.Text.Json.Serialization;
 namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 
 /// <summary>
-/// Discriminator-based JSON converter for <see cref="Shape"/>.
-/// Dispatches on property 'color' and falls back to
-/// <see cref="Circle"/> for unrecognized discriminator values.
+/// JSON converter for the <see cref="Shape"/> union type: the variant the body fits - every required
+/// member present, no member the variant does not have. A body that fits no variant, or more than one, is a
+/// <see cref="JsonException"/> (a 400 on the server).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class ShapeJsonConverter : JsonConverter<Shape>
 {
+    // The host's options, made strict once per options instance: a missing required member or an unknown member
+    // fails the variant instead of becoming a default value
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();
+
     public override Shape? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
-        if (document.RootElement.ValueKind != JsonValueKind.Object)
-        {
-            throw new JsonException($"Unable to deserialize {nameof(Shape)}: expected an object, got {document.RootElement.ValueKind}.");
-        }
-
         var rawText = document.RootElement.GetRawText();
+        var strict = Strict(options);
 
-        // A discriminator that is no string is no known value
-        string? discriminatorValue = null;
-        if (document.RootElement.TryGetProperty("color", out var discriminatorElement) && discriminatorElement.ValueKind == JsonValueKind.String)
+        Shape? match = null;
+        string? matchedVariant = null;
+        JsonException? lastException = null;
+
+        Circle? circleValue = null;
+        try
         {
-            discriminatorValue = discriminatorElement.GetString();
+            circleValue = JsonSerializer.Deserialize(rawText, Info<Circle>(strict));
+        }
+        catch (JsonException ex)
+        {
+            lastException = ex;
         }
 
-        return discriminatorValue switch
+        if (circleValue is not null)
         {
-            "Circle" => JsonSerializer.Deserialize(rawText, Info<Circle>(options)),
-            "Square" => JsonSerializer.Deserialize(rawText, Info<Square>(options)),
-            "Triangle" => JsonSerializer.Deserialize(rawText, Info<Triangle>(options)),
-            _ => JsonSerializer.Deserialize(rawText, Info<Circle>(options)),
-        };
+            if (match is not null)
+            {
+                throw new JsonException($"Ambiguous {nameof(Shape)}: the body fits {matchedVariant} and Circle.");
+            }
+
+            match = new Shape(circleValue);
+            matchedVariant = "Circle";
+        }
+
+        Square? squareValue = null;
+        try
+        {
+            squareValue = JsonSerializer.Deserialize(rawText, Info<Square>(strict));
+        }
+        catch (JsonException ex)
+        {
+            lastException = ex;
+        }
+
+        if (squareValue is not null)
+        {
+            if (match is not null)
+            {
+                throw new JsonException($"Ambiguous {nameof(Shape)}: the body fits {matchedVariant} and Square.");
+            }
+
+            match = new Shape(squareValue);
+            matchedVariant = "Square";
+        }
+
+        Triangle? triangleValue = null;
+        try
+        {
+            triangleValue = JsonSerializer.Deserialize(rawText, Info<Triangle>(strict));
+        }
+        catch (JsonException ex)
+        {
+            lastException = ex;
+        }
+
+        if (triangleValue is not null)
+        {
+            if (match is not null)
+            {
+                throw new JsonException($"Ambiguous {nameof(Shape)}: the body fits {matchedVariant} and Triangle.");
+            }
+
+            match = new Shape(triangleValue);
+            matchedVariant = "Triangle";
+        }
+
+        return match ?? throw new JsonException(
+            $"Unable to deserialize {nameof(Shape)}: the body fits no variant.",
+            lastException);
     }
+
+    private static JsonSerializerOptions Strict(JsonSerializerOptions options)
+        => StrictOptions.GetValue(options, static o =>
+        {
+            var strict = new JsonSerializerOptions(o)
+            {
+                RespectRequiredConstructorParameters = true,
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+            };
+
+            // Locked, so the metadata it resolves is cached
+            strict.MakeReadOnly();
+            return strict;
+        });
 
     public override void Write(Utf8JsonWriter writer, Shape value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));
+        JsonSerializer.Serialize(writer, value.Value, options.GetTypeInfo(value.Value.GetType()));
     }
 
     // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app

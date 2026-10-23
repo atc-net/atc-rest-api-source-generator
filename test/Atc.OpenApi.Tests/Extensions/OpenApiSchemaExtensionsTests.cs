@@ -2023,6 +2023,94 @@ public class OpenApiSchemaExtensionsTests
         Assert.Null(doc.Components!.Schemas!["Pet"].DetectDiscriminatorProperty(doc));
     }
 
+    // A common string property is no discriminator by itself: Circle, Square and Triangle all have a `color`, and
+    // dispatching on it read a red triangle as whatever variant came first
+    [Fact]
+    public void DetectDiscriminatorProperty_CommonPropertyWithAnOrdinaryName_ReturnsNull()
+    {
+        var doc = ParseShapesDocument(discriminatorBlock: false, pinned: false);
+
+        Assert.Null(doc.Components!.Schemas!["Shape"].DetectDiscriminatorProperty(doc));
+    }
+
+    // Each variant pins the property to a value of its own (`enum: [circle]` / `const`): that is a discriminator
+    [Fact]
+    public void DetectDiscriminatorProperty_PropertyEachVariantPinsToItsOwnValue_ReturnsIt()
+    {
+        var doc = ParseShapesDocument(discriminatorBlock: false, pinned: true);
+
+        Assert.Equal("shape", doc.Components!.Schemas!["Shape"].DetectDiscriminatorProperty(doc));
+        Assert.Equal("circle", doc.Components.Schemas["Circle"].GetPinnedStringValue("shape"));
+        Assert.Equal("square", doc.Components.Schemas["Square"].GetPinnedStringValue("shape"));
+        Assert.Null(doc.Components.Schemas["Circle"].GetPinnedStringValue("color"));
+    }
+
+    // A discriminator block without propertyName (OpenAPI 3.2) says there is a discriminator: the common property is it
+    [Fact]
+    public void DetectDiscriminatorProperty_DiscriminatorBlockWithoutPropertyName_ReturnsTheCommonProperty()
+    {
+        var doc = ParseShapesDocument(discriminatorBlock: true, pinned: false);
+
+        Assert.Equal("color", doc.Components!.Schemas!["Shape"].DetectDiscriminatorProperty(doc));
+    }
+
+    private static OpenApiDocument ParseShapesDocument(
+        bool discriminatorBlock,
+        bool pinned)
+    {
+        List<string> lines =
+        [
+            "openapi: \"3.2.0\"",
+            "info: { title: T, version: \"1.0.0\" }",
+            "paths: {}",
+            "components:",
+            "  schemas:",
+            "    Circle:",
+            "      type: object",
+            "      required: [radius]",
+            "      properties:",
+            "        radius: { type: number }",
+            "        color: { type: string }",
+        ];
+        if (pinned)
+        {
+            lines.Add("        shape: { type: string, enum: [circle] }");
+        }
+
+        lines.AddRange(
+        [
+            "    Square:",
+            "      type: object",
+            "      required: [side]",
+            "      properties:",
+            "        side: { type: number }",
+            "        color: { type: string }",
+        ]);
+        if (pinned)
+        {
+            lines.Add("        shape: { const: square }");
+        }
+
+        lines.AddRange(
+        [
+            "    Shape:",
+            "      anyOf:",
+            "        - $ref: '#/components/schemas/Circle'",
+            "        - $ref: '#/components/schemas/Square'",
+        ]);
+        if (discriminatorBlock)
+        {
+            lines.AddRange(
+            [
+                "      discriminator:",
+                "        mapping:",
+                "          round: '#/components/schemas/Circle'",
+            ]);
+        }
+
+        return OpenApiDocumentHelper.ParseYaml(string.Join("\n", lines));
+    }
+
     // ========== additionalProperties value type Tests ==========
     [Fact]
     public void IsAdditionalPropertiesAnyType_True_ReturnsTrue()

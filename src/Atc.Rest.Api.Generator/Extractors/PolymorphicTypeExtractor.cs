@@ -275,15 +275,9 @@ public static class PolymorphicTypeExtractor
 
         var defaultVariantTypeName = schema.GetDiscriminatorDefaultMappingSchemaName();
 
-        // When the discriminator was auto-detected the detected property is a real CLR property
-        // on every variant. STJ [JsonPolymorphic] throws InvalidOperationException when
-        // TypeDiscriminatorPropertyName matches an actual property on a derived type (.NET 10+).
-        // Route through the custom converter instead, using the first variant as fallback.
-        if (!isExplicit && defaultVariantTypeName is null)
-        {
-            defaultVariantTypeName = variantNames[0];
-        }
-
+        // An auto-detected property is a property of every variant, so the type is read by the discriminator
+        // converter (DiscriminatorDeclaredByVariants); without a defaultMapping an unknown value is a JsonException,
+        // as with a declared discriminator - never silently the first variant
         var config = new PolymorphicConfig
         {
             BaseTypeName = schemaName,
@@ -299,7 +293,12 @@ public static class PolymorphicTypeExtractor
 
         foreach (var variantName in variantNames)
         {
-            var discriminatorValue = GetDiscriminatorValueForVariant(variantName, explicitMapping);
+            // A variant that pins the property to a value of its own (const, one-value enum) is read by that value
+            var pinnedValue = !isExplicit && explicitMapping?.Values.Contains(variantName, StringComparer.Ordinal) != true &&
+                              document.Components?.Schemas?.TryGetValue(variantName, out var variantSchema) == true
+                ? variantSchema.GetPinnedStringValue(discriminatorPropertyName!)
+                : null;
+            var discriminatorValue = pinnedValue ?? GetDiscriminatorValueForVariant(variantName, explicitMapping);
 
             config.Variants.Add(new PolymorphicVariant
             {

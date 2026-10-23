@@ -11,8 +11,7 @@ namespace DiscriminatorImprovements.Generated.Events.Models;
 
 /// <summary>
 /// Discriminator-based JSON converter for <see cref="Event"/>.
-/// Dispatches on property 'eventType' and falls back to
-/// <see cref="UserCreatedEvent"/> for unrecognized discriminator values.
+/// Dispatches on property 'eventType'; an unrecognized value is a <see cref="JsonException"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class EventJsonConverter : JsonConverter<Event>
@@ -38,7 +37,7 @@ public sealed class EventJsonConverter : JsonConverter<Event>
         {
             "user_created" => JsonSerializer.Deserialize(rawText, Info<UserCreatedEvent>(options)),
             "order_placed" => JsonSerializer.Deserialize(rawText, Info<OrderPlacedEvent>(options)),
-            _ => JsonSerializer.Deserialize(rawText, Info<UserCreatedEvent>(options)),
+            _ => throw new JsonException($"Unknown 'eventType' value '{discriminatorValue}' for Event."),
         };
     }
 

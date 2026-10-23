@@ -13,4 +13,4 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 public sealed record Triangle(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "base")] double Base,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "height")] double Height,
-    string? Color = null) : Shape;
+    string? Color = null);

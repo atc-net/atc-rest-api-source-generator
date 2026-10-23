@@ -11,7 +11,7 @@ namespace Polymorphism.Generated.Notifications.Models;
 /// <summary>
 /// Polymorphic base type (anyOf) with discriminator property 'kind'.
 /// Note: Discriminator was auto-detected from common properties.
-/// Note: Uses a custom JsonConverter because discriminator was auto-detected (fallback: EmailNotification).
+/// Note: Uses a custom JsonConverter because a variant declares 'kind' as a property of its own; an unknown value is a JsonException.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonConverter(typeof(NotificationJsonConverter))]

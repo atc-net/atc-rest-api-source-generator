@@ -11,8 +11,7 @@ namespace Polymorphism.Generated.Notifications.Models;
 
 /// <summary>
 /// Discriminator-based JSON converter for <see cref="Notification"/>.
-/// Dispatches on property 'kind' and falls back to
-/// <see cref="EmailNotification"/> for unrecognized discriminator values.
+/// Dispatches on property 'kind'; an unrecognized value is a <see cref="JsonException"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class NotificationJsonConverter : JsonConverter<Notification>
@@ -39,7 +38,7 @@ public sealed class NotificationJsonConverter : JsonConverter<Notification>
             "EmailNotification" => JsonSerializer.Deserialize(rawText, Info<EmailNotification>(options)),
             "SmsNotification" => JsonSerializer.Deserialize(rawText, Info<SmsNotification>(options)),
             "PushNotification" => JsonSerializer.Deserialize(rawText, Info<PushNotification>(options)),
-            _ => JsonSerializer.Deserialize(rawText, Info<EmailNotification>(options)),
+            _ => throw new JsonException($"Unknown 'kind' value '{discriminatorValue}' for Notification."),
         };
     }
 
