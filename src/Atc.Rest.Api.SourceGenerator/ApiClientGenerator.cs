@@ -148,10 +148,68 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
+        // A TypedClient needs Atc.Rest.Client only for a file (IFileContent) or the Result style: without the package
+        // that is an error naming it, not a compile error in generated code
+        if (config.GenerationMode == GenerationModeType.TypedClient &&
+            packages.AtcRestClientVersion is null &&
+            TypedClientNeedsAtcRestClient(openApiDoc, config) is { } reason)
+        {
+            DiagnosticHelpers.ReportTypedClientRequiresAtcRestClient(context, reason);
+            return;
+        }
+
         // Resolve the root namespace: marker namespace, qualifying info.title, then base file name.
         var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, files.BaseFile.Path);
 
         GenerateApiClientFromDocument(context, files.BaseFile.Path, openApiDoc, config, packages, projectName);
+    }
+
+    /// <summary>
+    /// What makes a TypedClient use Atc.Rest.Client, or null: the Result style, an operation that uploads a file (its
+    /// parameter is an <c>IFileContent</c>), a model with a binary property (an <c>IFileContent</c> member).
+    /// </summary>
+    private static string? TypedClientNeedsAtcRestClient(
+        OpenApiDocument openApiDoc,
+        ClientConfig config)
+    {
+        if (config.TypedClientResultStyle == TypedClientResultStyleType.Result)
+        {
+            return "the Result style (typedClientResultStyle: Result)";
+        }
+
+        // A property that is a file: binary, or a list of binary
+        static string? BinaryProperty(IOpenApiSchema? schema)
+            => ((schema is OpenApiSchemaReference reference ? reference.Target : schema) as OpenApiSchema)?.Properties?
+                .FirstOrDefault(p => p.Value is OpenApiSchema { Format: "binary" } ||
+                                     p.Value is OpenApiSchema { Items: OpenApiSchema { Format: "binary" } })
+                .Key;
+
+        // An operation that sends a file: a raw binary body, or a form with a binary field
+        foreach (var path in openApiDoc.Paths ?? [])
+        {
+            foreach (var operation in path.Value.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
+            {
+                foreach (var content in operation.Value.RequestBody?.Content ?? new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal))
+                {
+                    if (OpenApiOperationExtensions.IsRawFileUploadContentType(content.Key) ||
+                        (OpenApiOperationExtensions.IsFileUploadContentType(content.Key) && BinaryProperty(content.Value.Schema) is not null))
+                    {
+                        return $"the file upload of {operation.Key.Method.ToUpperInvariant()} {path.Key} (IFileContent)";
+                    }
+                }
+            }
+        }
+
+        // A model with a file property
+        foreach (var schema in openApiDoc.Components?.Schemas ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            if (BinaryProperty(schema.Value) is { } property)
+            {
+                return $"the binary property {schema.Key}.{property} (IFileContent)";
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -1769,11 +1827,16 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Collect all usings
         var usings = new List<string>
         {
-            "Atc.Rest.Client",
             "System.CodeDom.Compiler",
             "System.ComponentModel",
             "System.ComponentModel.DataAnnotations",
         };
+
+        // Atc.Rest.Client for IFileContent, only where a parameter is a file (a TypedClient project need not reference it)
+        if (paramRecord is null || UsingStatementHelper.RecordsUseFileContent([paramRecord]))
+        {
+            usings.Add("Atc.Rest.Client");
+        }
 
         if (paramRecord is not null && UsingStatementHelper.RecordUsesSystemTypes(paramRecord))
         {

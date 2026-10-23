@@ -216,6 +216,12 @@ public static class RuleIdentifiers
     public const string MinimalApiTooOld = "ATC_API_DEP013";
 
     /// <summary>
+    /// ATC_API_DEP014: A TypedClient that uses a type of Atc.Rest.Client (a file, IFileContent; the Result style) and the
+    /// project does not reference the package.
+    /// </summary>
+    public const string TypedClientRequiresAtcRestClient = "ATC_API_DEP014";
+
+    /// <summary>
     /// ATC_API_HUB001: A member of a SignalR hub (x-signalr-hubs) cannot be read - a payload, an answer or an argument the
     /// generator does not understand, payload next to arguments, an argument without a name or payload, a name twice,
     /// more arguments than SignalR's typed handlers take, an answer on an event, a member without a name.

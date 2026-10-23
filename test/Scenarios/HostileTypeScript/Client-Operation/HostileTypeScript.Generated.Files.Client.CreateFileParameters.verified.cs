@@ -7,7 +7,6 @@ using System.IO;
 using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using Atc.Rest.Client;
 using HostileTypeScript.Generated.Files.Models;
 
 namespace HostileTypeScript.Generated.Files.Client;

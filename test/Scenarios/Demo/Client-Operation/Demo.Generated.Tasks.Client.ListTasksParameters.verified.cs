@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using Atc.Rest.Client;
 using Demo.Generated.Tasks.Models;
 
 namespace Demo.Generated.Tasks.Client;

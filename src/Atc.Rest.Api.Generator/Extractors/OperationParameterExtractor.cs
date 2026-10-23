@@ -353,9 +353,10 @@ public static class OperationParameterExtractor
             "System.ComponentModel.DataAnnotations",
         };
 
-        if (!includeBindingAttributes)
+        if (!includeBindingAttributes && (records is null || UsingStatementHelper.RecordsUseFileContent(records)))
         {
-            // Client-side: include Atc.Rest.Client for IFileContent
+            // Client-side: Atc.Rest.Client for IFileContent, only where a parameter is a file (a TypedClient project
+            // need not reference the package)
             usings.Add("Atc.Rest.Client");
         }
 

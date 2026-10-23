@@ -168,6 +168,11 @@ internal static class DiagnosticHelpers
     public static readonly DiagnosticDescriptor MinimalApiTooOld = Descriptor(RuleIdentifiers.MinimalApiTooOld);
 
     /// <summary>
+    /// ATC_API_DEP014: A TypedClient uses a type of Atc.Rest.Client and the project does not reference the package.
+    /// </summary>
+    public static readonly DiagnosticDescriptor TypedClientRequiresAtcRestClient = Descriptor(RuleIdentifiers.TypedClientRequiresAtcRestClient);
+
+    /// <summary>
     /// ATC_API_DEP012: SignalR hubs are declared and the client project has no Microsoft.AspNetCore.SignalR.Client.
     /// </summary>
     public static readonly DiagnosticDescriptor SignalRClientPackageRecommended = Descriptor(RuleIdentifiers.SignalRClientPackageRecommended);
@@ -594,6 +599,14 @@ internal static class DiagnosticHelpers
             hubClients.Count,
             string.Join(", ", hubClients)));
     }
+
+    public static void ReportTypedClientRequiresAtcRestClient(
+        SourceProductionContext context,
+        string reason)
+        => context.ReportDiagnostic(Diagnostic.Create(
+            TypedClientRequiresAtcRestClient,
+            Location.None,
+            reason));
 
     public static void ReportMinimalApiTooOld(
         SourceProductionContext context,

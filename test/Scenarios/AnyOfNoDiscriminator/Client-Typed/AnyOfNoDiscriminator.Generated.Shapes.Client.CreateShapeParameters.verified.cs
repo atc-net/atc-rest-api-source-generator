@@ -7,7 +7,6 @@ using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using AnyOfNoDiscriminator.Generated.Shapes.Models;
-using Atc.Rest.Client;
 
 namespace AnyOfNoDiscriminator.Generated.Shapes.Client;
 

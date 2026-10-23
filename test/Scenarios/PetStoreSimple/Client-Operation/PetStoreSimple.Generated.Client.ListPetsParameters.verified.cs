@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using Atc.Rest.Client;
 using PetStoreSimple.Generated.Models;
 
 namespace PetStoreSimple.Generated.Client;

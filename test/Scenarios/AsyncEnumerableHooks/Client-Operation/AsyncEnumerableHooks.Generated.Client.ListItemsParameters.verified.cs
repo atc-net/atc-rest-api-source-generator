@@ -8,7 +8,6 @@ using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using AsyncEnumerableHooks.Generated.Models;
-using Atc.Rest.Client;
 
 namespace AsyncEnumerableHooks.Generated.Client;
 

@@ -18,7 +18,8 @@ internal static class CompilationVerificationHarness
             scenarioName,
             yamlFileName,
             ".atc-rest-api-client",
-            "Client-Typed").GeneratedSources;
+            "Client-Typed",
+            references: GetMinimalClientReferences()).GeneratedSources;
 
     /// <summary>
     /// Runs the server generator for a scenario (with full references) and returns the generated sources.
@@ -50,7 +51,8 @@ internal static class CompilationVerificationHarness
         string? defaultMarkerContent = null,
         Func<string, string>? markerTransform = null,
         IReadOnlyList<(string Path, string Content)>? extraFiles = null,
-        Func<string, string>? yamlTransform = null)
+        Func<string, string>? yamlTransform = null,
+        IReadOnlyList<MetadataReference>? references = null)
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
@@ -102,9 +104,9 @@ internal static class CompilationVerificationHarness
         // full reference set when the caller needs the generator to actually emit output.
         var compilation = CSharpCompilation.Create(
             assemblyName,
-            references: useFullReferences
+            references: references ?? (useFullReferences
                 ? GetFullFrameworkReferences(ScenarioReferencesMinimalApi(scenarioName))
-                : GetMinimalReferences(),
+                : GetMinimalReferences()),
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var driver = CSharpGeneratorDriver
@@ -129,9 +131,10 @@ internal static class CompilationVerificationHarness
     /// </summary>
     public static List<string> CompileGeneratedSources(
         List<(string HintName, string Source)> generatedSources,
-        bool includeMinimalApi = false)
+        bool includeMinimalApi = false,
+        IReadOnlyList<MetadataReference>? references = null)
     {
-        var compilation = CreateCompilation(generatedSources, includeMinimalApi);
+        var compilation = CreateCompilation(generatedSources, includeMinimalApi, references: references);
 
         return compilation
             .GetDiagnostics(TestContext.Current.CancellationToken)
@@ -182,6 +185,13 @@ internal static class CompilationVerificationHarness
         return Assembly.Load(ms.ToArray());
     }
 
+    /// <summary>
+    /// The minimal reference set plus Atc.Rest.Client: a client project as the samples have it, so a client that uploads
+    /// a file or uses the Result style is generated (without the package that is ATC_API_DEP014).
+    /// </summary>
+    public static List<MetadataReference> GetMinimalClientReferences()
+        => [.. GetMinimalReferences(), .. GetFullFrameworkReferences().Where(r => r is PortableExecutableReference pe && string.Equals(Path.GetFileName(pe.FilePath), "Atc.Rest.Client.dll", StringComparison.OrdinalIgnoreCase))];
+
     public static List<MetadataReference> GetMinimalReferences()
     {
         var references = new List<MetadataReference>();
@@ -209,6 +219,16 @@ internal static class CompilationVerificationHarness
     public static List<MetadataReference> GetFullFrameworkReferences(
         bool includeMinimalApi = false)
         => [.. FullFrameworkReferences.Value.Where(r => includeMinimalApi || !IsMinimalApiAssembly(r))];
+
+    /// <summary>
+    /// The full reference set without the assemblies whose file name starts with one of the prefixes - a project that
+    /// does not reference a package.
+    /// </summary>
+    public static List<MetadataReference> GetFullFrameworkReferencesWithout(
+        params string[] assemblyNamePrefixes)
+        => [.. GetFullFrameworkReferences()
+            .Where(r => r is not PortableExecutableReference pe ||
+                        !assemblyNamePrefixes.Any(p => Path.GetFileNameWithoutExtension(pe.FilePath ?? string.Empty).StartsWith(p, StringComparison.OrdinalIgnoreCase)))];
 
     /// <summary>
     /// Whether a scenario stands for a project that references <c>Atc.Rest.MinimalApi</c>, which
@@ -265,7 +285,8 @@ internal static class CompilationVerificationHarness
     internal static CSharpCompilation CreateCompilation(
         List<(string HintName, string Source)> generatedSources,
         bool includeMinimalApi = false,
-        DocumentationMode documentationMode = DocumentationMode.Parse)
+        DocumentationMode documentationMode = DocumentationMode.Parse,
+        IReadOnlyList<MetadataReference>? references = null)
     {
         var parseOptions = CSharpParseOptions.Default.WithDocumentationMode(documentationMode);
 
@@ -285,7 +306,7 @@ internal static class CompilationVerificationHarness
         return CSharpCompilation.Create(
             "GeneratedCodeCompileTest",
             trees,
-            GetFullFrameworkReferences(includeMinimalApi),
+            references ?? GetFullFrameworkReferences(includeMinimalApi),
             new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable));

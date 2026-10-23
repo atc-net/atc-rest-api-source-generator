@@ -7,7 +7,6 @@ using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using AllOfMultiLevel.Generated.Models;
-using Atc.Rest.Client;
 
 namespace AllOfMultiLevel.Generated.People.Client;
 

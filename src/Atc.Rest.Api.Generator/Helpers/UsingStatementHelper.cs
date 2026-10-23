@@ -238,6 +238,14 @@ public static class UsingStatementHelper
     };
 
     /// <summary>
+    /// Checks if any record carries a file of Atc.Rest.Client (<c>IFileContent</c>) - the one type of the package a
+    /// client's parameters or models use, so the only reason for its using.
+    /// </summary>
+    public static bool RecordsUseFileContent(
+        IEnumerable<RecordParameters> records)
+        => records.Any(r => r.Parameters?.Any(p => p.TypeName.Contains("IFileContent", StringComparison.Ordinal)) == true);
+
+    /// <summary>
     /// Checks if any record in the collection uses System types (Guid, DateTimeOffset, DateTime, etc.).
     /// </summary>
     public static bool RecordsUseSystemTypes(

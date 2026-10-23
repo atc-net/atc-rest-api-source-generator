@@ -6,7 +6,6 @@ using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using Atc.Rest.Client;
 using InlineSchemas.Generated.Reports.Models;
 
 namespace InlineSchemas.Generated.Reports.Client;

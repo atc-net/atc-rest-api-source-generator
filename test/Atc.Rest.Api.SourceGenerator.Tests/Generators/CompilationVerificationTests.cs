@@ -21,7 +21,8 @@ public class CompilationVerificationTests
             scenarioName,
             yamlFileName,
             ".atc-rest-api-client",
-            "Client-Typed");
+            "Client-Typed",
+            references: CompilationVerificationHarness.GetMinimalClientReferences());
 
         // Assert — should produce source files
         Assert.True(
@@ -70,7 +71,8 @@ public class CompilationVerificationTests
             scenarioName,
             yamlFileName,
             ".atc-rest-api-client",
-            "Client-Typed");
+            "Client-Typed",
+            references: CompilationVerificationHarness.GetMinimalClientReferences());
 
         Assert.NotEmpty(generatedSources);
 
