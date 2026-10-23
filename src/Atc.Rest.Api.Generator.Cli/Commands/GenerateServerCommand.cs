@@ -59,85 +59,18 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var serverConfig = ApplyServerCliOverrides(options, settings, scaffoldingConfig);
         var domainConfig = ApplyDomainCliOverrides(options, settings, scaffoldingConfig);
 
-        // Determine project structure modes
-        var isTwoProjects = scaffoldingConfig.ProjectStructure == ProjectStructureType.TwoProjects;
-        var isThreeProjects = scaffoldingConfig.ProjectStructure == ProjectStructureType.ThreeProjects;
-        var hasSeparateDomain = isTwoProjects || isThreeProjects;
+        // The projects, their names and folders by the project structure
+        var plan = ServerScaffoldPlan.Create(projectName, outputPath, settings.DomainOutputPath, scaffoldingConfig);
+        var isTwoProjects = plan.IsTwoProjects;
+        var isThreeProjects = plan.IsThreeProjects;
+        var srcPath = plan.SourcePath;
+        var contractsProjectName = plan.ContractsProjectName;
+        var hostProjectName = plan.HostProjectName;
+        var domainProjectName = plan.DomainProjectName;
+        var contractsOutputPath = plan.ContractsOutputPath;
+        var domainOutputPath = plan.DomainOutputPath;
 
-        // Always use repo structure
-        var srcPath = Path.Combine(outputPath, "src");
-
-        // Determine project names based on structure mode:
-        // - SingleProject: {Name}.Api (all-in-one)
-        // - TwoProjects: {Name}.Api (host+contracts), {Name}.Domain
-        // - ThreeProjects: {Name}.Api (host), {Name}.Api.Contracts, {Name}.Domain
-        var baseName = ProjectNameHelper.ExtractSolutionName(projectName);
-
-        string contractsProjectName;
-        string hostProjectName;
-        string domainProjectName;
-
-        if (isThreeProjects)
-        {
-            // 3 projects: Host, Contracts, Domain
-            contractsProjectName = scaffoldingConfig.ContractsProjectName ?? $"{baseName}.Api.Contracts";
-            hostProjectName = scaffoldingConfig.HostProjectName ?? $"{baseName}.Api";
-            domainProjectName = scaffoldingConfig.DomainProjectName ?? $"{baseName}.Domain";
-        }
-        else if (isTwoProjects)
-        {
-            // 2 projects: Host+Contracts combined, Domain separate
-            contractsProjectName = scaffoldingConfig.ContractsProjectName ?? $"{baseName}.Api";
-            hostProjectName = contractsProjectName; // Same as contracts (combined)
-            domainProjectName = scaffoldingConfig.DomainProjectName ?? $"{baseName}.Domain";
-        }
-        else
-        {
-            // SingleProject: All in one
-            contractsProjectName = scaffoldingConfig.ContractsProjectName ?? $"{baseName}.Api";
-            hostProjectName = contractsProjectName;
-            domainProjectName = contractsProjectName;
-        }
-
-        var contractsOutputPath = Path.Combine(srcPath, contractsProjectName);
-        var domainOutputPath = string.IsNullOrWhiteSpace(settings.DomainOutputPath)
-            ? Path.Combine(srcPath, domainProjectName)
-            : Path.GetFullPath(settings.DomainOutputPath);
-
-        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
-        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project structure:[/] {scaffoldingConfig.ProjectStructure}");
-        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Repository root:[/] {outputPath}");
-
-        if (isThreeProjects)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host project:[/] {hostProjectName}");
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Contracts project:[/] {contractsProjectName}");
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {domainProjectName}");
-        }
-        else if (isTwoProjects)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host+Contracts project:[/] {contractsProjectName}");
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {domainProjectName}");
-        }
-        else
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project:[/] {contractsProjectName}");
-        }
-
-        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {serverConfig.ValidateSpecificationStrategy}");
-        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Versioning strategy:[/] {serverConfig.VersioningStrategy}");
-
-        if (!string.IsNullOrWhiteSpace(serverConfig.Namespace))
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Namespace:[/] {serverConfig.Namespace}");
-        }
-
-        if (scaffoldingConfig.NoCodingRules)
-        {
-            AnsiConsole.MarkupLine("[blue]Coding rules:[/] disabled");
-        }
-
-        AnsiConsole.WriteLine();
+        WritePlan(plan, specPath, serverConfig, scaffoldingConfig);
 
         // Track created projects for statistics
         var projectsCreated = new List<string>();
@@ -205,7 +138,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 }
 
                 // Step 4: Generate domain project (TwoProjects and ThreeProjects modes)
-                if (hasSeparateDomain)
+                if (plan.HasSeparateDomain)
                 {
                     ctx.Status("Setting up domain project...");
                     if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, outputPath, domainConfig, sourceGeneratorVersion))
@@ -237,16 +170,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 }
 
                 // Step 5b: Generate Aspire AppHost project (if --aspire is specified)
-                string? aspireProjectName = null;
-                if (scaffoldingConfig.Aspire)
+                if (plan.AspireProjectName is { } aspireProjectName)
                 {
                     ctx.Status("Setting up Aspire AppHost project...");
-                    aspireProjectName = $"{baseName}.Aspire";
-                    var apiProjectName = isThreeProjects || isTwoProjects ? hostProjectName : contractsProjectName;
                     if (!scaffoldingService.GenerateAspireProject(
                         srcPath,
                         aspireProjectName,
-                        apiProjectName,
+                        plan.ApiProjectName,
                         scaffoldingConfig.TargetFramework))
                     {
                         return 1;
@@ -265,40 +195,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
                 // Step 7: Generate solution file
                 ctx.Status("Creating solution file...");
-                var srcProjects = new List<string>();
-
-                if (isThreeProjects)
-                {
-                    // Order: Host, Contracts, Domain
-                    srcProjects.Add($"src/{hostProjectName}/{hostProjectName}.csproj");
-                    srcProjects.Add($"src/{contractsProjectName}/{contractsProjectName}.csproj");
-                    srcProjects.Add($"src/{domainProjectName}/{domainProjectName}.csproj");
-                }
-                else if (isTwoProjects)
-                {
-                    // Order: Host+Contracts, Domain
-                    srcProjects.Add($"src/{contractsProjectName}/{contractsProjectName}.csproj");
-                    srcProjects.Add($"src/{domainProjectName}/{domainProjectName}.csproj");
-                }
-                else
-                {
-                    srcProjects.Add($"src/{contractsProjectName}/{contractsProjectName}.csproj");
-                }
-
-                // Add Aspire project if it was generated
-                if (aspireProjectName is not null)
-                {
-                    srcProjects.Add($"src/{aspireProjectName}/{aspireProjectName}.csproj");
-                }
-
-                // Get test project name using same logic as ProjectScaffoldingService
-                var testProjectName = ProjectNameHelper.ExtractSolutionName(contractsProjectName) + ".Tests";
-                var testProjects = new List<string>
-                {
-                    $"test/{testProjectName}/{testProjectName}.csproj",
-                };
-
-                if (!scaffoldingService.GenerateSolutionFile(outputPath, contractsProjectName, srcProjects, testProjects))
+                if (!scaffoldingService.GenerateSolutionFile(outputPath, contractsProjectName, [.. plan.SourceProjects], [.. plan.TestProjects]))
                 {
                     return 1;
                 }
@@ -315,8 +212,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     ctx.Status("Running coding rules updater...");
                     scaffoldingService.RunCodingRulesUpdater(
                         outputPath,
-                        organizationName: baseName,
-                        repositoryName: baseName);
+                        organizationName: plan.BaseName,
+                        repositoryName: plan.BaseName);
                 }
 
                 return 0;
@@ -357,6 +254,49 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 : $"[dim]Run 'dotnet build' in {contractsOutputPath} to generate the server code.[/]");
 
         return 0;
+    }
+
+    // What the command is about to do: the specification, the projects and the settings that shape them
+    private static void WritePlan(
+        ServerScaffoldPlan plan,
+        string specPath,
+        ServerConfig serverConfig,
+        ScaffoldingOptions scaffoldingConfig)
+    {
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project structure:[/] {plan.Structure}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Repository root:[/] {plan.RepositoryRoot}");
+
+        if (plan.IsThreeProjects)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host project:[/] {plan.HostProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Contracts project:[/] {plan.ContractsProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {plan.DomainProjectName}");
+        }
+        else if (plan.IsTwoProjects)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host+Contracts project:[/] {plan.ContractsProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {plan.DomainProjectName}");
+        }
+        else
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project:[/] {plan.ContractsProjectName}");
+        }
+
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {serverConfig.ValidateSpecificationStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Versioning strategy:[/] {serverConfig.VersioningStrategy}");
+
+        if (!string.IsNullOrWhiteSpace(serverConfig.Namespace))
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Namespace:[/] {serverConfig.Namespace}");
+        }
+
+        if (scaffoldingConfig.NoCodingRules)
+        {
+            AnsiConsole.MarkupLine("[blue]Coding rules:[/] disabled");
+        }
+
+        AnsiConsole.WriteLine();
     }
 
     private static ScaffoldingOptions ApplyScaffoldingCliOverrides(
