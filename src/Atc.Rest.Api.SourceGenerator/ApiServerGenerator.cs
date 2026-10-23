@@ -256,47 +256,11 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useGlobalErrorHandler,
         ServerPackageReferences packages)
     {
-        // What a project aiming at Native AOT must know: its endpoints are not the Request Delegate Generator's, and
-        // a root namespace that generator's file binds elsewhere does not compile
-        if (packages.RequestDelegateGenerator)
-        {
-            DiagnosticHelpers.ReportRequestDelegateGeneratorDoesNotSeeTheEndpoints(context);
-
-            var segment = projectName.Split('.')[0];
-            var found = packages.NamesFoundFirst
-                .Split('\n')
-                .FirstOrDefault(n => n.StartsWith(segment + "=", StringComparison.Ordinal));
-            if (found is not null)
-            {
-                DiagnosticHelpers.ReportRootNamespaceBindsToAnAspNetCoreName(context, projectName, segment, found.Substring(segment.Length + 1));
-            }
-        }
-
         // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
         InlineAllOfFlattener.Flatten(openApiDoc);
 
-        // Report diagnostics for unsupported OpenAPI features
-        foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
-        {
-            context.ReportDiagnostic(diagnostic);
-        }
-
-        // A bearer scheme asks the host for a handler registered as "Bearer": say so when no package that
-        // provides one is referenced (a hand-written handler is a valid choice, hence information only)
-        if (openApiDoc.HasJwtBearerSecurity() && !packages.HasBearerHandler)
-        {
-            DiagnosticHelpers.ReportJwtBearerRequiresPackage(context);
-        }
-
-        // The ValidationFilter writes a ValidationProblemDetails: a 400 declared as a string cannot carry its field
-        // errors (information only - the specification is valid, and a handler may answer with the string)
-        if (useValidationFilter)
-        {
-            foreach (var operation in ErrorResponseShapeResolver.GetOperationsWithStringBadRequest(openApiDoc))
-            {
-                DiagnosticHelpers.ReportValidationBadRequestDeclaredAsString(context, operation);
-            }
-        }
+        // What the project and the specification need to know before anything is generated
+        ReportServerPreamble(context, openApiDoc, projectName, packages, useValidationFilter);
 
         // Filter paths based on include/exclude patterns before segmentation
         // (on a copy: the parsed document is cached and shared)
@@ -343,6 +307,164 @@ public class ApiServerGenerator : IIncrementalGenerator
         // The models bound by Content-Type (JSON and/or XML request bodies): a partial with BindAsync
         var boundRequestModels = XmlBodyHelper.ServerBoundRequestModels(openApiDoc);
 
+        // The readers a request body is bound by (a stream of records, a list, the body problems)
+        EmitRequestBodySupport(generatedContext, openApiDoc, projectName, boundRequestModels);
+
+        // The models of an XML request body name their XML names where they differ from the JSON ones
+        // ([XmlElement] / [XmlAttribute]): a validation filter maps an XML request's error keys through them
+        var xmlRequestModels = XmlBodyReachability.CollectRequestBodies(openApiDoc);
+
+        // A model only an XML request carries is validated as XML only: its messages name it by its XML names too
+        var xmlOnlyRequestModels = new HashSet<string>(xmlRequestModels, StringComparer.Ordinal);
+        xmlOnlyRequestModels.ExceptWith(XmlBodyReachability.CollectOtherRequests(openApiDoc));
+
+        // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
+        // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
+        // generated type of the same name would make every reference ambiguous (CS0104). Unless another
+        // schema extends or holds it: then it is a model like any other, and the files that import both
+        // namespaces alias the name to the framework type.
+        var referencedReservedSchemas = BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc);
+        sharedSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
+
+        var bodies = new ServerBodyModels(xmlModels, boundRequestModels, xmlRequestModels, xmlOnlyRequestModels, RequireJsonProperties: !useValidationFilter);
+
+        // Shared models and enums first (under the common namespace without a segment suffix)
+        if (sharedSchemas.Count > 0)
+        {
+            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, extensibleEnums: config.ExtensibleEnums, componentTypeNames: componentTypeNames);
+            EmitSchemaTypes(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config, includeSharedModelsUsing: false, bodies);
+        }
+
+        // Generate shared IEndpointDefinition interface once (unless using Atc.Rest.MinimalApi package)
+        if (!useMinimalApiPackage)
+        {
+            GenerateSharedEndpointDefinitionInterface(generatedContext, projectName);
+        }
+
+        // Generate files per path segment (excluding shared schemas)
+        // Tracks the namespace segment actually used per path segment, so the cross-segment
+        // aggregation below emits usings and Map*/Add* calls that match what was generated.
+        var effectiveSegments = new List<string>();
+        var endpointDefinitionsBySegment = new List<(string Segment, List<string> EndpointDefinitionClassNames)>();
+        foreach (var pathSegment in pathSegments)
+        {
+            // A superseded IDE run stops here instead of emitting the rest
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var (effectiveSegment, segmentEndpointDefinitionClassNames) = EmitSegmentContracts(
+                generatedContext,
+                openApiDoc,
+                projectName,
+                pathSegment,
+                config,
+                conflicts,
+                sharedSchemas,
+                componentTypeNames,
+                referencedReservedSchemas,
+                systemTypeResolver,
+                useMinimalApiPackage,
+                useValidationFilter,
+                bodies);
+            effectiveSegments.Add(effectiveSegment);
+
+            if (segmentEndpointDefinitionClassNames.Count > 0)
+            {
+                endpointDefinitionsBySegment.Add((effectiveSegment, segmentEndpointDefinitionClassNames));
+            }
+        }
+
+        // Generate the single endpoint definition mapping extension containing one
+        // Map{Segment}Endpoints method per path segment
+        GenerateConsolidatedEndpointDefinitionExtensions(
+            generatedContext,
+            projectName,
+            endpointDefinitionsBySegment);
+
+        // The runtime helpers the generated code uses where the specification needs them
+        EmitServerRuntimeHelpers(generatedContext, openApiDoc, projectName);
+
+        // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
+        GenerateCombinedEndpointMapping(generatedContext, projectName, effectiveSegments);
+
+        // The cross-cutting features the specification declares: versioning, security, rate limiting, SignalR hubs,
+        // caching, webhooks, health checks
+        EmitServerFeatures(context, generatedContext, openApiDoc, projectName, config, useValidationFilter, packages);
+
+        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
+
+        // The host surface: Add...Api() and Map...Api() with their options, and the JSON options
+        EmitHostSurface(generatedContext, openApiDoc, projectName, config, useGlobalErrorHandler, effectiveSegments, operationCount);
+
+        // Report generation summary
+        var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
+
+        ReportServerGenerationSummary(
+            context,
+            yamlPath,
+            warnings: 0, // Validation diagnostics already reported earlier
+            errors: 0,
+            modelCount: schemaCount,
+            handlerCount: operationCount,
+            endpointCount: pathSegments.Count);
+    }
+
+    // The diagnostics before generation: the Request Delegate Generator does not see the endpoints, a bearer scheme
+    // needs a handler package, a 400 declared as a string cannot carry the validation filter's field errors
+    private static void ReportServerPreamble(
+        SourceProductionContext context,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ServerPackageReferences packages,
+        bool useValidationFilter)
+    {
+        // What a project aiming at Native AOT must know: its endpoints are not the Request Delegate Generator's, and
+        // a root namespace that generator's file binds elsewhere does not compile
+        if (packages.RequestDelegateGenerator)
+        {
+            DiagnosticHelpers.ReportRequestDelegateGeneratorDoesNotSeeTheEndpoints(context);
+
+            var segment = projectName.Split('.')[0];
+            var found = packages.NamesFoundFirst
+                .Split('\n')
+                .FirstOrDefault(n => n.StartsWith(segment + "=", StringComparison.Ordinal));
+            if (found is not null)
+            {
+                DiagnosticHelpers.ReportRootNamespaceBindsToAnAspNetCoreName(context, projectName, segment, found.Substring(segment.Length + 1));
+            }
+        }
+
+        // Report diagnostics for unsupported OpenAPI features
+        foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
+        {
+            context.ReportDiagnostic(diagnostic);
+        }
+
+        // A bearer scheme asks the host for a handler registered as "Bearer": say so when no package that
+        // provides one is referenced (a hand-written handler is a valid choice, hence information only)
+        if (openApiDoc.HasJwtBearerSecurity() && !packages.HasBearerHandler)
+        {
+            DiagnosticHelpers.ReportJwtBearerRequiresPackage(context);
+        }
+
+        // The ValidationFilter writes a ValidationProblemDetails: a 400 declared as a string cannot carry its field
+        // errors (information only - the specification is valid, and a handler may answer with the string)
+        if (useValidationFilter)
+        {
+            foreach (var operation in ErrorResponseShapeResolver.GetOperationsWithStringBadRequest(openApiDoc))
+            {
+                DiagnosticHelpers.ReportValidationBadRequestDeclaredAsString(context, operation);
+            }
+        }
+    }
+
+    // The readers of a request body the generated code binds: a stream of records, the body problems, a JSON-only list
+    // and an XML list
+    private static void EmitRequestBodySupport(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        Dictionary<string, ServerBoundModel> boundRequestModels)
+    {
         // A body sent as a stream of records (JSON Lines, JSON Text Sequences) is read by the generated
         // StreamedRequestBody<T>, one record at a time
         var hasStreamedRequestBody = StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc);
@@ -376,219 +498,172 @@ public class ApiServerGenerator : IIncrementalGenerator
                 $"{projectName}.{XmlModelMapperExtractor.RequestBodyListTypeName}.g.cs",
                 SourceText.From(XmlModelMapperExtractor.GenerateRequestBodyList(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
         }
+    }
 
-        // The models of an XML request body name their XML names where they differ from the JSON ones
-        // ([XmlElement] / [XmlAttribute]): a validation filter maps an XML request's error keys through them
-        var xmlRequestModels = XmlBodyReachability.CollectRequestBodies(openApiDoc);
-
-        // A model only an XML request carries is validated as XML only: its messages name it by its XML names too
-        var xmlOnlyRequestModels = new HashSet<string>(xmlRequestModels, StringComparer.Ordinal);
-        xmlOnlyRequestModels.ExceptWith(XmlBodyReachability.CollectOtherRequests(openApiDoc));
-
-        // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
-        // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
-        // generated type of the same name would make every reference ambiguous (CS0104). Unless another
-        // schema extends or holds it: then it is a model like any other, and the files that import both
-        // namespaces alias the name to the framework type.
-        var referencedReservedSchemas = BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc);
-        sharedSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
-
-        // Generate shared models/enums first (under common namespace without segment suffix)
-        if (sharedSchemas.Count > 0)
-        {
-            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, extensibleEnums: config.ExtensibleEnums, componentTypeNames: componentTypeNames);
-            GenerateModelsForSchemas(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null,
-                sharedRegistry,
-                config.IncludeDeprecated,
-                config.GeneratePartialModels,
-                xmlModels: xmlModels,
-                boundRequestModels: boundRequestModels,
-                xmlRequestModels: xmlRequestModels,
-                xmlOnlyRequestModels: xmlOnlyRequestModels,
-                requireJsonProperties: !useValidationFilter);
-
-            SchemaTypeEmitter.EmitEnums(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null,
-                generatedContext.ExtensibleEnums,
-                stringOnTheWire: true);
-
-            SchemaTypeEmitter.EmitTuples(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null);
-
-            PolymorphicTypeEmitter.Emit(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null,
-                boundRequestModels);
-        }
-
-        // Generate shared IEndpointDefinition interface once (unless using Atc.Rest.MinimalApi package)
-        if (!useMinimalApiPackage)
-        {
-            GenerateSharedEndpointDefinitionInterface(generatedContext, projectName);
-        }
-
-        // Generate files per path segment (excluding shared schemas)
-        // Tracks the namespace segment actually used per path segment, so the cross-segment
-        // aggregation below emits usings and Map*/Add* calls that match what was generated.
-        var effectiveSegments = new List<string>();
-        var endpointDefinitionsBySegment = new List<(string Segment, List<string> EndpointDefinitionClassNames)>();
-        foreach (var pathSegment in pathSegments)
-        {
-            // A superseded IDE run stops here instead of emitting the rest
-            context.CancellationToken.ThrowIfCancellationRequested();
-
-            // Resolve the segment used for namespaces and file names. It collapses to an empty
-            // string when the segment is redundant (single segment, or it duplicates the root
-            // namespace tail), while the raw pathSegment is still used to filter operations.
-            var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
-            effectiveSegments.Add(effectiveSegment);
-
-            // Create conflict registry for this path segment (lightweight: O(1)).
-            // Uses the effective segment - the raw pathSegment would qualify conflicting types
-            // against a namespace that is never generated when the segment collapses away.
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, config.ExtensibleEnums, componentTypeNames);
-
-            // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
-            var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
-
-            // Same as for the shared set: ProblemDetails / ValidationProblemDetails bind to the framework types.
-            segmentSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
-
-            // Generate segment-specific models (excluding shared ones)
-            // Include shared models using directive so segment types can reference shared types
-            if (segmentSchemas.Count > 0)
-            {
-                GenerateModelsForSchemas(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment,
-                    registry,
-                    config.IncludeDeprecated,
-                    config.GeneratePartialModels,
-                    includeSharedModelsUsing: sharedSchemas.Count > 0,
-                    xmlModels: xmlModels,
-                    boundRequestModels: boundRequestModels,
-                    xmlRequestModels: xmlRequestModels,
-                    xmlOnlyRequestModels: xmlOnlyRequestModels,
-                    requireJsonProperties: !useValidationFilter);
-
-                SchemaTypeEmitter.EmitEnums(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment,
-                    generatedContext.ExtensibleEnums,
-                    stringOnTheWire: true);
-
-                SchemaTypeEmitter.EmitTuples(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment);
-
-                PolymorphicTypeEmitter.Emit(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment,
-                    boundRequestModels);
-            }
-
-            // Determine if this segment has its own models namespace. Inline (anonymous) request/response
-            // schemas - error responses included - are emitted into it too, so they must count here.
-            var hasSegmentModels = segmentSchemas.Count > 0 ||
-                                   PathSegmentHelper.PathSegmentHasInlineModels(openApiDoc, pathSegment);
-
-            // Generate parameter classes
-            GenerateParameterClasses(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                pathSegment,
-                registry,
-                config.IncludeDeprecated,
-                includeSharedModelsUsing: sharedSchemas.Count > 0,
-                includeSegmentModelsUsing: hasSegmentModels,
-                emitInlineParameterEnums: config.InlineParameterEnums == InlineParameterEnumMode.Enum,
-                validateStrategy: config.ValidateSpecificationStrategy,
-                namespaceSegment: effectiveSegment);
-
-            // Generate result classes
-            GenerateResultClasses(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                pathSegment,
-                registry,
-                systemTypeResolver,
-                config.IncludeDeprecated,
-                includeSharedModelsUsing: sharedSchemas.Count > 0,
-                includeSegmentModelsUsing: hasSegmentModels,
-                namespaceSegment: effectiveSegment);
-
-            // Generate handler interfaces
-            GenerateHandlerInterfaces(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                pathSegment,
-                systemTypeResolver,
-                config.IncludeDeprecated,
-                namespaceSegment: effectiveSegment);
-
-            // Generate endpoint definition classes (the mapping extension is emitted once, below)
-            var segmentEndpointDefinitionClassNames = GenerateEndpointRegistrations(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                pathSegment,
-                registry,
-                systemTypeResolver,
-                config.SubFolderStrategy,
-                config.IncludeDeprecated,
-                useMinimalApiPackage,
-                useValidationFilter,
-                config.VersioningStrategy,
-                config.DefaultApiVersion,
-                config.UseServersBasePath,
-                includeSharedModelsUsing: sharedSchemas.Count > 0,
-                namespaceSegment: effectiveSegment,
-                useAntiforgery: config.UseAntiforgery);
-
-            if (segmentEndpointDefinitionClassNames.Count > 0)
-            {
-                endpointDefinitionsBySegment.Add((effectiveSegment, segmentEndpointDefinitionClassNames));
-            }
-        }
-
-        // Generate the single endpoint definition mapping extension containing one
-        // Map{Segment}Endpoints method per path segment
-        GenerateConsolidatedEndpointDefinitionExtensions(
+    // A set of schemas as types: the models (with their XML mapping and Content-Type binding), the enums, the tuples
+    // and the polymorphic bases
+    private static void EmitSchemaTypes(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        HashSet<string> schemas,
+        string? pathSegment,
+        TypeConflictRegistry registry,
+        ServerConfig config,
+        bool includeSharedModelsUsing,
+        ServerBodyModels bodies)
+    {
+        GenerateModelsForSchemas(
             generatedContext,
+            openApiDoc,
             projectName,
-            endpointDefinitionsBySegment);
+            schemas,
+            pathSegment,
+            registry,
+            config.IncludeDeprecated,
+            config.GeneratePartialModels,
+            includeSharedModelsUsing,
+            xmlModels: bodies.XmlModels,
+            boundRequestModels: bodies.BoundRequestModels,
+            xmlRequestModels: bodies.XmlRequestModels,
+            xmlOnlyRequestModels: bodies.XmlOnlyRequestModels,
+            requireJsonProperties: bodies.RequireJsonProperties);
 
+        SchemaTypeEmitter.EmitEnums(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            schemas,
+            pathSegment,
+            generatedContext.ExtensibleEnums,
+            stringOnTheWire: true);
+
+        SchemaTypeEmitter.EmitTuples(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            schemas,
+            pathSegment);
+
+        PolymorphicTypeEmitter.Emit(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            schemas,
+            pathSegment,
+            bodies.BoundRequestModels);
+    }
+
+    // One path segment's contracts: its models, parameters, results, handler interfaces and endpoint definitions; the
+    // segment as its namespace uses it, and the endpoint definition classes for the mapping extension
+    private static (string EffectiveSegment, List<string> EndpointDefinitionClassNames) EmitSegmentContracts(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string pathSegment,
+        ServerConfig config,
+        ISet<string> conflicts,
+        HashSet<string> sharedSchemas,
+        ISet<string> componentTypeNames,
+        ISet<string> referencedReservedSchemas,
+        SystemTypeConflictResolver systemTypeResolver,
+        bool useMinimalApiPackage,
+        bool useValidationFilter,
+        ServerBodyModels bodies)
+    {
+        // Resolve the segment used for namespaces and file names. It collapses to an empty
+        // string when the segment is redundant (single segment, or it duplicates the root
+        // namespace tail), while the raw pathSegment is still used to filter operations.
+        var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
+
+        // Create conflict registry for this path segment (lightweight: O(1)).
+        // Uses the effective segment - the raw pathSegment would qualify conflicting types
+        // against a namespace that is never generated when the segment collapses away.
+        var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, config.ExtensibleEnums, componentTypeNames);
+
+        // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
+        var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
+
+        // Same as for the shared set: ProblemDetails / ValidationProblemDetails bind to the framework types.
+        segmentSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
+
+        // Segment-specific models (excluding shared ones), with the shared models' using
+        if (segmentSchemas.Count > 0)
+        {
+            EmitSchemaTypes(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config, includeSharedModelsUsing: sharedSchemas.Count > 0, bodies);
+        }
+
+        // Determine if this segment has its own models namespace. Inline (anonymous) request/response
+        // schemas - error responses included - are emitted into it too, so they must count here.
+        var hasSegmentModels = segmentSchemas.Count > 0 ||
+                               PathSegmentHelper.PathSegmentHasInlineModels(openApiDoc, pathSegment);
+
+        // Generate parameter classes
+        GenerateParameterClasses(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            config.IncludeDeprecated,
+            includeSharedModelsUsing: sharedSchemas.Count > 0,
+            includeSegmentModelsUsing: hasSegmentModels,
+            emitInlineParameterEnums: config.InlineParameterEnums == InlineParameterEnumMode.Enum,
+            validateStrategy: config.ValidateSpecificationStrategy,
+            namespaceSegment: effectiveSegment);
+
+        // Generate result classes
+        GenerateResultClasses(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            systemTypeResolver,
+            config.IncludeDeprecated,
+            includeSharedModelsUsing: sharedSchemas.Count > 0,
+            includeSegmentModelsUsing: hasSegmentModels,
+            namespaceSegment: effectiveSegment);
+
+        // Generate handler interfaces
+        GenerateHandlerInterfaces(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            systemTypeResolver,
+            config.IncludeDeprecated,
+            namespaceSegment: effectiveSegment);
+
+        // Generate endpoint definition classes (the mapping extension is emitted once, below)
+        var segmentEndpointDefinitionClassNames = GenerateEndpointRegistrations(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            systemTypeResolver,
+            config.SubFolderStrategy,
+            config.IncludeDeprecated,
+            useMinimalApiPackage,
+            useValidationFilter,
+            config.VersioningStrategy,
+            config.DefaultApiVersion,
+            config.UseServersBasePath,
+            includeSharedModelsUsing: sharedSchemas.Count > 0,
+            namespaceSegment: effectiveSegment,
+            useAntiforgery: config.UseAntiforgery);
+
+        return (effectiveSegment, segmentEndpointDefinitionClassNames);
+    }
+
+    // The runtime helpers: the parsable list of an array query parameter, the wire-binding step, the length-limit and
+    // value attributes, the sequential-results writers
+    private static void EmitServerRuntimeHelpers(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
         // Generate ParsableList<T> helper type when any query parameter uses array types
         if (CodeGenerationService.HasQueryArrayParameters(openApiDoc))
         {
@@ -630,10 +705,18 @@ public class ApiServerGenerator : IIncrementalGenerator
                 $"{projectName}.Streaming.SequentialResults.g.cs",
                 SourceText.From(sequentialResults.Content.NormalizeForSourceOutput(), Encoding.UTF8));
         }
+    }
 
-        // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
-        GenerateCombinedEndpointMapping(generatedContext, projectName, effectiveSegments);
-
+    // The cross-cutting features the specification declares, each only when declared
+    private static void EmitServerFeatures(
+        SourceProductionContext context,
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ServerConfig config,
+        bool useValidationFilter,
+        ServerPackageReferences packages)
+    {
         // Generate versioning DI registration (only if versioning is enabled)
         if (config.VersioningStrategy != VersioningStrategyType.None)
         {
@@ -713,9 +796,19 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateHealthCheckEndpoints(generatedContext, projectName, config.HealthChecks, packages.HasHealthChecks);
             GenerateHealthCheckServiceExtensions(generatedContext, projectName);
         }
+    }
 
-        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
-
+    // Add...Api() and Map...Api() with their options (without Atc.Rest.MinimalApi too - then the framework's exception
+    // handler stands where the package's error handler would), and the JSON options the results write through
+    private static void EmitHostSurface(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ServerConfig config,
+        bool useGlobalErrorHandler,
+        List<string> effectiveSegments,
+        int operationCount)
+    {
         // Generate the simplified API surface: Add…Api() and Map…Api() with their options. Without
         // Atc.Rest.MinimalApi too - then the framework's exception handler stands where the package's error handler
         // would, and everything else the host wiring does (ProblemDetails, the enum converter, the output cache, the
@@ -734,18 +827,6 @@ public class ApiServerGenerator : IIncrementalGenerator
         generatedContext.AddGeneratedSource(
             $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
             SourceText.From(GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
-
-        // Report generation summary
-        var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
-
-        ReportServerGenerationSummary(
-            context,
-            yamlPath,
-            warnings: 0, // Validation diagnostics already reported earlier
-            errors: 0,
-            modelCount: schemaCount,
-            handlerCount: operationCount,
-            endpointCount: pathSegments.Count);
     }
 
     /// <summary>
