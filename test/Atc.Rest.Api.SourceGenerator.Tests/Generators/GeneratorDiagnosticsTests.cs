@@ -235,16 +235,17 @@ public class GeneratorDiagnosticsTests
     }
 
     /// <summary>
-    /// A server that builds on Atc.Rest.MinimalApi needs the 3.1 package: its validation keys, a handler's
-    /// ValidationException with its field errors and its problem bodies are what the generated server is written for, and a
-    /// form endpoint validates its request with the package's RequestValidation (3.1). An older package would compile
-    /// differently or answer differently on the wire, so it is an error naming both versions - unless the marker turns every
-    /// use of the package off.
+    /// A server that builds on Atc.Rest.MinimalApi needs the 3.1.1 package: its validation keys, a handler's
+    /// ValidationException with its field errors and its problem bodies are what the generated server is written for, a
+    /// form endpoint validates its request with the package's RequestValidation (3.1), and the items of a list body are
+    /// validated by the model's validator (3.1.1). An older package would compile differently or answer differently on the
+    /// wire, so it is an error naming both versions - unless the marker turns every use of the package off.
     /// </summary>
     [Theory]
     [InlineData("2.0.41.0", "2.0.41")]
     [InlineData("3.0.1.0", "3.0.1")]
-    public void Server_WithAnAtcRestMinimalApiOlderThan3_1_ReportsDEP013(
+    [InlineData("3.1.0.0", "3.1.0")]
+    public void Server_WithAnAtcRestMinimalApiOlderThan3_1_1_ReportsDEP013(
         string assemblyVersion,
         string shownVersion)
     {
@@ -253,7 +254,7 @@ public class GeneratorDiagnosticsTests
         var error = Assert.Single(diagnostics, d => d.Id == "ATC_API_DEP013");
         Assert.Equal(DiagnosticSeverity.Error, error.Severity);
         Assert.Contains(shownVersion, error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
-        Assert.Contains("3.1.0", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        Assert.Contains("3.1.1", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
         Assert.DoesNotContain("ATC_API_DEP013", Run(new ApiServerGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server", "{}")], Full(includeMinimalApi: true)));
         Assert.DoesNotContain("ATC_API_DEP013", Run(new ApiServerGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server", "{}")], Full()));

@@ -163,7 +163,7 @@ internal static class DiagnosticHelpers
     public static readonly DiagnosticDescriptor AtcRestClientTooOld = Descriptor(RuleIdentifiers.AtcRestClientTooOld);
 
     /// <summary>
-    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi and the project references a version older than 3.1.0.
+    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi and the project references a version older than 3.1.1.
     /// </summary>
     public static readonly DiagnosticDescriptor MinimalApiTooOld = Descriptor(RuleIdentifiers.MinimalApiTooOld);
 

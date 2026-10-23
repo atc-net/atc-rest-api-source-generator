@@ -304,7 +304,7 @@ public sealed class XmlRequestBodyTests
     /// <summary>
     /// A message names a field by its XML name for an XML request, as the key does (nested models too): for a model
     /// only an XML request carries the generator writes the XML name into the message; for a model a JSON request
-    /// carries as well, Atc.Rest.MinimalApi renames the field in the message per request (after 3.1.0). A property whose
+    /// carries as well, Atc.Rest.MinimalApi renames the field in the message per request (3.1.1). A property whose
     /// only rule has arguments (a length here) is named by its wire name too; it used to keep its C# name.
     /// </summary>
     [Fact]

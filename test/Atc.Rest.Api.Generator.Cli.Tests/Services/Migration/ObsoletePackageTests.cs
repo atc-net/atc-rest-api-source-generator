@@ -41,12 +41,13 @@ public sealed class ObsoletePackageTests : IDisposable
 
         // ... to the version the generated server needs: the first build stops with ATC_API_DEP013 otherwise
         var upgrade = Assert.Single(result.PackagesToUpgrade);
-        Assert.Equal(("Atc.Rest.MinimalApi", "1.0.87", "3.1.0", "ATC_API_DEP013"), (upgrade.Package, upgrade.Version, upgrade.Minimum, upgrade.RuleId));
+        Assert.Equal(("Atc.Rest.MinimalApi", "1.0.87", "3.1.1", "ATC_API_DEP013"), (upgrade.Package, upgrade.Version, upgrade.Minimum, upgrade.RuleId));
     }
 
     [Theory]
-    [InlineData("Atc.Rest.MinimalApi", "2.0.41", "3.1.0")]
-    [InlineData("Atc.Rest.MinimalApi", "3.0.1", "3.1.0")]
+    [InlineData("Atc.Rest.MinimalApi", "2.0.41", "3.1.1")]
+    [InlineData("Atc.Rest.MinimalApi", "3.0.1", "3.1.1")]
+    [InlineData("Atc.Rest.MinimalApi", "3.1.0", "3.1.1")]
     [InlineData("Atc.Rest.Client", "1.0.79", "2.7.0")]
     [InlineData("Atc.Rest.Client", "2.6.0", "2.7.0")]
     public void Analyze_APackageOlderThanTheGeneratedCodeNeeds_IsToBeUpgraded(
@@ -69,7 +70,7 @@ public sealed class ObsoletePackageTests : IDisposable
     }
 
     [Theory]
-    [InlineData("Atc.Rest.MinimalApi", "3.1.0")]
+    [InlineData("Atc.Rest.MinimalApi", "3.1.1")]
     [InlineData("Atc.Rest.Client", "2.7.0")]
     [InlineData("Atc.Rest.Client", "2.7.1-preview.3")]
     public void Analyze_APackageTheGeneratedCodeCanUse_IsNotToBeUpgraded(

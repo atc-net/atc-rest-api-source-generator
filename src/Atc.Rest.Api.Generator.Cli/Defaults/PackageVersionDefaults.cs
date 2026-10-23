@@ -53,7 +53,12 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// The minimum Atc.Rest.MinimalApi a generated server that builds on it needs (the generator's ATC_API_DEP013).
     /// </summary>
-    public static readonly Version MinimalApiMin = new(3, 1, 0);
+    /// <remarks>
+    /// 3.1.0: the validation keys, RequestValidation for a form endpoint and the problem bodies the generated server is
+    /// written for; 3.1.1: each item of a list body validated by the model's FluentValidation validator, and an XML
+    /// request's messages naming a field by its XML name.
+    /// </remarks>
+    public static readonly Version MinimalApiMin = new(3, 1, 1);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.AspNetCore.SignalR.Client.

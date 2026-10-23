@@ -12,7 +12,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     // The Atc.Rest.MinimalApi a server that builds on it needs: 3.0 keys validation errors by the names the client sent,
     // keeps a handler's ValidationException field errors and writes every error as a problem; 3.1 validates the request a
     // form endpoint builds (RequestValidation)
-    private static readonly Version MinimumMinimalApiVersion = new(3, 1, 0);
+    private static readonly Version MinimumMinimalApiVersion = new(3, 1, 1);
 
     /// <summary>
     /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the server code and its diagnostics as the output.
