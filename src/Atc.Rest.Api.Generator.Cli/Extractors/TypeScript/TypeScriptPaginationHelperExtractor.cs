@@ -10,123 +10,127 @@ public static class TypeScriptPaginationHelperExtractor
     /// Generates the paginate.ts utility file content.
     /// </summary>
     public static string Generate(string? headerContent)
-    {
-        var sb = new StringBuilder();
+        => headerContent + TemplateText.Lines(
+        [
+            """
+            import type { ApiResult } from '../types/ApiResult';
 
-        sb.Append(headerContent);
+            """,
 
-        sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
-        sb.AppendLine();
+            // PaginatedResponse interface
+            """
+            /** Shape of a paginated API response with a results array and optional continuation. */
+            export interface PaginatedResponse<T> {
+              readonly results?: T[];
+              readonly items?: T[];
+              readonly continuation?: string | null;
+              readonly pageIndex?: number;
+              readonly pageSize?: number;
+              readonly totalCount?: number;
+            }
 
-        // PaginatedResponse interface
-        sb.AppendLine("/** Shape of a paginated API response with a results array and optional continuation. */");
-        sb.AppendLine("export interface PaginatedResponse<T> {");
-        sb.AppendLine("  readonly results?: T[];");
-        sb.AppendLine("  readonly items?: T[];");
-        sb.AppendLine("  readonly continuation?: string | null;");
-        sb.AppendLine("  readonly pageIndex?: number;");
-        sb.AppendLine("  readonly pageSize?: number;");
-        sb.AppendLine("  readonly totalCount?: number;");
-        sb.AppendLine("}");
-        sb.AppendLine();
+            """,
 
-        // The names of the paging parameters the endpoint takes
-        sb.AppendLine("/** The names of the parameters the next page is asked for with (`continuation` and `pageIndex` by default). */");
-        sb.AppendLine("export interface PaginateAllOptions {");
-        sb.AppendLine("  readonly continuationParam?: string;");
-        sb.AppendLine("  readonly pageIndexParam?: string;");
-        sb.AppendLine("}");
-        sb.AppendLine();
+            // The names of the paging parameters the endpoint takes
+            """
+            /** The names of the parameters the next page is asked for with (`continuation` and `pageIndex` by default). */
+            export interface PaginateAllOptions {
+              readonly continuationParam?: string;
+              readonly pageIndexParam?: string;
+            }
 
-        // paginateAll function
-        sb.AppendLine("/**");
-        sb.AppendLine(" * Auto-paginates through all pages of a paginated API endpoint.");
-        sb.AppendLine(" * Yields items one at a time as an AsyncGenerator.");
-        sb.AppendLine(" *");
-        sb.AppendLine(" * @example");
-        sb.AppendLine(" * ```typescript");
-        sb.AppendLine(" * for await (const account of paginateAll(");
-        sb.AppendLine(" *   (params) => api.accounts.listPaginatedAccounts(params),");
-        sb.AppendLine(" *   { pageSize: 20 }");
-        sb.AppendLine(" * )) {");
-        sb.AppendLine(" *   console.log(account.name);");
-        sb.AppendLine(" * }");
-        sb.AppendLine(" * ```");
-        sb.AppendLine(" */");
-        sb.AppendLine("export async function* paginateAll<T, P extends Record<string, unknown>>(");
-        sb.AppendLine("  fetcher: (params: P) => Promise<ApiResult<PaginatedResponse<T>>>,");
-        sb.AppendLine("  initialParams: P,");
-        sb.AppendLine("  options?: PaginateAllOptions,");
-        sb.AppendLine("): AsyncGenerator<T> {");
-        sb.AppendLine("  const continuationParam = options?.continuationParam ?? 'continuation';");
-        sb.AppendLine("  const pageIndexParam = options?.pageIndexParam ?? 'pageIndex';");
-        sb.AppendLine("  let params = { ...initialParams };");
-        sb.AppendLine();
-        sb.AppendLine("  while (true) {");
-        sb.AppendLine("    const result = await fetcher(params);");
-        sb.AppendLine();
-        sb.AppendLine("    // A page that failed is an error, never a shorter list");
-        sb.AppendLine("    if (result.status !== 'ok' && result.status !== 'created') {");
-        sb.AppendLine("      throw 'error' in result ? result.error : new Error(`Pagination stopped on a ${result.status} response`);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    const page = result.data;");
-        sb.AppendLine("    const items = page.results ?? page.items ?? [];");
-        sb.AppendLine();
-        sb.AppendLine("    for (const item of items) {");
-        sb.AppendLine("      yield item;");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    // Stop if no continuation token or empty page");
-        sb.AppendLine("    if (!page.continuation && page.pageIndex == null) {");
-        sb.AppendLine("      break;");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    if (items.length === 0) {");
-        sb.AppendLine("      break;");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    // A token equal to the one this page was asked for with would page forever");
-        sb.AppendLine("    if (page.continuation && page.continuation === params[continuationParam]) {");
-        sb.AppendLine("      break;");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    // Advance to next page");
-        sb.AppendLine("    if (page.continuation) {");
-        sb.AppendLine("      params = { ...params, [continuationParam]: page.continuation } as P;");
-        sb.AppendLine("    } else if (page.pageIndex != null) {");
-        sb.AppendLine("      params = { ...params, [pageIndexParam]: (page.pageIndex + 1) } as P;");
-        sb.AppendLine("    } else {");
-        sb.AppendLine("      break;");
-        sb.AppendLine("    }");
-        sb.AppendLine("  }");
-        sb.AppendLine("}");
-        sb.AppendLine();
+            """,
 
-        // collectAll convenience
-        sb.AppendLine("/**");
-        sb.AppendLine(" * Collects all items from a paginated endpoint into a single array.");
-        sb.AppendLine(" *");
-        sb.AppendLine(" * @example");
-        sb.AppendLine(" * ```typescript");
-        sb.AppendLine(" * const allAccounts = await collectAll(");
-        sb.AppendLine(" *   (params) => api.accounts.listPaginatedAccounts(params),");
-        sb.AppendLine(" *   { pageSize: 50 }");
-        sb.AppendLine(" * );");
-        sb.AppendLine(" * ```");
-        sb.AppendLine(" */");
-        sb.AppendLine("export async function collectAll<T, P extends Record<string, unknown>>(");
-        sb.AppendLine("  fetcher: (params: P) => Promise<ApiResult<PaginatedResponse<T>>>,");
-        sb.AppendLine("  initialParams: P,");
-        sb.AppendLine("  options?: PaginateAllOptions,");
-        sb.AppendLine("): Promise<T[]> {");
-        sb.AppendLine("  const items: T[] = [];");
-        sb.AppendLine("  for await (const item of paginateAll(fetcher, initialParams, options)) {");
-        sb.AppendLine("    items.push(item);");
-        sb.AppendLine("  }");
-        sb.AppendLine("  return items;");
-        sb.Append('}');
+            // paginateAll function
+            """
+            /**
+             * Auto-paginates through all pages of a paginated API endpoint.
+             * Yields items one at a time as an AsyncGenerator.
+             *
+             * @example
+             * ```typescript
+             * for await (const account of paginateAll(
+             *   (params) => api.accounts.listPaginatedAccounts(params),
+             *   { pageSize: 20 }
+             * )) {
+             *   console.log(account.name);
+             * }
+             * ```
+             */
+            export async function* paginateAll<T, P extends Record<string, unknown>>(
+              fetcher: (params: P) => Promise<ApiResult<PaginatedResponse<T>>>,
+              initialParams: P,
+              options?: PaginateAllOptions,
+            ): AsyncGenerator<T> {
+              const continuationParam = options?.continuationParam ?? 'continuation';
+              const pageIndexParam = options?.pageIndexParam ?? 'pageIndex';
+              let params = { ...initialParams };
 
-        return sb.ToString();
-    }
+              while (true) {
+                const result = await fetcher(params);
+
+                // A page that failed is an error, never a shorter list
+                if (result.status !== 'ok' && result.status !== 'created') {
+                  throw 'error' in result ? result.error : new Error(`Pagination stopped on a ${result.status} response`);
+                }
+
+                const page = result.data;
+                const items = page.results ?? page.items ?? [];
+
+                for (const item of items) {
+                  yield item;
+                }
+
+                // Stop if no continuation token or empty page
+                if (!page.continuation && page.pageIndex == null) {
+                  break;
+                }
+
+                if (items.length === 0) {
+                  break;
+                }
+
+                // A token equal to the one this page was asked for with would page forever
+                if (page.continuation && page.continuation === params[continuationParam]) {
+                  break;
+                }
+
+                // Advance to next page
+                if (page.continuation) {
+                  params = { ...params, [continuationParam]: page.continuation } as P;
+                } else if (page.pageIndex != null) {
+                  params = { ...params, [pageIndexParam]: (page.pageIndex + 1) } as P;
+                } else {
+                  break;
+                }
+              }
+            }
+
+            """,
+
+            // collectAll convenience
+            """
+            /**
+             * Collects all items from a paginated endpoint into a single array.
+             *
+             * @example
+             * ```typescript
+             * const allAccounts = await collectAll(
+             *   (params) => api.accounts.listPaginatedAccounts(params),
+             *   { pageSize: 50 }
+             * );
+             * ```
+             */
+            export async function collectAll<T, P extends Record<string, unknown>>(
+              fetcher: (params: P) => Promise<ApiResult<PaginatedResponse<T>>>,
+              initialParams: P,
+              options?: PaginateAllOptions,
+            ): Promise<T[]> {
+              const items: T[] = [];
+              for await (const item of paginateAll(fetcher, initialParams, options)) {
+                items.push(item);
+              }
+              return items;
+            """,
+        ]) + '}';
 }
