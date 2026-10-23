@@ -6,6 +6,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// When the second says something else - another schema - a warning (<c>ATC_API_OPR040</c>) under every strategy names
 /// where, what is generated and what is not.
 /// </summary>
+[RuleTest("ATC_API_OPR040")]
 public class MediaTypeDeclaredTwiceValidatorTests
 {
     private const string TestFilePath = "twice.yaml";

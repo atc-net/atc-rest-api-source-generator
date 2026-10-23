@@ -7,6 +7,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// false (a CI build: the missing handler is reported, the stub is still built), and with the contracts namespace
 /// from a sibling project's marker that is a declared AdditionalFiles input.
 /// </summary>
+[RuleTest("ATC_API_GEN024")]
 public sealed class HandlerScaffoldWriteTests
 {
     private const string ProjectName = "Contoso.Api.Domain";

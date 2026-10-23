@@ -1,6 +1,9 @@
 // ReSharper disable CollectionNeverUpdated.Local
 namespace Atc.Rest.Api.Generator.Tests.Services;
 
+[RuleTest("ATC_API_MPT009")]
+[RuleTest("ATC_API_MPT010")]
+[RuleTest("ATC_API_MPT011")]
 public class SpecificationServiceTests
 {
     [Fact]

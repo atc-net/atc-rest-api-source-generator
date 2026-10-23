@@ -5,6 +5,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// pass an <c>object</c> where a string belongs. An error (<c>ATC_API_OPR033</c>) under every strategy, naming the
 /// operation and the parameter.
 /// </summary>
+[RuleTest("ATC_API_OPR033")]
 public class ParameterSchemaValidatorTests
 {
     private const string TestFilePath = "parameters.yaml";

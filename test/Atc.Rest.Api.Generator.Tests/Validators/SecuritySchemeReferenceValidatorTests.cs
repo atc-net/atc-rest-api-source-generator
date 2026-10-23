@@ -6,6 +6,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// require an authentication scheme no host registers, so every request on it fails at run time. The validator
 /// reports it (<c>ATC_API_SEC012</c>) under every strategy, naming the requirement and the declared schemes.
 /// </summary>
+[RuleTest("ATC_API_SEC012")]
 public class SecuritySchemeReferenceValidatorTests
 {
     private const string TestFilePath = "security-refs.yaml";

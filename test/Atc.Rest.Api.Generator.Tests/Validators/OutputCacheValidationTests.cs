@@ -9,6 +9,8 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// (a consumer can override the base policy to opt a verb in), but it now says so at build time
 /// instead of leaving an endpoint that merely looks cached.
 /// </remarks>
+[RuleTest("ATC_API_CACHE001")]
+[RuleTest("ATC_API_CACHE002")]
 public class OutputCacheValidationTests
 {
     private const string TestFilePath = "test.yaml";

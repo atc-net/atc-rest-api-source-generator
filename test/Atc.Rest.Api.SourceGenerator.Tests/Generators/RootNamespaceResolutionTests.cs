@@ -6,6 +6,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// same specification therefore agree without a marker saying so - and a marker <c>namespace</c> that is no namespace
 /// is said to have been rewritten.
 /// </summary>
+[RuleTest("ATC_API_GEN022")]
 public class RootNamespaceResolutionTests
 {
     private const string Yaml = """

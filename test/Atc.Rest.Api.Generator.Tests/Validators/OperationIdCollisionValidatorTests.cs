@@ -6,6 +6,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// (<c>GETUSER</c>) one generated file: an error (<c>ATC_API_OPR032</c>) under every strategy, naming both
 /// operations. Distinct names, and the same name on different paths that stay distinct, pass.
 /// </summary>
+[RuleTest("ATC_API_OPR032")]
 public class OperationIdCollisionValidatorTests
 {
     private const string TestFilePath = "collisions.yaml";

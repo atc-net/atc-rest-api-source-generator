@@ -8,6 +8,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// correct for what the schema says, but usually a gap in the specification: the API always sends some of them. An Info
 /// in Strict mode points at the fix - list those properties in <c>required</c>.
 /// </remarks>
+[RuleTest("ATC_API_SCH022")]
 public class SchemaWithoutRequiredValidationTests
 {
     private const string TestFilePath = "test.yaml";

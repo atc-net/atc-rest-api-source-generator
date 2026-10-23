@@ -6,6 +6,9 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// regular expression, an integer enum with a member that is no integer, an enum with no member but <c>null</c>.
 /// Without the rule the generated attribute throws at run time, or a type is referenced that is never generated.
 /// </summary>
+[RuleTest("ATC_API_SCH025")]
+[RuleTest("ATC_API_SCH026")]
+[RuleTest("ATC_API_SCH028")]
 public class SchemaConstraintValidatorTests
 {
     private const string TestFilePath = "constraints.yaml";

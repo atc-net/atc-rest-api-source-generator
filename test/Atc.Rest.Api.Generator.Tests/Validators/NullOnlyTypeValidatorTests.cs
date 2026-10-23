@@ -5,6 +5,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// type: nothing is generated for it, while every property that references it names a type that does not exist. An
 /// error (<c>ATC_API_SCH024</c>) under every strategy. A nullable type (<c>['string', 'null']</c>) is fine.
 /// </summary>
+[RuleTest("ATC_API_SCH024")]
 public class NullOnlyTypeValidatorTests
 {
     private const string TestFilePath = "null-only.yaml";

@@ -9,6 +9,8 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// error), and an error in the path (no client could build the URL). The old <c>ATC_API_OPR026</c> warning
 /// ("emitting default form serialization") is not reported for it: the code it promised did not compile.
 /// </summary>
+[RuleTest("ATC_API_OPR037")]
+[RuleTest("ATC_API_OPR038")]
 public class ParameterBindingValidatorTests
 {
     private const string TestFilePath = "parameters.yaml";

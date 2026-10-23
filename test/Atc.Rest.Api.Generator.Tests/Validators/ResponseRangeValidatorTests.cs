@@ -6,6 +6,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// 200) when the operation does not declare that status, and dropped when it does; a warning
 /// (<c>ATC_API_OPR034</c>) under every strategy says which.
 /// </summary>
+[RuleTest("ATC_API_OPR034")]
 public class ResponseRangeValidatorTests
 {
     private const string TestFilePath = "ranges.yaml";

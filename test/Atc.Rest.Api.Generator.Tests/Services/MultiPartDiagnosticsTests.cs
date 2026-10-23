@@ -4,6 +4,15 @@ namespace Atc.Rest.Api.Generator.Tests.Services;
 /// The diagnostics of a multi-part merge (<c>ATC_API_MPT*</c>): what a part may not contain, what the merge
 /// cannot resolve, the success note, and a base file that is not there.
 /// </summary>
+[RuleTest("ATC_API_MPT001")]
+[RuleTest("ATC_API_MPT002")]
+[RuleTest("ATC_API_MPT003")]
+[RuleTest("ATC_API_MPT004")]
+[RuleTest("ATC_API_MPT006")]
+[RuleTest("ATC_API_MPT007")]
+[RuleTest("ATC_API_MPT008")]
+[RuleTest("ATC_API_MPT012")]
+[RuleTest("ATC_API_MPT013")]
 public class MultiPartDiagnosticsTests
 {
     private const string BaseYaml = """

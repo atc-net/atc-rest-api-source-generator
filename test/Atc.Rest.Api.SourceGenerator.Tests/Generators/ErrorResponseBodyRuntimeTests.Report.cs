@@ -873,22 +873,23 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// Every diagnostic id and how it is covered: a test in this assembly, a test elsewhere (named in the
-    /// exclusion), or no test with the recorded reason.
+    /// Every diagnostic id and how it is covered: the test classes behind it (marked [RuleTest] or named after it), or
+    /// no test with the recorded reason.
     /// </summary>
     private static JsonObject CollectDiagnosticsCoverage()
     {
-        var tested = Validators.RuleCoverageTests.GetTestedRules();
+        var tests = Validators.RuleCoverageTests.GetRuleTests();
         var rules = new JsonArray();
         foreach (var rule in Validators.RuleCoverageTests.GetAllRuleIdentifiers().OrderBy(r => r, StringComparer.Ordinal))
         {
-            var excluded = Validators.RuleCoverageTests.ExcludedRules.GetValueOrDefault(rule);
-            var status = tested.Contains(rule)
-                ? "tested"
-                : excluded is not null && excluded.Contains("Tested in ", StringComparison.Ordinal)
-                    ? "tested elsewhere"
-                    : "untested";
-            rules.Add(new JsonObject { ["id"] = rule, ["status"] = status, ["note"] = excluded });
+            var classes = tests.GetValueOrDefault(rule);
+            rules.Add(new JsonObject
+            {
+                ["id"] = rule,
+                ["status"] = classes is { Count: > 0 } ? "tested" : "untested",
+                ["tests"] = new JsonArray([.. (classes ?? []).Select(c => (JsonNode)c)]),
+                ["note"] = Validators.RuleCoverageTests.ExcludedRules.GetValueOrDefault(rule),
+            });
         }
 
         return new JsonObject { ["rules"] = rules };

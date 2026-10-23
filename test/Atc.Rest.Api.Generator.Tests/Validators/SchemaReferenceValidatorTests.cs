@@ -7,6 +7,8 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// parameter, response or request body. The generators would otherwise emit code that names a type that is never
 /// generated.
 /// </summary>
+[RuleTest("ATC_API_SCH027")]
+[RuleTest("ATC_API_VAL003")]
 public class SchemaReferenceValidatorTests
 {
     private const string TestFilePath = "references.yaml";

@@ -5,6 +5,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// is not generated: no client returns a value for it and the server's result takes none. A warning
 /// (<c>ATC_API_OPR039</c>) under every strategy names the operation and the statuses.
 /// </summary>
+[RuleTest("ATC_API_OPR039")]
 public class HeadResponseValidatorTests
 {
     private const string TestFilePath = "head.yaml";

@@ -1,5 +1,6 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Validators;
 
+[RuleTest("ATC_API_VAL002")]
 public class OpenApiVersionValidationTests
 {
     private const string TestFilePath = "test.yaml";

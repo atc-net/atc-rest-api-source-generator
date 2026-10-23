@@ -14,6 +14,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// fail validation.
 /// </para>
 /// </remarks>
+[RuleTest("ATC_API_CLT001")]
 public class SingleClientCollisionValidatorTests
 {
     // ========== Collisions that must be detected ==========
