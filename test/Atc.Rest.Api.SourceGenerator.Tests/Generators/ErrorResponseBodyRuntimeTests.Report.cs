@@ -141,6 +141,7 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["support"] = CollectFeatureSupport(root);
         matrix["diagnostics"] = CollectDiagnosticsCoverage();
         matrix["playwright"] = CollectPlaywrightSummary(root);
+        matrix["testSuites"] = CollectTestSuites(root);
         matrix["ratchet"] = Ratchets();
         matrix["ratchetReasons"] = RatchetReasons();
         matrix["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1);

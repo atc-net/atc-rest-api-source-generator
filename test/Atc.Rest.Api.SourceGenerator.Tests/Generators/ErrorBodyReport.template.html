@@ -56,6 +56,27 @@
   .tabs button:focus-visible, .chipbox label:focus-within, select:focus-visible, input:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .tabs .sep { flex: 1 1 auto; }
   section[hidden] { display: none !important; }
+  .suite-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .suite-card { text-align: left; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; cursor: pointer; }
+  .suite-card:hover { border-color: var(--accent); }
+  .suite-card b { font-size: 14px; }
+  .suite-card .what { color: var(--muted); font-size: 12.5px; }
+  .suite-card .nums { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tree { display: grid; gap: 10px; }
+  .tree details { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .tree details > summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 12px; }
+  .tree details > summary::-webkit-details-marker { display: none; }
+  .tree details > summary::before { content: "▸"; color: var(--muted); width: 1em; transition: transform .15s; }
+  .tree details[open] > summary::before { transform: rotate(90deg); }
+  .tree details > .inner { display: grid; gap: 8px; padding: 0 12px 12px 30px; }
+  .tree .suite > summary b { font-size: 15px; }
+  .tree .area { background: var(--surface-2); }
+  .tree .cls { background: var(--surface); }
+  .tree .name { font-weight: 600; }
+  .tree .covers { color: var(--muted); font-size: 12.5px; flex-basis: 100%; padding-left: 1.6em; }
+  .tree .push { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .rule { display: inline-block; font: 500 10.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+  .tree td.test .raw { display: block; color: var(--muted); font-size: 11px; }
   section[role="tabpanel"], .matrix-host { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; align-content: start; }
   .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
@@ -234,6 +255,7 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
+    <button role="tab" aria-selected="false" data-tab="suites">Test suites</button>
     <span class="div"></span>
     <button role="tab" aria-selected="false" data-tab="matrix">Error bodies</button>
     <button role="tab" aria-selected="false" data-tab="media">Body media</button>
@@ -406,6 +428,10 @@
 
   <section id="tab-support" role="tabpanel" hidden>
     <div class="panel" id="support"></div>
+  </section>
+
+  <section id="tab-suites" role="tabpanel" hidden>
+    <div class="panel" id="suites"></div>
   </section>
 
   <section id="tab-diagnostics" role="tabpanel" hidden>
@@ -1430,9 +1456,9 @@ for (const [key, tab, base, title, sameAs] of [
   const count = (st) => d.rules.filter((r) => r.status === st).length;
   const familyOf = (r) => r.id.replace(/^ATC_API_/, '').replace(/\d+$/, '');
   const families = [...new Set(d.rules.map(familyOf))];
-  const statuses = ['tested', 'tested elsewhere', 'untested'];
+  const statuses = ['tested', 'untested'];
   $('#diagnostics').innerHTML = `<h2>Diagnostics coverage</h2>
-    <p>Every diagnostic the generator can report (<code>RuleIdentifiers</code>) and whether a test exercises it: <b>tested</b> - a test in the source-generator test assembly names its code (<code>RuleCoverageTests</code> enforces this); <b>tested elsewhere</b> - the exclusion names the test project; <b>untested</b> - the recorded reason. ${count('tested')} tested, ${count('tested elsewhere')} tested elsewhere, ${count('untested')} untested of ${d.rules.length}.</p>
+    <p>Every diagnostic the generator can report (<code>RuleIdentifiers</code>) and the test classes that exercise it: a class marked <code>[RuleTest("ATC_API_...")]</code> in either test project, or a test named after the rule's code (<code>RuleCoverageTests</code> fails the build for a rule without one). ${count('tested')} tested, ${count('untested')} untested of ${d.rules.length}. The Test suites tab shows each class's tests.</p>
     <div class="filters"><div class="row">
       <span class="label">Rule</span><input type="search" id="d-q" placeholder="OPR018, SEC, a word of the note" size="28">
       <span class="label">Show</span><select id="d-status"><option value="">every rule</option>${statuses.map((st) => `<option value="${st}">${st} (${count(st)})</option>`).join('')}</select>
@@ -1442,15 +1468,102 @@ for (const [key, tab, base, title, sameAs] of [
   function render() {
     const q = $('#d-q').value.trim().toLowerCase();
     const st = $('#d-status').value;
-    const shown = d.rules.filter((r) => (!st || r.status === st) && (!q || r.id.toLowerCase().includes(q) || String(r.note ?? '').toLowerCase().includes(q)));
+    const shown = d.rules.filter((r) => (!st || r.status === st) && (!q || r.id.toLowerCase().includes(q) || String(r.note ?? '').toLowerCase().includes(q) || (r.tests ?? []).join(' ').toLowerCase().includes(q)));
     $('#d-count').textContent = `${shown.length} of ${d.rules.length} rules`;
     $('#d-list').innerHTML = families.map((fam) => {
       const rows = shown.filter((r) => familyOf(r) === fam);
       const every = d.rules.filter((r) => familyOf(r) === fam);
-      return rows.length === 0 ? '' : `<h3>${esc(fam)} <span class="counts">${every.filter((r) => r.status !== 'untested').length} of ${every.length} tested</span></h3><div class="table-wrap"><table><tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.id)}</td><td>${r.status === 'untested' ? '<span class="v fail">untested</span>' : r.status === 'tested' ? '<span class="v pass">tested</span>' : '<span class="v lossy">tested elsewhere</span>'}</td><td class="counts">${esc(r.note ?? '')}</td></tr>`).join('')}</tbody></table></div>`;
+      return rows.length === 0 ? '' : `<h3>${esc(fam)} <span class="counts">${every.filter((r) => r.status === 'tested').length} of ${every.length} tested</span></h3><div class="table-wrap"><table><tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.id)}</td><td>${r.status === 'untested' ? '<span class="v fail">untested</span>' : '<span class="v pass">tested</span>'}</td><td class="counts">${(r.tests ?? []).map((t) => esc(t.split('.').pop())).join(', ')}${r.note ? ` ${esc(r.note)}` : ''}</td></tr>`).join('')}</tbody></table></div>`;
     }).join('') || '<p class="empty">No rule matches the filters.</p>';
   }
   $('#d-q').addEventListener('input', render); $('#d-status').addEventListener('change', render);
+  render();
+})();
+
+// Test suites: every test the five test projects ran, as suite > area > class > test, from their last TRX files
+(function renderSuites() {
+  const data = REPORT?.testSuites;
+  const host = $('#suites');
+  if (!data) { host.innerHTML = '<h2>Test suites</h2><p>No test results on this machine: run the test projects with <code>dotnet test --report-trx</code> (the TRX files land in <code>TestResults/</code>) and regenerate this report.</p>'; return; }
+  const suites = data.suites;
+  const ran = suites.filter((s) => !s.missing);
+  const ms = (n) => n >= 60000 ? `${(n / 60000).toFixed(1)} min` : n >= 1000 ? `${(n / 1000).toFixed(1)} s` : `${Math.round(n)} ms`;
+  // A test's name as words: Validate_401WithoutSecurity_ReportsOPR021 -> "Validate · 401 without security · reports OPR021"
+  const words = (name) => name.split('_').filter(Boolean).map((part, i) => part
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .split(' ')
+    .map((w, j) => (i === 0 && j === 0) || /[0-9]/.test(w) || w === w.toUpperCase() ? w : w.toLowerCase())
+    .join(' ')).join(' · ');
+  const badges = (n) => `${n.failed ? `<span class="v fail">${n.failed} failed</span>` : ''}<span class="v pass">${n.passed} passed</span>${n.skipped ? `<span class="v na">${n.skipped} skipped</span>` : ''}`;
+  const sum = (key) => ran.reduce((a, s) => a + s[key], 0);
+  const classes = ran.flatMap((s) => s.areas.flatMap((a) => a.classes.map((c) => ({ ...c, suite: s.project, area: a.name }))));
+  const stale = suites.filter((s) => s.stale || s.missing);
+  host.innerHTML = `<h2>Test suites</h2>
+    <p>Every test the five test projects ran, from their last recorded run (the TRX files <code>dotnet test --report-trx</code> writes). Open a suite, then an area, a test class and its tests - each with its result and time; a class lists the rules (<code>ATC_API_*</code>) it covers. A theory's cases are counted under their test.</p>
+    ${stale.length ? `<p class="callout warn"><b>Not this commit's run:</b> ${stale.map((s) => esc(s.project) + (s.missing ? ' (no results)' : ' (older than the commit)')).join(', ')}. Run the tests with <code>--report-trx</code> and regenerate the report.</p>` : ''}
+    <div class="stats">
+      <div class="stat ${sum('failed') ? 'bad' : 'good'}"><b>${sum('tests').toLocaleString('en')}</b><span>tests run, ${sum('failed')} failed</span></div>
+      <div class="stat"><b>${sum('skipped')}</b><span>skipped</span></div>
+      <div class="stat"><b>${classes.length.toLocaleString('en')}</b><span>test classes</span></div>
+      <div class="stat"><b>${classes.filter((c) => c.rules.length).length}</b><span>classes that cover a rule</span></div>
+      <div class="stat"><b>${ms(sum('ms'))}</b><span>test time (summed)</span></div>
+    </div>
+    <div class="suite-cards">${suites.map((s, i) => `<button class="suite-card" data-suite="${i}" title="Open this suite"><b>${esc(s.project.replace(/^Atc\./, ''))}</b><span class="what">${esc(s.covers)}</span><span class="nums">${s.missing ? '<span class="v na">no results</span>' : `${badges(s)}<span class="counts">${s.areas.length} areas · ${ms(s.ms)}</span>`}</span></button>`).join('')}</div>
+    <div class="filters"><div class="row">
+      <span class="label">Find</span><input type="search" id="ts-q" placeholder="a class, a test or a rule (OPR018)" size="34">
+      <span class="label">Show</span><select id="ts-show"><option value="">every test</option><option value="failed">failed tests only</option><option value="rules">classes that cover a rule</option></select>
+      <span class="label">Order</span><select id="ts-order"><option value="name">by name</option><option value="slow">slowest first</option><option value="most">most tests first</option></select>
+      <span class="counts" id="ts-count"></span>
+    </div></div>
+    <div id="ts-tree" class="tree"></div>
+    <details><summary style="cursor:pointer">The 15 slowest test classes</summary><div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Class</th><th>Suite</th><th class="num">Tests</th><th class="num">Time</th></tr></thead><tbody>${[...classes].sort((a, b) => b.ms - a.ms).slice(0, 15).map((c) => `<tr><td class="mono">${esc(c.name)}</td><td>${esc(c.suite)}</td><td class="num">${c.tests}</td><td class="num">${ms(c.ms)}</td></tr>`).join('')}</tbody></table></div></details>`;
+
+  const order = (xs, by) => [...xs].sort(by === 'slow' ? (a, b) => b.ms - a.ms : by === 'most' ? (a, b) => b.tests - a.tests : (a, b) => a.name.localeCompare(b.name));
+  // A class's tests under the filters: the tests whose name has the words looked for, else every test of a class whose
+  // name or rules have them
+  function methodsOf(c, q, show) {
+    let methods = c.methods;
+    if (q) {
+      const named = methods.filter((m) => `${m.name} ${words(m.name)}`.toLowerCase().includes(q));
+      methods = named.length || !`${c.fullName} ${c.rules.join(' ')}`.toLowerCase().includes(q) ? named : methods;
+    }
+    if (show === 'failed') methods = methods.filter((m) => m.failed);
+    if (show === 'rules' && c.rules.length === 0) methods = [];
+    return methods;
+  }
+  function render() {
+    const q = $('#ts-q').value.trim().toLowerCase();
+    const show = $('#ts-show').value;
+    const by = $('#ts-order').value;
+    const narrowed = Boolean(q || show);
+    let shown = 0;
+    const html = suites.map((s, si) => {
+      if (s.missing) return `<details class="suite" id="suite-${si}"><summary><b>${esc(s.project)}</b><span class="v na">no results</span></summary></details>`;
+      const areas = order(s.areas, by).map((a) => {
+        const rows = order(a.classes, by).map((c) => {
+          const methods = methodsOf(c, q, show);
+          if (methods.length === 0) return '';
+          shown += methods.reduce((n, m) => n + m.tests, 0);
+          return `<details class="cls"${narrowed ? ' open' : ''}><summary><span class="name mono">${esc(c.name)}</span>${c.rules.map((r) => `<span class="rule" title="Covers ${esc(r)}">${esc(r.replace(/^ATC_API_/, ''))}</span>`).join('')}<span class="push">${badges(c)}<span class="counts">${ms(c.ms)}</span></span></summary>
+            <div class="inner"><div class="table-wrap"><table><thead><tr><th>Test</th><th class="num">Cases</th><th>Result</th><th class="num">Time</th></tr></thead><tbody>${order(methods, by).map((m) => `<tr><td class="test">${esc(words(m.name))}<span class="raw mono">${esc(m.name)}</span></td><td class="num">${m.tests}</td><td>${badges(m)}</td><td class="num">${ms(m.ms)}</td></tr>`).join('')}</tbody></table></div></div></details>`;
+        }).join('');
+        return rows ? `<details class="area"${narrowed ? ' open' : ''}><summary><span class="name">${esc(a.name)}</span><span class="push">${badges(a)}<span class="counts">${a.classes.length} classes · ${ms(a.ms)}</span></span>${a.covers ? `<span class="covers">${esc(a.covers)}</span>` : ''}</summary><div class="inner">${rows}</div></details>` : '';
+      }).join('');
+      return areas ? `<details class="suite" id="suite-${si}"${narrowed || si === 0 ? ' open' : ''}><summary><b>${esc(s.project)}</b><span class="push">${badges(s)}<span class="counts">${ms(s.ms)}${s.finished ? ` · run ${esc(s.finished.slice(0, 16).replace('T', ' '))}` : ''}</span></span><span class="covers">${esc(s.covers)}</span></summary><div class="inner">${areas}</div></details>` : '';
+    }).join('');
+    $('#ts-tree').innerHTML = html || '<p class="empty">No test matches the filters.</p>';
+    $('#ts-count').textContent = `${shown.toLocaleString('en')} of ${sum('tests').toLocaleString('en')} tests`;
+  }
+  let pending;
+  $('#ts-q').addEventListener('input', () => { clearTimeout(pending); pending = setTimeout(render, 150); });
+  $('#ts-show').addEventListener('change', render);
+  $('#ts-order').addEventListener('change', render);
+  host.addEventListener('click', (e) => {
+    const card = e.target.closest('.suite-card');
+    if (!card) return;
+    const target = document.getElementById('suite-' + card.dataset.suite);
+    if (target) { target.open = true; target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
   render();
 })();
 
