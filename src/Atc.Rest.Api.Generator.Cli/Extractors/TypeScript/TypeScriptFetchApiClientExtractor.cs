@@ -48,7 +48,7 @@ public static class TypeScriptFetchApiClientExtractor
         }
 
         AppendApiClientOptionsInterface(sb, hasRetry, hasSequenceBodies);
-        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
+        TypeScriptApiClientRuntime.AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
         if (hasResponseHeaders)
         {
@@ -138,79 +138,6 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendRequestOptionsInterface(
-        StringBuilder sb,
-        bool hasRetry,
-        bool zodRuntimeValidate,
-        bool hasWireNames,
-        bool hasXml,
-        bool hasModelOrFile,
-        bool hasResponseHeaders,
-        bool hasSequenceBodies)
-    {
-        sb.AppendLine("export interface RequestOptions {");
-        sb.AppendLine("  body?: unknown;");
-        sb.AppendLine("  query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;");
-        sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
-        TypeScriptSecurity.AppendSecurityRequestOption(sb);
-        sb.AppendLine("  signal?: AbortSignal;");
-        sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
-        sb.AppendLine("  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */");
-        sb.AppendLine("  contentType?: string;");
-        sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
-        sb.AppendLine("  arms?: readonly string[];");
-        TypeScriptResponseHeaders.AppendRequestOption(sb, hasResponseHeaders);
-        sb.AppendLine("  /** Called for every Server-Sent Event that is yielded as an item, before it is yielded: with the id to send as Last-Event-ID to continue the stream after it. */");
-        sb.AppendLine("  onEvent?: (event: ServerSentEventInfo) => void;");
-        TypeScriptModelOrFileExtractor.AppendRequestOption(sb, hasModelOrFile);
-        TypeScriptOperationHelper.AppendXmlRequestOption(sb, hasXml);
-        if (hasSequenceBodies)
-        {
-            TypeScriptRequestRecords.AppendRequestOption(sb);
-        }
-
-        if (hasRetry)
-        {
-            sb.AppendLine("  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */");
-            sb.AppendLine("  retry?: RequestRetry;");
-        }
-
-        if (zodRuntimeValidate)
-        {
-            // The schema is whatever the generated client method passes — z.object,
-            // z.array, primitive, discriminated union. ApiClient only needs to call
-            // .safeParse() on it; the broad ZodTypeAny captures every shape.
-            sb.AppendLine("  parseSchema?: ZodTypeAny;");
-        }
-
-        if (hasWireNames)
-        {
-            sb.AppendLine("  /** How to rename the keys of the body, the response and the error bodies between the API's property names and the models' (the generated client passes it). */");
-            sb.AppendLine("  wire?: WireShapes;");
-        }
-
-        sb.AppendLine("}");
-        sb.AppendLine();
-
-        // Wire framing discriminator for streamed responses. Drives how requestStream parses the
-        // body: 'json-array' | 'json-lines' | 'json-seq' use the brace-scan path; 'sse' and
-        // 'multipart' each have a dedicated parse branch (Server-Sent Events `data: <json>\n\n`,
-        // and boundary-delimited multipart/mixed parts respectively).
-        sb.AppendLine("export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';");
-        sb.AppendLine();
-        sb.AppendLine("/**");
-        sb.AppendLine(" * What a Server-Sent Event says besides its data: the id of the last event read (its own, or an earlier one's - an");
-        sb.AppendLine(" * id stays until another is sent; empty when the server has reset it), the event's name (undefined for the unnamed");
-        sb.AppendLine(" * event) and the time in milliseconds the server last asked a client to wait before it reconnects.");
-        sb.AppendLine(" */");
-        sb.AppendLine("export interface ServerSentEventInfo {");
-        sb.AppendLine("  lastEventId?: string;");
-        sb.AppendLine("  event?: string;");
-        sb.AppendLine("  retry?: number;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-    }
-
     private static void AppendApiClientClass(
         StringBuilder sb,
         bool hasRetry,
@@ -250,7 +177,7 @@ public static class TypeScriptFetchApiClientExtractor
 
         if (zodRuntimeValidate)
         {
-            AppendSetStrictModeMethod(sb);
+            TypeScriptApiClientRuntime.AppendSetStrictModeMethod(sb);
         }
 
         AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasResponseHeaders, hasSequenceBodies);
@@ -270,25 +197,6 @@ public static class TypeScriptFetchApiClientExtractor
         AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames, hasXml);
 
         sb.AppendLine("}");
-    }
-
-    /// <summary>
-    /// Emits the <c>setStrictMode</c> toggle. When strict, schema-mismatch failures
-    /// throw an Error with the Zod issues instead of surfacing the
-    /// <c>schemaMismatch</c> arm — useful in dev/CI to fail fast on spec drift.
-    /// </summary>
-    private static void AppendSetStrictModeMethod(StringBuilder sb)
-    {
-        sb.AppendLine("  /**");
-        sb.AppendLine("   * Toggle strict runtime validation. When enabled, schema-mismatch");
-        sb.AppendLine("   * failures throw an Error with the Zod issues instead of returning a");
-        sb.AppendLine("   * 'schemaMismatch' ApiResult arm. Useful in dev/staging to surface");
-        sb.AppendLine("   * spec drift loudly; leave off in prod to keep errors as values.");
-        sb.AppendLine("   */");
-        sb.AppendLine("  setStrictMode(enabled: boolean): void {");
-        sb.AppendLine("    this.strictMode = enabled;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
     }
 
     private static void AppendConstructor(
