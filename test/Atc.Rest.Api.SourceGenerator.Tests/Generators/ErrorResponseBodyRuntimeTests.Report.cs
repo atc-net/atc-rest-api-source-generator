@@ -143,6 +143,7 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["playwright"] = CollectPlaywrightSummary(root);
         matrix["testSuites"] = CollectTestSuites(root);
         matrix["coverage"] = CollectCoverage(root);
+        matrix["openApiConstructs"] = CollectOpenApiConstructs(root);
         matrix["ratchet"] = Ratchets();
         matrix["ratchetReasons"] = RatchetReasons();
         matrix["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1);

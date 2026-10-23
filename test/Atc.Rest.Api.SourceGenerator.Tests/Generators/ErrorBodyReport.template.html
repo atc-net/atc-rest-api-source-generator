@@ -256,6 +256,7 @@
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
     <button role="tab" aria-selected="false" data-tab="suites">Test suites</button>
+    <button role="tab" aria-selected="false" data-tab="constructs">OpenAPI constructs</button>
     <span class="div"></span>
     <button role="tab" aria-selected="false" data-tab="matrix">Error bodies</button>
     <button role="tab" aria-selected="false" data-tab="media">Body media</button>
@@ -432,6 +433,10 @@
 
   <section id="tab-suites" role="tabpanel" hidden>
     <div class="panel" id="suites"></div>
+  </section>
+
+  <section id="tab-constructs" role="tabpanel" hidden>
+    <div class="panel" id="constructs"></div>
   </section>
 
   <section id="tab-diagnostics" role="tabpanel" hidden>
@@ -1580,6 +1585,54 @@ for (const [key, tab, base, title, sameAs] of [
     const target = document.getElementById('suite-' + card.dataset.suite);
     if (target) { target.open = true; target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
+  render();
+})();
+
+// OpenAPI constructs: which parts of OpenAPI (and of Atc's extensions) the scenario specifications use, and which none
+(function renderConstructs() {
+  const data = REPORT?.openApiConstructs;
+  const host = $('#constructs');
+  if (!data) { host.innerHTML = '<h2>OpenAPI constructs</h2><p>No construct data in this run.</p>'; return; }
+  const scenarios = data.scenarios;
+  const users = Object.fromEntries(data.constructs.map((c) => [c.key, scenarios.filter((s) => s.constructs.includes(c.key)).map((s) => s.name)]));
+  const gaps = data.constructs.filter((c) => users[c.key].length === 0);
+  const groups = [...new Set(data.constructs.map((c) => c.group))];
+  const spec = data.constructs.filter((c) => c.group !== 'Atc extensions');
+  const ext = data.constructs.filter((c) => c.group === 'Atc extensions');
+  host.innerHTML = `<h2>OpenAPI constructs</h2>
+    <p>Which parts of OpenAPI - and of the <code>x-</code> extensions the generator reads - the ${scenarios.length} scenario specifications (<code>test/Scenarios</code>) use. Every scenario is generated as a server and as clients, compiled and compared with its snapshot; the runtime matrices run the generated code over HTTP. Read from the specifications themselves when the report is built, so it is never stale. A construct no scenario uses is a gap in what the scenarios prove.</p>
+    <div class="stats">
+      <div class="stat ${spec.some((c) => !users[c.key].length) ? 'warn' : 'good'}"><b>${spec.filter((c) => users[c.key].length).length} of ${spec.length}</b><span>OpenAPI constructs used</span></div>
+      <div class="stat ${ext.some((c) => !users[c.key].length) ? 'warn' : 'good'}"><b>${ext.filter((c) => users[c.key].length).length} of ${ext.length}</b><span>Atc extensions used</span></div>
+      <div class="stat"><b>${scenarios.length}</b><span>scenario specifications</span></div>
+    </div>
+    ${gaps.length ? `<p class="callout warn"><b>Not used by any scenario:</b> ${gaps.map((c) => `<span class="mono">${esc(c.label)}</span>`).join(', ')}.</p>` : '<p class="callout"><b>Every construct is used by a scenario.</b></p>'}
+    <div class="filters"><div class="row">
+      <span class="label">Scenario</span><select id="oc-scenario"><option value="">every scenario</option>${scenarios.map((s) => `<option value="${esc(s.name)}">${esc(s.name)} (${s.constructs.length})</option>`).join('')}</select>
+      <span class="label">Find</span><input type="search" id="oc-q" placeholder="allOf, deepObject, x-retry" size="26">
+      <span class="counts" id="oc-count"></span>
+    </div></div>
+    <div id="oc-list" style="display:grid;gap:12px"></div>`;
+  function render() {
+    const one = $('#oc-scenario').value;
+    const q = $('#oc-q').value.trim().toLowerCase();
+    const shown = data.constructs.filter((c) => !q || `${c.key} ${c.label} ${c.group}`.toLowerCase().includes(q));
+    $('#oc-count').textContent = `${shown.length} of ${data.constructs.length} constructs`;
+    $('#oc-list').innerHTML = groups.map((g) => {
+      const rows = shown.filter((c) => c.group === g);
+      if (!rows.length) return '';
+      return `<h3>${esc(g)} <span class="counts">${rows.filter((c) => users[c.key].length).length} of ${rows.length} used</span></h3><div class="table-wrap"><table><thead><tr><th>Construct</th><th class="num">Scenarios</th><th>${one ? esc(one) : 'Used by'}</th></tr></thead><tbody>${rows.map((c) => {
+        const by = users[c.key];
+        const share = Math.round(100 * by.length / scenarios.length);
+        const cell = one
+          ? (by.includes(one) ? '<span class="v pass">uses it</span>' : '<span class="v na">no</span>')
+          : by.length === 0 ? '<span class="v fail">no scenario</span>' : `${by.slice(0, 6).map((n) => `<span class="rule">${esc(n)}</span>`).join(' ')}${by.length > 6 ? ` <details style="display:inline"><summary style="cursor:pointer;display:inline" class="counts">+${by.length - 6} more</summary> ${by.slice(6).map((n) => `<span class="rule">${esc(n)}</span>`).join(' ')}</details>` : ''}`;
+        return `<tr><td>${c.group === 'Atc extensions' ? `<span class="mono">${esc(c.label)}</span>` : esc(c.label)}</td><td class="num"><span class="bar" style="display:inline-flex;vertical-align:middle;width:80px;min-width:0;margin-right:6px"><i class="${by.length ? 'pass' : 'fail'}" style="width:${Math.max(share, by.length ? 3 : 0)}%"></i></span>${by.length}</td><td>${cell}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+    }).join('') || '<p class="empty">No construct matches.</p>';
+  }
+  $('#oc-scenario').addEventListener('change', render);
+  $('#oc-q').addEventListener('input', render);
   render();
 })();
 
