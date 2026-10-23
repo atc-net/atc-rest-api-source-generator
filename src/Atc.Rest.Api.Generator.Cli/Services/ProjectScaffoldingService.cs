@@ -455,7 +455,7 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(programPath))
             {
                 var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
-                var programContent = GenerateProgramContent(baseName, hostUi, hostUiMode);
+                var programContent = HostProjectFiles.ProgramContent(baseName, hostUi, hostUiMode);
                 TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
@@ -464,12 +464,14 @@ public sealed class ProjectScaffoldingService
                 AnsiConsole.MarkupLine("[dim]✓[/] Program.cs already exists");
             }
 
+            HostProjectFiles.WriteLaunchSettings(hostProjectPath, hostProjectName, hostUi);
+
             // Create GlobalUsings.cs file
             var globalUsingsPath = Path.Combine(hostProjectPath, "GlobalUsings.cs");
             if (!File.Exists(globalUsingsPath))
             {
                 var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
-                var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
+                var globalUsingsContent = HostProjectFiles.GlobalUsingsContent(baseName, hostUi);
                 TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
             }
@@ -640,126 +642,6 @@ public sealed class ProjectScaffoldingService
         sb.Append("</Project>");
 
         return sb.ToString();
-    }
-
-    private static string GenerateProgramContent(
-        string baseName,
-        HostUiType hostUi,
-        HostUiModeType hostUiMode)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("var builder = WebApplication.CreateBuilder(args);");
-        sb.AppendLine();
-
-        // Add OpenAPI services if UI is enabled
-        if (hostUi != HostUiType.None)
-        {
-            sb.AppendLine("// Configure OpenAPI document generation");
-            sb.AppendLine("builder.Services.AddOpenApi();");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("// RFC 9457 ProblemDetails for every error");
-        sb.AppendLine("builder.Services.AddProblemDetails();");
-        sb.AppendLine();
-        sb.AppendLine("// Register handler implementations from Domain project");
-        sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
-        sb.AppendLine();
-        sb.AppendLine("var app = builder.Build();");
-        sb.AppendLine();
-        sb.AppendLine("// Outside Development an unhandled exception is a 500 ProblemDetails, not an empty 500 (Development keeps the developer exception page)");
-        sb.AppendLine("if (!app.Environment.IsDevelopment())");
-        sb.AppendLine("{");
-        sb.AppendLine("    app.UseExceptionHandler();");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("// A ProblemDetails body for error responses that have none (first in the pipeline)");
-        sb.AppendLine("app.UseStatusCodePages();");
-        sb.AppendLine();
-
-        // Generate UI mapping based on configuration
-        if (hostUi != HostUiType.None)
-        {
-            if (hostUiMode == HostUiModeType.DevelopmentOnly)
-            {
-                sb.AppendLine("if (app.Environment.IsDevelopment())");
-                sb.AppendLine("{");
-                sb.AppendLine(4, "app.MapOpenApi();");
-                AppendUiMapping(sb, hostUi, 4);
-                sb.AppendLine("}");
-            }
-            else
-            {
-                sb.AppendLine("app.MapOpenApi();");
-                AppendUiMapping(sb, hostUi, 0);
-            }
-
-            sb.AppendLine();
-
-            // Add root redirect to UI
-            var redirectPath = hostUi == HostUiType.Swagger ? "/swagger" : "/scalar/v1";
-            sb.AppendLine("// Redirect root to API documentation");
-            sb.AppendLine("app");
-            sb.Append(4, ".MapGet(\"/\", () => Results.Redirect(\"");
-            sb.Append(redirectPath);
-            sb.AppendLine("\"))");
-            sb.AppendLine(4, ".ExcludeFromDescription();");
-
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.AppendLine("app.MapEndpoints();");
-        sb.AppendLine();
-        sb.Append("await app.RunAsync();");
-
-        return sb.ToString();
-    }
-
-    private static void AppendUiMapping(
-        StringBuilder sb,
-        HostUiType hostUi,
-        int indent)
-    {
-        switch (hostUi)
-        {
-            case HostUiType.Scalar:
-                sb.AppendLine(indent, "app.MapScalarApiReference();");
-                break;
-            case HostUiType.Swagger:
-                sb.AppendLine(indent, "app.UseSwaggerUI(options =>");
-                sb.AppendLine(indent, "{");
-                sb.AppendLine(indent + 4, "options.SwaggerEndpoint(\"/openapi/v1.json\", \"v1\");");
-                sb.AppendLine(indent, "});");
-                break;
-        }
-    }
-
-    private static string GenerateHostGlobalUsingsContent(
-        string baseName,
-        HostUiType hostUi)
-    {
-        var sb = new StringBuilder();
-
-        // Root namespace for extension methods (from Domain project DI registration)
-        sb.Append("global using ");
-        sb.Append(baseName);
-        sb.AppendLine(";");
-
-        // Generated endpoints namespace
-        sb.Append("global using ");
-        sb.Append(baseName);
-        sb.AppendLine(".Generated.Endpoints;");
-
-        // UI-specific namespaces
-        if (hostUi == HostUiType.Scalar)
-        {
-            sb.AppendLine("global using Scalar.AspNetCore;");
-        }
-
-        return sb
-            .ToString()
-            .TrimEnd();
     }
 
     private static string GenerateAspireProjectContent(

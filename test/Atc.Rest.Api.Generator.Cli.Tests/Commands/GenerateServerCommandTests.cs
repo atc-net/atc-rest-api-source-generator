@@ -239,6 +239,43 @@ public sealed class GenerateServerCommandTests : IDisposable
         Assert.Contains("\"namespace\": \"ContractsNs\"", markerContent, StringComparison.Ordinal);
     }
 
+    // dotnet run starts the host in Development with the API browser open, and outside Development the root does not
+    // redirect to a page that is not mapped there
+    [Theory]
+    [InlineData("Scalar", "scalar/v1")]
+    [InlineData("Swagger", "swagger")]
+    public async Task GenerateServer_WritesLaunchSettings_AndRedirectsOnlyWhereTheUiIsMapped(
+        string hostUi,
+        string launchUrl)
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "LaunchSettings" + hostUi);
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n Contoso --host-ui {hostUi} --no-coding-rules";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var hostFolder = Path.Combine(repoRoot, "src", "Contoso.Api");
+        var launchSettings = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(hostFolder, "Properties", "launchSettings.json"), TestContext.Current.CancellationToken))!;
+        foreach (var profile in new[] { "http", "https" })
+        {
+            Assert.Equal("Development", (string?)launchSettings["profiles"]![profile]!["environmentVariables"]!["ASPNETCORE_ENVIRONMENT"]);
+            Assert.Equal(launchUrl, (string?)launchSettings["profiles"]![profile]!["launchUrl"]);
+            Assert.True((bool?)launchSettings["profiles"]![profile]!["launchBrowser"]);
+        }
+
+        Assert.StartsWith("http://localhost:", (string?)launchSettings["profiles"]!["http"]!["applicationUrl"], StringComparison.Ordinal);
+
+        var program = (await File.ReadAllTextAsync(Path.Combine(hostFolder, "Program.cs"), TestContext.Current.CancellationToken)).Replace("\r\n", "\n", StringComparison.Ordinal);
+        var developmentBlock = program[program.IndexOf("if (app.Environment.IsDevelopment())\n{", StringComparison.Ordinal)..];
+        developmentBlock = developmentBlock[..developmentBlock.IndexOf("\n}", StringComparison.Ordinal)];
+        Assert.Contains("Results.Redirect(\"/" + launchUrl + "\")", developmentBlock, StringComparison.Ordinal);
+        Assert.Equal(1, program.Split("Results.Redirect(").Length - 1);
+    }
+
     [Fact]
     public async Task GenerateServer_TwoProjects_ProgramWiresProblemDetailsForEveryError()
     {
