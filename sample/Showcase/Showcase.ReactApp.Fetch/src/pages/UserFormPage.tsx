@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -25,6 +25,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { useUser, useCreateUser, useUpdateUser } from '../hooks/useUsers';
 import type { CreateUserRequest } from '../api/models/CreateUserRequest';
 import type { UserRole } from '../api/enums/UserRole';
+import { ValidationError } from '../api/errors/ValidationError';
+import { applyServerErrors } from '../utils/serverFieldErrors';
 
 const userRoles: UserRole[] = ['Admin', 'Manager', 'Employee', 'Guest'];
 
@@ -78,8 +80,12 @@ export default function UserFormPage() {
     handleSubmit,
     reset,
     watch,
+    setError,
     formState: { errors },
   } = useForm<UserFormData>({ defaultValues });
+
+  // The server's messages that no field shows
+  const [serverSummary, setServerSummary] = useState<string[]>([]);
 
   const watchedValues = watch();
 
@@ -126,6 +132,7 @@ export default function UserFormPage() {
       },
     };
 
+    setServerSummary([]);
     try {
       if (isEditMode) {
         await updateUser.mutateAsync(body);
@@ -135,8 +142,11 @@ export default function UserFormPage() {
         const newId = (result as { id?: string })?.id;
         navigate(newId ? `/users/${newId}` : '/users');
       }
-    } catch {
-      // Error is shown by mutation state
+    } catch (error) {
+      // A 400: each error at its field; any other failure is shown by the mutation state
+      if (error instanceof ValidationError) {
+        setServerSummary(applyServerErrors(error.errors, Object.keys(defaultValues), setError));
+      }
     }
   };
 
@@ -158,8 +168,13 @@ export default function UserFormPage() {
       </Typography>
 
       {mutationError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {mutationError.message}
+        <Alert severity="error" sx={{ mb: 2 }} data-testid="user-form-error">
+          {mutationError instanceof ValidationError
+            ? 'The server did not accept the user - see the marked fields.'
+            : mutationError.message}
+          {serverSummary.map((message) => (
+            <div key={message}>{message}</div>
+          ))}
         </Alert>
       )}
 
@@ -224,7 +239,15 @@ export default function UserFormPage() {
                   <Controller
                     name="phone"
                     control={control}
-                    render={({ field }) => <TextField {...field} label="Phone" fullWidth />}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Phone"
+                        fullWidth
+                        error={Boolean(errors.phone)}
+                        helperText={errors.phone?.message}
+                      />
+                    )}
                   />
                 </Grid2>
                 <Grid2 size={{ xs: 12, sm: 6 }}>
@@ -295,7 +318,15 @@ export default function UserFormPage() {
                   <Controller
                     name="website"
                     control={control}
-                    render={({ field }) => <TextField {...field} label="Website URL" fullWidth />}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Website URL"
+                        fullWidth
+                        error={Boolean(errors.website)}
+                        helperText={errors.website?.message}
+                      />
+                    )}
                   />
                 </Grid2>
               </Grid2>

@@ -17,6 +17,7 @@ export class UserFormPage {
   readonly firstNameInput: Locator;
   readonly lastNameInput: Locator;
   readonly emailInput: Locator;
+  readonly phoneInput: Locator;
   readonly dateOfBirthInput: Locator;
   readonly streetInput: Locator;
   readonly cityInput: Locator;
@@ -35,6 +36,7 @@ export class UserFormPage {
     this.firstNameInput = page.getByLabel(/first name/i);
     this.lastNameInput = page.getByLabel(/last name/i);
     this.emailInput = page.getByLabel(/^email/i);
+    this.phoneInput = page.getByLabel(/^phone/i);
     this.dateOfBirthInput = page.getByLabel(/date of birth/i);
     // Blazor: "Street Address", React: "Street"
     this.streetInput = page.getByLabel(/^street/i);

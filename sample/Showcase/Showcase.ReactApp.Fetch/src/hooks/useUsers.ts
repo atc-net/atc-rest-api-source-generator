@@ -65,6 +65,10 @@ export function useCreateUser() {
       if (result.status === 'created') {
         return result.data;
       }
+      // A 400 keeps its field errors (the specification's and the domain's), for the form to show at each field
+      if (result.status === 'badRequest') {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -85,6 +89,9 @@ export function useUpdateUser(userId: string) {
       const result = await usersClient.updateUserById(userId, body);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if (result.status === 'badRequest') {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

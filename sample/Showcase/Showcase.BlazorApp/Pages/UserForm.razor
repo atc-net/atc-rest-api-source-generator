@@ -5,7 +5,7 @@
 
 <MudText Typo="Typo.h4" Class="mb-4">@(IsEdit ? "Edit User" : "Create New User")</MudText>
 
-<EditForm Model="@model" OnValidSubmit="OnValidSubmit">
+<EditForm EditContext="@editContext" OnValidSubmit="OnValidSubmit">
     <DataAnnotationsValidator />
 
     <MudGrid>

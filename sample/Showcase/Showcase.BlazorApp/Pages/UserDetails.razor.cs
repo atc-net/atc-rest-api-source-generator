@@ -165,7 +165,7 @@ public partial class UserDetails
                         Latitude: user.Address?.Latitude,
                         Longitude: user.Address?.Longitude));
 
-                var (updated, error) = await Gateway.UpdateUserByIdAsync(UserId, request);
+                var (updated, error, _) = await Gateway.UpdateUserByIdAsync(UserId, request);
                 if (updated is not null)
                 {
                     user = updated;
