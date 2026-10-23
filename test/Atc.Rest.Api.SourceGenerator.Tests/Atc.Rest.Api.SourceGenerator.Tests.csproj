@@ -44,7 +44,10 @@
     <!-- Atc.Rest.MinimalApi is present in the test host, but the harness hides it from a scenario unless
          that scenario's Server marker sets a MinimalApi mode to "Enabled" - otherwise every "Auto"
          scenario would silently switch to the package-backed output. -->
-    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.0" />
+    <!-- Atc.Rest.MinimalApi from source when the atc-rest-minimalapi repository is checked out next to this one
+         (a change there is built and tested here); the package otherwise -->
+    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.0" Condition="!Exists('$(MSBuildThisFileDirectory)../../../atc-rest-minimalapi/src/Atc.Rest.MinimalApi/Atc.Rest.MinimalApi.csproj')" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../atc-rest-minimalapi/src/Atc.Rest.MinimalApi/Atc.Rest.MinimalApi.csproj" Condition="Exists('$(MSBuildThisFileDirectory)../../../atc-rest-minimalapi/src/Atc.Rest.MinimalApi/Atc.Rest.MinimalApi.csproj')" />
     <!-- Referenced so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES), enabling real C#
          compilation and runs of generated client output (CompilationVerificationTests, the error-body matrix).
          2.7.0: a streamed request body sent by the request builder (WithStreamedBody) and an empty text body kept as

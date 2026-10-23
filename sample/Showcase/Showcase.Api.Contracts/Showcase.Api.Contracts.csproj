@@ -15,7 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.0" />
+    <!-- Atc.Rest.MinimalApi from source when the atc-rest-minimalapi repository is checked out next to this one
+         (a change there is built and tested here); the package otherwise -->
+    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.0" Condition="!Exists('$(MSBuildThisFileDirectory)../../../../atc-rest-minimalapi/src/Atc.Rest.MinimalApi/Atc.Rest.MinimalApi.csproj')" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../../atc-rest-minimalapi/src/Atc.Rest.MinimalApi/Atc.Rest.MinimalApi.csproj" Condition="Exists('$(MSBuildThisFileDirectory)../../../../atc-rest-minimalapi/src/Atc.Rest.MinimalApi/Atc.Rest.MinimalApi.csproj')" />
   </ItemGroup>
 
   <ItemGroup>

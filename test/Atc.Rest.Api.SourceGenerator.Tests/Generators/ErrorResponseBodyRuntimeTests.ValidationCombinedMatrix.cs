@@ -30,11 +30,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <summary>
     /// The cells each host is expected to fail, with the reason: the ratchet of the matrix.
     /// </summary>
-    internal static readonly Dictionary<string, Dictionary<string, string>> KnownValidationCombinedFailures = new(StringComparer.Ordinal)
-    {
-        ["validationCombined"] = ListBodyFluentValidationGaps(),
-        ["validationCombinedRdg"] = ListBodyFluentValidationGaps(),
-    };
+    internal static readonly Dictionary<string, Dictionary<string, string>> KnownValidationCombinedFailures = new(StringComparer.Ordinal);
 
     /// <summary>
     /// What the matrix does not exercise.
@@ -44,27 +40,8 @@ public partial class ErrorResponseBodyRuntimeTests
         "An XML body, a query, a header or a cookie: FluentValidation sees the bound model or parameters record however it arrived, and the Validation matrix covers the DataAnnotations of every place a value arrives.",
         "A validator with a scoped dependency (a DbContext): the generated AddApiValidatorsFromDomain() registers validators as singletons; the wiki shows how to resolve a scoped service per call.",
         "FluentValidation's own options (cascade modes, rule sets, severity): the validator decides; the server only collects its errors.",
-        "A validator registered for a list body's own type (the generated JsonRequestBodyList<T>): it runs, but its errors keep the validator's C# path (x[0].FirstName) - the matrix registers what a domain writes, the model's validator.",
+        "A validator registered for the list itself (List<T>, with RuleForEach): Atc.Rest.MinimalApi's own tests cover it - the matrix registers what a domain writes, the model's validator.",
     ];
-
-    /// <summary>
-    /// A JSON body that is a list of the model: its items get the specification's DataAnnotations (keys <c>[0].email</c>),
-    /// but not the model's FluentValidation validator - Atc.Rest.MinimalApi 3.1 looks up a validator for the body's own
-    /// type (the generated <c>JsonRequestBodyList&lt;Member&gt;</c>), not for its items; and a validator registered for
-    /// that list type answers with its C# path (<c>x[0].FirstName</c>), not the wire name. Reported to Atc.Rest.MinimalApi.
-    /// </summary>
-    private static Dictionary<string, string> ListBodyFluentValidationGaps()
-    {
-        const string reason = "Atc.Rest.MinimalApi 3.1: the model's FluentValidation validator does not run for the items of a list body (only DataAnnotations do)";
-        return new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["one kind fails · FluentValidation only, a synchronous rule [json-list]"] = reason,
-            ["one kind fails · FluentValidation only, an asynchronous rule [json-list]"] = reason,
-            ["both fail · on different fields [json-list]"] = reason,
-            ["both fail · on the same field: both messages, the specification's first [json-list]"] = reason,
-            ["both fail · the asynchronous rule runs although DataAnnotations failed [json-list]"] = reason,
-        };
-    }
 
     // The way a request arrives: the column id, its group and its label
     private static readonly (string Id, string Group, string Label)[] ValidationCombinedLocations =

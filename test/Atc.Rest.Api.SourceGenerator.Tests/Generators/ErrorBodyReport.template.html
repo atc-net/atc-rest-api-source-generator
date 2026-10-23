@@ -1433,7 +1433,7 @@ renderCaseMatrix('validationCombined', 'validationcombined', REPORT?.validationC
     <li><b>The same field:</b> both messages, the specification's first.</li>
     <li><b>The whole request:</b> a validator of the parameters record runs next to the body's, and its error on <code>Request.LastName</code> is keyed by the body's wire name, <code>lastName</code>.</li>
     <li><b>Keys:</b> one key style for both - the wire names; a form answers as the JSON body does.</li>
-    <li><b>A list body:</b> each item gets the DataAnnotations (<code>[0].email</code>) but not the model's FluentValidation validator - Atc.Rest.MinimalApi 3.1 looks up a validator for the body's own type; reported upstream, the five cells are the ratchet.</li>
+    <li><b>A list body:</b> each item is validated by both - the DataAnnotations and the model's FluentValidation validator - keyed by its index (<code>[0].email</code>, <code>[0].firstName</code>).</li>
   </ul>
   <p><b>Not exercised.</b> ${notExercisedHtml('validationCombined')}</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_DataAnnotationsAndFluentValidationAnswerTogether"</code></p></div>`, 'validationCombined');
