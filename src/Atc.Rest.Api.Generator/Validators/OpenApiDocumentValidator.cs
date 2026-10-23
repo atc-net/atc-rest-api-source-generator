@@ -1982,75 +1982,73 @@ public static class OpenApiDocumentValidator
         }
 
         var operationId = operation.OperationId!;
+        var context = new OperationContext(diagnostics, sourceFilePath, document, pathKey, pathItem, httpMethod, operation, operationId);
 
         // ATC_API_OPR002: OperationId not using correct casing style
-        ValidateOperationIdCasing(diagnostics, sourceFilePath, httpMethodUpper, pathKey, operationId);
+        ValidateOperationIdCasing(context);
 
         // ATC_API_OPR003-007: HTTP method prefix validations
-        ValidateOperationIdPrefix(diagnostics, sourceFilePath, httpMethod, operationId, pathKey);
+        ValidateOperationIdPrefix(context);
 
         // ATC_API_OPR008/009: Pluralization validation
-        ValidateOperationIdPluralization(diagnostics, sourceFilePath, document, operation, operationId, pathKey, httpMethod);
+        ValidateOperationIdPluralization(context);
 
         // ATC_API_OPR010: BadRequest without parameters
-        ValidateBadRequestResponse(diagnostics, sourceFilePath, pathItem, operation, operationId);
+        ValidateBadRequestResponse(context);
 
         // ATC_API_OPR021: Unauthorized without security
-        ValidateUnauthorizedResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
+        ValidateUnauthorizedResponse(context);
 
         // ATC_API_OPR022: Forbidden without authorization
-        ValidateForbiddenResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
+        ValidateForbiddenResponse(context);
 
         // ATC_API_OPR023: NotFound on POST operation
-        ValidateNotFoundResponse(diagnostics, sourceFilePath, httpMethod, pathKey, operation, operationId);
+        ValidateNotFoundResponse(context);
 
         // ATC_API_OPR024: Conflict on non-mutating operation
-        ValidateConflictResponse(diagnostics, sourceFilePath, httpMethod, operation, operationId);
+        ValidateConflictResponse(context);
 
         // ATC_API_OPR025: TooManyRequests without rate limiting
-        ValidateTooManyRequestsResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
+        ValidateTooManyRequestsResponse(context);
 
         // ATC_API_OPR012 (a placeholder no parameter declares) is checked under every strategy, with the paths
 
         // ATC_API_OPR013: Operation path parameter not present in route
-        ValidateOperationPathParametersInRoute(diagnostics, sourceFilePath, pathKey, operation, operationId);
+        ValidateOperationPathParametersInRoute(context);
 
         // ATC_API_OPR014: GET with path parameter missing NotFound response
-        ValidateGetWithPathParameterNotFound(diagnostics, sourceFilePath, pathItem, httpMethod, operation, operationId);
+        ValidateGetWithPathParameterNotFound(context);
 
         // ATC_API_OPR015/016: Path parameter validation
-        ValidatePathParameters(diagnostics, sourceFilePath, operation);
+        ValidatePathParameters(context);
 
         // ATC_API_OPR017: RequestBody with inline model not supported
-        ValidateRequestBody(diagnostics, sourceFilePath, operation, operationId);
+        ValidateRequestBody(context);
 
         // ATC_API_OPR018: Multiple 2xx status codes not supported
-        ValidateResponseStatusCodes(diagnostics, sourceFilePath, operation, operationId);
+        ValidateResponseStatusCodes(context);
 
         // ATC_API_CACHE001: Output caching configured on a method the middleware never caches
-        ValidateOutputCacheMethod(diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId);
+        ValidateOutputCacheMethod(context);
 
         // ATC_API_CACHE002: Output caching configured on an operation whose callers are authenticated
-        ValidateOutputCacheAuthentication(diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId);
+        ValidateOutputCacheAuthentication(context);
 
         // ATC_API_OPR027: GET with an array query parameter that can outgrow the request line
-        ValidateLargeArrayQueryParameters(diagnostics, sourceFilePath, pathItem, httpMethodUpper, operation, operationId);
+        ValidateLargeArrayQueryParameters(context);
 
         // ATC_API_OPR028/029: QUERY operation whose shape contradicts what the method means
-        ValidateQueryOperationShape(diagnostics, sourceFilePath, httpMethodUpper, operation, operationId);
+        ValidateQueryOperationShape(context);
 
         // ATC_API_OPR026: Parameter serialization not supported
-        ValidateParameterSerialization(diagnostics, sourceFilePath, operation);
+        ValidateParameterSerialization(context);
     }
 
     // ATC_API_OPR002: an operationId neither camelCase nor kebab-case
-    private static void ValidateOperationIdCasing(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string httpMethodUpper,
-        string pathKey,
-        string operationId)
+    private static void ValidateOperationIdCasing(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, httpMethodUpper, pathKey, operationId) = (context.Diagnostics, context.SourceFilePath, context.HttpMethodUpper, context.PathKey, context.OperationId);
+
         if (!CasingHelper.IsValidOperationIdCasing(operationId))
         {
             var detectedStyle = CasingHelper.GetDetectedCasingStyle(operationId);
@@ -2070,12 +2068,10 @@ public static class OpenApiDocumentValidator
 
     // ATC_API_OPR013: an operation's path parameter the route does not have
     private static void ValidateOperationPathParametersInRoute(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string pathKey,
-        OpenApiOperation operation,
-        string operationId)
+        OperationContext context)
     {
+        var (diagnostics, sourceFilePath, pathKey, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.PathKey, context.Operation, context.OperationId);
+
         var opPathParams = operation.Parameters?
             .Where(p => p.In == ParameterLocation.Path)
             .ToList() ?? [];
@@ -2095,13 +2091,10 @@ public static class OpenApiDocumentValidator
 
     // ATC_API_OPR014: a GET by a path parameter without a 404 response
     private static void ValidateGetWithPathParameterNotFound(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        IOpenApiPathItem pathItem,
-        string httpMethod,
-        OpenApiOperation operation,
-        string operationId)
+        OperationContext context)
     {
+        var (diagnostics, sourceFilePath, pathItem, httpMethod, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.PathItem, context.HttpMethod, context.Operation, context.OperationId);
+
         if (string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase))
         {
             var hasPathParam = (pathItem.Parameters?.Any(p => p.In == ParameterLocation.Path) ?? false) ||
@@ -2120,11 +2113,10 @@ public static class OpenApiDocumentValidator
 
     // ATC_API_OPR026: a parameter serialization the generated code does not support (one that cannot be bound at all
     // is ATC_API_OPR037, under every strategy)
-    private static void ValidateParameterSerialization(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiOperation operation)
+    private static void ValidateParameterSerialization(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, operation) = (context.Diagnostics, context.SourceFilePath, context.Operation);
+
         if (operation.Parameters is not null)
         {
             foreach (var parameter in operation.Parameters)
@@ -2148,13 +2140,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates operationId prefix based on HTTP method.
     /// </summary>
-    private static void ValidateOperationIdPrefix(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string httpMethod,
-        string operationId,
-        string pathKey)
+    private static void ValidateOperationIdPrefix(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, httpMethod, operationId, pathKey) = (context.Diagnostics, context.SourceFilePath, context.HttpMethod, context.OperationId, context.PathKey);
+
         var httpMethodUpper = httpMethod.ToUpperInvariant();
 
         if (string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase))
@@ -2224,14 +2213,10 @@ public static class OpenApiDocumentValidator
     /// Validates operationId pluralization matches response type.
     /// </summary>
     private static void ValidateOperationIdPluralization(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiDocument document,
-        OpenApiOperation operation,
-        string operationId,
-        string pathKey,
-        string httpMethod)
+        OperationContext context)
     {
+        var (diagnostics, sourceFilePath, document, operation, operationId, pathKey, httpMethod) = (context.Diagnostics, context.SourceFilePath, context.Document, context.Operation, context.OperationId, context.PathKey, context.HttpMethod);
+
         // OPR008/OPR009 enforce a *read-side* naming convention: does this operation's name
         // promise one item or many? For an action operation the operationId names what it acts on,
         // not what it returns, so `resendPendingDevices` answering with one summary of counts is
@@ -2310,13 +2295,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates BadRequest response has parameters.
     /// </summary>
-    private static void ValidateBadRequestResponse(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        IOpenApiPathItem pathItem,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateBadRequestResponse(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, pathItem, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.PathItem, context.Operation, context.OperationId);
+
         var hasBadRequest = operation.Responses?.ContainsKey("400") ?? false;
         if (!hasBadRequest)
         {
@@ -2341,14 +2323,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates 401 Unauthorized response has security requirements.
     /// </summary>
-    private static void ValidateUnauthorizedResponse(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiDocument document,
-        IOpenApiPathItem pathItem,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateUnauthorizedResponse(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, document, pathItem, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.Document, context.PathItem, context.Operation, context.OperationId);
+
         var hasUnauthorized = operation.Responses?.ContainsKey("401") ?? false;
         if (!hasUnauthorized)
         {
@@ -2377,14 +2355,10 @@ public static class OpenApiDocumentValidator
     /// resource"). Only an anonymous operation declaring 403 is flagged.
     /// </para>
     /// </summary>
-    private static void ValidateForbiddenResponse(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiDocument document,
-        IOpenApiPathItem pathItem,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateForbiddenResponse(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, document, pathItem, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.Document, context.PathItem, context.Operation, context.OperationId);
+
         var hasForbidden = operation.Responses?.ContainsKey("403") ?? false;
         if (!hasForbidden)
         {
@@ -2412,14 +2386,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates 404 NotFound response is not on POST operation (unless it has path parameters).
     /// </summary>
-    private static void ValidateNotFoundResponse(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string httpMethod,
-        string pathKey,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateNotFoundResponse(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, httpMethod, pathKey, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.HttpMethod, context.PathKey, context.Operation, context.OperationId);
+
         var hasNotFound = operation.Responses?.ContainsKey("404") ?? false;
         if (!hasNotFound)
         {
@@ -2449,13 +2419,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates 409 Conflict response is on mutating operation (POST/PUT/PATCH/DELETE).
     /// </summary>
-    private static void ValidateConflictResponse(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string httpMethod,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateConflictResponse(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, httpMethod, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.HttpMethod, context.Operation, context.OperationId);
+
         var hasConflict = operation.Responses?.ContainsKey("409") ?? false;
         if (!hasConflict)
         {
@@ -2479,13 +2446,10 @@ public static class OpenApiDocumentValidator
     /// Validates 429 TooManyRequests response has rate limiting configured.
     /// </summary>
     private static void ValidateTooManyRequestsResponse(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiDocument document,
-        IOpenApiPathItem pathItem,
-        OpenApiOperation operation,
-        string operationId)
+        OperationContext context)
     {
+        var (diagnostics, sourceFilePath, document, pathItem, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.Document, context.PathItem, context.Operation, context.OperationId);
+
         var hasTooManyRequests = operation.Responses?.ContainsKey("429") ?? false;
         if (!hasTooManyRequests)
         {
@@ -2509,11 +2473,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates path parameters have required=true and are not nullable.
     /// </summary>
-    private static void ValidatePathParameters(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiOperation operation)
+    private static void ValidatePathParameters(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, operation) = (context.Diagnostics, context.SourceFilePath, context.Operation);
+
         if (operation.Parameters is null)
         {
             return;
@@ -2546,12 +2509,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates request body is not inline model.
     /// </summary>
-    private static void ValidateRequestBody(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateRequestBody(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.Operation, context.OperationId);
+
         if (operation.RequestBody?.Content is null)
         {
             return;
@@ -2588,12 +2549,10 @@ public static class OpenApiDocumentValidator
     /// <summary>
     /// Validates operation does not have multiple 2xx response codes.
     /// </summary>
-    private static void ValidateResponseStatusCodes(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateResponseStatusCodes(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.Operation, context.OperationId);
+
         if (operation.Responses is null)
         {
             return;
@@ -4193,13 +4152,10 @@ public static class OpenApiDocumentValidator
     /// cost, none of the benefit. And a <c>201</c> or <c>409</c> response describes a mutation under
     /// a method that callers, caches and proxies are entitled to treat as read-only.
     /// </remarks>
-    private static void ValidateQueryOperationShape(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        string httpMethodUpper,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateQueryOperationShape(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, httpMethodUpper, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.HttpMethodUpper, context.Operation, context.OperationId);
+
         if (!string.Equals(httpMethodUpper, "QUERY", StringComparison.Ordinal))
         {
             return;
@@ -4257,13 +4213,10 @@ public static class OpenApiDocumentValidator
     /// </para>
     /// </remarks>
     private static void ValidateLargeArrayQueryParameters(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        IOpenApiPathItem pathItem,
-        string httpMethodUpper,
-        OpenApiOperation operation,
-        string operationId)
+        OperationContext context)
     {
+        var (diagnostics, sourceFilePath, pathItem, httpMethodUpper, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.PathItem, context.HttpMethodUpper, context.Operation, context.OperationId);
+
         // Only GET. A QUERY has already taken this rule's advice, and for a mutating verb the
         // criteria are not what is being sent.
         if (!string.Equals(httpMethodUpper, "GET", StringComparison.Ordinal))
@@ -4402,15 +4355,10 @@ public static class OpenApiDocumentValidator
     /// </para>
     /// HybridCache is unaffected: it runs inside the handler, not in the middleware.
     /// </remarks>
-    private static void ValidateOutputCacheMethod(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiDocument document,
-        IOpenApiPathItem pathItem,
-        string httpMethodUpper,
-        OpenApiOperation operation,
-        string operationId)
+    private static void ValidateOutputCacheMethod(OperationContext context)
     {
+        var (diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.Document, context.PathItem, context.HttpMethodUpper, context.Operation, context.OperationId);
+
         if (httpMethodUpper is "GET" or "HEAD")
         {
             return;
@@ -4447,14 +4395,10 @@ public static class OpenApiDocumentValidator
     /// Another verb is ATC_API_CACHE001's.
     /// </remarks>
     private static void ValidateOutputCacheAuthentication(
-        List<DiagnosticMessage> diagnostics,
-        string sourceFilePath,
-        OpenApiDocument document,
-        IOpenApiPathItem pathItem,
-        string httpMethodUpper,
-        OpenApiOperation operation,
-        string operationId)
+        OperationContext context)
     {
+        var (diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId) = (context.Diagnostics, context.SourceFilePath, context.Document, context.PathItem, context.HttpMethodUpper, context.Operation, context.OperationId);
+
         if (httpMethodUpper is not ("GET" or "HEAD"))
         {
             return;
