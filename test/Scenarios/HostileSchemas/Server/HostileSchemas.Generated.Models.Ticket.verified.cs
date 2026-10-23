@@ -31,7 +31,7 @@ namespace HostileSchemas.Generated.Models;
 /// <param name="Kind">The kind property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed partial record Ticket(
-    [property: Required, Range(long.MinValue, 4294967295), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] long Id,
+    [property: Required, Range(long.MinValue, 4294967295, ErrorMessage = "The field {0} must be at most 4294967295."), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "id")] long Id,
     [property: Required, ApiMinLength(1), ApiMaxLength(80), ApiRegularExpression(@"^[^\s].*$"), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "title")] string Title,
     Status? Status = null,
     double? Ratio = null,
@@ -40,8 +40,8 @@ public sealed partial record Ticket(
     Level? Level = null,
     Mark? Mark = null,
     Color Color = Color.Red,
-    [property: Range(1, long.MaxValue, MinimumIsExclusive = true), global::System.ComponentModel.DataAnnotations.Display(Name = "count")] int Count = 5,
-    [property: Range(double.MinValue, 10, MaximumIsExclusive = true), global::System.ComponentModel.DataAnnotations.Display(Name = "weight")] double Weight = 1.5,
+    [property: Range(1, long.MaxValue, MinimumIsExclusive = true, ErrorMessage = "The field {0} must be greater than 1."), global::System.ComponentModel.DataAnnotations.Display(Name = "count")] int Count = 5,
+    [property: Range(double.MinValue, 10, MaximumIsExclusive = true, ErrorMessage = "The field {0} must be less than 10."), global::System.ComponentModel.DataAnnotations.Display(Name = "weight")] double Weight = 1.5,
     bool Active = true,
     DateOnly? Due = null,
     List<string>? Tags = null,

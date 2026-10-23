@@ -19,6 +19,6 @@ namespace Demo.Generated.Accounts.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPaginatedAccountsParameters(
     [property: Range(1, 100), DefaultValue(10)] int? PageSize = 10,
-    [property: Range(0, long.MaxValue), DefaultValue(0)] int? PageIndex = 0,
+    [property: Range(0, long.MaxValue, ErrorMessage = "The field {0} must be at least 0."), DefaultValue(0)] int? PageIndex = 0,
     string? QueryString = null,
     string? Continuation = null);

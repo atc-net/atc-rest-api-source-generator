@@ -18,4 +18,4 @@ namespace VersioningHeader.Generated.Pets.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPetsParameters(
-    [property: Range(long.MinValue, 100)] int? Limit = null);
+    [property: Range(long.MinValue, 100, ErrorMessage = "The field {0} must be at most 100.")] int? Limit = null);

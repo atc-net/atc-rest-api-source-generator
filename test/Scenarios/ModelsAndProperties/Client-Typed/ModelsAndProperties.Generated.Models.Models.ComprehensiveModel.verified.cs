@@ -49,7 +49,7 @@ public sealed record ComprehensiveModel(
     [property: Range(0, 150)] int? Age = null,
     [property: Range(0, 100)] double? Score = null,
     [property: Range(1, 5)] float? Rating = null,
-    [property: Range(0, long.MaxValue)] long? ViewCount = null,
+    [property: Range(0, long.MaxValue, ErrorMessage = "The field {0} must be at least 0.")] long? ViewCount = null,
     bool IsActive = true,
     bool? IsVerified = null,
     [property: ApiRegularExpression(@"^\+?[1-9]\d{6,14}$")] string? PhoneNumber = null,

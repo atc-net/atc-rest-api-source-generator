@@ -21,7 +21,7 @@ namespace Demo.Generated.Accounts.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListAccountsParameters(
-    [property: FromQuery(Name = "limit"), Range(long.MinValue, 100), global::System.ComponentModel.DataAnnotations.Display(Name = "limit")] int? Limit = null);
+    [property: FromQuery(Name = "limit"), Range(long.MinValue, 100, ErrorMessage = "The field {0} must be at most 100."), global::System.ComponentModel.DataAnnotations.Display(Name = "limit")] int? Limit = null);
 
 /// <summary>
 /// Parameters for operation request.
@@ -68,7 +68,7 @@ public sealed record UpdateAccountByIdParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPaginatedAccountsParameters(
     [property: FromQuery(Name = "pageSize"), Range(1, 100), DefaultValue(10), global::System.ComponentModel.DataAnnotations.Display(Name = "pageSize")] int? PageSize = 10,
-    [property: FromQuery(Name = "pageIndex"), Range(0, long.MaxValue), DefaultValue(0), global::System.ComponentModel.DataAnnotations.Display(Name = "pageIndex")] int? PageIndex = 0,
+    [property: FromQuery(Name = "pageIndex"), Range(0, long.MaxValue, ErrorMessage = "The field {0} must be at least 0."), DefaultValue(0), global::System.ComponentModel.DataAnnotations.Display(Name = "pageIndex")] int? PageIndex = 0,
     // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     string QueryString = null,

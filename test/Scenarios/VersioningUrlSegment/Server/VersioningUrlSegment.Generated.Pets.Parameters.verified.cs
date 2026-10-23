@@ -21,7 +21,7 @@ namespace VersioningUrlSegment.Generated.Pets.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPetsParameters(
-    [property: FromQuery(Name = "limit"), Range(long.MinValue, 100), global::System.ComponentModel.DataAnnotations.Display(Name = "limit")] int? Limit = null);
+    [property: FromQuery(Name = "limit"), Range(long.MinValue, 100, ErrorMessage = "The field {0} must be at most 100."), global::System.ComponentModel.DataAnnotations.Display(Name = "limit")] int? Limit = null);
 
 /// <summary>
 /// Parameters for operation request.

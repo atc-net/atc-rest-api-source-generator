@@ -48,6 +48,6 @@ public sealed partial record Order(
     [property: ApiRegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$"), global::System.ComponentModel.DataAnnotations.Display(Name = "deliveryTime")] string? DeliveryTime = null,
     [property: ApiRegularExpression(@"^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "iban")] string? Iban = null,
     [property: Range(1, 100), global::System.ComponentModel.DataAnnotations.Display(Name = "quantity")] int? Quantity = null,
-    [property: Range(0, double.MaxValue, MinimumIsExclusive = true), global::System.ComponentModel.DataAnnotations.Display(Name = "price")] double? Price = null,
+    [property: Range(0, double.MaxValue, MinimumIsExclusive = true, ErrorMessage = "The field {0} must be greater than 0."), global::System.ComponentModel.DataAnnotations.Display(Name = "price")] double? Price = null,
     Guid? Id = null,
     DateOnly? DeliveryDate = null);

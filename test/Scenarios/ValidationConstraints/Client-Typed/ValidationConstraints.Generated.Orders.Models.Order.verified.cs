@@ -47,6 +47,6 @@ public sealed record Order(
     [property: ApiRegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$")] string? DeliveryTime = null,
     [property: ApiRegularExpression(@"^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$")] string? Iban = null,
     [property: Range(1, 100)] int? Quantity = null,
-    [property: Range(0, double.MaxValue, MinimumIsExclusive = true)] double? Price = null,
+    [property: Range(0, double.MaxValue, MinimumIsExclusive = true, ErrorMessage = "The field {0} must be greater than 0.")] double? Price = null,
     Guid? Id = null,
     DateOnly? DeliveryDate = null);

@@ -50,7 +50,7 @@ public sealed partial record ComprehensiveModel(
     [property: Range(0, 150), global::System.ComponentModel.DataAnnotations.Display(Name = "age")] int? Age = null,
     [property: Range(0, 100), global::System.ComponentModel.DataAnnotations.Display(Name = "score")] double? Score = null,
     [property: Range(1, 5), global::System.ComponentModel.DataAnnotations.Display(Name = "rating")] float? Rating = null,
-    [property: Range(0, long.MaxValue), global::System.ComponentModel.DataAnnotations.Display(Name = "viewCount")] long? ViewCount = null,
+    [property: Range(0, long.MaxValue, ErrorMessage = "The field {0} must be at least 0."), global::System.ComponentModel.DataAnnotations.Display(Name = "viewCount")] long? ViewCount = null,
     bool IsActive = true,
     bool? IsVerified = null,
     [property: ApiRegularExpression(@"^\+?[1-9]\d{6,14}$"), global::System.ComponentModel.DataAnnotations.Display(Name = "phoneNumber")] string? PhoneNumber = null,

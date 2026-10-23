@@ -1191,7 +1191,9 @@ public static class OpenApiSchemaExtensions
 
                 if (min is not null || max is not null)
                 {
-                    yield return $"Range({min?.ToString(CultureInfo.InvariantCulture) ?? "long.MinValue"}, {max?.ToString(CultureInfo.InvariantCulture) ?? "long.MaxValue"}{flags})";
+                    var minText = min?.ToString(CultureInfo.InvariantCulture);
+                    var maxText = max?.ToString(CultureInfo.InvariantCulture);
+                    yield return $"Range({minText ?? "long.MinValue"}, {maxText ?? "long.MaxValue"}{flags}{OneBoundMessage(minText, minimumIsExclusive, maxText, maximumIsExclusive)})";
                 }
             }
             else if (schemaType.HasFlag(JsonSchemaType.Number))
@@ -1201,10 +1203,23 @@ public static class OpenApiSchemaExtensions
 
                 if (min is not null || max is not null)
                 {
-                    yield return $"Range({min ?? "double.MinValue"}, {max ?? "double.MaxValue"}{flags})";
+                    yield return $"Range({min ?? "double.MinValue"}, {max ?? "double.MaxValue"}{flags}{OneBoundMessage(min, minimumIsExclusive, max, maximumIsExclusive)})";
                 }
             }
         }
+
+        // A Range with one bound says that bound: "at most 100", not the default "between -9.22E+18 and 100"
+        private static string OneBoundMessage(
+            string? minimum,
+            bool minimumIsExclusive,
+            string? maximum,
+            bool maximumIsExclusive)
+            => (minimum, maximum) switch
+            {
+                (null, { } max) => $", ErrorMessage = \"The field {{0}} must be {(maximumIsExclusive ? "less than" : "at most")} {max}.\"",
+                ({ } min, null) => $", ErrorMessage = \"The field {{0}} must be {(minimumIsExclusive ? "greater than" : "at least")} {min}.\"",
+                _ => string.Empty,
+            };
 
         // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
         // project declares (LengthLimitAttributesExtractor)
