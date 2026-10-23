@@ -60,6 +60,36 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(outputPath, "index.ts")), "Root index.ts should exist");
     }
 
+    /// <summary>
+    /// The root barrel exports the helpers whenever the helpers folder is written - a download's file name, the wire
+    /// names, the XML mapping - not only for pagination or retry, so a helper is imported from the client's root the same
+    /// way whatever else the specification has.
+    /// </summary>
+    [Fact]
+    public async Task GenerateClientTypeScript_HelpersForADownloadOnly_AreExportedFromTheRoot()
+    {
+        // Arrange: a file download, no pagination and no retry
+        var specPath = Path.Combine(tempOutputDir, "Downloads.yaml");
+        Directory.CreateDirectory(tempOutputDir);
+        await File.WriteAllTextAsync(
+            specPath,
+            "openapi: 3.0.3\ninfo:\n  title: Downloads\n  version: 1.0.0\npaths:\n  /reports/{id}:\n    get:\n      operationId: getReport\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        '200':\n          description: OK\n          content:\n            application/pdf:\n              schema:\n                type: string\n                format: binary\n        '404':\n          description: Not found\n",
+            TestContext.Current.CancellationToken);
+        var outputPath = Path.Combine(tempOutputDir, "DownloadsTs");
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"generate client-typescript -s \"{specPath}\" -o \"{outputPath}\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, CliTestHelper.StripAnsiCodes(output));
+        Assert.True(File.Exists(Path.Combine(outputPath, "helpers", "download.ts")), "helpers/download.ts should exist");
+        var rootIndex = await File.ReadAllTextAsync(Path.Combine(outputPath, "index.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("'./helpers'", rootIndex, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GenerateClientTypeScript_WithShowcase_CreatesExpectedClientFiles()
     {

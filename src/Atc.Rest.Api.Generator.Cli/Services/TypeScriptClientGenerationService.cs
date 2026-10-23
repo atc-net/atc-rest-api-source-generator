@@ -84,7 +84,10 @@ public static class TypeScriptClientGenerationService
             .SelectMany(path => path.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
             .Any(operation => operation.HasFileDownload());
         var xmlContent = clientCount > 0 ? TypeScriptXmlHelperExtractor.Generate(openApiDoc, headerContent, config.NamingStrategy, config.ConvertDates) : null;
-        if (hasPagination || hasRetry || hasDownload || wireNamesContent is not null || xmlContent is not null)
+
+        // One rule for the helpers folder: it is written, and the root barrel exports it, when one helper is needed
+        var hasHelpers = hasPagination || hasRetry || hasDownload || wireNamesContent is not null || xmlContent is not null;
+        if (hasHelpers)
         {
             var helpersDir = Path.Combine(outputPath, "helpers");
             var helperModules = new List<string>();
@@ -214,7 +217,7 @@ public static class TypeScriptClientGenerationService
             subdirectories.Add("client");
         }
 
-        if (hasPagination || hasRetry)
+        if (hasHelpers)
         {
             subdirectories.Add("helpers");
         }

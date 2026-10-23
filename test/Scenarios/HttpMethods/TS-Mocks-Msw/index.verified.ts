@@ -2,6 +2,7 @@
 // atc-rest-api-gen 1.0.0
 export * from './client';
 export * from './errors';
+export * from './helpers';
 export * from './mocks';
 export * from './models';
 export * from './types';
