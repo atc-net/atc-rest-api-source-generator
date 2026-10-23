@@ -1,7 +1,7 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import { test, expect } from '../fixtures/test';
 import { apiBaseUrl } from '../ports';
-import { unique } from '../fixtures/api';
+import { unique, uniqueSurname } from '../fixtures/api';
 
 // The Showcase's demo authentication (Showcase.Api/ServiceCollectionExtensions.cs): a token that does not validate
 // becomes the demo identity, which holds every scope - that is what the apps send. A token that does validate (signed
@@ -20,7 +20,7 @@ function signedToken(scope: string | undefined) {
 
 const newUser = (email: string) => ({
   firstName: 'Annie',
-  lastName: 'Easley',
+  lastName: uniqueSurname('Easley'),
   email,
   dateOfBirth: '1933-04-23',
   role: 'Employee',

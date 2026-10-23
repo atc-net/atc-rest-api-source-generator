@@ -193,6 +193,19 @@ public sealed class UserInMemoryRepository
     public Task<UserEntity?> GetByEmail(string email)
         => Task.FromResult(Snapshot().FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
 
+    /// <summary>
+    /// Whether another user has this first and last name (in any letter case) - the user with
+    /// <paramref name="exceptUserId"/>, the one being updated, does not count.
+    /// </summary>
+    public Task<bool> ExistsWithName(
+        string firstName,
+        string lastName,
+        Guid? exceptUserId = null)
+        => Task.FromResult(Snapshot().Any(u =>
+            u.Id != exceptUserId &&
+            u.FirstName.Equals(firstName, StringComparison.OrdinalIgnoreCase) &&
+            u.LastName.Equals(lastName, StringComparison.OrdinalIgnoreCase)));
+
     public Task<UserEntity> Create(
         string firstName,
         string lastName,
