@@ -188,6 +188,97 @@ public static class EndpointDefinitionExtractor
         return commonSegments.Count > 0 ? "/" + string.Join("/", commonSegments) : "/";
     }
 
+    /// <summary>
+    /// The request's constructor argument of a form field: as bound (an optional one stays null when absent), with a
+    /// fallback for a required one - the wire-form-binding step answered a problem when it was missing.
+    /// </summary>
+    /// <param name="field">The form field.</param>
+    /// <returns>The argument expression.</returns>
+    internal static string FormArgumentExpression(FormField field)
+        {
+            // A field sent as JSON: as the wire-form-binding step read it (it answered a problem when a required one
+            // was missing)
+            if (field.JsonValue is not null)
+            {
+                return field.IsRequired ? field.JsonValue + "!" : field.JsonValue;
+            }
+
+            var cleanTypeName = field.TypeName.TrimEnd('?');
+
+            // A field of many files: its own files out of the form's (an absent field is no files)
+            var fieldFiles = $"{field.ParamName}?.GetFiles({CSharpLiteralHelper.ToStringLiteral(field.WireName)}).ToList()";
+            if (!field.IsRequired)
+            {
+                return cleanTypeName == "IFormFileCollection"
+                    ? fieldFiles
+                    : field.ParamName;
+            }
+
+            // A required value: the wire-form-binding step answered a problem when it was missing
+            if (field.IsValueType)
+            {
+                return $"{field.ParamName}!.Value";
+            }
+
+            // IFormFile types - handle collection conversion if needed
+            if (cleanTypeName.Contains("IFormFile", StringComparison.Ordinal))
+            {
+                // IFormFileCollection needs conversion to List<IFormFile> for model compatibility
+                // The model uses List<IFormFile> but ASP.NET Core binds to IFormFileCollection
+                if (cleanTypeName == "IFormFileCollection")
+                {
+                    return $"{fieldFiles} ?? new List<IFormFile>()";
+                }
+
+                return field.ParamName + "!";
+            }
+
+            // String parameters - use null-coalescing with empty string
+            if (cleanTypeName.Equals("string", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{field.ParamName} ?? string.Empty";
+            }
+
+            // List parameters - use null-coalescing with empty list (a parsable list is a List<T>)
+            if (cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
+            {
+                return $"{field.ParamName} ?? new {cleanTypeName}()";
+            }
+
+            if (cleanTypeName.StartsWith("ParsableList<", StringComparison.Ordinal) ||
+                cleanTypeName.StartsWith("ParsableEnumList<", StringComparison.Ordinal))
+            {
+                return $"{field.ParamName} ?? new List<{cleanTypeName.Substring(cleanTypeName.IndexOf('<') + 1).TrimEnd('>')}>()";
+            }
+
+            return field.ParamName;
+        }
+
+    // The body of an endpoint with a stream of records: the rules the specification declares for it before the handler
+    private static string StreamedBody(
+        StreamedRequestBody streamed,
+        bool useValidationFilter)
+    {
+        // A stream of records: the rules the specification declares for it (media types, required, count, the
+        // validation of each record) are set before the handler runs; a body of another media type or a missing one
+        // is answered here
+        var validateRecords = useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamed.ItemSchema);
+        var recordAttributes = useValidationFilter ? StreamedRequestBodyExtractor.RecordAttributeExpressions(streamed.ItemSchema) : [];
+        var expect = StreamedRequestBodyExtractor.ExpectStatement(
+            streamed,
+            validateRecords,
+            recordAttributes: recordAttributes,
+            nullRecords: StreamedRequestBodyExtractor.RecordsMayBeNull(streamed.ItemSchema));
+        return $"""
+                   {expect}
+
+                   return (await handler.ExecuteAsync(
+                           parameters,
+                           cancellationToken))
+                       .Result;
+                   """;
+    }
+
     private static Dictionary<string, List<(string Path, string Method, OpenApiOperation Operation, IList<IOpenApiParameter>? PathParameters)>> GroupOperationsByStrategy(
         OpenApiDocument openApiDoc,
         string? pathSegment,
@@ -1625,215 +1716,40 @@ using Microsoft.AspNetCore.Builder;
         var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
 
-        // Determine if operation has parameters (operation-level OR path-level)
-        var hasOperationParams = operation.Parameters is not null && operation.Parameters.Count > 0;
-        var hasPathParams = pathParameters is not null && pathParameters.Count > 0;
-        var hasParameters = hasOperationParams || hasPathParams;
-        var hasRequestBody = operation.HasRequestBody();
+        var takesParameters = HandlerSignature.TakesParameters(operation, pathParameters);
 
-        // Check if this is a multipart/form-data with complex schema that needs flattening
-        var requiresFormFlattening = operation.RequiresFormBindingFlattening();
-
-        // Build method parameters
-        var methodParameters = new List<ParameterBaseParameters>();
-
-        // Add handler parameter with [FromServices]
-        methodParameters.Add(new ParameterBaseParameters(
-            Attributes: new List<AttributeParameters> { new("FromServices", null) },
-            GenericTypeName: null,
-            IsGenericListType: false,
-            TypeName: $"I{methodName}Handler",
-            IsNullableType: false,
-            IsReferenceType: true,
-            Name: "handler",
-            DefaultValue: null));
-
-        // For form flattening, add individual form parameters instead of [AsParameters]
-        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName, string? JsonValue)>();
-        var routeParameterNames = new List<(string ParamName, string PropName)>();
-        if (requiresFormFlattening)
+        // The handler, the form's fields or the [AsParameters] record, the cancellation token
+        var methodParameters = new List<ParameterBaseParameters>
         {
-            // A form field named like a path, query or header parameter (PUT /user/{username} with a username field)
-            // gets a prefixed handler parameter; the [FromForm] name stays the field's
-            var otherParameterNames = new HashSet<string>(
-                (pathParameters ?? []).Concat(operation.Parameters ?? [])
-                    .Select(p => p.GetName())
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .Select(n => n!.ToPascalCaseForDotNet())
-                    .Select(n => char.ToLowerInvariant(n[0]) + n.Substring(1)),
-                StringComparer.Ordinal);
+            new(
+                Attributes: new List<AttributeParameters> { new("FromServices", null) },
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: $"I{methodName}Handler",
+                IsNullableType: false,
+                IsReferenceType: true,
+                Name: "handler",
+                DefaultValue: null),
+        };
 
-            var (_, properties, formRequired) = operation.GetFormBodySchemaInfo();
-            if (properties is not null)
-            {
-                // A field sent as an object part (JSON, XML, URL-encoded) is no form binding's: the wire-form-binding step
-                // reads it from the part's text and keeps it on the request (WireBindingExtensions.FormPart)
-                var hasJsonParts = properties.Any(p => IsObjectPart(operation, p.Key, p.Value));
-
-                // The HttpContext: a JSON part is read from it, and the request is validated with its services (the
-                // validators, the ValidationFilterOptions, the JSON naming policy)
-                if (hasJsonParts || useValidationFilter)
-                {
-                    methodParameters.Add(new ParameterBaseParameters(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: "HttpContext",
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "httpContext",
-                        DefaultValue: null));
-                    otherParameterNames.Add("httpContext");
-                }
-
-                foreach (var kvp in properties)
-                {
-                    var propName = kvp.Key;
-                    var propSchema = kvp.Value;
-                    var pascalPropName = propName.ToPascalCaseForDotNet();
-
-                    if (IsObjectPart(operation, propName, propSchema))
-                    {
-                        var valueType = FormBodyHelper.JsonPartValueType(propSchema);
-                        var accessor = propSchema.IsOfType(JsonSchemaType.Array) ? "FormPartList" : "FormPart";
-                        formParameterNames.Add((string.Empty, pascalPropName, valueType, formRequired.Contains(propName), false, propName, $"WireBindingExtensions.{accessor}<{valueType}>(httpContext, {CSharpLiteralHelper.ToStringLiteral(propName)})"));
-                        continue;
-                    }
-
-                    // Convert to camelCase for parameter name
-                    var paramName = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
-                    if (otherParameterNames.Contains(paramName))
-                    {
-                        paramName = "form" + pascalPropName;
-                    }
-
-                    var (isFile, isCollection) = propSchema.GetFileUploadInfo();
-
-                    string typeName;
-                    List<AttributeParameters>? attributes = null;
-
-                    if (isFile)
-                    {
-                        // File property - IFormFile, bound by the field name the specification gives it (upload_file),
-                        // not by the C# parameter name derived from it. ASP.NET Core binds an IFormFileCollection to
-                        // every file of the form and refuses a name on it, so the request takes that field's files
-                        // from it by name (GetFiles).
-                        typeName = isCollection ? "IFormFileCollection" : "IFormFile";
-                        attributes = isCollection
-                            ? [new("FromForm", null)]
-                            : [new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}")];
-
-                        // Make nullable since file is often optional
-                        typeName += "?";
-                    }
-                    else
-                    {
-                        // Non-file property - needs [FromForm] attribute
-                        // Use ToCSharpType for proper type mapping (handles format, nullable, etc.)
-                        typeName = propSchema.ToCSharpType(isRequired: false, registry: null);
-
-                        // Every field is nullable: a required one is checked by the wire-form-binding step, which
-                        // answers a problem naming it; the framework's own check answers a bare 400.
-                        if (!typeName.EndsWith("?", StringComparison.Ordinal))
-                        {
-                            typeName += "?";
-                        }
-
-                        // A list is bound as one value with the items joined by the wire-form-binding step (form
-                        // binding reads a List<T> as a complex type, from indexed keys): the generated parsable list
-                        if (typeName.StartsWith("List<", StringComparison.Ordinal))
-                        {
-                            typeName = (WireValueHelper.IsStringEnum(propSchema) && !ExtensibleEnumHelper.IsExtensibleEnum(propSchema, registry) ? "ParsableEnum" : "Parsable") + typeName;
-                        }
-
-                        attributes = new List<AttributeParameters>
-                        {
-                            new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}"),
-                        };
-                    }
-
-                    methodParameters.Add(new ParameterBaseParameters(
-                        Attributes: attributes,
-                        GenericTypeName: null,
-                        IsGenericListType: typeName.StartsWith("List<", StringComparison.Ordinal),
-                        TypeName: typeName.TrimEnd('?'),
-                        IsNullableType: typeName.EndsWith("?", StringComparison.Ordinal),
-                        IsReferenceType: true,
-                        Name: paramName,
-                        DefaultValue: null));
-
-                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema), propName, null));
-                }
-            }
-
-            // Also add path-level and operation-level parameters (e.g., {pizzaId}) to the method signature
-            var allNonFormParameters = operation.EffectiveParameters(pathParameters);
-
-            var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
-            foreach (var paramOrRef in allNonFormParameters)
-            {
-                var resolved = paramOrRef.Resolve();
-                var parameter = resolved.Parameter;
-                if (parameter is null || string.IsNullOrEmpty(parameter.Name))
-                {
-                    continue;
-                }
-
-                var propName = propertyNames.Get(parameter, resolved.ReferenceId);
-                var paramName = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
-                var paramType = parameter.Schema!.ToCSharpType(isRequired: parameter.Required, registry: null);
-                var isNullable = paramType.EndsWith("?", StringComparison.Ordinal);
-                var cleanType = isNullable ? paramType.Substring(0, paramType.Length - 1) : paramType;
-
-                var paramLocation = parameter.In ?? ParameterLocation.Query;
-
-                // ASP.NET Core has no [FromCookie] attribute — skip cookie params.
-                if (paramLocation == ParameterLocation.Cookie)
-                {
-                    continue;
-                }
-
-                var bindingAttrName = paramLocation switch
-                {
-                    ParameterLocation.Path => "FromRoute",
-                    ParameterLocation.Header => "FromHeader",
-                    _ => "FromQuery",
-                };
-
-                var attributes = new List<AttributeParameters>
-                {
-                    new(bindingAttrName, $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"),
-                };
-
-                methodParameters.Add(new ParameterBaseParameters(
-                    Attributes: attributes,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: cleanType,
-                    IsNullableType: isNullable,
-                    IsReferenceType: false,
-                    Name: paramName,
-                    DefaultValue: null));
-
-                routeParameterNames.Add((paramName, propName));
-            }
-        }
-        else if (hasParameters || hasRequestBody)
+        // A multipart/form-data body with a complex schema is bound field by field, with the path and query parameters
+        // beside it
+        var form = operation.RequiresFormBindingFlattening()
+            ? AddFlattenedFormParameters(methodParameters, operation, pathParameters, useValidationFilter, registry)
+            : ((List<FormField> Fields, List<(string ParamName, string PropName)> RouteParameters)?)null;
+        if (form is null && takesParameters)
         {
-            // Standard case: use [AsParameters] with the parameters class
-            var parameterClassName = $"{methodName}Parameters";
             methodParameters.Add(new ParameterBaseParameters(
                 Attributes: new List<AttributeParameters> { new("AsParameters", null) },
                 GenericTypeName: null,
                 IsGenericListType: false,
-                TypeName: parameterClassName,
+                TypeName: $"{methodName}Parameters",
                 IsNullableType: false,
                 IsReferenceType: true,
                 Name: "parameters",
                 DefaultValue: null));
         }
 
-        // Add CancellationToken
         methodParameters.Add(new ParameterBaseParameters(
             Attributes: null,
             GenericTypeName: null,
@@ -1844,180 +1760,42 @@ using Microsoft.AspNetCore.Builder;
             Name: "cancellationToken",
             DefaultValue: null));
 
-        // Build method content
-        string content;
-        if (requiresFormFlattening)
+        if (form is { } flattened)
         {
-            // For form flattening, construct the request object and parameters manually
-            var (schemaName, _, _) = operation.GetFormBodySchemaInfo();
-            var requestTypeName = schemaName is null ? "Request" : OpenApiSchemaExtensions.SanitizeSchemaName(schemaName);
-            var parameterClassName = $"{methodName}Parameters";
-
-            // Build constructor arguments for the request object, by name (the record lists required properties first).
-            // A required value gets a fallback for nullable form binding; an optional one stays null when absent.
-            var requestArgs = string.Join(", ", formParameterNames.Select(p => $"{p.PropName}: {RequestArgument(p)}"));
-
-            static string RequestArgument(
-                (string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType, string WireName, string? JsonValue) p)
-            {
-                // A field sent as JSON: as the wire-form-binding step read it (it answered a problem when a required one
-                // was missing)
-                if (p.JsonValue is not null)
-                {
-                    return p.IsRequired ? p.JsonValue + "!" : p.JsonValue;
-                }
-
-                var cleanTypeName = p.TypeName.TrimEnd('?');
-
-                // A field of many files: its own files out of the form's (an absent field is no files)
-                var fieldFiles = $"{p.ParamName}?.GetFiles({CSharpLiteralHelper.ToStringLiteral(p.WireName)}).ToList()";
-                if (!p.IsRequired)
-                {
-                    return cleanTypeName == "IFormFileCollection"
-                        ? fieldFiles
-                        : p.ParamName;
-                }
-
-                // A required value: the wire-form-binding step answered a problem when it was missing
-                if (p.IsValueType)
-                {
-                    return $"{p.ParamName}!.Value";
-                }
-
-                // IFormFile types - handle collection conversion if needed
-                if (cleanTypeName.Contains("IFormFile", StringComparison.Ordinal))
-                {
-                    // IFormFileCollection needs conversion to List<IFormFile> for model compatibility
-                    // The model uses List<IFormFile> but ASP.NET Core binds to IFormFileCollection
-                    if (cleanTypeName == "IFormFileCollection")
-                    {
-                        return $"{fieldFiles} ?? new List<IFormFile>()";
-                    }
-
-                    return p.ParamName + "!";
-                }
-
-                // String parameters - use null-coalescing with empty string
-                if (cleanTypeName.Equals("string", StringComparison.OrdinalIgnoreCase))
-                {
-                    return $"{p.ParamName} ?? string.Empty";
-                }
-
-                // List parameters - use null-coalescing with empty list (a parsable list is a List<T>)
-                if (cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
-                {
-                    return $"{p.ParamName} ?? new {cleanTypeName}()";
-                }
-
-                if (cleanTypeName.StartsWith("ParsableList<", StringComparison.Ordinal) ||
-                    cleanTypeName.StartsWith("ParsableEnumList<", StringComparison.Ordinal))
-                {
-                    return $"{p.ParamName} ?? new List<{cleanTypeName.Substring(cleanTypeName.IndexOf('<') + 1).TrimEnd('>')}>()";
-                }
-
-                return p.ParamName;
-            }
-
-            // Build constructor arguments: path/query params first, then request (matching record order)
-            var constructorArgs = string.Join(
-                ", ",
-                routeParameterNames.Select(r => r.ParamName).Append("request"));
-
-            // Use block body since we need to construct objects
-            // Note: Content should NOT include braces - the code generator adds them
-            // With the ValidationFilter: a form binds no [AsParameters] record the filter could validate, so the endpoint
-            // validates the one it builds - the same keys and validators as a JSON body of the same model
-            content = useValidationFilter
-                ? $$"""
-                   var request = new {{requestTypeName}}({{requestArgs}});
-                   var parameters = new {{parameterClassName}}({{constructorArgs}});
-                   if (await RequestValidation.ValidateAsync(parameters, httpContext) is { } invalid)
-                   {
-                       return invalid;
-                   }
-
-                   return (await handler.ExecuteAsync(
-                           parameters,
-                           cancellationToken))
-                       .Result;
-                   """
-                : $"""
-                   var request = new {requestTypeName}({requestArgs});
-                   var parameters = new {parameterClassName}({constructorArgs});
-                   return (await handler.ExecuteAsync(
-                           parameters,
-                           cancellationToken))
-                       .Result;
-                   """;
-
-            return new MethodParameters(
-                DocumentationTags: null,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.InternalAsync,
-                ReturnGenericTypeName: systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task)),
-                ReturnTypeName: "IResult",
-                Name: methodName,
-                Parameters: methodParameters,
-                AlwaysBreakDownParameters: true,
-                UseExpressionBody: false,
-                Content: content);
+            return EndpointMethod(methodName, methodParameters, FlattenedFormBody(operation, methodName, flattened, useValidationFilter), expressionBody: false, systemTypeResolver);
         }
 
         // The handler's result is not named (its Result is what ToIResult returns): an operation named like an MVC result
         // (signIn, redirect, file, ...) has a result whose name Microsoft.AspNetCore.Mvc, imported by this file, also has
         if (operation.GetStreamedRequestBody() is { } streamed)
         {
-            // A stream of records: the rules the specification declares for it (media types, required, count, the
-            // validation of each record) are set before the handler runs; a body of another media type or a missing one
-            // is answered here
-            var validateRecords = useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamed.ItemSchema);
-            var recordAttributes = useValidationFilter ? StreamedRequestBodyExtractor.RecordAttributeExpressions(streamed.ItemSchema) : [];
-            var expect = StreamedRequestBodyExtractor.ExpectStatement(
-                streamed,
-                validateRecords,
-                recordAttributes: recordAttributes,
-                nullRecords: StreamedRequestBodyExtractor.RecordsMayBeNull(streamed.ItemSchema));
-            content = $"""
-                       {expect}
-
-                       return (await handler.ExecuteAsync(
-                               parameters,
-                               cancellationToken))
-                           .Result;
-                       """;
-
-            return new MethodParameters(
-                DocumentationTags: null,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.InternalAsync,
-                ReturnGenericTypeName: systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task)),
-                ReturnTypeName: "IResult",
-                Name: methodName,
-                Parameters: methodParameters,
-                AlwaysBreakDownParameters: true,
-                UseExpressionBody: false,
-                Content: content);
+            return EndpointMethod(methodName, methodParameters, StreamedBody(streamed, useValidationFilter), expressionBody: false, systemTypeResolver);
         }
 
-        if (hasParameters || hasRequestBody)
-        {
-            content = $"""
-                       (await handler.ExecuteAsync(
-                               parameters,
-                               cancellationToken))
-                           .Result
-                       """;
-        }
-        else
-        {
-            content = $"""
-                       (await handler.ExecuteAsync(
-                               cancellationToken))
-                           .Result
-                       """;
-        }
+        var content = takesParameters
+            ? """
+              (await handler.ExecuteAsync(
+                      parameters,
+                      cancellationToken))
+                  .Result
+              """
+            : """
+              (await handler.ExecuteAsync(
+                      cancellationToken))
+                  .Result
+              """;
 
-        return new MethodParameters(
+        return EndpointMethod(methodName, methodParameters, content, expressionBody: true, systemTypeResolver);
+    }
+
+    // An endpoint's method: internal async, an IResult, its parameters each on a line
+    private static MethodParameters EndpointMethod(
+        string methodName,
+        List<ParameterBaseParameters> methodParameters,
+        string content,
+        bool expressionBody,
+        SystemTypeConflictResolver systemTypeResolver)
+        => new(
             DocumentationTags: null,
             Attributes: null,
             DeclarationModifier: DeclarationModifiers.InternalAsync,
@@ -2026,8 +1804,237 @@ using Microsoft.AspNetCore.Builder;
             Name: methodName,
             Parameters: methodParameters,
             AlwaysBreakDownParameters: true,
-            UseExpressionBody: true,
+            UseExpressionBody: expressionBody,
             Content: content);
+
+    // The handler parameters of a flattened form: [FromForm] fields (a field sent as an object part is read from the
+    // HttpContext), then the path, query and header parameters
+    private static (List<FormField> Fields, List<(string ParamName, string PropName)> RouteParameters) AddFlattenedFormParameters(
+        List<ParameterBaseParameters> methodParameters,
+        OpenApiOperation operation,
+        IList<IOpenApiParameter>? pathParameters,
+        bool useValidationFilter,
+        TypeConflictRegistry? registry)
+    {
+        var formParameterNames = new List<FormField>();
+        var routeParameterNames = new List<(string ParamName, string PropName)>();
+
+        // A form field named like a path, query or header parameter (PUT /user/{username} with a username field)
+        // gets a prefixed handler parameter; the [FromForm] name stays the field's
+        var otherParameterNames = new HashSet<string>(
+            (pathParameters ?? []).Concat(operation.Parameters ?? [])
+                .Select(p => p.GetName())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Select(n => n!.ToPascalCaseForDotNet())
+                .Select(n => char.ToLowerInvariant(n[0]) + n.Substring(1)),
+            StringComparer.Ordinal);
+
+        var (_, properties, formRequired) = operation.GetFormBodySchemaInfo();
+        if (properties is not null)
+        {
+            // A field sent as an object part (JSON, XML, URL-encoded) is no form binding's: the wire-form-binding step
+            // reads it from the part's text and keeps it on the request (WireBindingExtensions.FormPart)
+            var hasJsonParts = properties.Any(p => IsObjectPart(operation, p.Key, p.Value));
+
+            // The HttpContext: a JSON part is read from it, and the request is validated with its services (the
+            // validators, the ValidationFilterOptions, the JSON naming policy)
+            if (hasJsonParts || useValidationFilter)
+            {
+                methodParameters.Add(new ParameterBaseParameters(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "HttpContext",
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: "httpContext",
+                    DefaultValue: null));
+                otherParameterNames.Add("httpContext");
+            }
+
+            foreach (var kvp in properties)
+            {
+                var propName = kvp.Key;
+                var propSchema = kvp.Value;
+                var pascalPropName = propName.ToPascalCaseForDotNet();
+
+                if (IsObjectPart(operation, propName, propSchema))
+                {
+                    var valueType = FormBodyHelper.JsonPartValueType(propSchema);
+                    var accessor = propSchema.IsOfType(JsonSchemaType.Array) ? "FormPartList" : "FormPart";
+                    formParameterNames.Add(new FormField(string.Empty, pascalPropName, valueType, formRequired.Contains(propName), false, propName, $"WireBindingExtensions.{accessor}<{valueType}>(httpContext, {CSharpLiteralHelper.ToStringLiteral(propName)})"));
+                    continue;
+                }
+
+                // Convert to camelCase for parameter name
+                var paramName = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
+                if (otherParameterNames.Contains(paramName))
+                {
+                    paramName = "form" + pascalPropName;
+                }
+
+                var (isFile, isCollection) = propSchema.GetFileUploadInfo();
+
+                string typeName;
+                List<AttributeParameters>? attributes = null;
+
+                if (isFile)
+                {
+                    // File property - IFormFile, bound by the field name the specification gives it (upload_file),
+                    // not by the C# parameter name derived from it. ASP.NET Core binds an IFormFileCollection to
+                    // every file of the form and refuses a name on it, so the request takes that field's files
+                    // from it by name (GetFiles).
+                    typeName = isCollection ? "IFormFileCollection" : "IFormFile";
+                    attributes = isCollection
+                        ? [new("FromForm", null)]
+                        : [new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}")];
+
+                    // Make nullable since file is often optional
+                    typeName += "?";
+                }
+                else
+                {
+                    // Non-file property - needs [FromForm] attribute
+                    // Use ToCSharpType for proper type mapping (handles format, nullable, etc.)
+                    typeName = propSchema.ToCSharpType(isRequired: false, registry: null);
+
+                    // Every field is nullable: a required one is checked by the wire-form-binding step, which
+                    // answers a problem naming it; the framework's own check answers a bare 400.
+                    if (!typeName.EndsWith("?", StringComparison.Ordinal))
+                    {
+                        typeName += "?";
+                    }
+
+                    // A list is bound as one value with the items joined by the wire-form-binding step (form
+                    // binding reads a List<T> as a complex type, from indexed keys): the generated parsable list
+                    if (typeName.StartsWith("List<", StringComparison.Ordinal))
+                    {
+                        typeName = (WireValueHelper.IsStringEnum(propSchema) && !ExtensibleEnumHelper.IsExtensibleEnum(propSchema, registry) ? "ParsableEnum" : "Parsable") + typeName;
+                    }
+
+                    attributes = new List<AttributeParameters>
+                    {
+                        new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}"),
+                    };
+                }
+
+                methodParameters.Add(new ParameterBaseParameters(
+                    Attributes: attributes,
+                    GenericTypeName: null,
+                    IsGenericListType: typeName.StartsWith("List<", StringComparison.Ordinal),
+                    TypeName: typeName.TrimEnd('?'),
+                    IsNullableType: typeName.EndsWith("?", StringComparison.Ordinal),
+                    IsReferenceType: true,
+                    Name: paramName,
+                    DefaultValue: null));
+
+                formParameterNames.Add(new FormField(paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema), propName, null));
+            }
+        }
+
+        // Also add path-level and operation-level parameters (e.g., {pizzaId}) to the method signature
+        var allNonFormParameters = operation.EffectiveParameters(pathParameters);
+
+        var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
+        foreach (var paramOrRef in allNonFormParameters)
+        {
+            var resolved = paramOrRef.Resolve();
+            var parameter = resolved.Parameter;
+            if (parameter is null || string.IsNullOrEmpty(parameter.Name))
+            {
+                continue;
+            }
+
+            var propName = propertyNames.Get(parameter, resolved.ReferenceId);
+            var paramName = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
+            var paramType = parameter.Schema!.ToCSharpType(isRequired: parameter.Required, registry: null);
+            var isNullable = paramType.EndsWith("?", StringComparison.Ordinal);
+            var cleanType = isNullable ? paramType.Substring(0, paramType.Length - 1) : paramType;
+
+            var paramLocation = parameter.In ?? ParameterLocation.Query;
+
+            // ASP.NET Core has no [FromCookie] attribute — skip cookie params.
+            if (paramLocation == ParameterLocation.Cookie)
+            {
+                continue;
+            }
+
+            var bindingAttrName = paramLocation switch
+            {
+                ParameterLocation.Path => "FromRoute",
+                ParameterLocation.Header => "FromHeader",
+                _ => "FromQuery",
+            };
+
+            var attributes = new List<AttributeParameters>
+            {
+                new(bindingAttrName, $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"),
+            };
+
+            methodParameters.Add(new ParameterBaseParameters(
+                Attributes: attributes,
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: cleanType,
+                IsNullableType: isNullable,
+                IsReferenceType: false,
+                Name: paramName,
+                DefaultValue: null));
+
+            routeParameterNames.Add((paramName, propName));
+        }
+
+        return (formParameterNames, routeParameterNames);
+    }
+
+    // The body of a flattened form's endpoint: the request built from the fields, the parameters from the request and
+    // the path and query parameters
+    private static string FlattenedFormBody(
+        OpenApiOperation operation,
+        string methodName,
+        (List<FormField> Fields, List<(string ParamName, string PropName)> RouteParameters) form,
+        bool useValidationFilter)
+    {
+        // For form flattening, construct the request object and parameters manually
+        var (schemaName, _, _) = operation.GetFormBodySchemaInfo();
+        var requestTypeName = schemaName is null ? "Request" : OpenApiSchemaExtensions.SanitizeSchemaName(schemaName);
+        var parameterClassName = $"{methodName}Parameters";
+
+        // Build constructor arguments for the request object, by name (the record lists required properties first).
+        // A required value gets a fallback for nullable form binding; an optional one stays null when absent.
+        var requestArgs = string.Join(", ", form.Fields.Select(f => $"{f.PropName}: {FormArgumentExpression(f)}"));
+
+        // Build constructor arguments: path/query params first, then request (matching record order)
+        var constructorArgs = string.Join(
+            ", ",
+            form.RouteParameters.Select(r => r.ParamName).Append("request"));
+
+        // Use block body since we need to construct objects
+        // Note: Content should NOT include braces - the code generator adds them
+        // With the ValidationFilter: a form binds no [AsParameters] record the filter could validate, so the endpoint
+        // validates the one it builds - the same keys and validators as a JSON body of the same model
+        return useValidationFilter
+            ? $$"""
+               var request = new {{requestTypeName}}({{requestArgs}});
+               var parameters = new {{parameterClassName}}({{constructorArgs}});
+               if (await RequestValidation.ValidateAsync(parameters, httpContext) is { } invalid)
+               {
+                   return invalid;
+               }
+
+               return (await handler.ExecuteAsync(
+                       parameters,
+                       cancellationToken))
+                   .Result;
+               """
+            : $"""
+               var request = new {requestTypeName}({requestArgs});
+               var parameters = new {parameterClassName}({constructorArgs});
+               return (await handler.ExecuteAsync(
+                       parameters,
+                       cancellationToken))
+                   .Result;
+               """;
     }
 
     /// <summary>

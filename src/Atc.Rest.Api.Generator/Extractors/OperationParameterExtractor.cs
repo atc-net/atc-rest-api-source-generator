@@ -292,6 +292,36 @@ public static class OperationParameterExtractor
         return (records, ToInlineEnumList(inlineEnumsByValuesKey));
     }
 
+    /// <summary>
+    /// The record's parameters with the required ones (no default value) first, then the optional ones (null or the
+    /// schema's default), each in the specification's order: C# needs optional parameters after the required ones.
+    /// </summary>
+    /// <param name="parameters">The parameters in the specification's order.</param>
+    /// <returns>The parameters, required first.</returns>
+    internal static List<ParameterBaseParameters> OrderRequiredFirst(
+        IEnumerable<ParameterBaseParameters> parameters)
+        => [.. parameters.OrderBy(p => p.DefaultValue is not null)];
+
+    /// <summary>
+    /// The server's binding attribute of a parameter: [FromQuery], [FromRoute] or [FromHeader] by its name; the whole
+    /// query string (OAS 3.2) and a cookie are bound from a key the endpoint's WithWireBinding step fills.
+    /// </summary>
+    /// <param name="location">Where the parameter is.</param>
+    /// <param name="name">The parameter's name.</param>
+    /// <returns>The attribute.</returns>
+    internal static AttributeParameters? BindingAttribute(
+        ParameterLocation location,
+        string name)
+        => location switch
+        {
+            ParameterLocation.Query => new AttributeParameters("FromQuery", $"Name = {CSharpLiteralHelper.ToStringLiteral(name)}"),
+            ParameterLocation.Path => new AttributeParameters("FromRoute", $"Name = {CSharpLiteralHelper.ToStringLiteral(name)}"),
+            ParameterLocation.Header => new AttributeParameters("FromHeader", $"Name = {CSharpLiteralHelper.ToStringLiteral(name)}"),
+            ParameterLocation.QueryString => new AttributeParameters("FromQuery", $"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.QueryStringKey)}"),
+            ParameterLocation.Cookie => new AttributeParameters("FromHeader", $"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.CookieHeaderPrefix + name)}"),
+            _ => null,
+        };
+
     private static List<InlineEnumInfo> ToInlineEnumList(
         Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey)
         => inlineEnumsByValuesKey is null
@@ -397,359 +427,336 @@ public static class OperationParameterExtractor
 
         var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
 
-        // Add query/route/header parameters if they exist
-        if (allParameters.Count > 0)
+        // The query, path, header and cookie parameters; a value the generated code cannot bind or send is left out
+        // (ATC_API_OPR037: a warning to a client, an error to a server)
+        foreach (var parameterOrRef in allParameters)
         {
-            foreach (var parameterOrRef in allParameters)
+            var resolved = parameterOrRef.Resolve();
+            if (resolved.Parameter is { Name.Length: > 0 } parameter && !parameter.IsUnbindable())
             {
-                // Resolve parameter reference if needed
-                var resolved = parameterOrRef.Resolve();
-                var parameter = resolved.Parameter;
-                var referenceId = resolved.ReferenceId;
-
-                // Skip if we couldn't resolve the parameter or it has no name; a value the generated code cannot bind or
-                // send is left out (ATC_API_OPR037: a warning to a client, an error to a server)
-                if (parameter is null || string.IsNullOrEmpty(parameter.Name) || parameter.IsUnbindable())
-                {
-                    continue;
-                }
-
-                var paramLocation = parameter.In ?? ParameterLocation.Query;
-
                 // The property name every other site uses for this parameter (a header by its component name or
                 // without its x- prefix; a name shared across locations carries the location)
-                var propName = propertyNames.Get(parameter, referenceId);
-
-                // OAS 3.2 in:querystring uses `content` (not `schema`) — the full raw query string
-                // is always typed as string. Schema is null so skip enum-detection and type-mapping.
-                string paramType;
-                if (paramLocation == ParameterLocation.QueryString)
-                {
-                    paramType = parameter.Required ? "string" : "string?";
-                }
-                else
-                {
-                    // Inline-enum detection: when the parameter schema is an inline enum
-                    // (string + enum values, no $ref) — or an array whose items are an
-                    // inline enum — AND the caller supplied an accumulator, generate a named
-                    // C# enum type and record it as a side-output. Dedup by sorted value set
-                    // so two params with the same value list share one type. Falls through
-                    // to plain primitive mapping when no accumulator is supplied.
-                    var inlineEnumTypeName = TryRegisterInlineEnumOnParameter(
-                        parameter.Schema,
-                        recordName,
-                        propName,
-                        projectName,
-                        pathSegment,
-                        inlineEnumsByValuesKey,
-                        registry?.ComponentTypeNames,
-                        out var isArrayOfInlineEnum);
-                    if (inlineEnumTypeName is not null)
-                    {
-                        var rendered = isArrayOfInlineEnum ? $"List<{inlineEnumTypeName}>" : inlineEnumTypeName;
-                        paramType = parameter.Required ? rendered : rendered + "?";
-                    }
-                    else
-                    {
-                        paramType = MapOpenApiTypeToCSharp(parameter.Schema!, parameter.Required, registry);
-                    }
-                }
-
-                // Extract nullability from the type name - the code generation library handles adding "?"
-                var isNullableType = paramType.EndsWith("?", StringComparison.Ordinal);
-                var cleanTypeName = isNullableType
-                    ? paramType.Substring(0, paramType.Length - 1)
-                    : paramType;
-
-                // For server-side query, path and header parameters, List<T> must be wrapped with ParsableList<T>
-                // because [AsParameters] binding requires TryParse, which List<T> doesn't have (a path or header array
-                // is its items joined by commas, OpenAPI's style: simple)
-                if (includeBindingAttributes &&
-                    paramLocation is ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header &&
-                    cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
-                {
-                    // A C# enum has no TryParse of its own: its list is read by wire name (ParsableEnumList<T>); an
-                    // extensible enum has one
-                    cleanTypeName = (IsArrayOfEnum(parameter.Schema) && !ExtensibleEnumHelper.IsExtensibleEnum(parameter.Schema, registry) ? "ParsableEnum" : "Parsable") + cleanTypeName;
-
-                    static bool IsArrayOfEnum(IOpenApiSchema? schema)
-                        => (schema is OpenApiSchemaReference { Target: { } target } ? target : schema) is OpenApiSchema { Items: { } items } &&
-                           (items is OpenApiSchemaReference { Target: { } itemTarget } ? itemTarget : items).Enum is { Count: > 0 };
-                }
-
-                // Build attributes list
-                var attributes = new List<AttributeParameters>();
-
-                // A deprecated parameter warns the client's caller that sets or reads it. Not on the server: it still
-                // has to bind the parameter, and the handler that reads it would be warned for doing its job.
-                if (!includeBindingAttributes && parameter.Deprecated)
-                {
-                    attributes.Add(ObsoleteAttributeHelper.Attribute);
-                }
-
-                // Add binding attributes only for server-side parameters
-                if (includeBindingAttributes)
-                {
-                    switch (paramLocation)
-                    {
-                        // Add binding attribute
-                        case ParameterLocation.Query:
-                            attributes.Add(new AttributeParameters(
-                                "FromQuery",
-                                $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"));
-                            break;
-                        case ParameterLocation.Path:
-                            attributes.Add(new AttributeParameters(
-                                "FromRoute",
-                                $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"));
-                            break;
-                        case ParameterLocation.Header:
-                            attributes.Add(new AttributeParameters(
-                                "FromHeader",
-                                $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"));
-                            break;
-                        case ParameterLocation.QueryString:
-                            // OAS 3.2: the whole query string - bound from a key no request can send, which the
-                            // endpoint's WithWireBinding step fills with the raw query string
-                            attributes.Add(new AttributeParameters(
-                                "FromQuery",
-                                $"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.QueryStringKey)}"));
-                            break;
-                        case ParameterLocation.Cookie:
-                            // ASP.NET Core has no cookie binding source: the property is bound from a request header
-                            // that the endpoint's WithWireBinding step fills from the cookie
-                            attributes.Add(new AttributeParameters(
-                                "FromHeader",
-                                $"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.CookieHeaderPrefix + parameter.Name)}"));
-                            break;
-                    }
-                }
-
-                // Add validation attributes from OpenAPI schema constraints
-                var validationAttributes = parameter.Schema!.GetValidationAttributes(parameter.Required);
-                attributes.AddRange(
-                    validationAttributes.Select(
-                        validationAttr => new AttributeParameters(validationAttr, null)));
-
-                // Extract schema default value if available
-                var schemaDefault = DefaultValueHelper.ExtractSchemaDefault(parameter.Schema, cleanTypeName, registry);
-
-                // Add DefaultValue attribute when schema has a default (for OpenAPI/Scalar UI)
-                if (schemaDefault is not null)
-                {
-                    var defaultAttrValue = FormatDefaultValueForAttribute(schemaDefault, cleanTypeName);
-                    attributes.Add(new AttributeParameters("DefaultValue", defaultAttrValue));
-                }
-
-                // Determine property initializer (use schema default if available)
-                var defaultValue = GetDefaultValue(cleanTypeName, parameter.Required, isNullableType, schemaDefault);
-
-                parameters.Add(
-                    new ParameterBaseParameters(
-                        Attributes: attributes.Count > 0 ? attributes : null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: cleanTypeName,
-                        IsNullableType: isNullableType,
-                        IsReferenceType: IsReferenceType(cleanTypeName),
-                        Name: propName,
-                        DefaultValue: defaultValue));
+                parameters.Add(BuildParameterProperty(
+                    parameter,
+                    propertyNames.Get(parameter, resolved.ReferenceId),
+                    recordName,
+                    registry,
+                    includeBindingAttributes,
+                    projectName,
+                    pathSegment,
+                    inlineEnumsByValuesKey));
             }
         }
 
-        // Add request body as Request/File property if present
+        // The request body as the Request or File property (and the Content-Type of a raw upload of several types)
         if (operation.HasRequestBody())
         {
-            var (requestBodySchema, contentType) = operation.GetRequestBodySchemaWithContentType();
-
-            // An XML-only model body is the Request too (read and written by the model's XML mapping)
-            if (requestBodySchema is null && operation.RequestBody?.Content.XmlOnlyBody is { } xmlOnlyBody)
-            {
-                requestBodySchema = operation.RequestBody!.Content![xmlOnlyBody.MediaType].Schema;
-                contentType = xmlOnlyBody.MediaType;
-            }
-
-            if (requestBodySchema is not null)
-            {
-                var (isFile, isCollection) = requestBodySchema.GetFileUploadInfo();
-
-                // Request bodies are always treated as required to match old generator behavior.
-                // The OpenAPI spec defaults requestBody.required to false, but we can't easily
-                // distinguish between "explicitly set to false" and "defaulted to false".
-                // If you need optional request bodies, use a nullable schema type in your spec.
-                var isRequired = true;
-
-                // Only treat as direct file upload if the schema itself is binary/file type
-                // Schema references (like FileAsFormDataRequest) should use Request pattern even with multipart/form-data
-                var isDirectFileUpload = isFile;
-
-                string bodyType;
-                string propertyName;
-                var bodyAttributes = new List<AttributeParameters>();
-                var streamedBody = operation.GetStreamedRequestBody();
-
-                if (streamedBody is not null)
-                {
-                    // A stream of records (JSON Lines, JSON Text Sequences): the server reads it record by record
-                    // through the generated StreamedRequestBody<T> (bound by its BindAsync, no attribute); a client
-                    // writes it from an IAsyncEnumerable<T>. Its count and its records are checked by the reader, so no
-                    // validation attribute goes on the stream itself
-                    var itemType = requestBodySchema.ToCSharpType(isRequired: true, registry).TrimEnd('?');
-                    propertyName = "Request";
-                    bodyType = includeBindingAttributes
-                        ? StreamedRequestBodyExtractor.BodyTypeName(itemType)
-                        : streamedBody.IsRequired
-                            ? $"IAsyncEnumerable<{itemType}>"
-                            : $"IAsyncEnumerable<{itemType}>?";
-                    isDirectFileUpload = false;
-                }
-                else if (isDirectFileUpload)
-                {
-                    // File uploads: type depends on content type and server/client mode
-                    // - multipart/form-data: IFormFile/IFormFileCollection (server), IFileContent/IFileContent[] (client)
-                    // - application/octet-stream: Stream (server), IFileContent (client)
-                    // A raw file body of any binary media type (octet-stream, PDF, PNG, an Office document, ...)
-                    var isOctetStream = OpenApiOperationExtensions.IsRawFileUploadContentType(contentType);
-
-                    if (includeBindingAttributes && !isOctetStream)
-                    {
-                        // Server-side with multipart/form-data: IFormFile or IFormFileCollection
-                        // No [FromBody] attribute needed - ASP.NET Core binds it automatically
-                        var baseType = isCollection ? "IFormFileCollection" : "IFormFile";
-                        bodyType = isRequired ? baseType : $"{baseType}?";
-                    }
-                    else if (includeBindingAttributes && isOctetStream)
-                    {
-                        // Server-side with application/octet-stream: Stream
-                        var baseType = isCollection ? "Stream[]" : "Stream";
-                        bodyType = isRequired ? baseType : $"{baseType}?";
-
-                        // Server-side with application/octet-stream needs [FromBody] to bind Stream from request body
-                        bodyAttributes.Add(new AttributeParameters("FromBody", null));
-                    }
-                    else
-                    {
-                        // Client-side: IFileContent or IFileContent[] (from Atc.Rest.Client)
-                        var baseType = isCollection ? "IFileContent[]" : "IFileContent";
-                        bodyType = isRequired ? baseType : $"{baseType}?";
-                    }
-
-                    propertyName = "File";
-                }
-                else
-                {
-                    // Schema-based body (not a direct file upload)
-                    bodyType = requestBodySchema.ToCSharpType(isRequired, registry);
-                    propertyName = "Request";
-
-                    // A list offered as XML is bound by its Content-Type on the server: the generated RequestBodyList<T>
-                    // (a List<T> with a BindAsync)
-                    if (includeBindingAttributes &&
-                        operation.RequestBody?.Content is { } boundContent &&
-                        XmlBodyHelper.ServerBoundRequestBody(boundContent) is { IsList: true } boundList)
-                    {
-                        // A list offered as JSON only: the generated JsonRequestBodyList<T>, which names a value that
-                        // does not parse
-                        var nullable = bodyType.EndsWith("?", StringComparison.Ordinal) ? "?" : string.Empty;
-                        bodyType = boundList.IsJsonOnly
-                            ? XmlBodyHelper.JsonListBodyTypeName(bodyType)
-                            : $"{XmlModelMapperExtractor.RequestBodyListTypeName}<{XmlBodyHelper.ItemTypeName(boundContent, boundList)}>{nullable}";
-                    }
-
-                    // Add binding attribute only for server-side parameters
-                    if (includeBindingAttributes)
-                    {
-                        // A form (multipart/form-data, application/x-www-form-urlencoded) with a model schema gets no
-                        // binding attribute: the handler binds its fields one by one ([FromForm] on the record would
-                        // make the record the form, and [FromBody] would force JSON).
-                        // A model offered as XML is bound by its Content-Type (the generated BindAsync of the model):
-                        // [FromBody] reads JSON only
-                        var isForm = OpenApiOperationExtensions.IsFormContentType(contentType);
-                        if (!isForm && XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is null)
-                        {
-                            bodyAttributes.Add(new AttributeParameters("FromBody", null));
-                        }
-                    }
-                }
-
-                // Extract nullability from the type name - the code generation library handles adding "?"
-                var bodyIsNullable = bodyType.EndsWith("?", StringComparison.Ordinal);
-                var bodyCleanTypeName = bodyIsNullable
-                    ? bodyType.Substring(0, bodyType.Length - 1)
-                    : bodyType;
-
-                // Add validation attributes from body schema (only for non-file types; a stream's records are validated
-                // as they are read)
-                if (streamedBody is null && !isDirectFileUpload)
-                {
-                    var validationAttributes = requestBodySchema.GetValidationAttributes(isRequired);
-                    bodyAttributes.AddRange(
-                        validationAttributes.Select(
-                            validationAttr => new AttributeParameters(validationAttr, null)));
-                }
-                else if (streamedBody is null && isRequired)
-                {
-                    // For file uploads, only add Required attribute if needed
-                    bodyAttributes.Add(new AttributeParameters("Required", null));
-                }
-
-                parameters.Add(
-                    new ParameterBaseParameters(
-                        Attributes: bodyAttributes.Count > 0 ? bodyAttributes : null,
-                        GenericTypeName: null,
-                        IsGenericListType: bodyCleanTypeName.Contains("[]"),
-                        TypeName: bodyCleanTypeName,
-                        IsNullableType: bodyIsNullable,
-                        IsReferenceType: IsReferenceType(bodyCleanTypeName),
-                        Name: propertyName,
-                        DefaultValue: null));
-
-                // A raw upload that declares several media types (or a wildcard): the handler gets the type that arrived
-                if (includeBindingAttributes &&
-                    isDirectFileUpload &&
-                    OpenApiOperationExtensions.IsRawFileUploadContentType(contentType) &&
-                    operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList() is { } rawMediaTypes &&
-                    (rawMediaTypes.Count > 1 || rawMediaTypes.Exists(m => m.Contains('*'))))
-                {
-                    parameters.Add(
-                        new ParameterBaseParameters(
-                            Attributes:
-                            [
-                                new AttributeParameters("FromHeader", "Name = \"Content-Type\""),
-                                new AttributeParameters("Required", null),
-                            ],
-                            GenericTypeName: null,
-                            IsGenericListType: false,
-                            TypeName: "string",
-                            IsNullableType: false,
-                            IsReferenceType: true,
-                            Name: "ContentType",
-                            DefaultValue: null));
-                }
-
-                // Note: FileName property is no longer needed for client-side file uploads
-                // because IFileContent carries FileName, ContentType, and OpenReadStream() internally
-            }
+            parameters.AddRange(BuildRequestBodyProperties(operation, registry, includeBindingAttributes));
         }
 
-        // Build record documentation
-        var recordDoc = new CodeDocumentationTags(summary);
-
-        // Sort parameters: required (no default value) first, then optional (null or the schema's default), each in the
-        // specification's order. C# needs optional parameters after the required ones.
-        var sortedParameters = parameters
-            .OrderBy(p => p.DefaultValue is not null)
-            .ToList();
-
         return new RecordParameters(
-            DocumentationTags: recordDoc,
+            DocumentationTags: new CodeDocumentationTags(summary),
             DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
             Name: recordName,
-            Parameters: sortedParameters,
+            Parameters: OrderRequiredFirst(parameters),
             Attributes: new List<AttributeParameters>
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
             });
+    }
+
+    // The property of one parameter: its type (an inline enum named, a list parsable on the server), its binding and
+    // validation attributes and its default
+    private static ParameterBaseParameters BuildParameterProperty(
+        OpenApiParameter parameter,
+        string propName,
+        string recordName,
+        TypeConflictRegistry? registry,
+        bool includeBindingAttributes,
+        string projectName,
+        string? pathSegment,
+        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey)
+    {
+        var paramLocation = parameter.In ?? ParameterLocation.Query;
+
+        // OAS 3.2 in:querystring uses `content` (not `schema`) — the full raw query string
+        // is always typed as string. Schema is null so skip enum-detection and type-mapping.
+        string paramType;
+        if (paramLocation == ParameterLocation.QueryString)
+        {
+            paramType = parameter.Required ? "string" : "string?";
+        }
+        else
+        {
+            // Inline-enum detection: when the parameter schema is an inline enum
+            // (string + enum values, no $ref) — or an array whose items are an
+            // inline enum — AND the caller supplied an accumulator, generate a named
+            // C# enum type and record it as a side-output. Dedup by sorted value set
+            // so two params with the same value list share one type. Falls through
+            // to plain primitive mapping when no accumulator is supplied.
+            var inlineEnumTypeName = TryRegisterInlineEnumOnParameter(
+                parameter.Schema,
+                recordName,
+                propName,
+                projectName,
+                pathSegment,
+                inlineEnumsByValuesKey,
+                registry?.ComponentTypeNames,
+                out var isArrayOfInlineEnum);
+            if (inlineEnumTypeName is not null)
+            {
+                var rendered = isArrayOfInlineEnum ? $"List<{inlineEnumTypeName}>" : inlineEnumTypeName;
+                paramType = parameter.Required ? rendered : rendered + "?";
+            }
+            else
+            {
+                paramType = MapOpenApiTypeToCSharp(parameter.Schema!, parameter.Required, registry);
+            }
+        }
+
+        // Extract nullability from the type name - the code generation library handles adding "?"
+        var isNullableType = paramType.EndsWith("?", StringComparison.Ordinal);
+        var cleanTypeName = isNullableType
+            ? paramType.Substring(0, paramType.Length - 1)
+            : paramType;
+
+        // For server-side query, path and header parameters, List<T> must be wrapped with ParsableList<T>
+        // because [AsParameters] binding requires TryParse, which List<T> doesn't have (a path or header array
+        // is its items joined by commas, OpenAPI's style: simple)
+        if (includeBindingAttributes &&
+            paramLocation is ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header &&
+            cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
+        {
+            // A C# enum has no TryParse of its own: its list is read by wire name (ParsableEnumList<T>); an
+            // extensible enum has one
+            cleanTypeName = (IsArrayOfEnum(parameter.Schema) && !ExtensibleEnumHelper.IsExtensibleEnum(parameter.Schema, registry) ? "ParsableEnum" : "Parsable") + cleanTypeName;
+
+            static bool IsArrayOfEnum(IOpenApiSchema? schema)
+                => (schema is OpenApiSchemaReference { Target: { } target } ? target : schema) is OpenApiSchema { Items: { } items } &&
+                   (items is OpenApiSchemaReference { Target: { } itemTarget } ? itemTarget : items).Enum is { Count: > 0 };
+        }
+
+        // Build attributes list
+        var attributes = new List<AttributeParameters>();
+
+        // A deprecated parameter warns the client's caller that sets or reads it. Not on the server: it still
+        // has to bind the parameter, and the handler that reads it would be warned for doing its job.
+        if (!includeBindingAttributes && parameter.Deprecated)
+        {
+            attributes.Add(ObsoleteAttributeHelper.Attribute);
+        }
+
+        // The binding attribute, only for server-side parameters
+        if (includeBindingAttributes && BindingAttribute(paramLocation, parameter.Name!) is { } binding)
+        {
+            attributes.Add(binding);
+        }
+
+        // Add validation attributes from OpenAPI schema constraints
+        var validationAttributes = parameter.Schema!.GetValidationAttributes(parameter.Required);
+        attributes.AddRange(
+            validationAttributes.Select(
+                validationAttr => new AttributeParameters(validationAttr, null)));
+
+        // Extract schema default value if available
+        var schemaDefault = DefaultValueHelper.ExtractSchemaDefault(parameter.Schema, cleanTypeName, registry);
+
+        // Add DefaultValue attribute when schema has a default (for OpenAPI/Scalar UI)
+        if (schemaDefault is not null)
+        {
+            var defaultAttrValue = FormatDefaultValueForAttribute(schemaDefault, cleanTypeName);
+            attributes.Add(new AttributeParameters("DefaultValue", defaultAttrValue));
+        }
+
+        // Determine property initializer (use schema default if available)
+        var defaultValue = GetDefaultValue(cleanTypeName, parameter.Required, isNullableType, schemaDefault);
+
+        return new ParameterBaseParameters(
+            Attributes: attributes.Count > 0 ? attributes : null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: cleanTypeName,
+            IsNullableType: isNullableType,
+            IsReferenceType: IsReferenceType(cleanTypeName),
+            Name: propName,
+            DefaultValue: defaultValue);
+    }
+
+    // The request body's properties: a stream of records, a file (IFormFile, Stream or IFileContent) or the model, with
+    // its binding and validation attributes
+    private static IEnumerable<ParameterBaseParameters> BuildRequestBodyProperties(
+        OpenApiOperation operation,
+        TypeConflictRegistry? registry,
+        bool includeBindingAttributes)
+    {
+        var (requestBodySchema, contentType) = operation.GetRequestBodySchemaWithContentType();
+
+        // An XML-only model body is the Request too (read and written by the model's XML mapping)
+        if (requestBodySchema is null && operation.RequestBody?.Content.XmlOnlyBody is { } xmlOnlyBody)
+        {
+            requestBodySchema = operation.RequestBody!.Content![xmlOnlyBody.MediaType].Schema;
+            contentType = xmlOnlyBody.MediaType;
+        }
+
+        if (requestBodySchema is not null)
+        {
+            var (isFile, isCollection) = requestBodySchema.GetFileUploadInfo();
+
+            // Request bodies are always treated as required to match old generator behavior.
+            // The OpenAPI spec defaults requestBody.required to false, but we can't easily
+            // distinguish between "explicitly set to false" and "defaulted to false".
+            // If you need optional request bodies, use a nullable schema type in your spec.
+            var isRequired = true;
+
+            // Only treat as direct file upload if the schema itself is binary/file type
+            // Schema references (like FileAsFormDataRequest) should use Request pattern even with multipart/form-data
+            var isDirectFileUpload = isFile;
+
+            string bodyType;
+            string propertyName;
+            var bodyAttributes = new List<AttributeParameters>();
+            var streamedBody = operation.GetStreamedRequestBody();
+
+            if (streamedBody is not null)
+            {
+                // A stream of records (JSON Lines, JSON Text Sequences): the server reads it record by record
+                // through the generated StreamedRequestBody<T> (bound by its BindAsync, no attribute); a client
+                // writes it from an IAsyncEnumerable<T>. Its count and its records are checked by the reader, so no
+                // validation attribute goes on the stream itself
+                var itemType = requestBodySchema.ToCSharpType(isRequired: true, registry).TrimEnd('?');
+                propertyName = "Request";
+                bodyType = includeBindingAttributes
+                    ? StreamedRequestBodyExtractor.BodyTypeName(itemType)
+                    : streamedBody.IsRequired
+                        ? $"IAsyncEnumerable<{itemType}>"
+                        : $"IAsyncEnumerable<{itemType}>?";
+                isDirectFileUpload = false;
+            }
+            else if (isDirectFileUpload)
+            {
+                // File uploads: type depends on content type and server/client mode
+                // - multipart/form-data: IFormFile/IFormFileCollection (server), IFileContent/IFileContent[] (client)
+                // - application/octet-stream: Stream (server), IFileContent (client)
+                // A raw file body of any binary media type (octet-stream, PDF, PNG, an Office document, ...)
+                var isOctetStream = OpenApiOperationExtensions.IsRawFileUploadContentType(contentType);
+
+                if (includeBindingAttributes && !isOctetStream)
+                {
+                    // Server-side with multipart/form-data: IFormFile or IFormFileCollection
+                    // No [FromBody] attribute needed - ASP.NET Core binds it automatically
+                    var baseType = isCollection ? "IFormFileCollection" : "IFormFile";
+                    bodyType = isRequired ? baseType : $"{baseType}?";
+                }
+                else if (includeBindingAttributes && isOctetStream)
+                {
+                    // Server-side with application/octet-stream: Stream
+                    var baseType = isCollection ? "Stream[]" : "Stream";
+                    bodyType = isRequired ? baseType : $"{baseType}?";
+
+                    // Server-side with application/octet-stream needs [FromBody] to bind Stream from request body
+                    bodyAttributes.Add(new AttributeParameters("FromBody", null));
+                }
+                else
+                {
+                    // Client-side: IFileContent or IFileContent[] (from Atc.Rest.Client)
+                    var baseType = isCollection ? "IFileContent[]" : "IFileContent";
+                    bodyType = isRequired ? baseType : $"{baseType}?";
+                }
+
+                propertyName = "File";
+            }
+            else
+            {
+                // Schema-based body (not a direct file upload)
+                bodyType = requestBodySchema.ToCSharpType(isRequired, registry);
+                propertyName = "Request";
+
+                // A list offered as XML is bound by its Content-Type on the server: the generated RequestBodyList<T>
+                // (a List<T> with a BindAsync)
+                if (includeBindingAttributes &&
+                    operation.RequestBody?.Content is { } boundContent &&
+                    XmlBodyHelper.ServerBoundRequestBody(boundContent) is { IsList: true } boundList)
+                {
+                    // A list offered as JSON only: the generated JsonRequestBodyList<T>, which names a value that
+                    // does not parse
+                    var nullable = bodyType.EndsWith("?", StringComparison.Ordinal) ? "?" : string.Empty;
+                    bodyType = boundList.IsJsonOnly
+                        ? XmlBodyHelper.JsonListBodyTypeName(bodyType)
+                        : $"{XmlModelMapperExtractor.RequestBodyListTypeName}<{XmlBodyHelper.ItemTypeName(boundContent, boundList)}>{nullable}";
+                }
+
+                // Add binding attribute only for server-side parameters
+                if (includeBindingAttributes)
+                {
+                    // A form (multipart/form-data, application/x-www-form-urlencoded) with a model schema gets no
+                    // binding attribute: the handler binds its fields one by one ([FromForm] on the record would
+                    // make the record the form, and [FromBody] would force JSON).
+                    // A model offered as XML is bound by its Content-Type (the generated BindAsync of the model):
+                    // [FromBody] reads JSON only
+                    var isForm = OpenApiOperationExtensions.IsFormContentType(contentType);
+                    if (!isForm && XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is null)
+                    {
+                        bodyAttributes.Add(new AttributeParameters("FromBody", null));
+                    }
+                }
+            }
+
+            // Extract nullability from the type name - the code generation library handles adding "?"
+            var bodyIsNullable = bodyType.EndsWith("?", StringComparison.Ordinal);
+            var bodyCleanTypeName = bodyIsNullable
+                ? bodyType.Substring(0, bodyType.Length - 1)
+                : bodyType;
+
+            // Add validation attributes from body schema (only for non-file types; a stream's records are validated
+            // as they are read)
+            if (streamedBody is null && !isDirectFileUpload)
+            {
+                var validationAttributes = requestBodySchema.GetValidationAttributes(isRequired);
+                bodyAttributes.AddRange(
+                    validationAttributes.Select(
+                        validationAttr => new AttributeParameters(validationAttr, null)));
+            }
+            else if (streamedBody is null && isRequired)
+            {
+                // For file uploads, only add Required attribute if needed
+                bodyAttributes.Add(new AttributeParameters("Required", null));
+            }
+
+            yield return new ParameterBaseParameters(
+                    Attributes: bodyAttributes.Count > 0 ? bodyAttributes : null,
+                    GenericTypeName: null,
+                    IsGenericListType: bodyCleanTypeName.Contains("[]"),
+                    TypeName: bodyCleanTypeName,
+                    IsNullableType: bodyIsNullable,
+                    IsReferenceType: IsReferenceType(bodyCleanTypeName),
+                    Name: propertyName,
+                    DefaultValue: null);
+
+            // A raw upload that declares several media types (or a wildcard): the handler gets the type that arrived
+            if (includeBindingAttributes &&
+                isDirectFileUpload &&
+                OpenApiOperationExtensions.IsRawFileUploadContentType(contentType) &&
+                operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList() is { } rawMediaTypes &&
+                (rawMediaTypes.Count > 1 || rawMediaTypes.Exists(m => m.Contains('*'))))
+            {
+                yield return new ParameterBaseParameters(
+                        Attributes:
+                        [
+                            new AttributeParameters("FromHeader", "Name = \"Content-Type\""),
+                            new AttributeParameters("Required", null),
+                        ],
+                        GenericTypeName: null,
+                        IsGenericListType: false,
+                        TypeName: "string",
+                        IsNullableType: false,
+                        IsReferenceType: true,
+                        Name: "ContentType",
+                        DefaultValue: null);
+            }
+
+            // Note: FileName property is no longer needed for client-side file uploads
+            // because IFileContent carries FileName, ContentType, and OpenReadStream() internally
+        }
     }
 
     /// <summary>
