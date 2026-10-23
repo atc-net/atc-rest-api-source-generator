@@ -266,6 +266,7 @@
     <button role="tab" aria-selected="false" data-tab="feature">Features</button>
     <button role="tab" aria-selected="false" data-tab="enumcase">Enum casing</button>
     <button role="tab" aria-selected="false" data-tab="validation">Validation</button>
+    <button role="tab" aria-selected="false" data-tab="validationcombined">DataAnnotations &times; FluentValidation</button>
     <span class="div"></span>
     <button role="tab" aria-selected="false" data-tab="support">Feature support</button>
     <button role="tab" aria-selected="false" data-tab="diagnostics">Diagnostics</button>
@@ -411,6 +412,16 @@
   <section id="tab-validation" role="tabpanel" hidden>
     <div class="panel" id="validation-intro"></div>
     <div id="validation"></div>
+  </section>
+
+  <section id="tab-validationcombined" role="tabpanel" hidden>
+    <div class="panel" id="validationcombined-intro"></div>
+    <div id="validationcombined"></div>
+  </section>
+
+  <section id="tab-validationcombinedrdg" role="tabpanel" hidden>
+    <div class="panel" id="validationcombinedrdg-intro"></div>
+    <div id="validationcombinedrdg"></div>
   </section>
 
   <section id="tab-validationrdg" role="tabpanel" hidden>
@@ -1411,6 +1422,26 @@ renderCaseMatrix('validationRdg', 'validationrdg', REPORT?.validationRdg, `
   <p>The <b>Validation</b> matrix with the endpoints compiled by the Request Delegate Generator (RDG), as in a Native AOT or trimmed app: every value is validated the same.</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryConstraintIsValidated"</code></p></div>`, 'validation', { cases: REPORT?.validation?.cases, name: 'Atc.Rest.MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
 
+// The specification's DataAnnotations and the domain's FluentValidation, together
+renderCaseMatrix('validationCombined', 'validationcombined', REPORT?.validationCombined, `
+  <h2>Validation &middot; DataAnnotations &times; FluentValidation</h2>
+  <p>The two kinds of validation in one request. The generator writes <b>DataAnnotations</b> from the specification (here <code>minLength</code> / <code>maxLength</code> and <code>format: email</code> on a <code>Member</code>); the domain adds <b>FluentValidation</b> validators by hand, for what no specification can say: a synchronous rule (a name starts with an uppercase letter), an asynchronous one (a lookup: the last name is taken), and a validator of the whole request - the generated parameters record, the route's <code>memberId</code> and the body together. The validators are registered as the generated <code>AddApiValidatorsFromDomain()</code> registers them: singletons.</p>
+  <p>Each row is a request, each column the way it arrives - a JSON body, a URL-encoded form, multipart, a JSON body that is a list of the model, the route with a body. A cell passes when the answer is exactly what the row expects: 204 for a valid request, else a 400 with exactly the expected keys and, on each key, the expected messages in order. What the rows pin:</p>
+  <ul class="tight">
+    <li><b>Order:</b> DataAnnotations run first, then FluentValidation; one 400 holds both.</li>
+    <li><b>No short-circuit:</b> FluentValidation runs although DataAnnotations already failed - an asynchronous rule (a database lookup) is paid on an invalid request too, so guard an expensive rule with <code>When</code> (the Showcase does).</li>
+    <li><b>The same field:</b> both messages, the specification's first.</li>
+    <li><b>The whole request:</b> a validator of the parameters record runs next to the body's, and its error on <code>Request.LastName</code> is keyed by the body's wire name, <code>lastName</code>.</li>
+    <li><b>Keys:</b> one key style for both - the wire names; a form answers as the JSON body does.</li>
+    <li><b>A list body:</b> each item gets the DataAnnotations (<code>[0].email</code>) but not the model's FluentValidation validator - Atc.Rest.MinimalApi 3.1 looks up a validator for the body's own type; reported upstream, the five cells are the ratchet.</li>
+  </ul>
+  <p><b>Not exercised.</b> ${notExercisedHtml('validationCombined')}</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_DataAnnotationsAndFluentValidationAnswerTogether"</code></p></div>`, 'validationCombined');
+renderCaseMatrix('validationCombinedRdg', 'validationcombinedrdg', REPORT?.validationCombinedRdg, `
+  <h2>Validation &middot; DataAnnotations &times; FluentValidation &middot; the Request Delegate Generator</h2>
+  <p>The <b>DataAnnotations &times; FluentValidation</b> matrix with the endpoints compiled by the Request Delegate Generator (RDG), as in a Native AOT or trimmed app: both kinds answer the same.</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_DataAnnotationsAndFluentValidationAnswerTogether"</code></p></div>`, 'validationCombined', { cases: REPORT?.validationCombined?.cases, name: 'Atc.Rest.MinimalApi host', option: 'rows that differ from the Atc.Rest.MinimalApi host' });
+
 // The twins from an OpenAPI 3.1 document: the case matrices (the error-body one is mounted with its matrix)
 for (const [key, tab, base, title, sameAs] of [
   ['bodyMedia31', 'media31', 'bodyMedia', 'Body media types', 'the <b>Body media types</b> tab'],
@@ -1802,9 +1833,9 @@ for (const [key, tab, base, title, sameAs] of [
 // The top of the Overview: the state of the run in one glance, a start for each reader, and what needs attention.
 // Everything here is computed from REPORT.summary (written by the test) and REPORT.ratchet.
 // ---------------------------------------------------------------------------------------------------------------
-const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', errorBodiesOff: 'Error bodies · filters switched off', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBindingOff: 'Request binding · filters switched off', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features', errorBodies31: 'Error bodies · OpenAPI 3.1', bodyMedia31: 'Body media types · OpenAPI 3.1', guard31: 'Security & rate limiting · OpenAPI 3.1', feature31: 'Features · OpenAPI 3.1', enumCasing: 'Enum casing', enumCasingPlain: 'Enum casing · MapEndpoints() host', enumCasingRdg: 'Enum casing · Request Delegate Generator', enumCasingConverter: 'Enum casing · host-wide JsonStringEnumConverter', enumCasingExtensible: 'Enum casing · extensibleEnums: true', validation: 'Validation', validationRdg: 'Validation · Request Delegate Generator' };
-const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', errorBodiesOff: 'matrixoff', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBindingOff: 'bindingoff', requestBinding31: 'binding31', guard: 'guard', feature: 'feature', errorBodies31: 'matrix31', bodyMedia31: 'media31', guard31: 'guard31', feature31: 'feature31', enumCasing: 'enumcase', enumCasingPlain: 'enumcaseplain', enumCasingRdg: 'enumcaserdg', enumCasingConverter: 'enumcaseconverter', enumCasingExtensible: 'enumcaseextensible', validation: 'validation', validationRdg: 'validationrdg' };
-const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', errorBodiesOff: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBindingOff: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix', errorBodies31: 'EndToEndMatrix', bodyMedia31: 'BodyMediaMatrix', guard31: 'SecurityAndRateLimit', feature31: 'FeatureMatrix', enumCasing: 'EnumCasingMatrix', enumCasingPlain: 'EnumCasingMatrix', enumCasingRdg: 'EnumCasingMatrix', enumCasingConverter: 'EnumCasingMatrix', enumCasingExtensible: 'EnumCasingMatrix', validation: 'ValidationMatrix', validationRdg: 'ValidationMatrix' };
+const MATRIX_NAMES = { errorBodies: 'Error bodies', errorBodiesPlain: 'Error bodies · MapEndpoints host', errorBodiesOff: 'Error bodies · filters switched off', bodyMedia: 'Body media types', requestBinding: 'Request binding', requestBindingPlain: 'Request binding · MapEndpoints host', requestBindingOff: 'Request binding · filters switched off', requestBinding31: 'Request binding · OpenAPI 3.1', guard: 'Security & rate limiting', feature: 'Features', errorBodies31: 'Error bodies · OpenAPI 3.1', bodyMedia31: 'Body media types · OpenAPI 3.1', guard31: 'Security & rate limiting · OpenAPI 3.1', feature31: 'Features · OpenAPI 3.1', enumCasing: 'Enum casing', enumCasingPlain: 'Enum casing · MapEndpoints() host', enumCasingRdg: 'Enum casing · Request Delegate Generator', enumCasingConverter: 'Enum casing · host-wide JsonStringEnumConverter', enumCasingExtensible: 'Enum casing · extensibleEnums: true', validation: 'Validation', validationRdg: 'Validation · Request Delegate Generator', validationCombined: 'DataAnnotations × FluentValidation', validationCombinedRdg: 'DataAnnotations × FluentValidation · Request Delegate Generator' };
+const MATRIX_TABS = { errorBodies: 'matrix', errorBodiesPlain: 'matrixplain', errorBodiesOff: 'matrixoff', bodyMedia: 'media', requestBinding: 'binding', requestBindingPlain: 'bindingplain', requestBindingOff: 'bindingoff', requestBinding31: 'binding31', guard: 'guard', feature: 'feature', errorBodies31: 'matrix31', bodyMedia31: 'media31', guard31: 'guard31', feature31: 'feature31', enumCasing: 'enumcase', enumCasingPlain: 'enumcaseplain', enumCasingRdg: 'enumcaserdg', enumCasingConverter: 'enumcaseconverter', enumCasingExtensible: 'enumcaseextensible', validation: 'validation', validationRdg: 'validationrdg', validationCombined: 'validationcombined', validationCombinedRdg: 'validationcombinedrdg' };
+const MATRIX_FILES = { errorBodies: 'EndToEndMatrix', errorBodiesPlain: 'EndToEndMatrix', errorBodiesOff: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', requestBindingPlain: 'RequestBindingMatrix', requestBindingOff: 'RequestBindingMatrix', requestBinding31: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix', errorBodies31: 'EndToEndMatrix', bodyMedia31: 'BodyMediaMatrix', guard31: 'SecurityAndRateLimit', feature31: 'FeatureMatrix', enumCasing: 'EnumCasingMatrix', enumCasingPlain: 'EnumCasingMatrix', enumCasingRdg: 'EnumCasingMatrix', enumCasingConverter: 'EnumCasingMatrix', enumCasingExtensible: 'EnumCasingMatrix', validation: 'ValidationMatrix', validationRdg: 'ValidationMatrix', validationCombined: 'ValidationCombinedMatrix', validationCombinedRdg: 'ValidationCombinedMatrix' };
 const MATRIX_TESTS = {
   errorBodies: 'EndToEnd_EveryClientReadsWhatTheServerWrites',
   errorBodiesPlain: 'EndToEnd_EveryClientReadsWhatTheServerWrites_OnTheMapEndpointsHost',
@@ -1827,6 +1858,8 @@ const MATRIX_TESTS = {
   enumCasingExtensible: 'EndToEnd_EveryEnumValueBindsInAnyCasing',
   validation: 'EndToEnd_EveryConstraintIsValidated',
   validationRdg: 'EndToEnd_EveryConstraintIsValidated',
+  validationCombined: 'EndToEnd_DataAnnotationsAndFluentValidationAnswerTogether',
+  validationCombinedRdg: 'EndToEnd_DataAnnotationsAndFluentValidationAnswerTogether',
 };
 const REPORT_TEST = 'Report_EndToEndErrorBodyMatrix';
 const cmdFor = (test, explicit) => `dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*${test}"${explicit ? ' --explicit only' : ''}`;
@@ -2123,6 +2156,7 @@ const VARIANTS = {
   feature: [['feature', 'OpenAPI 3.0 document'], ['feature31', 'OpenAPI 3.1 document']],
   enumcase: [['enumcase', 'Atc.Rest.MinimalApi host'], ['enumcaseplain', 'MapEndpoints() host'], ['enumcaserdg', 'Request Delegate Generator'], ['enumcaseconverter', 'host-wide JsonStringEnumConverter'], ['enumcaseextensible', 'extensibleEnums: true']],
   validation: [['validation', 'Atc.Rest.MinimalApi host'], ['validationrdg', 'Request Delegate Generator']],
+  validationcombined: [['validationcombined', 'Atc.Rest.MinimalApi host'], ['validationcombinedrdg', 'Request Delegate Generator']],
 };
 const PARENT = {};
 for (const [parent, list] of Object.entries(VARIANTS)) {

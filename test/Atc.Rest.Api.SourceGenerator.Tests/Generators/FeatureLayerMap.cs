@@ -114,8 +114,8 @@ internal static class FeatureLayerMap
                 "Cli:TypeScriptZodExtractorTests",
             ],
             ["ValidationConstraints", "ZodRuntimeValidate"],
-            ["validation", "validationRdg", "feature:validation", "feature31:validation"],
-            ["users-validation.spec.ts"]),
+            ["validation", "validationRdg", "validationCombined", "validationCombinedRdg", "feature:validation", "feature31:validation"],
+            ["users-validation.spec.ts", "users-validation-ui.spec.ts"]),
         new(
             "Security",
             "Authentication and authorization: API keys, bearer, OAuth 2 and OpenID Connect, roles and policies, on the server and in the clients.",
