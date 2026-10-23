@@ -79,11 +79,11 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         System.Xml.Linq.XNamespace ns = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
         var methods = document
             .Descendants(ns + "UnitTest")
-            .Select(u => (Id: (string?)u.Attribute("id"), Method: u.Element(ns + "TestMethod")))
+            .Select(u => (Id: (string?)u.Attribute("id"), Case: (string?)u.Attribute("name"), Method: u.Element(ns + "TestMethod")))
             .Where(u => u.Id is not null && u.Method is not null)
             .ToDictionary(
                 u => u.Id!,
-                u => (Class: (string?)u.Method!.Attribute("className") ?? "?", Name: (string?)u.Method!.Attribute("name") ?? "?"),
+                u => (Class: (string?)u.Method!.Attribute("className") ?? "?", Name: (string?)u.Method!.Attribute("name") ?? "?", Case: u.Case ?? string.Empty),
                 StringComparer.Ordinal);
 
         var results = document
@@ -94,6 +94,12 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 Milliseconds: TimeSpan.TryParse((string?)r.Attribute("duration"), CultureInfo.InvariantCulture, out var duration) ? duration.TotalMilliseconds : 0))
             .Where(r => r.Test.Class is not null)
             .ToList();
+
+        static string? ScenarioOf(string testCase)
+        {
+            var match = Regex.Match(testCase, @"\b(scenarioName|scenario): ""(?<s>[\w.-]+)""", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+            return match.Success ? match.Groups["s"].Value : null;
+        }
 
         string AreaOf(string className)
         {
@@ -128,13 +134,31 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 }
 
                 var shortName = testClass.Key[(testClass.Key.LastIndexOf('.') + 1)..];
-                classes.Add(Tally(testClass.Select(m => (m.Outcome, m.Milliseconds)), new JsonObject
+                var node = Tally(testClass.Select(m => (m.Outcome, m.Milliseconds)), new JsonObject
                 {
                     ["name"] = shortName,
                     ["fullName"] = testClass.Key,
                     ["rules"] = new JsonArray([.. rulesByClass.GetValueOrDefault(testClass.Key, []).Select(r => (JsonNode)r)]),
                     ["methods"] = classMethods,
-                }));
+                });
+
+                // A class that runs once per scenario: its cases per scenario, which the Test layers tab counts per area
+                if (FeatureLayerMap.PerScenarioClasses.Contains(shortName))
+                {
+                    var perScenario = new JsonObject();
+                    foreach (var scenario in testClass
+                        .Select(m => (Scenario: ScenarioOf(m.Test.Case), m.Outcome, m.Milliseconds))
+                        .Where(m => m.Scenario is not null)
+                        .GroupBy(m => m.Scenario!, StringComparer.Ordinal)
+                        .OrderBy(g => g.Key, StringComparer.Ordinal))
+                    {
+                        perScenario[scenario.Key] = Tally(scenario.Select(m => (m.Outcome, m.Milliseconds)), []);
+                    }
+
+                    node["scenarios"] = perScenario;
+                }
+
+                classes.Add(node);
             }
 
             areas.Add(Tally(area.Select(m => (m.Outcome, m.Milliseconds)), new JsonObject

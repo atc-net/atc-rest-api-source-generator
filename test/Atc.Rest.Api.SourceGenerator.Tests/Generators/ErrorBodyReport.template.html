@@ -256,6 +256,7 @@
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
     <button role="tab" aria-selected="false" data-tab="suites">Test suites</button>
+    <button role="tab" aria-selected="false" data-tab="layers">Test layers</button>
     <button role="tab" aria-selected="false" data-tab="constructs">OpenAPI constructs</button>
     <span class="div"></span>
     <button role="tab" aria-selected="false" data-tab="matrix">Error bodies</button>
@@ -433,6 +434,10 @@
 
   <section id="tab-suites" role="tabpanel" hidden>
     <div class="panel" id="suites"></div>
+  </section>
+
+  <section id="tab-layers" role="tabpanel" hidden>
+    <div class="panel" id="layers"></div>
   </section>
 
   <section id="tab-constructs" role="tabpanel" hidden>
@@ -1585,6 +1590,78 @@ for (const [key, tab, base, title, sameAs] of [
     const target = document.getElementById('suite-' + card.dataset.suite);
     if (target) { target.open = true; target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
+  render();
+})();
+
+// Test layers: per feature area, the tests at each layer (unit to Playwright), from the map in FeatureLayerMap.cs
+(function renderTestLayers() {
+  const data = REPORT?.testLayers;
+  const host = $('#layers');
+  if (!data) { host.innerHTML = '<h2>Test layers</h2><p>No test-layer data in this run.</p>'; return; }
+  const layers = data.layers;
+  const missingSuites = (REPORT.testSuites?.suites ?? []).filter((s) => s.missing).map((s) => s.project);
+  const staleSuites = (REPORT.testSuites?.suites ?? []).filter((s) => s.stale && !s.missing).map((s) => s.project);
+  const num = (n) => Number(n).toLocaleString('en-US');
+  const covered = (a) => layers.filter((l) => a.layers[l.key].tests > 0).length;
+  const share = data.testsInRun ? Math.round(100 * data.testsClaimed / data.testsInRun) : 0;
+  const failing = data.areas.reduce((n, a) => n + layers.reduce((m, l) => m + a.layers[l.key].failed, 0), 0);
+  const unclaimedTests = data.unclaimed.reduce((n, c) => n + c.tests, 0);
+  host.innerHTML = `<h2>Test layers</h2>
+    <p>Each feature area and the tests that prove it at every layer: unit tests of the pieces, the generators run in a compilation, the area's scenarios, the runtime matrices over HTTP, the TypeScript gates and the Playwright apps. The map of areas to test classes, scenarios, matrix groups and spec files is checked in (<code>FeatureLayerMap.cs</code>); a test fails when a name in it points at nothing, so the map cannot quietly fall behind. The counts are this run's. Open an area to see what is behind each number.</p>
+    <div class="stats">
+      <div class="stat"><b>${data.areas.length}</b><span>feature areas</span></div>
+      <div class="stat ${share < 90 ? 'warn' : 'good'}"><b>${share}%</b><span>of the run's ${num(data.testsInRun)} tests in an area</span></div>
+      <div class="stat ${data.areas.some((a) => covered(a) < 3) ? 'warn' : 'good'}"><b>${data.areas.filter((a) => covered(a) >= 3).length} of ${data.areas.length}</b><span>areas proven at 3 or more layers</span></div>
+      <div class="stat ${failing ? 'bad' : 'good'}"><b>${num(failing)}</b><span>failing tests and cases</span></div>
+    </div>
+    ${missingSuites.length ? `<p class="callout warn"><b>No test results for</b> ${missingSuites.map((p) => `<span class="mono">${esc(p)}</span>`).join(', ')} - their layers show 0. Run the suites with <code>--report-trx</code> before the report.</p>` : ''}
+    ${staleSuites.length ? `<p class="callout warn"><b>Older than the last commit:</b> the results of ${staleSuites.map((p) => `<span class="mono">${esc(p)}</span>`).join(', ')}.</p>` : ''}
+    <div class="filters"><div class="row">
+      <span class="label">Find</span><input type="search" id="tl-q" placeholder="area, class, scenario, spec" size="28">
+      <label><input type="checkbox" id="tl-thin"> fewer than 3 layers</label>
+      <span class="counts" id="tl-count"></span>
+    </div></div>
+    <div class="table-wrap"><table id="tl-table"><thead><tr><th>Feature area</th>${layers.map((l) => `<th class="num" title="${esc(l.covers)}">${esc(l.label)}</th>`).join('')}</tr></thead><tbody></tbody></table></div>
+    <div id="tl-detail" style="display:grid;gap:12px;margin-top:14px"></div>
+    <h3 style="margin-top:22px">Layers</h3>
+    <ul>${layers.map((l) => `<li><b>${esc(l.label)}</b>: ${esc(l.covers)}</li>`).join('')}</ul>
+    ${data.unclaimed.length ? `<details style="margin-top:14px"><summary style="cursor:pointer"><b>${data.unclaimed.length} test classes in no area</b> <span class="counts">(${num(unclaimedTests)} tests: harnesses, the report's own tests and the like - or a class the map should name)</span></summary>
+      <div class="table-wrap"><table><thead><tr><th>Class</th><th>Project</th><th>Layer</th><th class="num">Tests</th></tr></thead><tbody>${data.unclaimed.map((c) => `<tr><td class="mono">${esc(c.name)}</td><td>${esc(c.project)}</td><td>${esc(layers.find((l) => l.key === c.layer)?.label ?? c.layer)}</td><td class="num">${num(c.tests)}</td></tr>`).join('')}</tbody></table></div></details>` : '<p class="callout"><b>Every test class is in an area.</b></p>'}`;
+  const max = Object.fromEntries(layers.map((l) => [l.key, Math.max(1, ...data.areas.map((a) => a.layers[l.key].tests))]));
+  const cell = (a, l) => {
+    const c = a.layers[l.key];
+    if (!c.tests) return '<td class="num"><span class="v na">-</span></td>';
+    const heat = Math.round(12 + 50 * Math.log(1 + c.tests) / Math.log(1 + max[l.key]));
+    return `<td class="num" style="background:color-mix(in srgb, var(--pass-soft) ${heat}%, transparent)">${num(c.tests)}${c.failed ? ` <span class="v fail">${num(c.failed)} failed</span>` : ''}</td>`;
+  };
+  let open = null;
+  function detail(a) {
+    $('#tl-detail').innerHTML = !a ? '' : `<div class="panel" style="margin:0"><h3 style="margin-top:0">${esc(a.name)}</h3><p>${esc(a.covers)}</p>
+      ${a.notInRun.length ? `<p class="callout warn"><b>Not in this run's results:</b> ${a.notInRun.map((s) => `<span class="mono">${esc(s)}</span>`).join(', ')}.</p>` : ''}
+      <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${layers.map((l) => {
+        const c = a.layers[l.key];
+        return `<div><b>${esc(l.label)}</b> <span class="counts">${num(c.tests)}${c.failed ? `, ${num(c.failed)} failed` : ''}</span>
+          ${c.items.length ? `<ul style="margin:6px 0 0;padding-left:18px">${c.items.map((i) => `<li><span class="mono">${esc(i.name)}</span>${i.project ? ` <span class="counts">${esc(i.project)}</span>` : ''} <span class="counts">${num(i.tests)}</span>${i.failed ? ` <span class="v fail">${num(i.failed)}</span>` : ''}</li>`).join('')}</ul>` : '<p class="counts" style="margin:6px 0 0">none at this layer</p>'}</div>`;
+      }).join('')}</div></div>`;
+  }
+  function render() {
+    const q = $('#tl-q').value.trim().toLowerCase();
+    const thin = $('#tl-thin').checked;
+    const shown = data.areas.filter((a) => (!thin || covered(a) < 3) && (!q || `${a.name} ${a.covers} ${layers.map((l) => a.layers[l.key].items.map((i) => i.name).join(' ')).join(' ')}`.toLowerCase().includes(q)));
+    $('#tl-count').textContent = `${shown.length} of ${data.areas.length} areas`;
+    $('#tl-table tbody').innerHTML = shown.map((a) => `<tr data-area="${esc(a.name)}" style="cursor:pointer"${open === a.name ? ' aria-selected="true"' : ''}><td><b>${esc(a.name)}</b> <span class="counts">${covered(a)} of ${layers.length} layers</span></td>${layers.map((l) => cell(a, l)).join('')}</tr>`).join('')
+      || `<tr><td colspan="${layers.length + 1}" class="empty">No area matches.</td></tr>`;
+    detail(data.areas.find((a) => a.name === open && shown.includes(a)));
+  }
+  $('#tl-table tbody').addEventListener('click', (e) => {
+    const row = e.target.closest('tr[data-area]');
+    if (!row) return;
+    open = open === row.dataset.area ? null : row.dataset.area;
+    render();
+    if (open) $('#tl-detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('#tl-q').addEventListener('input', render);
+  $('#tl-thin').addEventListener('change', render);
   render();
 })();
 

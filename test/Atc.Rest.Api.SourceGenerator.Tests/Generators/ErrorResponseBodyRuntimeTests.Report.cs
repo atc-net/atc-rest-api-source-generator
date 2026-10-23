@@ -144,6 +144,7 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["testSuites"] = CollectTestSuites(root);
         matrix["coverage"] = CollectCoverage(root);
         matrix["openApiConstructs"] = CollectOpenApiConstructs(root);
+        matrix["testLayers"] = CollectTestLayers(matrix);
         matrix["ratchet"] = Ratchets();
         matrix["ratchetReasons"] = RatchetReasons();
         matrix["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1);
@@ -917,23 +918,31 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         var apps = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
-        var specs = new HashSet<string>(StringComparer.Ordinal);
+        var files = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        void Count(
+            Dictionary<string, Dictionary<string, int>> tallies,
+            string key,
+            string status)
+        {
+            if (!tallies.TryGetValue(key, out var tally))
+            {
+                tally = new Dictionary<string, int>(StringComparer.Ordinal);
+                tallies[key] = tally;
+            }
+
+            tally[status] = tally.GetValueOrDefault(status) + 1;
+        }
+
         void Visit(JsonObject suite)
         {
             foreach (var spec in suite["specs"]?.AsArray() ?? [])
             {
-                specs.Add((string?)suite["file"] ?? string.Empty);
+                var file = (string?)suite["file"] ?? string.Empty;
                 foreach (var test in spec!["tests"]?.AsArray() ?? [])
                 {
-                    var app = (string?)test!["projectName"] ?? "(default)";
-                    var status = (string?)test["status"] ?? "unknown";
-                    if (!apps.TryGetValue(app, out var tally))
-                    {
-                        tally = new Dictionary<string, int>(StringComparer.Ordinal);
-                        apps[app] = tally;
-                    }
-
-                    tally[status] = tally.GetValueOrDefault(status) + 1;
+                    var status = (string?)test!["status"] ?? "unknown";
+                    Count(apps, (string?)test["projectName"] ?? "(default)", status);
+                    Count(files, file, status);
                 }
             }
 
@@ -960,11 +969,16 @@ public partial class ErrorResponseBodyRuntimeTests
             ["commitTime"] = commitTime == DateTimeOffset.MaxValue ? null : commitTime.ToString("O", CultureInfo.InvariantCulture),
             ["stale"] = PlaywrightRunIsStale(startTime, commitTime),
             ["durationSeconds"] = results["stats"]?["duration"] is { } d ? System.Math.Round((double)d / 1000, 1) : null,
-            ["specs"] = specs.Count,
-            ["apps"] = new JsonObject(apps.OrderBy(a => a.Key, StringComparer.Ordinal).Select(a => new KeyValuePair<string, JsonNode?>(
-                a.Key,
-                new JsonObject(a.Value.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => new KeyValuePair<string, JsonNode?>(s.Key, s.Value)))))),
+            ["specs"] = files.Count,
+            ["apps"] = Tallies(apps),
+            ["files"] = Tallies(files),
         };
+
+        static JsonObject Tallies(
+            Dictionary<string, Dictionary<string, int>> tallies)
+            => new(tallies.OrderBy(a => a.Key, StringComparer.Ordinal).Select(a => new KeyValuePair<string, JsonNode?>(
+                a.Key,
+                new JsonObject(a.Value.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => new KeyValuePair<string, JsonNode?>(s.Key, s.Value))))));
     }
 
     /// <summary>
