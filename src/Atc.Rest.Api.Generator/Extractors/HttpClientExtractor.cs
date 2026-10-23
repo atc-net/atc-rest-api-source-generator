@@ -852,216 +852,17 @@ public static class HttpClientExtractor
         var builder = new StringBuilder();
         var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
 
-        // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
-        var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
-
-        // Build the URL - optionally prepend server base path, then replace path parameters. The URL is relative
-        // (no leading slash), so the HttpClient's BaseAddress keeps its path: https://gw/svc-a/ + prices is
-        // /svc-a/prices; a leading slash would replace that path
-        var urlBuilder = (serverBasePath is not null ? $"{serverBasePath}{path}" : path).TrimStart('/');
-
-        // The parameters the operation is called with: its path item's, except one it redeclares, then its own
+        // The URL: relative (no leading slash) so the HttpClient's BaseAddress keeps its path, with the path parameters
         var effectiveParameters = operation.EffectiveParameters(pathLevelParameters);
+        AppendUrl(builder, path, effectiveParameters, openApiDoc, propertyNames, parametersClassName, useServersBasePath);
 
-        // The path parameters into the URL
-        foreach (var paramInterface in effectiveParameters)
-            {
-                var resolved = paramInterface.Resolve();
-                var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
-                if (param is null || string.IsNullOrEmpty(param.Name))
-                {
-                    continue;
-                }
+        // The query, header, cookie and query-string parameters (a value the client cannot send is left out:
+        // ATC_API_OPR037 warned)
+        var (queryParams, headerParams, cookieParams, querystringParams) = ParametersByLocation(effectiveParameters);
 
-                if (param.In == ParameterLocation.Path)
-                {
-                    var propName = propertyNames.Get(param, referenceId);
-                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
-                    var replacement = param.GetArrayDelimiter() is { } delimiter
-                        ? $"{{{JoinedItemsExpression(param, $"parameters.{propName}", paramType, delimiter, escapeItems: true)}}}"
-                        : WireValueHelper.IsStringEnum(param.Schema)
-                            ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
-                            : WireValueHelper.IsIntegerEnum(param.Schema)
-                                ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
-                                : BuildPathParameterReplacement(propName, paramType);
-                    urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
-                }
-            }
+        AppendQueryParameters(builder, queryParams, propertyNames, openApiDoc, parametersClassName);
 
-        builder.AppendLine(
-            urlBuilder.Contains('{')
-                ? $"var url = $\"{urlBuilder}\";"
-                : $"var url = \"{urlBuilder}\";");
-
-        // Add query parameters - resolve parameter references first
-        var queryParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        var headerParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        var cookieParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        var querystringParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        foreach (var paramInterface in effectiveParameters)
-        {
-            var resolved = paramInterface.Resolve();
-            var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
-
-            // A value the client cannot send is left out (ATC_API_OPR037 warned)
-            if (param?.IsUnbindable() == true)
-            {
-                continue;
-            }
-
-            switch (param)
-            {
-                case { In: ParameterLocation.Query }:
-                    queryParams.Add((param, referenceId));
-                    break;
-                case { In: ParameterLocation.Header }:
-                    headerParams.Add((param, referenceId));
-                    break;
-                case { In: ParameterLocation.Cookie }:
-                    cookieParams.Add((param, referenceId));
-                    break;
-                case { In: ParameterLocation.QueryString }:
-                    querystringParams.Add((param, referenceId));
-                    break;
-            }
-        }
-
-        if (queryParams.Count > 0)
-        {
-            builder.AppendLine("var queryParams = new List<string>();");
-            foreach (var (param, referenceId) in queryParams)
-            {
-                var propName = propertyNames.Get(param, referenceId);
-                var paramAccess = $"parameters.{propName}";
-                var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
-                var isRequired = param.Required;
-                var serialization = param.GetParameterSerialization();
-
-                // An object: each property set by its own key - filter[name] (deepObject) or name (form, explode)
-                if (param.GetQueryObject() is { } queryObject)
-                {
-                    AppendQueryObject(builder, queryObject, paramAccess);
-                    continue;
-                }
-
-                // An array whose items are one value (form with explode: false, pipeDelimited, spaceDelimited): the
-                // items joined on the declared delimiter, each as the specification writes it
-                if (serialization.ValueKind == ParameterValueKind.Array &&
-                    param.GetArrayDelimiter() is { } delimiter)
-                {
-                    var joined = JoinedItemsExpression(param, paramAccess, paramType, delimiter, escapeItems: false);
-                    var value = serialization.AllowReserved ? joined : $"Uri.EscapeDataString({joined})";
-
-                    builder.AppendLine();
-                    builder.AppendLine($"if ({paramAccess} is not null && global::System.Linq.Enumerable.Any({paramAccess}))");
-                    builder.AppendLine("{");
-                    builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{value}}}\");");
-                    builder.AppendLine("}");
-                    continue;
-                }
-
-                // An array: repeated keys (form, explode: true; pipeDelimited and spaceDelimited with explode: true are
-                // the same) - never as the list's ToString()
-                if (serialization.ValueKind == ParameterValueKind.Array)
-                {
-                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema), WireValueHelper.IsIntegerEnum(param.Schema.Dereferenced?.Items));
-                    continue;
-                }
-
-                // allowReserved primitive: the reserved characters as they are, everything else (and #) encoded
-                if (serialization.AllowReserved && serialization.ValueKind == ParameterValueKind.Primitive)
-                {
-                    var reservedValue = paramType.TrimEnd('?') == "string"
-                        ? WireValueHelper.AllowReservedEscapeExpression(paramAccess + "!")
-                        : BuildEncodedExpression(paramAccess, paramType);
-                    if (isRequired)
-                    {
-                        builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{reservedValue}}}\");");
-                    }
-                    else
-                    {
-                        var nullCheck = BuildNullCheck(paramAccess, paramType);
-
-                        builder.AppendLine();
-                        builder.AppendLine($"if ({nullCheck})");
-                        builder.AppendLine("{");
-                        builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{reservedValue}}}\");");
-                        builder.AppendLine("}");
-                    }
-
-                    continue;
-                }
-
-                // An enum: the value as the specification writes it (an integer enum's number), not the member name
-                if (WireValueHelper.IsStringEnum(param.Schema) || WireValueHelper.IsIntegerEnum(param.Schema))
-                {
-                    var wireValue = WireValueHelper.IsIntegerEnum(param.Schema)
-                        ? WireValueHelper.IntegerEnumWireExpression(paramAccess)
-                        : $"Uri.EscapeDataString({paramAccess}.ToWireValue()!)";
-                    if (isRequired)
-                    {
-                        builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{wireValue}}}\");");
-                    }
-                    else
-                    {
-                        builder.AppendLine();
-                        builder.AppendLine($"if ({paramAccess} is not null)");
-                        builder.AppendLine("{");
-                        builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{wireValue}}}\");");
-                        builder.AppendLine("}");
-                    }
-
-                    continue;
-                }
-
-                // Default path: scalar primitive with URL encoding (existing behavior)
-                if (isRequired)
-                {
-                    var valueExpression = BuildEncodedExpression(paramAccess, paramType);
-                    builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{valueExpression}}}\");");
-                }
-                else
-                {
-                    // Use appropriate null check based on type for optional parameters. A bare
-                    // T[] that reaches this scalar path (not the form-explode foreach above) keeps
-                    // its length guard; everything else delegates to the shared BuildNullCheck.
-                    var nullCheck = paramType.EndsWith("[]", StringComparison.Ordinal)
-                        ? $"{paramAccess} is not null && {paramAccess}.Length > 0"
-                        : BuildNullCheck(paramAccess, paramType);
-
-                    var valueExpression = BuildEncodedExpression(paramAccess, paramType);
-
-                    builder.AppendLine();
-                    builder.AppendLine($"if ({nullCheck})");
-                    builder.AppendLine("{");
-                    builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{valueExpression}}}\");");
-                    builder.AppendLine("}");
-                }
-            }
-
-            builder.AppendLine();
-            builder.AppendLine("if (queryParams.Count > 0)");
-            builder.AppendLine("{");
-            builder.AppendLine(4, "url += \"?\" + string.Join(\"&\", queryParams);");
-            builder.AppendLine("}");
-            builder.AppendLine();
-        }
-
-        // OAS 3.2 in:querystring — raw query string appended to URL as-is (no key=value encoding).
-        // Multiple querystring params on the same endpoint are unusual but handled by appending.
-        foreach (var (param, referenceId) in querystringParams)
-        {
-            var propName = propertyNames.Get(param, referenceId);
-            var paramAccess = $"parameters.{propName}";
-
-            builder.AppendLine();
-            builder.AppendLine($"if (!string.IsNullOrEmpty({paramAccess}))");
-            builder.AppendLine("{");
-            builder.AppendLine(4, $"url += (url.Contains('?') ? \"&\" : \"?\") + {paramAccess};");
-            builder.AppendLine("}");
-
-            builder.AppendLine();
-        }
+        AppendQueryStrings(builder, querystringParams, propertyNames);
 
         // Per-operation retry (x-retry-*): the statement that tells the resilience handler how to run
         // this request, for a given request variable — null when the handler default already matches.
@@ -1123,6 +924,260 @@ public static class HttpClientExtractor
         return builder
             .ToString()
             .Trim();
+    }
+
+    // The URL statement: the server's base path (when used) and the path, the path parameters written into it
+    private static void AppendUrl(
+        StringBuilder builder,
+        string path,
+        IReadOnlyList<IOpenApiParameter> effectiveParameters,
+        OpenApiDocument openApiDoc,
+        ParameterPropertyNames propertyNames,
+        string parametersClassName,
+        bool useServersBasePath)
+    {
+        // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
+        var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
+
+        // Build the URL - optionally prepend server base path, then replace path parameters. The URL is relative
+        // (no leading slash), so the HttpClient's BaseAddress keeps its path: https://gw/svc-a/ + prices is
+        // /svc-a/prices; a leading slash would replace that path
+        var urlBuilder = (serverBasePath is not null ? $"{serverBasePath}{path}" : path).TrimStart('/');
+
+        // The path parameters into the URL
+        foreach (var paramInterface in effectiveParameters)
+            {
+                var resolved = paramInterface.Resolve();
+                var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
+                if (param is null || string.IsNullOrEmpty(param.Name))
+                {
+                    continue;
+                }
+
+                if (param.In == ParameterLocation.Path)
+                {
+                    var propName = propertyNames.Get(param, referenceId);
+                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
+                    var replacement = param.GetArrayDelimiter() is { } delimiter
+                        ? $"{{{JoinedItemsExpression(param, $"parameters.{propName}", paramType, delimiter, escapeItems: true)}}}"
+                        : WireValueHelper.IsStringEnum(param.Schema)
+                            ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
+                            : WireValueHelper.IsIntegerEnum(param.Schema)
+                                ? $"{{{WireValueHelper.IntegerEnumWireExpression($"parameters.{propName}")}}}"
+                                : BuildPathParameterReplacement(propName, paramType);
+                    urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
+                }
+            }
+
+        builder.AppendLine(
+            urlBuilder.Contains('{')
+                ? $"var url = $\"{urlBuilder}\";"
+                : $"var url = \"{urlBuilder}\";");
+    }
+
+    // The operation's query, header, cookie and query-string parameters, in the specification's order; a value the
+    // client cannot send is left out
+    private static (List<(OpenApiParameter Param, string? ReferenceId)> Query, List<(OpenApiParameter Param, string? ReferenceId)> Header, List<(OpenApiParameter Param, string? ReferenceId)> Cookie, List<(OpenApiParameter Param, string? ReferenceId)> QueryString) ParametersByLocation(
+        IReadOnlyList<IOpenApiParameter> effectiveParameters)
+    {
+        var queryParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
+        var headerParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
+        var cookieParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
+        var querystringParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
+        foreach (var paramInterface in effectiveParameters)
+        {
+            var resolved = paramInterface.Resolve();
+            var (param, referenceId) = (resolved.Parameter, resolved.ReferenceId);
+
+            // A value the client cannot send is left out (ATC_API_OPR037 warned)
+            if (param?.IsUnbindable() == true)
+            {
+                continue;
+            }
+
+            switch (param)
+            {
+                case { In: ParameterLocation.Query }:
+                    queryParams.Add((param, referenceId));
+                    break;
+                case { In: ParameterLocation.Header }:
+                    headerParams.Add((param, referenceId));
+                    break;
+                case { In: ParameterLocation.Cookie }:
+                    cookieParams.Add((param, referenceId));
+                    break;
+                case { In: ParameterLocation.QueryString }:
+                    querystringParams.Add((param, referenceId));
+                    break;
+            }
+        }
+
+        return (queryParams, headerParams, cookieParams, querystringParams);
+    }
+
+    // The query parameters into the URL: each by its serialization, then joined after a '?'
+    private static void AppendQueryParameters(
+        StringBuilder builder,
+        List<(OpenApiParameter Param, string? ReferenceId)> queryParams,
+        ParameterPropertyNames propertyNames,
+        OpenApiDocument openApiDoc,
+        string parametersClassName)
+    {
+        if (queryParams.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine("var queryParams = new List<string>();");
+        foreach (var (param, referenceId) in queryParams)
+        {
+            AppendQueryParameter(builder, param, propertyNames.Get(param, referenceId), openApiDoc, parametersClassName);
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("if (queryParams.Count > 0)");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "url += \"?\" + string.Join(\"&\", queryParams);");
+        builder.AppendLine("}");
+        builder.AppendLine();
+    }
+
+    // One query parameter: an object by its properties' keys, an array joined or repeated, an allowReserved value, an
+    // enum by its wire value, a primitive URL-encoded - an optional one only when it is set
+    private static void AppendQueryParameter(
+        StringBuilder builder,
+        OpenApiParameter param,
+        string propName,
+        OpenApiDocument openApiDoc,
+        string parametersClassName)
+    {
+        var paramAccess = $"parameters.{propName}";
+        var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName, propName);
+        var isRequired = param.Required;
+        var serialization = param.GetParameterSerialization();
+
+        // An object: each property set by its own key - filter[name] (deepObject) or name (form, explode)
+        if (param.GetQueryObject() is { } queryObject)
+        {
+            AppendQueryObject(builder, queryObject, paramAccess);
+            return;
+        }
+
+        // An array whose items are one value (form with explode: false, pipeDelimited, spaceDelimited): the
+        // items joined on the declared delimiter, each as the specification writes it
+        if (serialization.ValueKind == ParameterValueKind.Array &&
+            param.GetArrayDelimiter() is { } delimiter)
+        {
+            var joined = JoinedItemsExpression(param, paramAccess, paramType, delimiter, escapeItems: false);
+            var value = serialization.AllowReserved ? joined : $"Uri.EscapeDataString({joined})";
+
+            builder.AppendLine();
+            builder.AppendLine($"if ({paramAccess} is not null && global::System.Linq.Enumerable.Any({paramAccess}))");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{value}}}\");");
+            builder.AppendLine("}");
+            return;
+        }
+
+        // An array: repeated keys (form, explode: true; pipeDelimited and spaceDelimited with explode: true are
+        // the same) - never as the list's ToString()
+        if (serialization.ValueKind == ParameterValueKind.Array)
+        {
+            AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema), WireValueHelper.IsIntegerEnum(param.Schema.Dereferenced?.Items));
+            return;
+        }
+
+        // allowReserved primitive: the reserved characters as they are, everything else (and #) encoded
+        if (serialization.AllowReserved && serialization.ValueKind == ParameterValueKind.Primitive)
+        {
+            var reservedValue = paramType.TrimEnd('?') == "string"
+                ? WireValueHelper.AllowReservedEscapeExpression(paramAccess + "!")
+                : BuildEncodedExpression(paramAccess, paramType);
+            if (isRequired)
+            {
+                builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{reservedValue}}}\");");
+            }
+            else
+            {
+                var nullCheck = BuildNullCheck(paramAccess, paramType);
+
+                builder.AppendLine();
+                builder.AppendLine($"if ({nullCheck})");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{reservedValue}}}\");");
+                builder.AppendLine("}");
+            }
+
+            return;
+        }
+
+        // An enum: the value as the specification writes it (an integer enum's number), not the member name
+        if (WireValueHelper.IsStringEnum(param.Schema) || WireValueHelper.IsIntegerEnum(param.Schema))
+        {
+            var wireValue = WireValueHelper.IsIntegerEnum(param.Schema)
+                ? WireValueHelper.IntegerEnumWireExpression(paramAccess)
+                : $"Uri.EscapeDataString({paramAccess}.ToWireValue()!)";
+            if (isRequired)
+            {
+                builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{wireValue}}}\");");
+            }
+            else
+            {
+                builder.AppendLine();
+                builder.AppendLine($"if ({paramAccess} is not null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{wireValue}}}\");");
+                builder.AppendLine("}");
+            }
+
+            return;
+        }
+
+        // Default path: scalar primitive with URL encoding (existing behavior)
+        if (isRequired)
+        {
+            var valueExpression = BuildEncodedExpression(paramAccess, paramType);
+            builder.AppendLine($"queryParams.Add($\"{QueryKey(param.Name!)}={{{valueExpression}}}\");");
+        }
+        else
+        {
+            // Use appropriate null check based on type for optional parameters. A bare
+            // T[] that reaches this scalar path (not the form-explode foreach above) keeps
+            // its length guard; everything else delegates to the shared BuildNullCheck.
+            var nullCheck = paramType.EndsWith("[]", StringComparison.Ordinal)
+                ? $"{paramAccess} is not null && {paramAccess}.Length > 0"
+                : BuildNullCheck(paramAccess, paramType);
+
+            var valueExpression = BuildEncodedExpression(paramAccess, paramType);
+
+            builder.AppendLine();
+            builder.AppendLine($"if ({nullCheck})");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"queryParams.Add($\"{QueryKey(param.Name!)}={{{valueExpression}}}\");");
+            builder.AppendLine("}");
+        }
+    }
+
+    // OAS 3.2 in:querystring: the raw query string appended to the URL as it is (no key=value encoding); several on one
+    // operation are unusual but appended
+    private static void AppendQueryStrings(
+        StringBuilder builder,
+        List<(OpenApiParameter Param, string? ReferenceId)> querystringParams,
+        ParameterPropertyNames propertyNames)
+    {
+        foreach (var (param, referenceId) in querystringParams)
+        {
+            var propName = propertyNames.Get(param, referenceId);
+            var paramAccess = $"parameters.{propName}";
+
+            builder.AppendLine();
+            builder.AppendLine($"if (!string.IsNullOrEmpty({paramAccess}))");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"url += (url.Contains('?') ? \"&\" : \"?\") + {paramAccess};");
+            builder.AppendLine("}");
+
+            builder.AppendLine();
+        }
     }
 
     private static void GenerateGetMethodBody(
