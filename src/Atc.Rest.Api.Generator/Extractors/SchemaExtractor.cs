@@ -470,7 +470,7 @@ public static class SchemaExtractor
                 : csharpType;
 
             // Get validation attributes from OpenAPI schema constraints
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             // Use TypeHelpers extension methods for type classification
             var isReferenceType = cleanTypeName.IsReferenceType();
@@ -607,7 +607,7 @@ public static class SchemaExtractor
                 : csharpType;
 
             // Get validation attributes from OpenAPI schema constraints
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             // Use TypeHelpers extension methods for type classification
             var isReferenceType = cleanTypeName.IsReferenceType();
@@ -916,7 +916,7 @@ public static class SchemaExtractor
                 : csharpType;
 
             // Get validation attributes from OpenAPI schema constraints
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             // Use TypeHelpers extension methods for type classification
             var isReferenceType = cleanTypeName.IsReferenceType();

@@ -33,6 +33,28 @@ internal static class JsonRequiredHelper
     }
 
     /// <summary>
+    /// The records without <c>[JsonRequired]</c>: a client without <c>strictRequiredProperties</c> reads a response
+    /// that leaves a required property out (the extractors put <c>[JsonRequired]</c> on a required, nullable
+    /// property, which the server checks).
+    /// </summary>
+    public static RecordsParameters RemoveJsonRequired(
+        RecordsParameters recordsParameters)
+        => recordsParameters with { Parameters = [.. recordsParameters.Parameters.Select(WithoutJsonRequired)] };
+
+    /// <summary>
+    /// The record without <c>[JsonRequired]</c> (a client without <c>strictRequiredProperties</c>).
+    /// </summary>
+    public static RecordParameters WithoutJsonRequired(RecordParameters record)
+        => record with
+        {
+            Parameters = record.Parameters?
+                .Select(param => param.Attributes?.Any(IsJsonRequired) == true
+                    ? param with { Attributes = [.. param.Attributes.Where(a => !IsJsonRequired(a))] }
+                    : param)
+                .ToList(),
+        };
+
+    /// <summary>
     /// The record with <c>[JsonRequired]</c> next to every <c>[Required]</c> (<c>strictRequiredProperties</c>).
     /// </summary>
     public static RecordParameters WithJsonRequired(RecordParameters record)
@@ -44,4 +66,7 @@ internal static class JsonRequiredHelper
                     : param)
                 .ToList(),
         };
+
+    private static bool IsJsonRequired(AttributeParameters attribute)
+        => attribute.Name is "JsonRequired" or "global::System.Text.Json.Serialization.JsonRequired";
 }

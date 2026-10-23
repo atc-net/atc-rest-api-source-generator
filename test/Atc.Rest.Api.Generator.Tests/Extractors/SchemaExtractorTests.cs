@@ -417,6 +417,54 @@ public class SchemaExtractorTests
         }
     }
 
+    // required + nullable: the property must be in the JSON, and null is a value. [Required] would answer an explicit
+    // null with a 400, so the property gets [JsonRequired] (presence) instead
+    [Theory]
+    [InlineData("3.0.3", "{ type: string, nullable: true }")]
+    [InlineData("3.1.0", "{ type: [string, 'null'] }")]
+    public void ExtractForSchemas_RequiredNullableProperty_IsJsonRequiredNotRequired(
+        string openApiVersion,
+        string nullableSchema)
+    {
+        var yaml = $$"""
+                    openapi: {{openApiVersion}}
+                    info:
+                      title: Test
+                      version: 1.0.0
+                    paths: {}
+                    components:
+                      schemas:
+                        Profile:
+                          type: object
+                          required:
+                            - name
+                            - bio
+                          properties:
+                            name:
+                              type: string
+                            bio: {{nullableSchema}}
+                    """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            new HashSet<string>(StringComparer.Ordinal) { "Profile" },
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var parameters = result.Parameters[0].Parameters!;
+
+        var bio = parameters.First(p => p.Name == "Bio");
+        Assert.True(bio.IsNullableType);
+        Assert.Null(bio.DefaultValue);
+        Assert.DoesNotContain(bio.Attributes!, a => a.Name == "Required");
+        Assert.Contains(bio.Attributes!, a => a.Name == "global::System.Text.Json.Serialization.JsonRequired");
+
+        var name = parameters.First(p => p.Name == "Name");
+        Assert.Contains(name.Attributes!, a => a.Name == "Required");
+    }
+
     [Fact]
     public void ExtractForSchemas_ReadOnlyProperty_IsOptionalEvenIfRequired()
     {

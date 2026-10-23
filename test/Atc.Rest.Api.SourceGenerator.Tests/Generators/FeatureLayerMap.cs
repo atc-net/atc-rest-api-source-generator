@@ -44,7 +44,7 @@ internal static class FeatureLayerMap
                 "Generator:HostileSchemaKeywordsTests", "Generator:SystemTypeConflictResolverTests", "Generator:RecordContentGeneratorTests", "Generator:SchemaNameNormalizerTests", "Generator:SchemaTypeResolverTests", "Generator:SchemaLookupTests",
                 "Generator:PropertyNameRegistryTests", "Generator:JsonPropertyNameHelperTests", "Generator:DefaultValueHelperTests", "Generator:RecordSerializationTests", "Generator:CSharpIdentifierHelperTests",
                 "SourceGenerator:PolymorphismWireTests", "SourceGenerator:TupleWireTests", "SourceGenerator:ClientSchemaTypeTests", "SourceGenerator:ComponentsReuseTests", "SourceGenerator:DiscriminatorImprovementsTests",
-                "SourceGenerator:InlineSchemaModelUsingTests", "SourceGenerator:ModelPropertyNameWireTests", "SourceGenerator:OptionalPropertyRuntimeTests", "SourceGenerator:RefSiblingTests", "SourceGenerator:UnusedComponentSchemaTests",
+                "SourceGenerator:InlineSchemaModelUsingTests", "SourceGenerator:ModelPropertyNameWireTests", "SourceGenerator:OptionalPropertyRuntimeTests", "SourceGenerator:RequiredNullablePropertyRuntimeTests", "SourceGenerator:RefSiblingTests", "SourceGenerator:UnusedComponentSchemaTests",
                 "SourceGenerator:ResultNameClashTests", "SourceGenerator:EscaperPropertyTests",
                 "Integration:JsonPropertyNameGenerationTests",
             ],

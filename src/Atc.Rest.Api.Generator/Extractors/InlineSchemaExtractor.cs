@@ -111,7 +111,7 @@ public static class InlineSchemaExtractor
                 : csharpType;
 
             // Get validation attributes
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             var isReferenceType = cleanTypeName.IsReferenceType();
 
@@ -219,7 +219,7 @@ public static class InlineSchemaExtractor
                 ? csharpType.Substring(0, csharpType.Length - 1)
                 : csharpType;
 
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
             var isReferenceType = cleanTypeName.IsReferenceType();
 
             IList<AttributeParameters>? attributes = BuildAttributes(prop.Key, propName, validationAttributes);

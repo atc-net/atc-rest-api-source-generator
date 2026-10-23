@@ -1111,6 +1111,28 @@ public static class OpenApiSchemaExtensions
         /// </summary>
         /// <param name="isRequired">Whether the property is required.</param>
         /// <returns>A list of validation attribute strings (e.g., "Required", "Range(0, 100)").</returns>
+        /// <summary>
+        /// The validation attributes of a model property. A property that is required and nullable must be present
+        /// and may be null: it gets <c>[JsonRequired]</c> (presence, checked by the JSON reader) instead of
+        /// <c>[Required]</c>, which would answer an explicit null with a validation error.
+        /// </summary>
+        /// <param name="isRequired">Whether the property is in the schema's <c>required</c> list.</param>
+        /// <param name="isNullable">Whether the property's type allows null.</param>
+        /// <returns>The attributes, as <see cref="GetValidationAttributes"/> writes them.</returns>
+        public IList<string> GetModelValidationAttributes(
+            bool isRequired,
+            bool isNullable)
+        {
+            if (!isRequired || !isNullable)
+            {
+                return schema.GetValidationAttributes(isRequired);
+            }
+
+            var attributes = schema.GetValidationAttributes(isRequired: false);
+            attributes.Insert(0, "global::System.Text.Json.Serialization.JsonRequired");
+            return attributes;
+        }
+
         public IList<string> GetValidationAttributes(bool isRequired)
         {
             var attributes = new List<string>();

@@ -780,10 +780,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         recordsParameters = ConvertToClientTypes(recordsParameters);
 
         // strictRequiredProperties: a response that leaves out a required property fails when it is read
-        if (strictRequiredProperties)
-        {
-            recordsParameters = JsonRequiredHelper.AddJsonRequired(recordsParameters);
-        }
+        recordsParameters = strictRequiredProperties
+            ? JsonRequiredHelper.AddJsonRequired(recordsParameters)
+            : JsonRequiredHelper.RemoveJsonRequired(recordsParameters);
 
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
 
@@ -1157,7 +1156,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var inlineTypes = CodeGenerationService.GenerateInlineModels(
                 strictRequiredProperties
                     ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
-                    : inlineSchemas,
+                    : inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithoutJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal),
                 projectName,
                 CodeGenerationService.GeneratorType.Client,
                 granularity: string.IsNullOrEmpty(namespaceSegment) ? ClientGranularityType.Single : ClientGranularityType.PerArea);
@@ -1329,7 +1328,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var inlineTypes = CodeGenerationService.GenerateInlineModels(
                 strictRequiredProperties
                     ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
-                    : inlineSchemas,
+                    : inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = JsonRequiredHelper.WithoutJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal),
                 projectName,
                 CodeGenerationService.GeneratorType.Client);
             foreach (var inlineType in inlineTypes)
