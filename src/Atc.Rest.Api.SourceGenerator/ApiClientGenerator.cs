@@ -208,76 +208,15 @@ public class ApiClientGenerator : IIncrementalGenerator
             DiagnosticHelpers.ReportReadEnumMemberNamesOn(context, ".atc-rest-api-client");
         }
 
-        // The custom error model's type name as the generated code refers to it (fully qualified when it collides).
-        var customErrorTypeName = config.CustomErrorResponseModel?.Name;
-
-        // A TypedClient download returns a DownloadedFile (without the Atc.Rest.Client-based FromResponse), a streamed one
-        // (x-return-stream) a StreamedFile, and a model or a file a ContentOrFile<T>
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation && HasStreamedFileDownload(openApiDoc))
+        // The typed client and the endpoint-per-operation client each have their own support types; the custom error
+        // model's type name is as the generated code refers to it (fully qualified when it collides)
+        var isTypedClient = config.GenerationMode != GenerationModeType.EndpointPerOperation;
+        var customErrorTypeName = isTypedClient
+            ? config.CustomErrorResponseModel?.Name
+            : EmitEndpointPerOperationSupport(generatedContext, openApiDoc, projectName, config);
+        if (isTypedClient)
         {
-            GenerateStreamedFile(generatedContext, projectName);
-        }
-
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation && HasTypedClientBufferedFileDownload(openApiDoc))
-        {
-            GenerateDownloadedFile(generatedContext, projectName, includeEndpointResponse: false);
-            if (HasModelOrFileResponse(openApiDoc))
-            {
-                GenerateContentOrFile(generatedContext, projectName);
-            }
-        }
-
-        // The serializer options the typed clients' DI registrations read (only with Microsoft.Extensions.Http, as the
-        // registrations themselves)
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation && packages.HasHttpClientFactory)
-        {
-            GenerateApiClientJsonOptions(generatedContext, openApiDoc, projectName);
-        }
-
-        // The typed clients read and write JSON through the metadata their options resolve (trim- and AOT-safe), and
-        // throw one exception for an error response: an HttpRequestException with the response's headers and body
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation)
-        {
-            var exceptionName = ApiExceptionExtractor.ClassNameFor(modelNames);
-            generatedContext.AddGeneratedSource(
-                $"{projectName}.Generated.{exceptionName}.g.cs",
-                SourceText.From(ApiExceptionExtractor.Generate(NamespaceBuilder.BuildBase(projectName), exceptionName).NormalizeForSourceOutput(), Encoding.UTF8));
-
-            generatedContext.AddGeneratedSource(
-                $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
-                SourceText.From(GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-
-        // Generate shared ProblemDetails and factory once for EndpointPerOperation mode
-        if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
-        {
-            GenerateProblemDetails(generatedContext, projectName);
-            GenerateProblemDetailsFactory(generatedContext, projectName, hasXml: XmlBodyReachability.Collect(openApiDoc).Count > 0);
-            GenerateEndpointResultInterface(generatedContext, projectName);
-            GenerateConstants(generatedContext, projectName, config.HttpClientName);
-
-            // A file download's OkContent (only when the specification has one)
-            if (HasBufferedFileDownload(openApiDoc))
-            {
-                GenerateDownloadedFile(generatedContext, projectName, includeEndpointResponse: true);
-            }
-
-            // Generate custom error response model if configured. Named like a spec schema, it would shadow that
-            // model in every generated file (the root namespace encloses them all), so it then gets its own
-            // namespace and is referred to by its full name.
-            if (config.CustomErrorResponseModel is not null)
-            {
-                var customName = config.CustomErrorResponseModel.Name;
-                var collides = openApiDoc.Components?.Schemas?.Keys.Any(k =>
-                    string.Equals(k, customName, StringComparison.Ordinal) ||
-                    string.Equals(k.ToPascalCaseForDotNet(), customName, StringComparison.Ordinal)) == true;
-                var customNamespace = collides ? $"{projectName}.Generated.CustomErrors" : $"{projectName}.Generated";
-                GenerateCustomErrorResponse(generatedContext, config.CustomErrorResponseModel, customNamespace, projectName);
-                if (collides)
-                {
-                    customErrorTypeName = $"global::{customNamespace}.{customName}";
-                }
-            }
+            EmitTypedClientSupport(generatedContext, openApiDoc, projectName, packages, modelNames);
         }
 
         // Detect shared schemas (used by multiple path segments) for deduplication
@@ -292,7 +231,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // can never be referenced - every consumer sits under "{projectName}.Generated.*", so C#
         // binds the unqualified name to the enclosing-namespace built-in - so drop it and tell the
         // user their declaration is being ignored rather than emitting silent dead code.
-        if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
+        if (!isTypedClient)
         {
             ReportAndRemoveShadowedErrorContracts(context, openApiDoc, sharedSchemas, yamlPath);
         }
@@ -315,29 +254,12 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // The SignalR hubs of the specification (x-signalr-hubs): a typed client per hub, where the project has the
         // SignalR client to build it on
-        var hubClients = SignalRHubExtractor.ExtractClient(
-            openApiDoc,
-            projectName,
-            singleModelsNamespace: config.GenerationMode != GenerationModeType.EndpointPerOperation && config.ClientGranularity == ClientGranularityType.Single);
-        if (hubClients.Count > 0 && packages.HasSignalRClient)
-        {
-            foreach (var (hintName, content) in hubClients)
-            {
-                generatedContext.AddGeneratedSource(hintName, SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
-            }
-        }
-        else if (hubClients.Count > 0)
-        {
-            DiagnosticHelpers.ReportSignalRClientPackageRecommended(
-                context,
-                SignalRHubExtractor.ClientTypeNames(openApiDoc));
-        }
+        EmitSignalRHubClients(context, generatedContext, openApiDoc, projectName, config, packages);
 
         // Single-client mode: emit one client covering every operation, with all models flattened
         // into "{projectName}.Generated.Models". Handled before the per-area loop because the two
         // layouts are mutually exclusive.
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
-            config.ClientGranularity == ClientGranularityType.Single)
+        if (isTypedClient && config.ClientGranularity == ClientGranularityType.Single)
         {
             GenerateSingleTypedClient(context, generatedContext, openApiDoc, projectName, config, conflicts, systemTypeResolver, yamlPath, packages.HasHttpClientFactory, xmlModels);
             GenerateEnumWireConverterFactory(generatedContext, openApiDoc, projectName);
@@ -357,16 +279,11 @@ public class ApiClientGenerator : IIncrementalGenerator
                         yamlPath)));
         }
 
-        // Generate shared models/enums first (under common namespace without segment suffix)
+        // Shared models and enums first (under the common namespace without a segment suffix)
         if (sharedSchemas.Count > 0)
         {
-            // Create conflict registry for shared types (no segment)
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, extensibleEnums: config.ExtensibleEnums, componentTypeNames: componentTypeNames);
-
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
-            SchemaTypeEmitter.EmitEnums(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, config.ExtensibleEnums, stringOnTheWire: false);
-            SchemaTypeEmitter.EmitTuples(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
-            PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
+            EmitClientSchemaTypes(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config, includeSharedModelsUsing: false, xmlModels);
         }
 
         // Track generated path segments for consolidated DI extension
@@ -378,71 +295,261 @@ public class ApiClientGenerator : IIncrementalGenerator
             // A superseded IDE run stops here instead of emitting the rest
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            // Resolve the segment used for namespaces/file names. Redundant segments (single-segment
-            // documents, or segments that merely echo the root namespace tail) resolve away so
-            // generated types land directly under "{projectName}.Generated.{Category}".
-            // Normalize to string.Empty (never null) so the extractors treat this as an explicitly
-            // resolved value instead of "not specified" and never fall back to the raw segment.
-            var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
-
-            // Create conflict registry for this path segment (lightweight: O(1))
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, config.ExtensibleEnums, componentTypeNames);
-
-            // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
-            var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
-
-            // Built-in error contracts are emitted once under "{projectName}.Generated"; drop any
-            // spec-defined namesake so it is not re-emitted per segment. Already reported above.
-            if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
+            if (EmitSegmentClient(generatedContext, openApiDoc, projectName, pathSegment, config, packages, conflicts, sharedSchemas, componentTypeNames, systemTypeResolver, customErrorTypeName, xmlModels) is { } generatedSegment)
             {
-                segmentSchemas.RemoveWhere(BuiltInErrorContractNames.IsReserved);
-            }
-
-            // Generate segment-specific models (excluding shared schemas)
-            // Include shared models using directive so segment types can reference shared types
-            if (segmentSchemas.Count > 0)
-            {
-                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
-                SchemaTypeEmitter.EmitEnums(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, config.ExtensibleEnums, stringOnTheWire: false);
-                SchemaTypeEmitter.EmitTuples(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
-                PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
-            }
-
-            // Generate client code based on generation mode
-            if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
-            {
-                // Inline (anonymous) response/request schemas are emitted into the segment's Models
-                // namespace too, so they must count here - otherwise the generated endpoint and
-                // result files omit the Models 'using' and fail to compile with CS0246.
-                var hasSegmentModels = segmentSchemas.Count > 0 ||
-                                       PathSegmentHelper.PathSegmentHasInlineModels(openApiDoc, pathSegment);
-                var hasSharedModels = sharedSchemas.Count > 0;
-
-                // If customErrorResponseModel is configured and errorResponseFormat is default (ProblemDetails),
-                // automatically use Custom format for backward compatibility
-                var effectiveErrorFormat = config.CustomErrorResponseModel is not null &&
-                                           config.ErrorResponseFormat == ErrorResponseFormatType.ProblemDetails
-                    ? ErrorResponseFormatType.Custom
-                    : config.ErrorResponseFormat;
-
-                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
-                if (hasEndpoints)
-                {
-                    generatedPathSegments.Add(effectiveSegment);
-                }
-            }
-            else
-            {
-                var hasSegmentModelsTyped = segmentSchemas.Count > 0;
-                var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
+                generatedPathSegments.Add(generatedSegment);
             }
         }
 
+        // The typed client's stream readers and its writer of a streamed request body (the endpoint-per-operation client
+        // has Atc.Rest.Client's)
+        if (isTypedClient)
+        {
+            EmitTypedClientStreaming(generatedContext, openApiDoc, projectName);
+        }
+
+        // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only).
+        // When the only segment resolved away, the per-segment extension is already project-named and
+        // lives in "{projectName}.Generated", so a consolidated wrapper would be a duplicate.
+        if (!isTypedClient &&
+            generatedPathSegments.Count > 0 &&
+            !generatedPathSegments.TrueForAll(string.IsNullOrEmpty))
+        {
+            var consolidatedDiContent = GenerateConsolidatedDiExtension(projectName, generatedPathSegments);
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Endpoints.DependencyInjection.g.cs",
+                SourceText.From(consolidatedDiContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
+        // Resilience (x-retry-*) and OAuth token management, where the specification declares them
+        EmitClientFeatures(context, generatedContext, openApiDoc, projectName, config, packages);
+
+        GenerateEnumWireConverterFactory(generatedContext, openApiDoc, projectName);
+
+        // Report generation summary
+        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
+        var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
+        ReportClientGenerationSummary(
+            context,
+            yamlPath,
+            warnings: 0, // Validation diagnostics already reported earlier
+            errors: 0,
+            modelCount: schemaCount,
+            clientMethodCount: operationCount,
+            endpointCount: generatedPathSegments.Count);
+    }
+
+    // The typed client's support types: a downloaded or streamed file, the content-or-file of a model or a file, the
+    // JSON options its DI registrations read, the exception of an error response and the JSON options it writes with
+    private static void EmitTypedClientSupport(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ClientPackageReferences packages,
+        ICollection<string> modelNames)
+    {
+        // A TypedClient download returns a DownloadedFile (without the Atc.Rest.Client-based FromResponse), a streamed one
+        // (x-return-stream) a StreamedFile, and a model or a file a ContentOrFile<T>
+        if (HasStreamedFileDownload(openApiDoc))
+        {
+            GenerateStreamedFile(generatedContext, projectName);
+        }
+
+        if (HasTypedClientBufferedFileDownload(openApiDoc))
+        {
+            GenerateDownloadedFile(generatedContext, projectName, includeEndpointResponse: false);
+            if (HasModelOrFileResponse(openApiDoc))
+            {
+                GenerateContentOrFile(generatedContext, projectName);
+            }
+        }
+
+        // The serializer options the typed clients' DI registrations read (only with Microsoft.Extensions.Http, as the
+        // registrations themselves)
+        if (packages.HasHttpClientFactory)
+        {
+            GenerateApiClientJsonOptions(generatedContext, openApiDoc, projectName);
+        }
+
+        // The typed clients read and write JSON through the metadata their options resolve (trim- and AOT-safe), and
+        // throw one exception for an error response: an HttpRequestException with the response's headers and body
+        var exceptionName = ApiExceptionExtractor.ClassNameFor(modelNames);
+        generatedContext.AddGeneratedSource(
+            $"{projectName}.Generated.{exceptionName}.g.cs",
+            SourceText.From(ApiExceptionExtractor.Generate(NamespaceBuilder.BuildBase(projectName), exceptionName).NormalizeForSourceOutput(), Encoding.UTF8));
+
+        generatedContext.AddGeneratedSource(
+            $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
+            SourceText.From(GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)).NormalizeForSourceOutput(), Encoding.UTF8));
+    }
+
+    // The endpoint-per-operation client's support types: the ProblemDetails and its factory, the result interface, the
+    // constants, a downloaded file, the custom error model (in a namespace of its own when it would shadow a schema).
+    // Returns the custom error model's type name as the generated code refers to it
+    private static string? EmitEndpointPerOperationSupport(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ClientConfig config)
+    {
+        GenerateProblemDetails(generatedContext, projectName);
+        GenerateProblemDetailsFactory(generatedContext, projectName, hasXml: XmlBodyReachability.Collect(openApiDoc).Count > 0);
+        GenerateEndpointResultInterface(generatedContext, projectName);
+        GenerateConstants(generatedContext, projectName, config.HttpClientName);
+
+        // A file download's OkContent (only when the specification has one)
+        if (HasBufferedFileDownload(openApiDoc))
+        {
+            GenerateDownloadedFile(generatedContext, projectName, includeEndpointResponse: true);
+        }
+
+        // Generate custom error response model if configured. Named like a spec schema, it would shadow that
+        // model in every generated file (the root namespace encloses them all), so it then gets its own
+        // namespace and is referred to by its full name.
+        if (config.CustomErrorResponseModel is not null)
+        {
+            var customName = config.CustomErrorResponseModel.Name;
+            var collides = openApiDoc.Components?.Schemas?.Keys.Any(k =>
+                string.Equals(k, customName, StringComparison.Ordinal) ||
+                string.Equals(k.ToPascalCaseForDotNet(), customName, StringComparison.Ordinal)) == true;
+            var customNamespace = collides ? $"{projectName}.Generated.CustomErrors" : $"{projectName}.Generated";
+            GenerateCustomErrorResponse(generatedContext, config.CustomErrorResponseModel, customNamespace, projectName);
+            if (collides)
+            {
+                return $"global::{customNamespace}.{customName}";
+            }
+        }
+
+        return config.CustomErrorResponseModel?.Name;
+    }
+
+    // A set of schemas as the client's types: the models, the enums, the tuples and the polymorphic bases
+    private static void EmitClientSchemaTypes(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        HashSet<string> schemas,
+        string? pathSegment,
+        TypeConflictRegistry registry,
+        ClientConfig config,
+        bool includeSharedModelsUsing,
+        ISet<string> xmlModels)
+    {
+        GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, schemas, pathSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: includeSharedModelsUsing, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
+        SchemaTypeEmitter.EmitEnums(generatedContext, openApiDoc, projectName, schemas, pathSegment, config.ExtensibleEnums, stringOnTheWire: false);
+        SchemaTypeEmitter.EmitTuples(generatedContext, openApiDoc, projectName, schemas, pathSegment);
+        PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, schemas, pathSegment);
+    }
+
+    // A typed client per SignalR hub, where the project has the SignalR client to build it on (else a recommendation)
+    private static void EmitSignalRHubClients(
+        SourceProductionContext context,
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ClientConfig config,
+        ClientPackageReferences packages)
+    {
+        var hubClients = SignalRHubExtractor.ExtractClient(
+            openApiDoc,
+            projectName,
+            singleModelsNamespace: config.GenerationMode != GenerationModeType.EndpointPerOperation && config.ClientGranularity == ClientGranularityType.Single);
+        if (hubClients.Count > 0 && packages.HasSignalRClient)
+        {
+            foreach (var (hintName, content) in hubClients)
+            {
+                generatedContext.AddGeneratedSource(hintName, SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+            }
+        }
+        else if (hubClients.Count > 0)
+        {
+            DiagnosticHelpers.ReportSignalRClientPackageRecommended(
+                context,
+                SignalRHubExtractor.ClientTypeNames(openApiDoc));
+        }
+    }
+
+    // One path segment's client: its models, then its endpoints (endpoint per operation) or its typed client. Returns
+    // the segment as its namespace uses it when it has endpoints for the consolidated DI extension
+    private static string? EmitSegmentClient(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string pathSegment,
+        ClientConfig config,
+        ClientPackageReferences packages,
+        ISet<string> conflicts,
+        HashSet<string> sharedSchemas,
+        ISet<string> componentTypeNames,
+        SystemTypeConflictResolver systemTypeResolver,
+        string? customErrorTypeName,
+        ISet<string> xmlModels)
+    {
+        // Resolve the segment used for namespaces/file names. Redundant segments (single-segment
+        // documents, or segments that merely echo the root namespace tail) resolve away so
+        // generated types land directly under "{projectName}.Generated.{Category}".
+        // Normalize to string.Empty (never null) so the extractors treat this as an explicitly
+        // resolved value instead of "not specified" and never fall back to the raw segment.
+        var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
+
+        // Create conflict registry for this path segment (lightweight: O(1))
+        var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, config.ExtensibleEnums, componentTypeNames);
+
+        // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
+        var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
+
+        // Built-in error contracts are emitted once under "{projectName}.Generated"; drop any
+        // spec-defined namesake so it is not re-emitted per segment. Already reported above.
+        if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
+        {
+            segmentSchemas.RemoveWhere(BuiltInErrorContractNames.IsReserved);
+        }
+
+        // Segment-specific models (excluding shared ones), with the shared models' using
+        if (segmentSchemas.Count > 0)
+        {
+            EmitClientSchemaTypes(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config, includeSharedModelsUsing: sharedSchemas.Count > 0, xmlModels);
+        }
+
+        // Generate client code based on generation mode
+        if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
+        {
+            // Inline (anonymous) response/request schemas are emitted into the segment's Models
+            // namespace too, so they must count here - otherwise the generated endpoint and
+            // result files omit the Models 'using' and fail to compile with CS0246.
+            var hasSegmentModels = segmentSchemas.Count > 0 ||
+                                   PathSegmentHelper.PathSegmentHasInlineModels(openApiDoc, pathSegment);
+            var hasSharedModels = sharedSchemas.Count > 0;
+
+            // If customErrorResponseModel is configured and errorResponseFormat is default (ProblemDetails),
+            // automatically use Custom format for backward compatibility
+            var effectiveErrorFormat = config.CustomErrorResponseModel is not null &&
+                                       config.ErrorResponseFormat == ErrorResponseFormatType.ProblemDetails
+                ? ErrorResponseFormatType.Custom
+                : config.ErrorResponseFormat;
+
+            var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
+            return hasEndpoints ? effectiveSegment : null;
+        }
+        else
+        {
+            var hasSegmentModelsTyped = segmentSchemas.Count > 0;
+            var hasSharedModelsTyped = sharedSchemas.Count > 0;
+            GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
+            return null;
+        }
+    }
+
+    // The typed client's stream readers (an operation reads a stream) and the writer of a request body sent as a stream
+    // of records, with the typed client's JSON options
+    private static void EmitTypedClientStreaming(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
         // Emit the shared StreamReaders helper once when an operation of the typed client references it. The
         // EndpointPerOperation client has none: Atc.Rest.Client reads its streamed responses.
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
-            StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
+        if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
             var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName);
             generatedContext.AddGeneratedSource(
@@ -453,27 +560,23 @@ public class ApiClientGenerator : IIncrementalGenerator
         // A request body sent as a stream of records (JSON Lines, JSON Text Sequences) is written by the generated
         // StreamedRequestContent<T> with the typed client's JSON options; the endpoint-per-operation client sends it
         // with Atc.Rest.Client's request builder (WithStreamedBody)
-        if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
-            StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc))
+        if (StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc))
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.{StreamedRequestContentExtractor.TypeName}.g.cs",
                 SourceText.From(StreamedRequestContentExtractor.GenerateContent(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
         }
+    }
 
-        // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only).
-        // When the only segment resolved away, the per-segment extension is already project-named and
-        // lives in "{projectName}.Generated", so a consolidated wrapper would be a duplicate.
-        if (config.GenerationMode == GenerationModeType.EndpointPerOperation &&
-            generatedPathSegments.Count > 0 &&
-            !generatedPathSegments.TrueForAll(string.IsNullOrEmpty))
-        {
-            var consolidatedDiContent = GenerateConsolidatedDiExtension(projectName, generatedPathSegments);
-            generatedContext.AddGeneratedSource(
-                $"{projectName}.Endpoints.DependencyInjection.g.cs",
-                SourceText.From(consolidatedDiContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-
+    // Resilience policies (x-retry-*) and OAuth token management, each where the specification declares it
+    private static void EmitClientFeatures(
+        SourceProductionContext context,
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ClientConfig config,
+        ClientPackageReferences packages)
+    {
         // Generate resilience policies and DI extensions (only if resilience is configured)
         if (openApiDoc.HasRetryConfiguration())
         {
@@ -494,20 +597,6 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             GenerateOAuthInfrastructure(generatedContext, openApiDoc, projectName);
         }
-
-        GenerateEnumWireConverterFactory(generatedContext, openApiDoc, projectName);
-
-        // Report generation summary
-        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
-        var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
-        ReportClientGenerationSummary(
-            context,
-            yamlPath,
-            warnings: 0, // Validation diagnostics already reported earlier
-            errors: 0,
-            modelCount: schemaCount,
-            clientMethodCount: operationCount,
-            endpointCount: generatedPathSegments.Count);
     }
 
     /// <summary>
