@@ -26,13 +26,28 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Extract a stable, equatable summary from the compilation.
-        // This runs on every C# edit but its output only changes when the handler set,
-        // validator set, interface namespaces, or assembly references actually change.
-        // Because DomainCompilationSummary has value equality, unchanged results
-        // prevent the downstream RegisterSourceOutput callback from firing.
-        var compilationSummary = context.CompilationProvider
-            .Select(static (compilation, _) => ExtractCompilationSummary(compilation));
+        // The project's handlers, validators and handler-interface namespaces, read per type declaration: an edit
+        // reads the edited file's declarations again, the other files' facts stay cached
+        var typeFacts = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                static (node, _) => DomainTypeScanner.IsCandidate(node),
+                static (syntaxContext, cancellationToken) => DomainTypeScanner.Read(syntaxContext, cancellationToken))
+            .WithTrackingName(DomainTypeScanner.TrackingName)
+            .Where(static facts => facts is not null)
+            .Select(static (facts, _) => facts!)
+            .Collect();
+
+        // The references and the assembly name: a short look at the compilation per edit
+        var references = context.CompilationProvider
+            .Select(static (compilation, _) => new DomainReferences(
+                compilation.ReferencesAnyStartingWith("Microsoft.AspNetCore"),
+                compilation.References("Microsoft.Extensions.Logging.Abstractions"),
+                compilation.AssemblyName));
+
+        // Value equality: an unchanged summary keeps the RegisterSourceOutput callback from firing
+        var compilationSummary = typeFacts
+            .Combine(references)
+            .Select(static (pair, _) => DomainTypeScanner.Summarize(pair.Left, pair.Right));
 
         // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
@@ -192,132 +207,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         {
             // Regex took too long, skip update
         }
-    }
-
-    /// <summary>
-    /// Scans the compilation to find all handler implementations.
-    /// Returns a dictionary mapping handler class names to their actual namespaces (e.g., "CreatePetsHandler" -> "PetStoreSimple.Api.Domain.ApiHandlers").
-    /// Detection is done both by interface implementation AND by class naming convention to handle
-    /// cases where the interface isn't yet resolved during source generation.
-    /// </summary>
-    internal static List<(string HandlerName, string Namespace)> FindImplementedHandlers(
-        Compilation compilation)
-    {
-        // All discovered (name, namespace) pairs are returned WITHOUT collapsing to one
-        // namespace per name. When the same handler name exists in two namespaces — e.g. a
-        // previously scaffolded stub under "...ApiHandlers" AND a hand-written handler the
-        // user placed elsewhere — collapsing would let discovery order decide which one
-        // wins, silently registering the stub (HTTP 501). The caller, which knows the
-        // scaffold namespace per operation, picks the right one and can warn on shadowing.
-        var seen = new HashSet<(string, string)>();
-        var implementedHandlers = new List<(string HandlerName, string Namespace)>();
-
-        void Add(
-            string handlerName,
-            string ns)
-        {
-            if (seen.Add((handlerName, ns)))
-            {
-                implementedHandlers.Add((handlerName, ns));
-            }
-        }
-
-        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
-        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
-
-        foreach (var typeSymbol in allTypes)
-        {
-            // Skip interfaces and abstract classes
-            if (typeSymbol.TypeKind == TypeKind.Interface ||
-                typeSymbol.IsAbstract)
-            {
-                continue;
-            }
-
-            // Method 1: Check if this type implements any handler interfaces
-            foreach (var interfaceSymbol in typeSymbol.AllInterfaces)
-            {
-                var interfaceName = interfaceSymbol.Name;
-
-                // Check if it's a handler interface (e.g., ICreatePetsHandler)
-                if (interfaceName.StartsWith("I", StringComparison.Ordinal) &&
-                    interfaceName.EndsWith("Handler", StringComparison.Ordinal))
-                {
-                    // Extract handler name (e.g., CreatePetsHandler from ICreatePetsHandler)
-                    var handlerName = interfaceName.Substring(1); // Remove "I" prefix
-
-                    // Get the actual namespace of the implementation
-                    var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-
-                    Add(handlerName, actualNamespace);
-                }
-            }
-
-            // Method 2: Check by class name convention (e.g., SetShutdownHandler)
-            // This catches handlers even when the interface isn't resolved yet during source generation
-            var className = typeSymbol.Name;
-            if (className.EndsWith("Handler", StringComparison.Ordinal))
-            {
-                // Verify it's a user-defined class (has source location in the current project)
-                var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
-                if (syntaxRef is not null)
-                {
-                    var filePath = syntaxRef.SyntaxTree.FilePath;
-
-                    // Skip generated files (obj/Generated folder or .g.cs extension)
-                    if (!filePath.Contains("obj" + Path.DirectorySeparatorChar + "Generated") &&
-                        !filePath.Contains("obj" + Path.AltDirectorySeparatorChar + "Generated") &&
-                        !filePath.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-                        Add(className, actualNamespace);
-                    }
-                }
-            }
-        }
-
-        return implementedHandlers;
-    }
-
-    /// <summary>
-    /// Extracts a stable, equatable summary from the compilation.
-    /// Scans for implemented handlers, interface namespaces, and validators so that
-    /// the pipeline can detect when these sets actually change.
-    /// </summary>
-    private static DomainCompilationSummary ExtractCompilationSummary(
-        Compilation compilation)
-    {
-        var hasAspNetCore = compilation.ReferencesAnyStartingWith("Microsoft.AspNetCore");
-
-        var hasLogging = compilation.References("Microsoft.Extensions.Logging.Abstractions");
-
-        var assemblyName = compilation.AssemblyName;
-
-        // Sort all collections to ensure deterministic equality comparison. All discovered
-        // (name, namespace) pairs are kept — including duplicate names across namespaces — so
-        // the generation phase can prefer a user handler over a scaffolded stub.
-        var implementedHandlers = FindImplementedHandlers(compilation)
-            .Select(h => new HandlerInfo(h.HandlerName, h.Namespace))
-            .OrderBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(h => h.Namespace, StringComparer.Ordinal)
-            .ToImmutableArray();
-
-        var interfaceNamespaces = FindHandlerInterfaceNamespaces(compilation)
-            .OrderBy(ns => ns, StringComparer.Ordinal)
-            .ToImmutableArray();
-
-        var validators = FindImplementedValidators(compilation)
-            .Select(v => new ValidatorInfo(v.ValidatorName, v.ValidatorNamespace, v.ModelType))
-            .OrderBy(v => v.Name, StringComparer.Ordinal)
-            .ToImmutableArray();
-
-        return new DomainCompilationSummary(
-            hasAspNetCore,
-            hasLogging,
-            assemblyName,
-            new EquatableArray<HandlerInfo>(implementedHandlers),
-            new EquatableArray<string>(interfaceNamespaces),
-            new EquatableArray<ValidatorInfo>(validators));
     }
 
     private static void GenerateHandlerScaffoldsFromDocument(
@@ -564,94 +453,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             "ApiValidatorDependencyRegistration.g.cs",
             generatedContent);
-    }
-
-    /// <summary>
-    /// Scans the compilation to find all FluentValidation validator implementations.
-    /// Returns a list of tuples containing (ValidatorName, ValidatorNamespace, ModelType).
-    /// </summary>
-    private static List<(string ValidatorName, string ValidatorNamespace, string ModelType)> FindImplementedValidators(
-        Compilation compilation)
-    {
-        var validators = new List<(string ValidatorName, string ValidatorNamespace, string ModelType)>();
-
-        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
-        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
-
-        foreach (var typeSymbol in allTypes)
-        {
-            // Walk up the inheritance hierarchy to find AbstractValidator<T>
-            var baseType = typeSymbol.BaseType;
-            while (baseType is not null)
-            {
-                // Check if this is AbstractValidator<T> from FluentValidation
-                if (baseType.Name == "AbstractValidator" &&
-                    baseType.TypeArguments.Length == 1 &&
-                    baseType.ContainingNamespace?.ToDisplayString() == "FluentValidation")
-                {
-                    var modelType = baseType.TypeArguments[0].ToDisplayString();
-                    var validatorNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-
-                    validators.Add((typeSymbol.Name, validatorNamespace, modelType));
-                    break;
-                }
-
-                baseType = baseType.BaseType;
-            }
-        }
-
-        return validators;
-    }
-
-    /// <summary>
-    /// Scans the compilation to find all handler interface namespaces.
-    /// Returns a set of unique namespaces where IXxxHandler interfaces are defined.
-    /// </summary>
-    private static HashSet<string> FindHandlerInterfaceNamespaces(
-        Compilation compilation)
-    {
-        var namespaces = new HashSet<string>(StringComparer.Ordinal);
-
-        // Get all named type symbols in the compilation (including referenced assemblies)
-        var allTypes = compilation.GetSymbolsWithName(
-            name => name.StartsWith("I", StringComparison.Ordinal) && name.EndsWith("Handler", StringComparison.Ordinal),
-            SymbolFilter.Type);
-
-        foreach (var typeSymbol in allTypes.OfType<INamedTypeSymbol>())
-        {
-            // Check if it's an interface
-            if (typeSymbol.TypeKind == TypeKind.Interface)
-            {
-                var ns = typeSymbol.ContainingNamespace?.ToDisplayString();
-                if (ns is not null && ns.Length > 0)
-                {
-                    namespaces.Add(ns);
-                }
-            }
-        }
-
-        return namespaces;
-    }
-
-    /// <summary>
-    /// Recursively collects all named type symbols from a namespace (current assembly only).
-    /// This avoids GetSymbolsWithName(_ => true) which scans all referenced assemblies.
-    /// </summary>
-    private static IEnumerable<INamedTypeSymbol> GetAllTypesFromAssembly(
-        INamespaceSymbol namespaceSymbol)
-    {
-        foreach (var member in namespaceSymbol.GetTypeMembers())
-        {
-            yield return member;
-        }
-
-        foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
-        {
-            foreach (var type in GetAllTypesFromAssembly(nestedNamespace))
-            {
-                yield return type;
-            }
-        }
     }
 
     private static void GenerateHandlerScaffold(

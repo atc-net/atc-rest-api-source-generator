@@ -79,6 +79,43 @@ public class IncrementalCachingTests
         Assert.All(reasons, r => Assert.Equal(IncrementalStepRunReason.Cached, r.Reason));
     }
 
+    /// <summary>
+    /// The domain generator reads the project's types per declaration: an edit to one file reads that file's
+    /// declarations again and the other files' stay cached - a keystroke does not walk every type of the compilation.
+    /// </summary>
+    [Fact]
+    public void Domain_EditToOneFile_ReadsOnlyThatFilesTypes()
+    {
+        var run = new TrackedRun(new ApiServerDomainGenerator(), [Spec(Yaml), (".atc-rest-api-server-handlers", "{}")]);
+        run.AddSource("namespace Contoso.Api.Domain { public class ListThingsHandler { } }");
+        run.AddSource("namespace Contoso.Unrelated { public class Widget : System.IDisposable { public void Dispose() { } } }");
+        run.Run();
+
+        run.ReplaceSource(1, "namespace Contoso.Unrelated { public class Widget : System.IDisposable { public void Dispose() { _ = 1; } } }");
+        run.Run();
+
+        // One declaration read again - the edited file's Widget, to the same facts; the handler file is not read at all
+        Assert.Equal([IncrementalStepRunReason.Unchanged], run.StepReasons(DomainTypeScanner.TrackingName));
+        Assert.All(run.OutputStepReasons(), r => Assert.Equal(IncrementalStepRunReason.Cached, r.Reason));
+    }
+
+    /// <summary>
+    /// A new handler class is found: the summary changes and the output runs again.
+    /// </summary>
+    [Fact]
+    public void Domain_NewHandlerClass_RunsTheOutputAgain()
+    {
+        var run = new TrackedRun(new ApiServerDomainGenerator(), [Spec(Yaml), (".atc-rest-api-server-handlers", "{}")]);
+        run.Run();
+
+        run.AddSource("namespace Contoso.Api.Domain { public class ListThingsHandler { } }");
+        run.Run();
+
+        var reasons = run.OutputStepReasons();
+        Assert.NotEmpty(reasons);
+        Assert.All(reasons, r => Assert.Equal(IncrementalStepRunReason.Modified, r.Reason));
+    }
+
     [Theory]
     [MemberData(nameof(Generators))]
     public void MarkerEdit_RunsTheOutputAgain(
@@ -221,6 +258,11 @@ public class IncrementalCachingTests
         public void AddSource(string source)
             => trees.Add(CSharpSyntaxTree.ParseText(source));
 
+        public void ReplaceSource(
+            int index,
+            string source)
+            => trees[index] = CSharpSyntaxTree.ParseText(source);
+
         public void Replace(
             string path,
             string content)
@@ -245,6 +287,11 @@ public class IncrementalCachingTests
             => result!.Results[0].TrackedOutputSteps
                 .SelectMany(step => step.Value.SelectMany(run => run.Outputs.Select(o => (step.Key, o.Reason))))
                 .ToList();
+
+        public List<IncrementalStepRunReason> StepReasons(string trackingName)
+            => result!.Results[0].TrackedSteps.TryGetValue(trackingName, out var runs)
+                ? runs.SelectMany(run => run.Outputs.Select(o => o.Reason)).ToList()
+                : [];
 
         public List<(string HintName, string Source)> GeneratedSources()
             => result!.Results[0].GeneratedSources.Select(s => (s.HintName, s.SourceText.ToString())).OrderBy(s => s.HintName, StringComparer.Ordinal).ToList();

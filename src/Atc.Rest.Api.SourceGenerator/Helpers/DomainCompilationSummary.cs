@@ -11,11 +11,18 @@ internal readonly record struct HandlerInfo(string Name, string Namespace) : IEq
 internal readonly record struct ValidatorInfo(string Name, string Namespace, string ModelType) : IEquatable<ValidatorInfo>;
 
 /// <summary>
-/// A stable, equatable summary of compilation state relevant to the domain generator.
-/// Extracted in a cached <c>.Select()</c> transform so that the downstream
-/// <c>RegisterSourceOutput</c> callback only fires when meaningful compilation
-/// state actually changes (new handlers, new validators, or changed assembly references),
-/// rather than on every C# keystroke.
+/// The references and the assembly name the domain generator reads from the compilation.
+/// </summary>
+internal readonly record struct DomainReferences(
+    bool HasAspNetCore,
+    bool HasLogging,
+    string? AssemblyName);
+
+/// <summary>
+/// A stable, equatable summary of compilation state relevant to the domain generator: the facts of the project's
+/// type declarations (read per declaration, see <see cref="DomainTypeScanner"/>) and its references. The downstream
+/// <c>RegisterSourceOutput</c> callback only fires when it changes (new handlers, new validators, or changed assembly
+/// references), not on every C# keystroke.
 /// </summary>
 internal sealed record DomainCompilationSummary(
     bool HasAspNetCore,
