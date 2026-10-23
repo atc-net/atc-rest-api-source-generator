@@ -146,6 +146,7 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["openApiConstructs"] = CollectOpenApiConstructs(root);
         matrix["testLayers"] = CollectTestLayers(matrix);
         matrix["fuzz"] = ReadReportData(root, "test-suite-report.fuzz.json");
+        matrix["mutation"] = CollectMutation(root);
         matrix["ratchet"] = Ratchets();
         matrix["ratchetReasons"] = RatchetReasons();
         matrix["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1);

@@ -1564,6 +1564,7 @@ for (const [key, tab, base, title, sameAs] of [
       <div class="stat"><b>${ms(sum('ms'))}</b><span>test time (summed)</span></div>
     </div>
     ${coverageBlock()}
+    ${mutationBlock()}
     <div class="suite-cards">${suites.map((s, i) => `<button class="suite-card" data-suite="${i}" title="Open this suite"><b>${esc(s.project.replace(/^Atc\./, ''))}</b><span class="what">${esc(s.covers)}</span><span class="nums">${s.missing ? '<span class="v na">no results</span>' : `${badges(s)}<span class="counts">${s.areas.length} areas · ${ms(s.ms)}</span>`}</span></button>`).join('')}</div>
     <div class="filters"><div class="row">
       <span class="label">Find</span><input type="search" id="ts-q" placeholder="a class, a test or a rule (OPR018)" size="34">
@@ -1584,6 +1585,23 @@ for (const [key, tab, base, title, sameAs] of [
       <p>The lines and branches of the product code the tests ran, merged over the ${cov.suites} suites of this run (a line counts as covered when any suite ran it): <b>${pct(cov.linePct)}</b> of the lines, <b>${pct(cov.branchPct)}</b> of the branches.${cov.stale ? ' <span class="v lossy">older than the commit</span>' : ''} The generated code itself is checked by the snapshots and the runtime matrices, not by these numbers.</p>
       <div class="table-wrap"><table><thead><tr><th>Assembly</th><th>What it is</th><th class="num">Lines</th><th class="num">Line coverage</th><th class="num">Branch coverage</th></tr></thead><tbody>${cov.assemblies.map((a) => `<tr><td class="mono">${esc(a.assembly)}</td><td>${esc(a.what)}</td><td class="num">${a.covered.toLocaleString('en')} / ${a.lines.toLocaleString('en')}</td><td class="num">${bar(a.linePct)} ${pct(a.linePct)}</td><td class="num">${pct(a.branchPct)}</td></tr>`).join('')}</tbody></table></div>
       <details><summary style="cursor:pointer">Coverage per file, the least covered first</summary><div class="table-wrap" style="margin-top:8px;max-height:480px"><table><thead><tr><th>File</th><th class="num">Lines</th><th class="num">Line coverage</th><th class="num">Branch coverage</th></tr></thead><tbody>${cov.assemblies.flatMap((a) => a.files).sort((x, y) => x.linePct - y.linePct || y.lines - x.lines).map((f) => `<tr><td class="mono">${esc(f.file)}</td><td class="num">${f.covered} / ${f.lines}</td><td class="num">${bar(f.linePct)} ${pct(f.linePct)}</td><td class="num">${pct(f.branchPct)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  }
+
+  // Mutation testing: of the small changes Stryker.NET makes to a library, how many its tests catch
+  function mutationBlock() {
+    const mut = REPORT?.mutation;
+    if (!mut) return '<p class="counts">No mutation testing results: run <code>dotnet stryker</code> in a test project with a <code>stryker-config.json</code> and regenerate the report.</p>';
+    const bar = (n) => `<span class="bar" style="display:inline-flex;vertical-align:middle;width:110px;min-width:0;margin-right:6px"><i class="${n >= 80 ? 'pass' : n >= 60 ? 'lossy' : 'fail'}" style="width:${n}%"></i></span>`;
+    const behind = (p) => p.commitsSince === undefined ? '' : p.commitsSince === 0 ? ' <span class="v pass">this commit</span>' : ` <span class="v lossy" title="Commits since the run">${p.commitsSince} commits behind</span>`;
+    return `<h3>Mutation testing</h3>
+      <p>Stryker.NET changes the product code in small ways - a condition negated, a boundary moved, a statement removed - and runs the tests against each change. A change the tests catch is <i>detected</i>; one they do not is a <i>survivor</i>: code whose behaviour no test pins. The score is detected / (detected + survived + not covered); the covered score leaves out the code no test reaches. A run takes long, so it is run by hand and shown with its own date and commit. Code that does not compile when changed is not counted.</p>
+      <div class="table-wrap"><table><thead><tr><th>Library</th><th>Run</th><th class="num">Score</th><th class="num">Covered score</th><th class="num">Detected</th><th class="num">Survived</th><th class="num">Not covered</th></tr></thead><tbody>${mut.projects.map((p) => {
+        const s = p.statuses ?? {};
+        return `<tr><td class="mono">${esc(p.library)}</td><td class="counts">${esc(p.runAt)} · <span class="mono">${esc(p.commit ?? '?')}</span>${behind(p)}</td><td class="num">${bar(p.score)} ${p.score.toFixed(1)} %</td><td class="num">${p.coveredScore.toFixed(1)} %</td><td class="num">${((s.Killed ?? 0) + (s.Timeout ?? 0)).toLocaleString('en')}</td><td class="num">${(s.Survived ?? 0).toLocaleString('en')}</td><td class="num">${(s.NoCoverage ?? 0).toLocaleString('en')}</td></tr>`;
+      }).join('')}</tbody></table></div>
+      ${mut.projects.map((p) => `<details><summary style="cursor:pointer">${esc(p.library)}: per file, the lowest score first, and the ${p.survivorsListed} survivors${(p.statuses?.Survived ?? 0) > p.survivorsListed ? ` (of ${p.statuses.Survived})` : ''}</summary>
+        <div class="table-wrap" style="margin-top:8px;max-height:420px"><table><thead><tr><th>File</th><th class="num">Score</th><th class="num">Detected</th><th class="num">Survived</th><th class="num">Not covered</th></tr></thead><tbody>${p.files.map((f) => `<tr><td class="mono">${esc(f.file)}</td><td class="num">${bar(f.score)} ${f.score.toFixed(1)} %</td><td class="num">${f.detected}</td><td class="num">${f.survived}</td><td class="num">${f.noCoverage}</td></tr>`).join('')}</tbody></table></div>
+        <div class="table-wrap" style="margin-top:8px;max-height:420px"><table><thead><tr><th>Survivor</th><th>Change</th><th>Becomes</th></tr></thead><tbody>${p.survivors.map((s) => `<tr><td class="mono">${esc(s.file)}:${s.line}</td><td>${esc(s.mutator)}</td><td class="mono" style="word-break:break-all">${esc(s.replacement)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
   }
 
   const order = (xs, by) => [...xs].sort(by === 'slow' ? (a, b) => b.ms - a.ms : by === 'most' ? (a, b) => b.tests - a.tests : (a, b) => a.name.localeCompare(b.name));
