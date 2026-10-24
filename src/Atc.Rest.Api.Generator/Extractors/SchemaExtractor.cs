@@ -497,6 +497,13 @@ public static class SchemaExtractor
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
 
+            // A number the specification sends as a JSON string (type: string, format: int64): read from and written as
+            // the string, so the wire stays what the specification says
+            if (IsIntegerSentAsString(prop.Value))
+            {
+                attributesList.Add(IntegerAsStringAttribute);
+            }
+
             // deprecated: true warns every consumer that reads or sets the property
             if (prop.Value.Deprecated)
             {
@@ -644,6 +651,13 @@ public static class SchemaExtractor
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
 
+            // A number the specification sends as a JSON string (type: string, format: int64): read from and written as
+            // the string, so the wire stays what the specification says
+            if (IsIntegerSentAsString(prop.Value))
+            {
+                attributesList.Add(IntegerAsStringAttribute);
+            }
+
             // deprecated: true warns every consumer that reads or sets the property
             if (prop.Value.Deprecated)
             {
@@ -714,6 +728,15 @@ public static class SchemaExtractor
             BaseTypeName: baseList,
             Attributes: RecordAttributes(schema));
     }
+
+    private static readonly AttributeParameters IntegerAsStringAttribute = new(
+        "global::System.Text.Json.Serialization.JsonNumberHandling",
+        "global::System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString | global::System.Text.Json.Serialization.JsonNumberHandling.WriteAsString");
+
+    // type: string with an integer format: the C# type is the integer (an int or a long), the wire the string
+    private static bool IsIntegerSentAsString(IOpenApiSchema schema)
+        => schema.Dereferenced is { IsString: true } actual &&
+           actual.Format?.ToLowerInvariant() is "int32" or "int" or "int64" or "long";
 
     private static readonly System.Text.RegularExpressions.Regex UnclosedLineBreak = new(
         @"</?br\s*/?>",
@@ -959,6 +982,13 @@ public static class SchemaExtractor
             if (validationAttributes.Count > 0)
             {
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
+            }
+
+            // A number the specification sends as a JSON string (type: string, format: int64): read from and written as
+            // the string, so the wire stays what the specification says
+            if (IsIntegerSentAsString(prop.Value))
+            {
+                attributesList.Add(IntegerAsStringAttribute);
             }
 
             // deprecated: true warns every consumer that reads or sets the property
