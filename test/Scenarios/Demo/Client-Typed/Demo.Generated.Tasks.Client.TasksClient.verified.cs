@@ -5,12 +5,12 @@
 using System;
 using System.Linq;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 using Demo.Generated.Tasks.Models;
 
 namespace Demo.Generated.Tasks.Client;
@@ -64,7 +64,12 @@ public sealed class TasksClient : ITasksClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Demo.Generated.Tasks.Models.Task>>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a List<Demo.Generated.Tasks.Models.Task> for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Demo.Generated.Tasks.Models.Task>>())!;
     }
 
     public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> CreateTaskAsync(
@@ -75,7 +80,12 @@ public sealed class TasksClient : ITasksClient
         using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Demo.Generated.Tasks.Models.Task for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
     public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> GetTaskByIdAsync(
@@ -86,7 +96,12 @@ public sealed class TasksClient : ITasksClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Demo.Generated.Tasks.Models.Task for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
     public async System.Threading.Tasks.Task DeleteTaskByIdAsync(
@@ -106,7 +121,12 @@ public sealed class TasksClient : ITasksClient
         using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Demo.Generated.Tasks.Models.Task for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

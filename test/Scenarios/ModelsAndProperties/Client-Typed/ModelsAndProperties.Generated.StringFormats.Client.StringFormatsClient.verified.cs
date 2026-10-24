@@ -49,7 +49,12 @@ public sealed class StringFormatsClient : IStringFormatsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ModelsAndProperties.Generated.StringFormats.Models.StringFormats>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a ModelsAndProperties.Generated.StringFormats.Models.StringFormats for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ModelsAndProperties.Generated.StringFormats.Models.StringFormats>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

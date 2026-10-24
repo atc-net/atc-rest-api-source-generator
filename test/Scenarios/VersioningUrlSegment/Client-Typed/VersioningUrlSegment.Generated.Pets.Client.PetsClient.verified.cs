@@ -63,7 +63,12 @@ public sealed class PetsClient : IPetsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Pet>>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a List<Pet> for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Pet>>())!;
     }
 
     public async Task<Pet> CreatePetAsync(
@@ -74,7 +79,12 @@ public sealed class PetsClient : IPetsClient
         using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Pet>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Pet for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Pet>())!;
     }
 
     public async Task<Pet> GetPetByIdAsync(
@@ -85,7 +95,12 @@ public sealed class PetsClient : IPetsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Pet>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Pet for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Pet>())!;
     }
 
     public async Task<Pet> UpdatePetAsync(
@@ -96,7 +111,12 @@ public sealed class PetsClient : IPetsClient
         using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Pet>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Pet for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Pet>())!;
     }
 
     public async Task DeletePetAsync(

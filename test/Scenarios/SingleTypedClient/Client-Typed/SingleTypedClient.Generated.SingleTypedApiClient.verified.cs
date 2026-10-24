@@ -49,7 +49,12 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Account>>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a List<Account> for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Account>>())!;
     }
 
     public async Task<Account> GetAccountByIdAsync(
@@ -60,7 +65,12 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Account for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
     }
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
@@ -69,7 +79,12 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Order>>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a List<Order> for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Order>>())!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -80,7 +95,12 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Order>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a Order for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Order>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

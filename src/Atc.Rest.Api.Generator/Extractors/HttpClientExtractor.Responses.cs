@@ -69,11 +69,12 @@ public static partial class HttpClientExtractor
         ResponsePayloadKind payloadKind,
         string returnType,
         bool isLastStatement,
-        XmlReadPlan? xmlRead = null)
+        XmlReadPlan? xmlRead = null,
+        bool emptyBodyIsNull = false)
     {
         if (xmlRead?.ModelOrFileType is { } modelType)
         {
-            AppendModelOrFileCompletion(builder, resultStyle, payloadKind, returnType, modelType, isLastStatement, xmlRead);
+            AppendModelOrFileCompletion(builder, resultStyle, payloadKind, returnType, modelType, isLastStatement, xmlRead, emptyBodyIsNull);
             return;
         }
 
@@ -94,7 +95,7 @@ public static partial class HttpClientExtractor
 
             builder.AppendLine("}");
             builder.AppendLine();
-            AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Json, returnType, isLastStatement, xmlRead: null);
+            AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Json, returnType, isLastStatement, xmlRead: null, emptyBodyIsNull: emptyBodyIsNull);
             return;
         }
 
@@ -139,9 +140,22 @@ public static partial class HttpClientExtractor
 
         if (payloadKind == ResponsePayloadKind.Json)
         {
-            // A success without a body (a 204, an empty 200) is null, not a JsonException
+            // A success without a body is null where the operation declares one (a 204 beside the model's 200); where it
+            // declares none, an empty answer is not the model it declares: a JsonException that says so, not a null
+            // through the non-nullable return type
             builder.AppendLine("var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);");
-            AppendStatement(builder, $"return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<{returnType}>())!;", isLastStatement);
+            if (emptyBodyIsNull)
+            {
+                AppendStatement(builder, $"return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<{returnType}>())!;", isLastStatement);
+                return;
+            }
+
+            builder.AppendLine("if (json.Length == 0)");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"throw new JsonException($\"The {{(int)response.StatusCode}} answer has no body, but the operation declares a {returnType} for it.\");");
+            builder.AppendLine("}");
+            builder.AppendLine();
+            AppendStatement(builder, $"return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<{returnType}>())!;", isLastStatement);
             return;
         }
 
@@ -165,10 +179,11 @@ public static partial class HttpClientExtractor
         string returnType,
         string modelType,
         bool isLastStatement,
-        XmlReadPlan xmlRead)
+        XmlReadPlan xmlRead,
+        bool emptyBodyIsNull)
     {
         var model = new StringBuilder();
-        AppendResponseCompletion(model, resultStyle, payloadKind, modelType, isLastStatement: true, xmlRead: xmlRead with { ModelOrFileType = null });
+        AppendResponseCompletion(model, resultStyle, payloadKind, modelType, isLastStatement: true, xmlRead: xmlRead with { ModelOrFileType = null }, emptyBodyIsNull: emptyBodyIsNull);
 
         if (resultStyle == TypedClientResultStyleType.Result)
         {

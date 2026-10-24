@@ -86,7 +86,12 @@ public sealed class JsonLinesClient : IJsonLinesClient
         using var response = await httpClient.PostAsync(url, StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/jsonl"), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ImportSummary>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a ImportSummary for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ImportSummary>())!;
     }
 
     public async Task<ImportSummary> ImportReadingSequenceAsync(
@@ -97,7 +102,12 @@ public sealed class JsonLinesClient : IJsonLinesClient
         using var response = await httpClient.PostAsync(url, StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/json-seq"), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ImportSummary>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a ImportSummary for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ImportSummary>())!;
     }
 
     public async Task<ImportSummary> ImportReadingsAnyFormatAsync(
@@ -108,7 +118,12 @@ public sealed class JsonLinesClient : IJsonLinesClient
         using var response = await httpClient.PostAsync(url, StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/jsonl"), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ImportSummary>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a ImportSummary for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<ImportSummary>())!;
     }
 
     public async Task UpdateReadingsAsync(

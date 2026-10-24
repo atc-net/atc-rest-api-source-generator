@@ -68,7 +68,12 @@ public sealed class SessionClient : ISessionClient
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<CookieParameters.Generated.Session.Models.Session>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a CookieParameters.Generated.Session.Models.Session for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<CookieParameters.Generated.Session.Models.Session>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

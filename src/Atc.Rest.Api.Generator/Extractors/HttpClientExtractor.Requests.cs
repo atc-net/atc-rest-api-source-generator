@@ -27,6 +27,9 @@ public static partial class HttpClientExtractor
         var builder = new StringBuilder();
         var propertyNames = ParameterPropertyNames.For(operation, pathLevelParameters);
 
+        // A success the operation declares without content (a 204 beside the model's 200): an empty answer is null
+        var emptyBodyIsNull = operation.Responses is { } responses && responses.Any(r => r.Key.StartsWith("2", StringComparison.Ordinal) && r.Value?.Content is not { Count: > 0 });
+
         // The URL: relative (no leading slash) so the HttpClient's BaseAddress keeps its path, with the path parameters
         var effectiveParameters = operation.EffectiveParameters(pathLevelParameters);
         AppendUrl(builder, path, effectiveParameters, openApiDoc, propertyNames, parametersClassName, useServersBasePath);
@@ -77,22 +80,22 @@ public static partial class HttpClientExtractor
         switch (httpMethod)
         {
             case "GET":
-                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), operation.GetServerSentEventItemNames(), hasReturnType, builder, resultStyle, Stamp, xmlRead);
+                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), operation.GetServerSentEventItemNames(), hasReturnType, builder, resultStyle, Stamp, xmlRead, emptyBodyIsNull: emptyBodyIsNull);
                 break;
             case "POST":
-                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
+                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse, emptyBodyIsNull);
                 break;
             case "PUT":
-                GeneratePutMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
+                GeneratePutMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse, emptyBodyIsNull);
                 break;
             case "DELETE":
-                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
+                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse, emptyBodyIsNull);
                 break;
             default:
                 // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
                 // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
                 // so build the request explicitly and dispatch by body/return presence.
-                GenerateGenericMethodBody(httpMethod, operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse);
+                GenerateGenericMethodBody(httpMethod, operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage", streamed: false), xmlRead, isTextResponse, emptyBodyIsNull);
                 break;
         }
 
@@ -367,7 +370,8 @@ public static partial class HttpClientExtractor
         Func<string, bool, string?> resilienceStamp,
         XmlReadPlan? xmlRead = null,
         string httpMethodExpression = "HttpMethod.Get",
-        string? contentExpression = null)
+        string? contentExpression = null,
+        bool emptyBodyIsNull = false)
     {
         // Special handling for async enumerable streaming
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
@@ -489,7 +493,8 @@ public static partial class HttpClientExtractor
                 hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
                 returnType,
                 isLastStatement: true,
-                xmlRead: xmlRead);
+                xmlRead: xmlRead,
+                emptyBodyIsNull: emptyBodyIsNull);
         }
     }
 
@@ -637,7 +642,8 @@ public static partial class HttpClientExtractor
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null,
-        bool isTextResponse = false)
+        bool isTextResponse = false,
+        bool emptyBodyIsNull = false)
     {
         // Resolve the verb through the same helper the per-operation client uses, so both
         // generated clients express the same verb the same way: the static HttpMethod property
@@ -678,7 +684,8 @@ public static partial class HttpClientExtractor
             PayloadKind(hasReturnType, xmlRead, isTextResponse),
             returnType,
             isLastStatement: hasReturnType,
-            xmlRead: xmlRead);
+            xmlRead: xmlRead,
+            emptyBodyIsNull: emptyBodyIsNull);
     }
 
     /// <summary>
@@ -813,7 +820,8 @@ public static partial class HttpClientExtractor
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null,
-        bool isTextResponse = false)
+        bool isTextResponse = false,
+        bool emptyBodyIsNull = false)
     {
         AppendBodySend(builder, "PostAsync", "HttpMethod.Post", operation, openApiDoc, hasParameters, resilienceStamp, xmlRead);
 
@@ -838,7 +846,8 @@ public static partial class HttpClientExtractor
                 PayloadKind(hasReturnType, xmlRead, isTextResponse),
                 returnType,
                 isLastStatement: true,
-                xmlRead: xmlRead);
+                xmlRead: xmlRead,
+                emptyBodyIsNull: emptyBodyIsNull);
         }
     }
 
@@ -852,7 +861,8 @@ public static partial class HttpClientExtractor
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null,
-        bool isTextResponse = false)
+        bool isTextResponse = false,
+        bool emptyBodyIsNull = false)
     {
         AppendBodySend(builder, "PutAsync", "HttpMethod.Put", operation, openApiDoc, hasParameters, resilienceStamp, xmlRead);
 
@@ -862,7 +872,8 @@ public static partial class HttpClientExtractor
             PayloadKind(hasReturnType, xmlRead, isTextResponse),
             returnType,
             isLastStatement: true,
-            xmlRead: xmlRead);
+            xmlRead: xmlRead,
+            emptyBodyIsNull: emptyBodyIsNull);
     }
 
     /// <summary>
@@ -896,7 +907,8 @@ public static partial class HttpClientExtractor
         TypedClientResultStyleType resultStyle,
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null,
-        bool isTextResponse = false)
+        bool isTextResponse = false,
+        bool emptyBodyIsNull = false)
     {
         AppendSend(builder, "var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);", resilienceStamp, "HttpMethod.Delete", contentExpression: null, accept: xmlRead?.Accept);
 
@@ -906,7 +918,8 @@ public static partial class HttpClientExtractor
             PayloadKind(hasReturnType, xmlRead, isTextResponse),
             returnType,
             isLastStatement: true,
-            xmlRead: xmlRead);
+            xmlRead: xmlRead,
+            emptyBodyIsNull: emptyBodyIsNull);
     }
 
     /// <summary>

@@ -50,7 +50,12 @@ public sealed class StreamsClient : IStreamsClient
         using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<HostileNames.Generated.Streams.Models.Stream>>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a List<HostileNames.Generated.Streams.Models.Stream> for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<HostileNames.Generated.Streams.Models.Stream>>())!;
     }
 
     public async Task<HostileNames.Generated.Streams.Models.Results> CreateStreamAsync(
@@ -61,7 +66,12 @@ public sealed class StreamsClient : IStreamsClient
         using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<HostileNames.Generated.Streams.Models.Results>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a HostileNames.Generated.Streams.Models.Results for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<HostileNames.Generated.Streams.Models.Results>())!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

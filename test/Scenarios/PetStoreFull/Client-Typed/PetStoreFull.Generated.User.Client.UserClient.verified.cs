@@ -60,7 +60,12 @@ public sealed class UserClient : IUserClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a PetStoreFull.Generated.User.Models.User for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
     }
 
     public async Task<PetStoreFull.Generated.User.Models.User> CreateUsersWithListInputAsync(
@@ -79,7 +84,12 @@ public sealed class UserClient : IUserClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a PetStoreFull.Generated.User.Models.User for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
     }
 
     public async Task<string> LoginUserAsync(
@@ -131,7 +141,12 @@ public sealed class UserClient : IUserClient
 
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return json.Length == 0 ? default! : JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a PetStoreFull.Generated.User.Models.User for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<PetStoreFull.Generated.User.Models.User>())!;
     }
 
     public async Task UpdateUserAsync(

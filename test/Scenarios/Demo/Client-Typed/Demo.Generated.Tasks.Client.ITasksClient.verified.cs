@@ -3,12 +3,12 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 using Demo.Generated.Tasks.Models;
 
 namespace Demo.Generated.Tasks.Client;
