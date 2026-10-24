@@ -980,6 +980,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string SystemEnumOnExtensibleEnum = "ATC_API_CLT003";
 
+    /// <summary>
+    /// ATC_API_CLT004: A generated extensible enum compared with one listed value (<c>x != T.Member</c>) - a value the
+    /// specification adds later is "not that member" there. Off by default.
+    /// </summary>
+    public const string ExtensibleEnumComparedWithOneValue = "ATC_API_CLT004";
+
     // ========== Spec Version Migration Rules (VER) ==========
 
     /// <summary>
