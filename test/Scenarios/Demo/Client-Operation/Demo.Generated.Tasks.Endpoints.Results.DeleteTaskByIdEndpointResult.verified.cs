@@ -56,6 +56,13 @@ public partial class DeleteTaskByIdEndpointResult : EndpointResponse, IDeleteTas
     public static DeleteTaskByIdEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing an HTTP status the operation does not declare (a gateway's 502, a proxy's 503),
+    /// answered with the problem <see cref="Problem"/> reads (without one, the status's own).
+    /// </summary>
+    public static DeleteTaskByIdEndpointResult WithStatus(HttpStatusCode statusCode, ProblemDetails? problem = null)
+        => Create(statusCode, problem);
+
     private static DeleteTaskByIdEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)

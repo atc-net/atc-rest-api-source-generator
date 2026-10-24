@@ -1843,6 +1843,17 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(8, "=> Create(statusCode, content);");
             sb.AppendLine();
         }
+        else
+        {
+            // A status the operation does not declare: a test double of a gateway's 502 needs no EndpointResponse by hand
+            sb.AppendLine(4, "/// <summary>");
+            sb.AppendLine(4, "/// Creates a result representing an HTTP status the operation does not declare (a gateway's 502, a proxy's 503),");
+            sb.AppendLine(4, "/// answered with the problem <see cref=\"Problem\"/> reads (without one, the status's own).");
+            sb.AppendLine(4, "/// </summary>");
+            sb.AppendLine(4, $"public static {operationName}EndpointResult WithStatus(HttpStatusCode statusCode, ProblemDetails? problem = null)");
+            sb.AppendLine(8, "=> Create(statusCode, problem);");
+            sb.AppendLine();
+        }
 
         if (streamedItemType is null)
         {

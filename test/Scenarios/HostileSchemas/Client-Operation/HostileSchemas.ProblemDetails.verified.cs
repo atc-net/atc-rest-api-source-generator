@@ -20,11 +20,11 @@ namespace HostileSchemas.Generated;
 /// <param name="Instance">A URI reference that identifies the specific occurrence of the problem.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record ProblemDetails(
-    string? Type,
-    string? Title,
-    int? Status,
-    string? Detail,
-    string? Instance)
+    string? Type = null,
+    string? Title = null,
+    int? Status = null,
+    string? Detail = null,
+    string? Instance = null)
 {
     /// <summary>
     /// Gets the extension members for this problem details instance.
@@ -46,10 +46,10 @@ public record ProblemDetails(
 /// <param name="Errors">A dictionary of validation errors keyed by field name.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record ValidationProblemDetails(
-    string? Type,
-    string? Title,
-    int? Status,
-    string? Detail,
-    string? Instance,
-    Dictionary<string, string[]>? Errors)
+    string? Type = null,
+    string? Title = null,
+    int? Status = null,
+    string? Detail = null,
+    string? Instance = null,
+    Dictionary<string, string[]>? Errors = null)
     : ProblemDetails(Type, Title, Status, Detail, Instance);

@@ -56,6 +56,13 @@ public partial class UpdateItemPhotoEndpointResult : EndpointResponse, IUpdateIt
     public static UpdateItemPhotoEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing an HTTP status the operation does not declare (a gateway's 502, a proxy's 503),
+    /// answered with the problem <see cref="Problem"/> reads (without one, the status's own).
+    /// </summary>
+    public static UpdateItemPhotoEndpointResult WithStatus(HttpStatusCode statusCode, ProblemDetails? problem = null)
+        => Create(statusCode, problem);
+
     private static UpdateItemPhotoEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)

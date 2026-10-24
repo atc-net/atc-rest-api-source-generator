@@ -71,6 +71,13 @@ public partial class GetItemSheetEndpointResult : EndpointResponse, IGetItemShee
                 ["Content-Disposition"] = file.FileName is null ? Array.Empty<string>() : new[] { new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = file.FileName }.ToString() },
             }));
 
+    /// <summary>
+    /// Creates a result representing an HTTP status the operation does not declare (a gateway's 502, a proxy's 503),
+    /// answered with the problem <see cref="Problem"/> reads (without one, the status's own).
+    /// </summary>
+    public static GetItemSheetEndpointResult WithStatus(HttpStatusCode statusCode, ProblemDetails? problem = null)
+        => Create(statusCode, problem);
+
     private static GetItemSheetEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)

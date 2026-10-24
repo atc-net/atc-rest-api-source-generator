@@ -305,11 +305,11 @@ public static class ClientRuntimeTypesExtractor
         sb.AppendLine("/// <param name=\"Instance\">A URI reference that identifies the specific occurrence of the problem.</param>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine("public record ProblemDetails(");
-        sb.AppendLine(4, "string? Type,");
-        sb.AppendLine(4, "string? Title,");
-        sb.AppendLine(4, "int? Status,");
-        sb.AppendLine(4, "string? Detail,");
-        sb.AppendLine(4, "string? Instance)");
+        sb.AppendLine(4, "string? Type = null,");
+        sb.AppendLine(4, "string? Title = null,");
+        sb.AppendLine(4, "int? Status = null,");
+        sb.AppendLine(4, "string? Detail = null,");
+        sb.AppendLine(4, "string? Instance = null)");
         sb.AppendLine("{");
         sb.AppendLine(4, "/// <summary>");
         sb.AppendLine(4, "/// Gets the extension members for this problem details instance.");
@@ -331,12 +331,12 @@ public static class ClientRuntimeTypesExtractor
         sb.AppendLine("/// <param name=\"Errors\">A dictionary of validation errors keyed by field name.</param>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine("public record ValidationProblemDetails(");
-        sb.AppendLine(4, "string? Type,");
-        sb.AppendLine(4, "string? Title,");
-        sb.AppendLine(4, "int? Status,");
-        sb.AppendLine(4, "string? Detail,");
-        sb.AppendLine(4, "string? Instance,");
-        sb.AppendLine(4, "Dictionary<string, string[]>? Errors)");
+        sb.AppendLine(4, "string? Type = null,");
+        sb.AppendLine(4, "string? Title = null,");
+        sb.AppendLine(4, "int? Status = null,");
+        sb.AppendLine(4, "string? Detail = null,");
+        sb.AppendLine(4, "string? Instance = null,");
+        sb.AppendLine(4, "Dictionary<string, string[]>? Errors = null)");
         sb.AppendLine(4, ": ProblemDetails(Type, Title, Status, Detail, Instance);");
 
         return sb.ToString();

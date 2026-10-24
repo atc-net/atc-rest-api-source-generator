@@ -44,6 +44,13 @@ public partial class Op1stThingEndpointResult : EndpointResponse, IOp1stThingEnd
     public static Op1stThingEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing an HTTP status the operation does not declare (a gateway's 502, a proxy's 503),
+    /// answered with the problem <see cref="Problem"/> reads (without one, the status's own).
+    /// </summary>
+    public static Op1stThingEndpointResult WithStatus(HttpStatusCode statusCode, ProblemDetails? problem = null)
+        => Create(statusCode, problem);
+
     private static Op1stThingEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)
