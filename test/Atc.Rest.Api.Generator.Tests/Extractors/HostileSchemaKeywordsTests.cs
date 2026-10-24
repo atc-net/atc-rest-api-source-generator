@@ -9,7 +9,7 @@ namespace Atc.Rest.Api.Generator.Tests.Extractors;
 public sealed class HostileSchemaKeywordsTests
 {
     [Theory]
-    [InlineData("3.0.3", "type: integer\n      minimum: 1\n      exclusiveMinimum: true", "Range(1, long.MaxValue, MinimumIsExclusive = true, ErrorMessage = \"The field {0} must be greater than 1.\")")]
+    [InlineData("3.0.3", "type: integer\n      minimum: 1\n      exclusiveMinimum: true", "Range(1, int.MaxValue, MinimumIsExclusive = true, ErrorMessage = \"The field {0} must be greater than 1.\")")]
     [InlineData("3.0.3", "type: number\n      maximum: 10\n      exclusiveMaximum: true", "Range(double.MinValue, 10, MaximumIsExclusive = true, ErrorMessage = \"The field {0} must be less than 10.\")")]
     [InlineData("3.0.3", "type: integer\n      minimum: 0\n      exclusiveMinimum: true\n      maximum: 100\n      exclusiveMaximum: true", "Range(0, 100, MinimumIsExclusive = true, MaximumIsExclusive = true)")]
     [InlineData("3.1.0", "type: integer\n      exclusiveMinimum: 0\n      exclusiveMaximum: 100", "Range(0, 100, MinimumIsExclusive = true, MaximumIsExclusive = true)")]
@@ -17,8 +17,9 @@ public sealed class HostileSchemaKeywordsTests
     [InlineData("3.1.0", "type: integer\n      minimum: 1\n      maximum: 9", "Range(1, 9)")]
 
     // One bound: the message names it, not the type's far end ("between -9.22E+18 and 100")
-    [InlineData("3.0.3", "type: integer\n      maximum: 100", "Range(long.MinValue, 100, ErrorMessage = \"The field {0} must be at most 100.\")")]
-    [InlineData("3.0.3", "type: integer\n      minimum: 1", "Range(1, long.MaxValue, ErrorMessage = \"The field {0} must be at least 1.\")")]
+    [InlineData("3.0.3", "type: integer\n      maximum: 100", "Range(int.MinValue, 100, ErrorMessage = \"The field {0} must be at most 100.\")")]
+    [InlineData("3.0.3", "type: integer\n      minimum: 1", "Range(1, int.MaxValue, ErrorMessage = \"The field {0} must be at least 1.\")")]
+    [InlineData("3.0.3", "type: integer\n      format: int64\n      minimum: 1", "Range(1, long.MaxValue, ErrorMessage = \"The field {0} must be at least 1.\")")]
     [InlineData("3.0.3", "type: number\n      minimum: 0.01", "Range(0.01, double.MaxValue, ErrorMessage = \"The field {0} must be at least 0.01.\")")]
     public void ExclusiveBounds_BecomeARangeWithTheExclusiveFlags(
         string version,

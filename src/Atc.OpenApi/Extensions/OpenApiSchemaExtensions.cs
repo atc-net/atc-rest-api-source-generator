@@ -504,10 +504,11 @@ public static class OpenApiSchemaExtensions
                 return false;
             }
 
-            // Check for common sibling properties
-            return !string.IsNullOrEmpty(schemaRef.Description) ||
-                   schemaRef.Deprecated ||
-                   schemaRef.Default is not null;
+            // The reference's own siblings: OpenApiSchemaReference.Description falls back to the target's, so a bare $ref
+            // to a described schema would count as one
+            return !string.IsNullOrEmpty(schemaRef.Reference.Description) ||
+                   (schemaRef.Deprecated && schemaRef.Target?.Deprecated != true) ||
+                   (schemaRef.Default is not null && schemaRef.Target?.Default is null);
         }
 
         // ========== JSON Schema 2020-12 Support ==========
@@ -1191,9 +1192,15 @@ public static class OpenApiSchemaExtensions
 
                 if (min is not null || max is not null)
                 {
+                    // The open bound of an int (no int64 format) is int's, so the attribute binds the int constructor;
+                    // long's made it the double one, and a tool that builds values from the attribute (a test data
+                    // generator) then made doubles for an int
+                    var asInt = !string.Equals(actualSchema.Format, "int64", StringComparison.OrdinalIgnoreCase) &&
+                                (min ?? 0) is >= int.MinValue and <= int.MaxValue &&
+                                (max ?? 0) is >= int.MinValue and <= int.MaxValue;
                     var minText = min?.ToString(CultureInfo.InvariantCulture);
                     var maxText = max?.ToString(CultureInfo.InvariantCulture);
-                    yield return $"Range({minText ?? "long.MinValue"}, {maxText ?? "long.MaxValue"}{flags}{OneBoundMessage(minText, minimumIsExclusive, maxText, maximumIsExclusive)})";
+                    yield return $"Range({minText ?? (asInt ? "int.MinValue" : "long.MinValue")}, {maxText ?? (asInt ? "int.MaxValue" : "long.MaxValue")}{flags}{OneBoundMessage(minText, minimumIsExclusive, maxText, maximumIsExclusive)})";
                 }
             }
             else if (schemaType.HasFlag(JsonSchemaType.Number))

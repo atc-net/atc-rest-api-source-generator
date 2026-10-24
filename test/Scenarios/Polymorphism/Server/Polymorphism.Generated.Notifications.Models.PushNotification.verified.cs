@@ -24,5 +24,5 @@ public sealed record PushNotification(
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "deviceToken")] string DeviceToken,
     [property: Required, ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "title")] string Title,
     [property: ApiMaxLength(500), global::System.ComponentModel.DataAnnotations.Display(Name = "body")] string? Body = null,
-    [property: Range(0, long.MaxValue, ErrorMessage = "The field {0} must be at least 0."), global::System.ComponentModel.DataAnnotations.Display(Name = "badge")] int? Badge = null,
+    [property: Range(0, int.MaxValue, ErrorMessage = "The field {0} must be at least 0."), global::System.ComponentModel.DataAnnotations.Display(Name = "badge")] int? Badge = null,
     string? Sound = null) : Notification;

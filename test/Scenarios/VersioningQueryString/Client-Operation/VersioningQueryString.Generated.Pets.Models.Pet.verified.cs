@@ -14,5 +14,5 @@ public sealed record Pet(
     [property: Required, ApiMinLength(1), ApiMaxLength(100)] string Name,
     [property: Required] string Species,
     string? Breed = null,
-    [property: Range(0, long.MaxValue, ErrorMessage = "The field {0} must be at least 0.")] int? Age = null,
+    [property: Range(0, int.MaxValue, ErrorMessage = "The field {0} must be at least 0.")] int? Age = null,
     Guid? OwnerId = null);

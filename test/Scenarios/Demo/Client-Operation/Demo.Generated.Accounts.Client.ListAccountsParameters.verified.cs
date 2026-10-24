@@ -18,4 +18,4 @@ namespace Demo.Generated.Accounts.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListAccountsParameters(
-    [property: Range(long.MinValue, 100, ErrorMessage = "The field {0} must be at most 100.")] int? Limit = null);
+    [property: Range(int.MinValue, 100, ErrorMessage = "The field {0} must be at most 100.")] int? Limit = null);

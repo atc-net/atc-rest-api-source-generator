@@ -1848,6 +1848,33 @@ public class OpenApiSchemaExtensionsTests
     }
 
     [Fact]
+    public void HasRefSiblingProperties_ABareReferenceToADescribedSchema_ReturnsFalse()
+    {
+        // The reference's description falls back to its target's: a bare $ref has no sibling of its own
+        var doc = ParseYaml("""
+                            openapi: "3.1.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  description: A pet
+                                  deprecated: true
+                                Owner:
+                                  type: object
+                                  properties:
+                                    pet:
+                                      $ref: '#/components/schemas/Pet'
+                            """);
+        Assert.NotNull(doc);
+
+        Assert.False(doc.Components!.Schemas!["Owner"].Properties!["pet"].HasRefSiblingProperties());
+    }
+
+    [Fact]
     public void HasRefSiblingProperties_InlineSchema_ReturnsFalse()
         => Assert.False(new OpenApiSchema { Description = "x", Deprecated = true }.HasRefSiblingProperties());
 

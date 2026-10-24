@@ -23,5 +23,5 @@ public sealed record PushNotification(
     [property: Required] string DeviceToken,
     [property: Required, ApiMaxLength(100)] string Title,
     [property: ApiMaxLength(500)] string? Body = null,
-    [property: Range(0, long.MaxValue, ErrorMessage = "The field {0} must be at least 0.")] int? Badge = null,
+    [property: Range(0, int.MaxValue, ErrorMessage = "The field {0} must be at least 0.")] int? Badge = null,
     string? Sound = null) : Notification;

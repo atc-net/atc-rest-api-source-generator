@@ -40,7 +40,7 @@ public sealed partial record Ticket(
     Level? Level = null,
     Mark? Mark = null,
     Color Color = Color.Red,
-    [property: Range(1, long.MaxValue, MinimumIsExclusive = true, ErrorMessage = "The field {0} must be greater than 1."), global::System.ComponentModel.DataAnnotations.Display(Name = "count")] int Count = 5,
+    [property: Range(1, int.MaxValue, MinimumIsExclusive = true, ErrorMessage = "The field {0} must be greater than 1."), global::System.ComponentModel.DataAnnotations.Display(Name = "count")] int Count = 5,
     [property: Range(double.MinValue, 10, MaximumIsExclusive = true, ErrorMessage = "The field {0} must be less than 10."), global::System.ComponentModel.DataAnnotations.Display(Name = "weight")] double Weight = 1.5,
     bool Active = true,
     DateOnly? Due = null,
