@@ -12,7 +12,7 @@ public sealed class ExtensibleEnumUsageAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new(
         RuleIdentifiers.SystemEnumOnExtensibleEnum,
         "System.Enum on an extensible enum",
-        "'Enum.{0}' on '{1}' compiles and throws an ArgumentException at run time: '{1}' is an extensible enum (a struct), not a C# enum. Use {1}.TryParse, {1}.KnownValues or new {1}(...).",
+        "'Enum.{0}' on '{1}' compiles and throws an ArgumentException at run time: '{1}' is an extensible enum (a struct), not a C# enum. {2}.",
         RuleIdentifiers.Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
@@ -56,8 +56,21 @@ public sealed class ExtensibleEnumUsageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.Syntax.GetLocation(), method.Name, type.Name));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.Syntax.GetLocation(), method.Name, type.Name, Advice(method.Name, type.Name)));
     }
+
+    // What to write instead. A parse leads with the IsKnown check: the struct's own TryParse accepts every value (an
+    // unlisted one too), so the one-word swap Enum.TryParse -> T.TryParse would drop a fallback for an unknown value
+    private static string Advice(
+        string methodName,
+        string typeName)
+        => methodName switch
+        {
+            "TryParse" or "Parse" => $"Keep a fallback for a value the specification does not list with IsKnown: new {typeName}(text) is {{ IsKnown: true }} value ? value : <fallback>. '{typeName}.TryParse' accepts every value, an unlisted one too",
+            "IsDefined" => $"Use new {typeName}(text).IsKnown",
+            "GetValues" or "GetValuesAsUnderlyingType" or "GetNames" or "GetName" => $"Use {typeName}.KnownValues (the listed values) or {typeName}.Names",
+            _ => $"Use the struct's own members: {typeName}.KnownValues, {typeName}.Names, IsKnown or new {typeName}(...)",
+        };
 
     private static bool IsExtensibleEnum(ITypeSymbol type)
         => type is INamedTypeSymbol { TypeKind: TypeKind.Struct } named &&

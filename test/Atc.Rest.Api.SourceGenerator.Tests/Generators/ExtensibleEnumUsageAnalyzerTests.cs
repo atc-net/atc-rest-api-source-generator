@@ -111,10 +111,15 @@ public class ExtensibleEnumUsageAnalyzerTests
             .Select(d => $"{d.Location.GetLineSpan().StartLinePosition.Line + 1}: {d.GetMessage(CultureInfo.InvariantCulture)}")
             .ToList();
         Assert.Equal(4, reported.Count);
-        Assert.Contains(reported, r => r.Contains("Enum.TryParse", StringComparison.Ordinal) && r.Contains("DeviceStatus.TryParse", StringComparison.Ordinal));
-        Assert.Contains(reported, r => r.Contains("Enum.Parse", StringComparison.Ordinal));
+
+        // A parse leads with the IsKnown check: the struct's own TryParse accepts every value, so swapping one TryParse
+        // for the other would drop a fallback for an unlisted value silently
+        Assert.Contains(reported, r => r.Contains("Enum.TryParse", StringComparison.Ordinal) &&
+                                       r.Contains("new DeviceStatus(text) is { IsKnown: true } value ? value :", StringComparison.Ordinal) &&
+                                       r.Contains("'DeviceStatus.TryParse' accepts every value", StringComparison.Ordinal));
+        Assert.Contains(reported, r => r.Contains("Enum.Parse", StringComparison.Ordinal) && r.Contains("IsKnown", StringComparison.Ordinal));
         Assert.Contains(reported, r => r.Contains("Enum.GetValues", StringComparison.Ordinal) && r.Contains("KnownValues", StringComparison.Ordinal));
-        Assert.Contains(reported, r => r.Contains("Enum.IsDefined", StringComparison.Ordinal));
+        Assert.Contains(reported, r => r.Contains("Enum.IsDefined", StringComparison.Ordinal) && r.Contains("new DeviceStatus(text).IsKnown", StringComparison.Ordinal));
         Assert.All(diagnostics.Where(d => d.Id == Generator.RuleIdentifiers.SystemEnumOnExtensibleEnum), d => Assert.Equal("Usage.cs", d.Location.GetLineSpan().Path));
     }
 }
