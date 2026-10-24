@@ -22,6 +22,47 @@ public static class SequentialStreamWriter
 {
     private static readonly byte[] LineFeed = { (byte)'\n' };
 
+    /// <summary>
+    /// How long a stream's first item is awaited before its status and headers are sent without it (one second
+    /// by default): a stream that fails before its first item within this time is a problem answer, not a 200
+    /// with a cut body; a quiet stream - one that waits for its first event - still gets its headers.
+    /// </summary>
+    public static TimeSpan FirstItemWait { get; set; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// The items, with the response started at the first: the status and headers go out with the first item,
+    /// or - when it takes longer than <see cref="FirstItemWait"/> - before it.
+    /// </summary>
+    public static async IAsyncEnumerable<T> StartAtFirstItem<T>(
+        IAsyncEnumerable<T> items,
+        HttpResponse response,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await using var enumerator = items.GetAsyncEnumerator(cancellationToken);
+        var first = enumerator.MoveNextAsync().AsTask();
+        bool hasFirst;
+        try
+        {
+            hasFirst = await first.WaitAsync(FirstItemWait, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            await response.Body.FlushAsync(cancellationToken);
+            hasFirst = await first;
+        }
+
+        if (!hasFirst)
+        {
+            yield break;
+        }
+
+        yield return enumerator.Current;
+        while (await enumerator.MoveNextAsync())
+        {
+            yield return enumerator.Current;
+        }
+    }
+
     private static readonly byte[] RecordSeparator = { 0x1E };
 
     public const string MultipartBoundary = "atc-stream-boundary";
@@ -63,18 +104,18 @@ public static class SequentialStreamWriter
         CancellationToken cancellationToken)
     {
         var typeInfo = global::Demo.Generated.GeneratedJsonOptions.TypeInfo<T>(Compact(options));
-        await stream.WriteAsync(ArrayStart, cancellationToken);
         var first = true;
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
-            if (!first)
-            {
-                await stream.WriteAsync(ArraySeparator, cancellationToken);
-            }
-
+            await stream.WriteAsync(first ? ArrayStart : ArraySeparator, cancellationToken);
             first = false;
             await JsonSerializer.SerializeAsync(stream, item, typeInfo, cancellationToken);
             await stream.FlushAsync(cancellationToken);
+        }
+
+        if (first)
+        {
+            await stream.WriteAsync(ArrayStart, cancellationToken);
         }
 
         await stream.WriteAsync(ArrayEnd, cancellationToken);
@@ -121,7 +162,8 @@ public static class SequentialStreamWriter
 }
 
 /// <summary>
-/// A stream of items as the elements of a JSON array, each written as it comes, after the status and headers.
+/// A stream of items as the elements of a JSON array, each written as it comes; the response starts at the first
+/// (see <see cref="SequentialStreamWriter.FirstItemWait"/>).
 /// Its status code is 200 and its value the items, as the framework's <c>Ok&lt;T&gt;</c> would give them.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
@@ -144,9 +186,7 @@ public sealed class JsonArrayResult<T> : IResult, IStatusCodeHttpResult, IValueH
         var options = httpContext.RequestServices
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
-        // The status and the headers go out now, not with the first item: a stream may be quiet for a long time
-        await httpContext.Response.Body.FlushAsync(httpContext.RequestAborted);
-        await SequentialStreamWriter.WriteJsonArrayAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);
+        await SequentialStreamWriter.WriteJsonArrayAsync(SequentialStreamWriter.StartAtFirstItem(items, httpContext.Response, httpContext.RequestAborted), httpContext.Response.Body, options, httpContext.RequestAborted);
     }
 }
 
@@ -175,9 +215,7 @@ public sealed class JsonLinesResult<T> : IResult
         var options = httpContext.RequestServices
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
-        // The status and the headers go out now, not with the first item: a stream may be quiet for a long time
-        await httpContext.Response.Body.FlushAsync(httpContext.RequestAborted);
-        await SequentialStreamWriter.WriteJsonLinesAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);
+        await SequentialStreamWriter.WriteJsonLinesAsync(SequentialStreamWriter.StartAtFirstItem(items, httpContext.Response, httpContext.RequestAborted), httpContext.Response.Body, options, httpContext.RequestAborted);
     }
 }
 
@@ -206,9 +244,7 @@ public sealed class JsonSequenceResult<T> : IResult
         var options = httpContext.RequestServices
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
-        // The status and the headers go out now, not with the first item: a stream may be quiet for a long time
-        await httpContext.Response.Body.FlushAsync(httpContext.RequestAborted);
-        await SequentialStreamWriter.WriteJsonSequenceAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);
+        await SequentialStreamWriter.WriteJsonSequenceAsync(SequentialStreamWriter.StartAtFirstItem(items, httpContext.Response, httpContext.RequestAborted), httpContext.Response.Body, options, httpContext.RequestAborted);
     }
 }
 
@@ -226,16 +262,15 @@ public sealed class MultipartMixedResult<T> : IResult
         var options = httpContext.RequestServices
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
-        // The status and the headers go out now, not with the first item: a stream may be quiet for a long time
-        await httpContext.Response.Body.FlushAsync(httpContext.RequestAborted);
-        await SequentialStreamWriter.WriteMultipartMixedAsync(items, httpContext.Response.Body, SequentialStreamWriter.MultipartBoundary, options, httpContext.RequestAborted);
+        await SequentialStreamWriter.WriteMultipartMixedAsync(SequentialStreamWriter.StartAtFirstItem(items, httpContext.Response, httpContext.RequestAborted), httpContext.Response.Body, SequentialStreamWriter.MultipartBoundary, options, httpContext.RequestAborted);
     }
 }
 
 /// <summary>
-/// A stream written by the framework (Server-Sent Events) that sends its status and headers before
-/// its first item, not with it: a stream may be quiet for a long time, and a client waits for the headers. Its
-/// status code and value are the framework result's, which <see cref="Result"/> is.
+/// A stream written by the framework (Server-Sent Events) that starts its response at the first item, or -
+/// when it takes longer than <see cref="SequentialStreamWriter.FirstItemWait"/> - before it: an exception before
+/// the first item is a problem answer, a quiet stream still gets its headers. Its status code and value are the
+/// framework result's, which <see cref="Result"/> is.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class StartedStreamResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
@@ -261,18 +296,5 @@ public sealed class StartedStreamResult<T> : IResult, IStatusCodeHttpResult, IVa
         => (Result as IValueHttpResult)?.Value;
 
     public Task ExecuteAsync(HttpContext httpContext)
-        => write(StartFirst(items, httpContext)).ExecuteAsync(httpContext);
-
-    private static async IAsyncEnumerable<T> StartFirst(
-        IAsyncEnumerable<T> items,
-        HttpContext httpContext,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        // The writer has set the content type and its headers when it asks for the first item: a flush sends them
-        await httpContext.Response.Body.FlushAsync(cancellationToken);
-        await foreach (var item in items.WithCancellation(cancellationToken))
-        {
-            yield return item;
-        }
-    }
+        => write(SequentialStreamWriter.StartAtFirstItem(items, httpContext.Response, httpContext.RequestAborted)).ExecuteAsync(httpContext);
 }

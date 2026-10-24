@@ -73,7 +73,7 @@ public static class StreamReadersExtractor
 
             namespace {{projectName}}.Generated.Streaming;
 
-            [GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
             internal static class StreamReaders
             {
                 /// <summary>
