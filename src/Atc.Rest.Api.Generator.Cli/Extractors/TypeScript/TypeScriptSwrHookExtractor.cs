@@ -12,7 +12,8 @@ using static Atc.Rest.Api.Generator.Cli.Extractors.TypeScript.TypeScriptHookMode
 ///   <item><description>other verbs become <c>useSWRMutation</c> hooks that revalidate the segment's queries on success;</description></item>
 ///   <item><description>paginated streams get a <c>useSWRInfinite</c> hook, every stream a <c>useXxxStream</c> hook.</description></item>
 /// </list>
-/// The ApiClient owns retry (<c>x-retry-*</c>), so the hooks default to <c>shouldRetryOnError: false</c>.
+/// A specification that declares retry (<c>x-retry-*</c>) has the ApiClient own it, so the hooks default to
+/// <c>shouldRetryOnError: false</c> there; one that declares none leaves retry to the app.
 /// </summary>
 [SuppressMessage("Design", "MA0051:Method is too long", Justification = "Code generation methods require sequential StringBuilder operations.")]
 public static class TypeScriptSwrHookExtractor
@@ -327,7 +328,7 @@ public static class TypeScriptSwrHookExtractor
         sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
         AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
         sb.AppendLine("    },");
-        AppendNoRetryConfig(sb);
+        AppendNoRetryConfig(sb, info);
         sb.AppendLine("  );");
         sb.AppendLine("}");
     }
@@ -501,15 +502,18 @@ public static class TypeScriptSwrHookExtractor
         sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(BuildInfiniteClientCallArgs(info, "token", namingStrategy)).AppendLine(");");
         AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
         sb.AppendLine("    },");
-        AppendNoRetryConfig(sb);
+        AppendNoRetryConfig(sb, info);
         sb.AppendLine("  );");
         sb.AppendLine("}");
     }
 
     /// <summary>
-    /// The ApiClient owns retry (x-retry-*); SWR's own error retry would multiply the attempts and re-send
-    /// operations marked x-retry-enabled: false. The caller's config comes last and wins.
+    /// A specification that declares retry (x-retry-*) has the ApiClient retry per operation: SWR's own error retry
+    /// would multiply the attempts and re-send operations marked x-retry-enabled: false. One that declares none leaves
+    /// retry to the app (its SWRConfig), as SWR does. The caller's config comes last and wins.
     /// </summary>
-    private static void AppendNoRetryConfig(StringBuilder sb)
-        => sb.AppendLine("    { shouldRetryOnError: false, ...config },");
+    private static void AppendNoRetryConfig(
+        StringBuilder sb,
+        HookInfo info)
+        => sb.AppendLine(info.RetryOwnedByClient ? "    { shouldRetryOnError: false, ...config }," : "    config,");
 }

@@ -34,7 +34,7 @@ export function useListResources(config?: SWRConfiguration<Resource[], ApiError>
         result.response,
       );
     },
-    { shouldRetryOnError: false, ...config },
+    config,
   );
 }
 
@@ -58,7 +58,7 @@ export function useQueryResources(body: ResourceQuery, config?: SWRConfiguration
         result.response,
       );
     },
-    { shouldRetryOnError: false, ...config },
+    config,
   );
 }
 

@@ -9,7 +9,7 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Gates;
 /// </para>
 /// <list type="bullet">
 ///   <item><description>a query whose path parameter is missing makes no request; with it, path, query and header values reach the wire;</description></item>
-///   <item><description>an error is the client's <c>ApiError</c> after exactly one request, and <c>shouldRetryOnError: true</c> turns SWR's retry back on;</description></item>
+///   <item><description>an error is the client's <c>ApiError</c> after exactly one request (the specification declares retry, so the ApiClient owns it), and <c>shouldRetryOnError: true</c> turns SWR's retry back on;</description></item>
 ///   <item><description>a mutation sends its argument as the body, and a mounted query of the segment fetches again afterwards;</description></item>
 ///   <item><description>the infinite hook of a paginated read sends the previous page's token through the operation's own continuation query parameter, keeps its other query values, and stops when there is none.</description></item>
 /// </list>
@@ -23,6 +23,7 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
         info:
           title: Pets
           version: 1.0.0
+        x-retry-policy: standard
         paths:
           /pets:
             get:

@@ -478,10 +478,21 @@ public static class TypeScriptReactQueryHookExtractor
         AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
         sb.AppendLine("    },");
 
-        // The ApiClient already retries per operation as the spec says (x-retry-*); React Query's own
-        // retry would multiply those attempts and re-send operations marked x-retry-enabled: false.
-        sb.AppendLine("    retry: false,");
+        AppendNoRetry(sb, info);
         sb.AppendLine("  }),");
+    }
+
+    // A specification that declares retry (x-retry-*) has the ApiClient retry per operation: React Query's own retry
+    // would multiply those attempts and re-send operations marked x-retry-enabled: false. One that declares none
+    // leaves retry to the app (its QueryClient defaults), as React Query does
+    private static void AppendNoRetry(
+        StringBuilder sb,
+        HookInfo info)
+    {
+        if (info.RetryOwnedByClient)
+        {
+            sb.AppendLine("    retry: false,");
+        }
     }
 
     private static void AppendInfiniteQueryOptionsEntry(
@@ -538,8 +549,7 @@ public static class TypeScriptReactQueryHookExtractor
         // would page forever)
         sb.Append("    getNextPageParam: (lastPage, _allPages, lastPageParam) => { const next = ").Append(TokenAccess("lastPage", pagination, namingStrategy)).AppendLine(" || undefined; return next !== lastPageParam ? next : undefined; },");
 
-        // The ApiClient owns retry (x-retry-*); React Query's own retry would multiply the attempts.
-        sb.AppendLine("    retry: false,");
+        AppendNoRetry(sb, info);
         sb.AppendLine("  }),");
     }
 

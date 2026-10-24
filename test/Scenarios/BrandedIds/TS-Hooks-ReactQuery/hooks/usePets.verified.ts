@@ -38,7 +38,6 @@ const petsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
 };
 

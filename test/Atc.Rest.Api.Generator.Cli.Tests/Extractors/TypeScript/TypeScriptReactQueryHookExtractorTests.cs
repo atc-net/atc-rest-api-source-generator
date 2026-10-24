@@ -220,13 +220,14 @@ public class TypeScriptReactQueryHookExtractorTests
     }
 
     [Fact]
-    public void Extract_QueryHook_LeavesRetryToTheApiClient()
+    public void Extract_QueryHook_LeavesRetryToTheApiClient_WhenTheSpecificationDeclaresRetry()
     {
         // The ApiClient retries per operation (x-retry-*); React Query's own retry would multiply the
         // attempts. retry: false comes before ...options so a caller can still turn it back on.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: T, version: 1.0.0 }
+                            x-retry-policy: standard
                             paths:
                               /pets:
                                 get:
@@ -248,6 +249,34 @@ public class TypeScriptReactQueryHookExtractorTests
         var retry = content.IndexOf("    retry: false,", StringComparison.Ordinal);
         Assert.True(retry >= 0, "expected retry: false in the query hook");
         Assert.True(retry < content.IndexOf("    ...options,", retry, StringComparison.Ordinal), "retry: false must precede ...options");
+    }
+
+    [Fact]
+    public void Extract_QueryHook_LeavesRetryToTheApp_WhenTheSpecificationDeclaresNone()
+    {
+        // Without x-retry-* the ApiClient does not retry: the app's own retry default (its QueryClient) applies
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.DoesNotContain("retry: false", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1112,7 +1141,9 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("listPaginatedInfinite: (query?: { pageSize?: number })", content, StringComparison.Ordinal);
         Assert.Contains("api.items.listPaginatedItems({ ...query, continuation: pageParam ?? undefined }, headers, signal)", content, StringComparison.Ordinal);
         Assert.Contains("getNextPageParam: (lastPage, _allPages, lastPageParam) => { const next = lastPage.continuation || undefined; return next !== lastPageParam ? next : undefined; },", content, StringComparison.Ordinal);
-        Assert.Contains("retry: false,", content, StringComparison.Ordinal);
+
+        // No x-retry-*: the app's own retry applies to the pages too
+        Assert.DoesNotContain("retry: false,", content, StringComparison.Ordinal);
     }
 
     [Fact]

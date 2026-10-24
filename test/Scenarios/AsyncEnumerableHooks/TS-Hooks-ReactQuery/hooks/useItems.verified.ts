@@ -39,7 +39,6 @@ const itemsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
   searchItems: (api: ApiService, query: { createdAfter?: Date; createdBefore: Date }) => queryOptions<Items, ApiError>({
     queryKey: itemsKeys.search(query),
@@ -58,7 +57,6 @@ const itemsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
 };
 

@@ -38,7 +38,6 @@ const resourcesQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
   queryResources: (api: ApiService, body: ResourceQuery) => queryOptions<Resource[], ApiError>({
     queryKey: resourcesKeys.query(body),
@@ -57,7 +56,6 @@ const resourcesQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
 };
 

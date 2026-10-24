@@ -560,7 +560,8 @@ internal static class TypeScriptHookModel
             Summary: operation.Summary,
             Description: operation.Description,
             Deprecated: operation.Deprecated,
-            Path: path);
+            Path: path,
+            RetryOwnedByClient: openApiDoc.HasRetryConfiguration());
     }
 
     /// <summary>
@@ -843,7 +844,8 @@ internal static class TypeScriptHookModel
         string? Description,
         bool Deprecated,
         string Path,
-        string? KeyName = null);
+        string? KeyName = null,
+        bool RetryOwnedByClient = false);
 
     /// <summary>
     /// The shape of a mutation hook: the hook-scoped parameters (path params beside a body, query,

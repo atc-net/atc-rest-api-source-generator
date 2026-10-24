@@ -38,7 +38,6 @@ const petsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
   showPetById: (api: ApiService, petId: string) => queryOptions<Pet, ApiError>({
     queryKey: petsKeys.showPetById(petId),
@@ -57,7 +56,6 @@ const petsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
 };
 

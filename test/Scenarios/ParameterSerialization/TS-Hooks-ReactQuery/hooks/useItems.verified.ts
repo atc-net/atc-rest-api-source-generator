@@ -39,7 +39,6 @@ const itemsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
   listItemsByQueryString: (api: ApiService, rawFilter?: string) => queryOptions<Item[], ApiError>({
     queryKey: itemsKeys.listItemsByQueryString(rawFilter),
@@ -58,7 +57,6 @@ const itemsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
   listItemReports: (api: ApiService, itemId: string, query: { limit: number }, headers: { 'x-region': string }) => queryOptions<string[], ApiError>({
     queryKey: itemsKeys.listItemReports(itemId, query),
@@ -77,7 +75,6 @@ const itemsQueries = {
         result.response,
       );
     },
-    retry: false,
   }),
 };
 

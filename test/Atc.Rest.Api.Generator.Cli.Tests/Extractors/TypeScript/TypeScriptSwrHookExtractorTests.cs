@@ -92,13 +92,14 @@ public class TypeScriptSwrHookExtractorTests
     }
 
     [Fact]
-    public void Extract_QueryHook_LeavesRetryToTheApiClient()
+    public void Extract_QueryHook_LeavesRetryToTheApiClient_WhenTheSpecificationDeclaresRetry()
     {
         // The ApiClient retries per operation (x-retry-*); SWR's own error retry would multiply the
         // attempts. The caller's config comes last, so it can still turn it back on.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: T, version: 1.0.0 }
+                            x-retry-policy: standard
                             paths:
                               /pets:
                                 get:
@@ -120,6 +121,35 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("import useSWR, { type SWRConfiguration } from 'swr';", content, StringComparison.Ordinal);
         Assert.Contains("export function useListPets(config?: SWRConfiguration<string[], ApiError>) {", content, StringComparison.Ordinal);
         Assert.Contains("{ shouldRetryOnError: false, ...config },", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_QueryHook_LeavesRetryToTheApp_WhenTheSpecificationDeclaresNone()
+    {
+        // Without x-retry-* the ApiClient does not retry: the app's own retry (its SWRConfig) applies
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.DoesNotContain("shouldRetryOnError", content, StringComparison.Ordinal);
+        Assert.Contains("    config,", content, StringComparison.Ordinal);
     }
 
     [Fact]
