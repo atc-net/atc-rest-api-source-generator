@@ -9,7 +9,6 @@ export type ImportPricesResult =
   | { status: 'ok'; data: PriceImportSummary; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
@@ -62,7 +61,7 @@ export class StreamsClient {
       contentType: 'application/jsonl',
       sequence: 'json-lines',
       responseType: 'json',
-      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<ImportPricesResult>;

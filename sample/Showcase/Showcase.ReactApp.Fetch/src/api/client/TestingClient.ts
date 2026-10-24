@@ -27,7 +27,6 @@ export type GetErrorResponseTestResult =
 export type PostDeclaredBadRequestTestResult =
   | { status: 'noContent'; response: Response }
   | { status: 'badRequest'; error: ValidationError<TestingProblem>; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -36,7 +35,6 @@ export type PostDeclaredBadRequestTestResult =
 export type EchoEnumWireResult =
   | { status: 'ok'; data: EnumWire; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -76,7 +74,7 @@ export class TestingClient {
   async postDeclaredBadRequestTest(body: DeclaredBadRequestTestRequest, signal?: AbortSignal): Promise<PostDeclaredBadRequestTestResult> {
     return this.api.request<void>('POST', '/testing/declared-bad-request', {
       body,
-      arms: ['noContent', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [],
       signal,
     }) as Promise<PostDeclaredBadRequestTestResult>;
@@ -87,7 +85,7 @@ export class TestingClient {
     return this.api.request<EnumWire>('POST', '/testing/enum-wire', {
       body,
       responseType: 'json',
-      arms: ['ok', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [],
       signal,
     }) as Promise<EchoEnumWireResult>;

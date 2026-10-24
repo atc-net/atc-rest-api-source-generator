@@ -18,7 +18,6 @@ export type UploadSingleObjectWithFileAsFormDataResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -28,7 +27,6 @@ export type UploadSingleObjectWithFilesAsFormDataResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -38,7 +36,6 @@ export type UploadSingleFileAsFormDataResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -48,7 +45,6 @@ export type UploadMultiFilesAsFormDataResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -84,7 +80,7 @@ export class FilesClient {
         return formData;
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
-      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadSingleObjectWithFileAsFormDataResult>;
@@ -99,7 +95,7 @@ export class FilesClient {
         return formData;
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
-      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadSingleObjectWithFilesAsFormDataResult>;
@@ -111,7 +107,7 @@ export class FilesClient {
       body: file,
       contentType: 'application/octet-stream',
       retry: { enabled: false, timeoutMs: 300000 },
-      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadSingleFileAsFormDataResult>;
@@ -128,7 +124,7 @@ export class FilesClient {
         return formData;
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
-      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadMultiFilesAsFormDataResult>;

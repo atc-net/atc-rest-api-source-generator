@@ -16,7 +16,6 @@ export type UploadDocumentResult =
   | { status: 'created'; data: Document; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -64,7 +63,6 @@ export type CopyDocumentResult =
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -96,7 +94,7 @@ export class DocumentsClient {
         fileName: query?.fileName,
       },
       responseType: 'json',
-      arms: ['created', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<UploadDocumentResult>;
@@ -140,7 +138,7 @@ export class DocumentsClient {
   /** Copy a document - answered with 303 See Other to the copy's summary */
   async copyDocument(documentId: string, signal?: AbortSignal): Promise<CopyDocumentResult> {
     return this.api.request<void>('POST', `/documents/${encodeURIComponent(documentId)}/copy`, {
-      arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       responseHeaders: {
         redirection: (header): CopyDocumentRedirectionHeaders => ({
           'Location': header.text('Location'),

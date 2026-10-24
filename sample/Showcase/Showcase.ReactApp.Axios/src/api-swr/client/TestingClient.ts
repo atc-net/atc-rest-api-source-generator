@@ -28,7 +28,6 @@ export type GetErrorResponseTestResult =
 export type PostDeclaredBadRequestTestResult =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError<TestingProblem>; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
@@ -37,7 +36,6 @@ export type PostDeclaredBadRequestTestResult =
 export type EchoEnumWireResult =
   | { status: 'ok'; data: EnumWire; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
@@ -77,7 +75,7 @@ export class TestingClient {
   async postDeclaredBadRequestTest(body: DeclaredBadRequestTestRequest, signal?: AbortSignal): Promise<PostDeclaredBadRequestTestResult> {
     return this.api.request<void>('POST', '/testing/declared-bad-request', {
       body,
-      arms: ['noContent', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [],
       signal,
     }) as Promise<PostDeclaredBadRequestTestResult>;
@@ -88,7 +86,7 @@ export class TestingClient {
     return this.api.request<EnumWire>('POST', '/testing/enum-wire', {
       body,
       responseType: 'json',
-      arms: ['ok', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       security: [],
       signal,
     }) as Promise<EchoEnumWireResult>;
