@@ -2,3 +2,8 @@
 // atc-rest-api-gen 1.0.0
 /** Color enumeration with kebab-case values */
 export type ColorType = 'primary-blue' | 'secondary-green' | 'accent-red' | 'neutral-gray' | 'warning-yellow' | (string & {});
+
+/** Whether the value is one of the ColorType values this client knows - a server may send one added since. */
+export function isKnownColorType(value: ColorType | null | undefined): value is 'primary-blue' | 'secondary-green' | 'accent-red' | 'neutral-gray' | 'warning-yellow' {
+  return value != null && (['primary-blue', 'secondary-green', 'accent-red', 'neutral-gray', 'warning-yellow'] as readonly string[]).includes(value);
+}

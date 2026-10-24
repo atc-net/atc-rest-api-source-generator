@@ -2,3 +2,8 @@
 // atc-rest-api-gen 1.0.0
 /** User's role in the system */
 export type UserRole = 'Admin' | 'Manager' | 'Employee' | 'Guest' | (string & {});
+
+/** Whether the value is one of the UserRole values this client knows - a server may send one added since. */
+export function isKnownUserRole(value: UserRole | null | undefined): value is 'Admin' | 'Manager' | 'Employee' | 'Guest' {
+  return value != null && (['Admin', 'Manager', 'Employee', 'Guest'] as readonly string[]).includes(value);
+}

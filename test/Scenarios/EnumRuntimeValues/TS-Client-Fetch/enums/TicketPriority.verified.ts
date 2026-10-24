@@ -4,3 +4,8 @@
 export type TicketPriority = 'Low' | 'Medium' | 'High' | (string & {});
 
 export const TicketPriorityValues = ['Low', 'Medium', 'High'] as const;
+
+/** Whether the value is one of the TicketPriority values this client knows - a server may send one added since. */
+export function isKnownTicketPriority(value: TicketPriority | null | undefined): value is 'Low' | 'Medium' | 'High' {
+  return value != null && (TicketPriorityValues as readonly string[]).includes(value);
+}

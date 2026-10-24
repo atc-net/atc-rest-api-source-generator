@@ -92,7 +92,7 @@ public static class TypeScriptEnumExtractor
 
         var content = generator.Generate();
 
-        if (!includeRuntimeValues)
+        if (!includeRuntimeValues && !open)
         {
             return content;
         }
@@ -102,19 +102,27 @@ public static class TypeScriptEnumExtractor
         // has no const/variable primitive (matches the StringBuilder pattern used by other
         // extractors such as TypeScriptServersExtractor / TypeScriptRetryConfigExtractor).
         var sb = new StringBuilder(content);
-        sb.AppendLine();
-        sb.Append("export const ").Append(typeName).Append("Values = [");
-        for (var i = 0; i < values.Count; i++)
+        var literals = string.Join(", ", values.Select(TypeScriptLiteralHelper.ToStringLiteral));
+        if (includeRuntimeValues)
         {
-            if (i > 0)
-            {
-                sb.Append(", ");
-            }
-
-            sb.Append(TypeScriptLiteralHelper.ToStringLiteral(values[i]));
+            sb.AppendLine();
+            sb.Append("export const ").Append(typeName).Append("Values = [").Append(literals).AppendLine("] as const;");
         }
 
-        sb.AppendLine("] as const;");
+        // Open: a guard narrows to the values this client knows, so a lookup by the value (a Record<Enum, X>, a switch)
+        // has a branch for a value a server added since - tsc says nothing about one that is missing
+        if (open)
+        {
+            var known = values.Count == 0
+                ? "never"
+                : string.Join(" | ", values.Select(TypeScriptLiteralHelper.ToStringLiteral));
+            var list = includeRuntimeValues ? typeName + "Values" : "[" + literals + "]";
+            sb.AppendLine();
+            sb.AppendLine(CultureInfo.InvariantCulture, $"/** Whether the value is one of the {typeName} values this client knows - a server may send one added since. */");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"export function isKnown{typeName}(value: {typeName} | null | undefined): value is {known} {{");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  return value != null && ({list} as readonly string[]).includes(value);");
+            sb.AppendLine("}");
+        }
 
         return sb.ToString();
     }

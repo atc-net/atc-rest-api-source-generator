@@ -2,3 +2,8 @@
 // atc-rest-api-gen 1.0.0
 /** Priority enumeration with snake_case values */
 export type PriorityType = 'very_low' | 'low' | 'medium' | 'high' | 'very_high' | 'critical' | (string & {});
+
+/** Whether the value is one of the PriorityType values this client knows - a server may send one added since. */
+export function isKnownPriorityType(value: PriorityType | null | undefined): value is 'very_low' | 'low' | 'medium' | 'high' | 'very_high' | 'critical' {
+  return value != null && (['very_low', 'low', 'medium', 'high', 'very_high', 'critical'] as readonly string[]).includes(value);
+}

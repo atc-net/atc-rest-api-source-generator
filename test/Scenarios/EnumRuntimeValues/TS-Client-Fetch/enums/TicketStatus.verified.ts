@@ -4,3 +4,8 @@
 export type TicketStatus = 'Open' | 'InProgress' | 'Resolved' | 'Closed' | (string & {});
 
 export const TicketStatusValues = ['Open', 'InProgress', 'Resolved', 'Closed'] as const;
+
+/** Whether the value is one of the TicketStatus values this client knows - a server may send one added since. */
+export function isKnownTicketStatus(value: TicketStatus | null | undefined): value is 'Open' | 'InProgress' | 'Resolved' | 'Closed' {
+  return value != null && (TicketStatusValues as readonly string[]).includes(value);
+}

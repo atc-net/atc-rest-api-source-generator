@@ -80,9 +80,11 @@ public class TypeScriptEnumExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { EnumStyle = style }));
 
-        Assert.Equal(1, CountOf(content, "'archived'"));
-        Assert.Equal(1, CountOf(content, "'active'"));
-        Assert.Equal(1, CountOf(content, "'Active'"));
+        // The declaration (an open union's guard after it lists the values again)
+        var declaration = content.Split("export function", StringSplitOptions.None)[0];
+        Assert.Equal(1, CountOf(declaration, "'archived'"));
+        Assert.Equal(1, CountOf(declaration, "'active'"));
+        Assert.Equal(1, CountOf(declaration, "'Active'"));
         Assert.DoesNotContain("Archived2", content, StringComparison.Ordinal);
     }
 
@@ -106,6 +108,33 @@ public class TypeScriptEnumExtractorTests
         var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { ExtensibleEnums = false }));
 
         Assert.Contains("export type Status = 'active' | 'inactive';", content, StringComparison.Ordinal);
+
+        // Closed: every value is known, so there is no guard
+        Assert.DoesNotContain("isKnownStatus", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_IsOpen_ExportsAGuardForTheKnownValues()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig()));
+
+        Assert.Contains("export function isKnownStatus(value: Status | null | undefined): value is 'active' | 'inactive' {", content, StringComparison.Ordinal);
+        Assert.Contains("  return value != null && (['active', 'inactive'] as readonly string[]).includes(value);", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_IsOpen_WithRuntimeValues_TheGuardReadsTheValues()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { EnumRuntimeValues = true }));
+
+        Assert.Contains("export const StatusValues = ['active', 'inactive'] as const;", content, StringComparison.Ordinal);
+        Assert.Contains("  return value != null && (StatusValues as readonly string[]).includes(value);", content, StringComparison.Ordinal);
     }
 
     [Fact]

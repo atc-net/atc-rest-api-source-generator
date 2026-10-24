@@ -2,3 +2,8 @@
 // atc-rest-api-gen 1.0.0
 /** Gender type enumeration */
 export type GenderType = 'None' | 'NonBinary' | 'Male' | 'Female' | (string & {});
+
+/** Whether the value is one of the GenderType values this client knows - a server may send one added since. */
+export function isKnownGenderType(value: GenderType | null | undefined): value is 'None' | 'NonBinary' | 'Male' | 'Female' {
+  return value != null && (['None', 'NonBinary', 'Male', 'Female'] as readonly string[]).includes(value);
+}

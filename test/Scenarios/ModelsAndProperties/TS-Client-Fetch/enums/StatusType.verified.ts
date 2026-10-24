@@ -2,3 +2,8 @@
 // atc-rest-api-gen 1.0.0
 /** Status enumeration */
 export type StatusType = 'Draft' | 'Pending' | 'Active' | 'Inactive' | 'Archived' | 'Deleted' | (string & {});
+
+/** Whether the value is one of the StatusType values this client knows - a server may send one added since. */
+export function isKnownStatusType(value: StatusType | null | undefined): value is 'Draft' | 'Pending' | 'Active' | 'Inactive' | 'Archived' | 'Deleted' {
+  return value != null && (['Draft', 'Pending', 'Active', 'Inactive', 'Archived', 'Deleted'] as readonly string[]).includes(value);
+}

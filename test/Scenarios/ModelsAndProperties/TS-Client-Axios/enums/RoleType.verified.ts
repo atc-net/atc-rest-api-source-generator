@@ -2,3 +2,8 @@
 // atc-rest-api-gen 1.0.0
 /** User role enumeration */
 export type RoleType = 'Admin' | 'Manager' | 'Editor' | 'Viewer' | 'Guest' | (string & {});
+
+/** Whether the value is one of the RoleType values this client knows - a server may send one added since. */
+export function isKnownRoleType(value: RoleType | null | undefined): value is 'Admin' | 'Manager' | 'Editor' | 'Viewer' | 'Guest' {
+  return value != null && (['Admin', 'Manager', 'Editor', 'Viewer', 'Guest'] as readonly string[]).includes(value);
+}

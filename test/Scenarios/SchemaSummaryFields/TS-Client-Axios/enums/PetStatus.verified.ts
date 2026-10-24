@@ -2,3 +2,8 @@
 // atc-rest-api-gen 1.0.0
 /** Allowed values for a pet's adoption status */
 export type PetStatus = 'available' | 'pending' | 'adopted' | (string & {});
+
+/** Whether the value is one of the PetStatus values this client knows - a server may send one added since. */
+export function isKnownPetStatus(value: PetStatus | null | undefined): value is 'available' | 'pending' | 'adopted' {
+  return value != null && (['available', 'pending', 'adopted'] as readonly string[]).includes(value);
+}
