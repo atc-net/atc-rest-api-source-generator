@@ -36,7 +36,8 @@ public static partial class OpenApiDocumentValidator
                         $"Operation '{operationId}' has {(queryStrings > 1 ? "more than one 'in: querystring' parameter" : "an 'in: querystring' parameter next to 'in: query' parameters")}; the querystring parameter is the whole query string (OpenAPI 3.2).",
                         DiagnosticSeverity.Error,
                         sourceFilePath,
-                        Suggestions: ["Keep one 'in: querystring' parameter and move the query parameters into its content, or use 'in: query' parameters only"]));
+                        Suggestions: ["Keep one 'in: querystring' parameter and move the query parameters into its content, or use 'in: query' parameters only"],
+                        Scope: SpecSuppressions.Operation(operation.Key.Method, path.Key)));
                 }
             }
         }
@@ -60,6 +61,7 @@ public static partial class OpenApiDocumentValidator
             foreach (var operation in path.Value?.Operations ?? [])
             {
                 var operationId = operation.Value?.OperationId ?? $"{operation.Key.Method} {path.Key}";
+                var scope = SpecSuppressions.Operation(operation.Key.Method, path.Key);
                 var resolved = (path.Value!.Parameters ?? [])
                     .Concat(operation.Value?.Parameters ?? [])
                     .Select(parameter => parameter.Resolve().Parameter)
@@ -79,7 +81,8 @@ public static partial class OpenApiDocumentValidator
                             $"Property '{property.WireName}' of the query object '{queryObject.ParameterName}' of operation '{operationId}' is sent by its own name ('form', 'explode'), which another query parameter of the operation has; both would be one key.",
                             DiagnosticSeverity.Error,
                             sourceFilePath,
-                            Suggestions: ["Send the object as 'style: deepObject' (its keys are 'paging[limit]'), or rename the parameter or the property"]));
+                            Suggestions: ["Send the object as 'style: deepObject' (its keys are 'paging[limit]'), or rename the parameter or the property"],
+                            Scope: scope));
                     }
                 }
 
@@ -93,7 +96,8 @@ public static partial class OpenApiDocumentValidator
                             $"Parameter '{p.Name}' ({p.In?.ToString().ToLowerInvariant()}) of operation '{operationId}' is a value the generated code cannot bind or send (a nested object or an array in an object, an object outside the query or in 'form' without 'explode', an inline object, or a 'oneOf'/'anyOf'/'allOf' without a type){(inPath ? "." : "; a client leaves it out, a server cannot be generated.")}",
                             inPath ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
                             sourceFilePath,
-                            Suggestions: ["Send the object as 'style: deepObject' or 'form' with 'explode: true' with one value per property, declare its properties as parameters of their own, send it in a request body, or give the parameter a 'content' map"]));
+                            Suggestions: ["Send the object as 'style: deepObject' or 'form' with 'explode: true' with one value per property, declare its properties as parameters of their own, send it in a request body, or give the parameter a 'content' map"],
+                            Scope: scope));
                     }
                 }
 
@@ -107,13 +111,15 @@ public static partial class OpenApiDocumentValidator
                             $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition, which has no URL-encoded form; the generated clients leave it out, a server cannot be generated.",
                             DiagnosticSeverity.Warning,
                             sourceFilePath,
-                            Suggestions: ["Declare the field as a scalar, a list of scalars or a file, declare the body as multipart/form-data (the field is then an application/json part), or declare the body as application/json"])
+                            Suggestions: ["Declare the field as a scalar, a list of scalars or a file, declare the body as multipart/form-data (the field is then an application/json part), or declare the body as application/json"],
+                            Scope: scope)
                         : new DiagnosticMessage(
                             RuleIdentifiers.ParameterValueNotBindable,
                             $"Operation '{operationId}' request body ({field.MediaType}) field '{field.Name}' is an object, a map or a composition whose encoding names '{field.EncodingContentType}', which does not carry it (an application/json part carries any such field, an XML part a model, a URL-encoded part a model whose properties are each one value); the generated clients leave it out, a server cannot be generated.",
                             DiagnosticSeverity.Warning,
                             sourceFilePath,
-                            Suggestions: ["Leave out the field's encoding contentType, or set it to application/json - or to application/xml for a model, or application/x-www-form-urlencoded for a model whose properties are each one value"]));
+                            Suggestions: ["Leave out the field's encoding contentType, or set it to application/json - or to application/xml for a model, or application/x-www-form-urlencoded for a model whose properties are each one value"],
+                            Scope: scope));
                 }
             }
         }
@@ -210,7 +216,7 @@ public static partial class OpenApiDocumentValidator
                     pathKey,
                     syntheticClassName,
                     suggestedId,
-                    sourceFilePath));
+                    sourceFilePath) with { Scope = SpecSuppressions.Operation(httpMethodUpper, pathKey) });
             }
         }
 
@@ -244,9 +250,7 @@ public static partial class OpenApiDocumentValidator
         string sourceFilePath)
     {
         var diagnostics = new List<DiagnosticMessage>();
-        var pathItems = (document.Paths ?? []).Select(p => (p.Key, p.Value))
-            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, w.Value)));
-        foreach (var (pathKey, pathItem) in pathItems)
+        foreach (var (pathKey, pathItem, isWebhook) in PathItemsAndWebhooks(document))
         {
             foreach (var operationEntry in pathItem?.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
             {
@@ -266,7 +270,8 @@ public static partial class OpenApiDocumentValidator
                         RuleIdentifiers.ResponseStatusRange,
                         $"Operation '{operationId}' declares the status range '{key}', which names no status a server could answer or a client could read with: {outcome}. Declare each status the operation returns.",
                         DiagnosticSeverity.Warning,
-                        sourceFilePath));
+                        sourceFilePath,
+                        Scope: isWebhook ? null : SpecSuppressions.Operation(operationEntry.Key.Method, pathKey)));
                 }
             }
         }
@@ -283,9 +288,7 @@ public static partial class OpenApiDocumentValidator
         string sourceFilePath)
     {
         var diagnostics = new List<DiagnosticMessage>();
-        var pathItems = (document.Paths ?? []).Select(p => (p.Key, p.Value))
-            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, w.Value)));
-        foreach (var (pathKey, pathItem) in pathItems)
+        foreach (var (pathKey, pathItem, isWebhook) in PathItemsAndWebhooks(document))
         {
             foreach (var operationEntry in pathItem?.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
             {
@@ -300,12 +303,22 @@ public static partial class OpenApiDocumentValidator
                     RuleIdentifiers.HeadResponseContentIgnored,
                     $"Operation '{operationId}' is a HEAD and declares content for {string.Join(", ", statuses)}. A HEAD answer has no body, so the content is not generated: the clients return no value for it and the server's result takes none. Remove the content from the HEAD's responses (its headers are kept).",
                     DiagnosticSeverity.Warning,
-                    sourceFilePath));
+                    sourceFilePath,
+                    Scope: isWebhook ? null : SpecSuppressions.Operation(operationEntry.Key.Method, pathKey)));
             }
         }
 
         return diagnostics;
     }
+
+    /// <summary>
+    /// The path items and then the webhooks of a document. A rule that finds something at an operation of a path item
+    /// reports it there (its scope, for <c>x-atc-suppress</c> and the line); a webhook's operation has no such place.
+    /// </summary>
+    private static IEnumerable<(string Key, IOpenApiPathItem? Item, bool IsWebhook)> PathItemsAndWebhooks(
+        OpenApiDocument document)
+        => (document.Paths ?? []).Select(p => (p.Key, (IOpenApiPathItem?)p.Value, false))
+            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, (IOpenApiPathItem?)w.Value, true)));
 
     /// <summary>
     /// Validates operations (ATC_API_OPR001-018).
@@ -1310,7 +1323,7 @@ public static partial class OpenApiDocumentValidator
         {
             foreach (var parameter in path.Value?.Parameters ?? [])
             {
-                Check(parameter, $"path '{path.Key}'", path.Key);
+                Check(parameter, $"path '{path.Key}'", path.Key, SpecSuppressions.Path(path.Key));
             }
 
             foreach (var operation in path.Value?.Operations ?? [])
@@ -1318,7 +1331,7 @@ public static partial class OpenApiDocumentValidator
                 var name = operation.Value?.OperationId ?? $"{operation.Key.Method.ToUpperInvariant()} {path.Key}";
                 foreach (var parameter in operation.Value?.Parameters ?? [])
                 {
-                    Check(parameter, $"operation '{name}'", name);
+                    Check(parameter, $"operation '{name}'", name, SpecSuppressions.Operation(operation.Key.Method, path.Key));
                 }
             }
         }
@@ -1328,7 +1341,8 @@ public static partial class OpenApiDocumentValidator
         void Check(
             IOpenApiParameter? parameter,
             string owner,
-            string context)
+            string context,
+            string scope)
         {
             if (parameter is OpenApiParameterReference { Target: null } || parameter is null)
             {
@@ -1343,7 +1357,8 @@ public static partial class OpenApiDocumentValidator
                     DiagnosticSeverity.Error,
                     sourceFilePath,
                     Context: context,
-                    Suggestions: ["Give the parameter a schema (schema: { type: string })", "Or describe it with a content map when it is serialized as JSON"]));
+                    Suggestions: ["Give the parameter a schema (schema: { type: string })", "Or describe it with a content map when it is serialized as JSON"],
+                    Scope: scope));
             }
         }
     }

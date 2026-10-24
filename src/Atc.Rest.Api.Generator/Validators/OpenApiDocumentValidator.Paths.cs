@@ -167,7 +167,8 @@ public static partial class OpenApiDocumentValidator
                 LineNumber: null,
                 ColumnNumber: null,
                 Context: pathKey,
-                Suggestions: problem.Suggestions)));
+                Suggestions: problem.Suggestions,
+                Scope: SpecSuppressions.Path(pathKey))));
             if (problems.Any(problem => problem.EndsChecks))
             {
                 continue;
@@ -193,7 +194,8 @@ public static partial class OpenApiDocumentValidator
                         RuleIdentifiers.OperationMissingPathParameter,
                         $"Operation '{operationId}' in path '{pathKey}' does not define a parameter named '{placeholder}'.",
                         DiagnosticSeverity.Error,
-                        sourceFilePath));
+                        sourceFilePath,
+                        Scope: SpecSuppressions.Operation(operationEntry.Key.Method, pathKey)));
                 }
             }
         }

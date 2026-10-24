@@ -35,7 +35,7 @@ public static class MediaTypeNormalizer
             document.Metadata[DroppedKey] = dropped.ToList();
         }
 
-        foreach (var (_, content) in ContentOf(document))
+        foreach (var (_, content, _) in ContentOf(document))
         {
             Rewrite(content);
         }
@@ -48,8 +48,11 @@ public static class MediaTypeNormalizer
     /// schema - what the rewrite drops, or has dropped, while saying something the kept declaration does not.
     /// </summary>
     /// <param name="document">The parsed document, before or after the rewrite.</param>
-    /// <returns>Where (<c>the 200 response of operation 'getPet'</c>), the media type kept and the one dropped, both as declared.</returns>
-    public static IReadOnlyList<(string Where, string Kept, string Dropped)> DroppedDeclarations(
+    /// <returns>
+    /// Where (<c>the 200 response of operation 'getPet'</c>), the media type kept and the one dropped, both as declared,
+    /// and the operation it is at (a <see cref="Validators.SpecSuppressions"/> scope; null for a webhook or a component).
+    /// </returns>
+    public static IReadOnlyList<(string Where, string Kept, string Dropped, string? Scope)> DroppedDeclarations(
         OpenApiDocument document)
     {
         if (document is null)
@@ -57,10 +60,10 @@ public static class MediaTypeNormalizer
             throw new ArgumentNullException(nameof(document));
         }
 
-        var dropped = document.Metadata is { } metadata && metadata.TryGetValue(DroppedKey, out var recorded) && recorded is List<(string Where, string Kept, string Dropped)> earlier
+        var dropped = document.Metadata is { } metadata && metadata.TryGetValue(DroppedKey, out var recorded) && recorded is List<(string Where, string Kept, string Dropped, string? Scope)> earlier
             ? earlier.ToList()
             : [];
-        foreach (var (where, content) in ContentOf(document))
+        foreach (var (where, content, scope) in ContentOf(document))
         {
             var first = new Dictionary<string, KeyValuePair<string, IOpenApiMediaType>>(StringComparer.Ordinal);
             foreach (var entry in content.Where(e => e.Value is not null))
@@ -72,7 +75,7 @@ public static class MediaTypeNormalizer
                 }
                 else if (!IsSameSchema(kept.Value.Schema, entry.Value.Schema))
                 {
-                    dropped.Add((where, kept.Key, entry.Key));
+                    dropped.Add((where, kept.Key, entry.Key, scope));
                 }
             }
         }
@@ -135,27 +138,28 @@ public static class MediaTypeNormalizer
     }
 
     // Every content map of the document that is its owner's (a reference's is its component's), with what it belongs to
-    private static IEnumerable<(string Where, IDictionary<string, IOpenApiMediaType> Content)> ContentOf(
+    private static IEnumerable<(string Where, IDictionary<string, IOpenApiMediaType> Content, string? Scope)> ContentOf(
         OpenApiDocument document)
     {
-        var pathItems = (document.Paths ?? []).Select(p => (p.Key, p.Value))
-            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, w.Value)));
-        foreach (var (pathKey, pathItem) in pathItems)
+        var pathItems = (document.Paths ?? []).Select(p => (p.Key, p.Value, IsWebhook: false))
+            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, w.Value, IsWebhook: true)));
+        foreach (var (pathKey, pathItem, isWebhook) in pathItems)
         {
             foreach (var entry in pathItem?.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
             {
                 var operation = entry.Value;
                 var operationId = operation?.OperationId ?? $"{entry.Key.ToString().ToUpperInvariant()} {pathKey}";
+                var scope = isWebhook ? null : Validators.SpecSuppressions.Operation(entry.Key.Method, pathKey);
                 if (operation?.RequestBody is OpenApiRequestBody { Content: { Count: > 0 } bodyContent })
                 {
-                    yield return ($"the request body of operation '{operationId}'", bodyContent);
+                    yield return ($"the request body of operation '{operationId}'", bodyContent, scope);
                 }
 
                 foreach (var response in operation?.Responses ?? [])
                 {
                     if (response.Value is OpenApiResponse { Content: { Count: > 0 } responseContent })
                     {
-                        yield return ($"the {response.Key} response of operation '{operationId}'", responseContent);
+                        yield return ($"the {response.Key} response of operation '{operationId}'", responseContent, scope);
                     }
                 }
             }
@@ -165,7 +169,7 @@ public static class MediaTypeNormalizer
         {
             if (requestBody.Value is OpenApiRequestBody { Content: { Count: > 0 } content })
             {
-                yield return ($"the request body '{requestBody.Key}' (components)", content);
+                yield return ($"the request body '{requestBody.Key}' (components)", content, null);
             }
         }
 
@@ -173,7 +177,7 @@ public static class MediaTypeNormalizer
         {
             if (response.Value is OpenApiResponse { Content: { Count: > 0 } content })
             {
-                yield return ($"the response '{response.Key}' (components)", content);
+                yield return ($"the response '{response.Key}' (components)", content, null);
             }
         }
     }

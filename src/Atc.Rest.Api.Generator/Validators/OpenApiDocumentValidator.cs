@@ -79,7 +79,8 @@ public static partial class OpenApiDocumentValidator
             RuleIdentifiers.MediaTypeDeclaredTwice,
             $"{char.ToUpperInvariant(dropped.Where[0])}{dropped.Where.Substring(1)} declares the media type '{dropped.Dropped}', which is the same media type as '{dropped.Kept}' declared before it, with another schema: '{dropped.Kept}' is generated, '{dropped.Dropped}' is not. Declare the media type once.",
             DiagnosticSeverity.Warning,
-            sourceFilePath)));
+            sourceFilePath,
+            Scope: dropped.Scope)));
 
         // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it), and a parameter
         // whose value it cannot bind or send at all
@@ -88,7 +89,7 @@ public static partial class OpenApiDocumentValidator
 
         if (strategy == ValidateSpecificationStrategy.None)
         {
-            return SpecSuppressions.Apply(document, diagnostics); // Skip all validation
+            return Located(SpecSuppressions.Apply(document, diagnostics), sourceFilePath, sourceText); // Skip all validation
         }
 
         // Standard validation: Report Microsoft.OpenApi parsing errors + schema reference validation
@@ -119,14 +120,24 @@ public static partial class OpenApiDocumentValidator
             SpecVersionMigrationValidator.Validate(diagnostics, sourceFilePath, document, sourceText);
         }
 
-        // A diagnostic found at an operation, a path or a schema is put on its line (Microsoft.OpenApi keeps none)
-        var result = SpecSuppressions.Apply(document, diagnostics);
+        return Located(SpecSuppressions.Apply(document, diagnostics), sourceFilePath, sourceText);
+    }
+
+    /// <summary>
+    /// Puts a diagnostic found at an operation, a path or a schema on its line (Microsoft.OpenApi keeps none) - under
+    /// every strategy.
+    /// </summary>
+    private static List<DiagnosticMessage> Located(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        string? sourceText)
+    {
         if (!string.IsNullOrEmpty(sourceText))
         {
-            SpecLocations.Apply(result, [(sourceFilePath, sourceText!)]);
+            SpecLocations.Apply(diagnostics, [(sourceFilePath, sourceText!)]);
         }
 
-        return result;
+        return diagnostics;
     }
 
     /// <summary>

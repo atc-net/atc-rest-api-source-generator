@@ -61,8 +61,8 @@ public class MediaTypeNormalizerTests
 
         Assert.Equal(
             [
-                ("the request body of operation 'createPet'", "application/json", "Application/JSON; charset=utf-8"),
-                ("the response 'BadRequest' (components)", "application/json", "*/*"),
+                ("the request body of operation 'createPet'", "application/json", "Application/JSON; charset=utf-8", "operation:POST /pets"),
+                ("the response 'BadRequest' (components)", "application/json", "*/*", (string?)null),
             ],
             before);
         Assert.Equal(before, after);

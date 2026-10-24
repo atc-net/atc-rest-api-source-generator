@@ -110,10 +110,7 @@ public static partial class OpenApiDocumentValidator
         string sourceFilePath,
         OpenApiDocument document)
     {
-        var pathItems = (document.Paths ?? new OpenApiPaths())
-            .Select(p => (Name: p.Key, Item: p.Value))
-            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (Name: w.Key, Item: w.Value)));
-        foreach (var (name, pathItem) in pathItems)
+        foreach (var (name, pathItem, isWebhook) in PathItemsAndWebhooks(document))
         {
             if (pathItem?.Operations is null)
             {
@@ -129,6 +126,7 @@ public static partial class OpenApiDocumentValidator
                 }
 
                 var location = $"{operationEntry.Key.ToString().ToUpperInvariant()} {name}";
+                var scope = isWebhook ? null : SpecSuppressions.Operation(operationEntry.Key.Method, name);
                 foreach (var entry in content)
                 {
                     var framing = StreamingMediaType.Classify(entry.Key);
@@ -141,7 +139,8 @@ public static partial class OpenApiDocumentValidator
                             Message: $"The request body of {location} is '{entry.Key}' without the schema of its records: the records cannot be typed, so the body would be dropped. " +
                                      "Declare a 'schema' (one record, or an array of them) or an OpenAPI 3.2 'itemSchema'.",
                             Severity: DiagnosticSeverity.Error,
-                            FilePath: sourceFilePath));
+                            FilePath: sourceFilePath,
+                            Scope: scope));
                     }
                 }
 
@@ -153,7 +152,8 @@ public static partial class OpenApiDocumentValidator
                         Message: $"The request body of {location} is only '{string.Join("', '", content.Keys)}': no generated client sends it and the server does not read it, so it would be dropped. " +
                                  "Send a stream of records as JSON Lines ('application/jsonl') or a JSON Text Sequence ('application/json-seq').",
                         Severity: DiagnosticSeverity.Error,
-                        FilePath: sourceFilePath));
+                        FilePath: sourceFilePath,
+                        Scope: scope));
                 }
             }
         }
@@ -211,7 +211,8 @@ public static partial class OpenApiDocumentValidator
                             Message: $"Media type '{mediaTypeKey}' on operation '{operation.OperationId}' declares 'prefixEncoding' " +
                                      "which is not yet supported by the generator. The field will be ignored.",
                             Severity: DiagnosticSeverity.Info,
-                            FilePath: sourceFilePath));
+                            FilePath: sourceFilePath,
+                            Scope: SpecSuppressions.Operation(operationEntry.Key.Method, pathEntry.Key)));
                     }
                 }
             }
