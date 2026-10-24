@@ -197,6 +197,9 @@ public class CasingHelperTests
     [InlineData("list-pets", "listPets")] // kebab-case to camelCase
     [InlineData("list_pets", "listPets")] // snake_case to camelCase
     [InlineData("LIST_PETS", "listPets")] // UPPER_SNAKE_CASE to camelCase
+    [InlineData("gridOperatorID_SchemeAgencyIdentifier", "gridOperatorIDSchemeAgencyIdentifier")] // a word's own casing is kept
+    [InlineData("period.timeInterval", "periodTimeInterval")] // a dot separates words too
+    [InlineData("Order_Line-ID", "orderLineId")] // a word in capitals only is lowercased
     [InlineData("", "")]
     [InlineData(null, null)]
     public void SuggestCamelCase_ReturnsExpectedResult(

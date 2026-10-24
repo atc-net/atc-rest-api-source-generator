@@ -253,36 +253,18 @@ public static class CasingHelper
             return char.ToLowerInvariant(operationId[0]) + operationId.Substring(1);
         }
 
-        // If it contains separators, convert to camelCase
-        // Lowercase all characters within each word segment, then capitalize first char of subsequent words
+        // Words split at a separator (-, _, a space, a dot): each keeps its own casing (gridOperatorID stays as it is,
+        // camelCase allows it) - a word in capitals only (LIST_PETS) is lowercased -, the first starts lowercase and the
+        // others uppercase
         var result = new StringBuilder();
-        var capitalizeNext = false;
-        var isFirstChar = true;
-
-        for (var i = 0; i < operationId.Length; i++)
+        var words = operationId.Split(['-', '_', ' ', '.'], StringSplitOptions.RemoveEmptyEntries);
+        foreach (var word in words)
         {
-            var c = operationId[i];
-
-            if (c is '-' or '_' or ' ')
-            {
-                capitalizeNext = true;
-                continue;
-            }
-
-            if (isFirstChar)
-            {
-                result.Append(char.ToLowerInvariant(c));
-                isFirstChar = false;
-            }
-            else if (capitalizeNext)
-            {
-                result.Append(char.ToUpperInvariant(c));
-                capitalizeNext = false;
-            }
-            else
-            {
-                result.Append(char.ToLowerInvariant(c));
-            }
+            var text = word.Any(char.IsLetter) && word.Where(char.IsLetter).All(char.IsUpper)
+                ? word.ToLowerInvariant()
+                : word;
+            result.Append(result.Length == 0 ? char.ToLowerInvariant(text[0]) : char.ToUpperInvariant(text[0]));
+            result.Append(text, 1, text.Length - 1);
         }
 
         return result.ToString();
