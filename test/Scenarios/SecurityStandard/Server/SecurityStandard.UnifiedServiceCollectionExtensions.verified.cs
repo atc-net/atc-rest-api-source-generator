@@ -33,9 +33,10 @@ public static class UnifiedServiceCollectionExtensions
     /// - RFC 9457 ProblemDetails (AddProblemDetails), unless turned off
     /// - Security policies (auto-detected)
     /// 
-    /// Note: You also need to register handlers and validators from your Domain project:
-    /// - services.AddApiHandlersFromDomain() - Handler implementations
-    /// - services.AddApiValidatorsFromDomain() - FluentValidation validators
+    /// Note: this registers no handler. Register the handlers - and the validators - next to it, with the methods
+    /// the handler project generates (named after it, e.g. Contoso.Api.Domain):
+    /// - services.AddApiHandlersFrom{HandlerProject}() - Handler implementations
+    /// - services.AddApiValidatorsFrom{HandlerProject}() - FluentValidation validators (generated when it has one)
     /// </remarks>
     public static IServiceCollection AddSecurityStandardApi(
         this IServiceCollection services,

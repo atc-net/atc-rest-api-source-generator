@@ -25,11 +25,13 @@ public static class UnifiedWebApplicationExtensions
     /// <param name="configure">Optional configuration for API middleware options.</param>
     /// <returns>The WebApplication for method chaining.</returns>
     /// <remarks>
-    /// This method configures:
+    /// This method adds, in this order:
+    /// - Global error handling middleware (first: it turns what anything after it throws into a ProblemDetails)
     /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
     /// - Authentication and authorization middleware (auto-detected)
-    /// - Global error handling middleware
     /// - All API endpoints
+    /// A host that orders its own pipeline (HostOwnsPipeline = true) keeps its own error handler, status code pages
+    /// and authentication: this method then adds only the rest.
     /// </remarks>
     public static WebApplication MapSecurityBearerOnlyApi(
         this WebApplication app,

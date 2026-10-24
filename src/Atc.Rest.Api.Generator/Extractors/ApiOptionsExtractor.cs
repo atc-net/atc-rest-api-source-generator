@@ -109,8 +109,8 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"/// Options for configuring {projectName} API services.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine("/// <remarks>");
-        builder.AppendLine("/// Note: Handler registration (AddApiHandlersFromDomain) and validation");
-        builder.AppendLine("/// (AddApiValidatorsFromDomain) must be registered separately from your Domain project.");
+        builder.AppendLine("/// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},");
+        builder.AppendLine("/// generated when the handler project has one) are registered next to these, from the handler project.");
         builder.AppendLine("/// </remarks>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         builder.AppendLine("public class ApiServiceOptions");

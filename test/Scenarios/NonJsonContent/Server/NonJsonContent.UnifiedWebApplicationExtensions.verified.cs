@@ -24,10 +24,12 @@ public static class UnifiedWebApplicationExtensions
     /// <param name="configure">Optional configuration for API middleware options.</param>
     /// <returns>The WebApplication for method chaining.</returns>
     /// <remarks>
-    /// This method configures:
-    /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
+    /// This method adds, in this order:
     /// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)
+    /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
     /// - All API endpoints
+    /// A host that orders its own pipeline (HostOwnsPipeline = true) keeps its own error handler, status code pages
+    /// and authentication: this method then adds only the rest.
     /// </remarks>
     public static WebApplication MapNonJsonContentApi(
         this WebApplication app,

@@ -12,8 +12,8 @@ namespace ComponentsReuse.Generated;
 /// Options for configuring ComponentsReuse API services.
 /// </summary>
 /// <remarks>
-/// Note: Handler registration (AddApiHandlersFromDomain) and validation
-/// (AddApiValidatorsFromDomain) must be registered separately from your Domain project.
+/// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},
+/// generated when the handler project has one) are registered next to these, from the handler project.
 /// </remarks>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public class ApiServiceOptions

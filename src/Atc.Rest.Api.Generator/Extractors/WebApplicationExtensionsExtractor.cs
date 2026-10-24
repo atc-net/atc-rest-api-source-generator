@@ -90,18 +90,19 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, "/// <param name=\"app\">The WebApplication to configure.</param>");
         builder.AppendLine(4, "/// <param name=\"configure\">Optional configuration for API middleware options.</param>");
         builder.AppendLine(4, "/// <returns>The WebApplication for method chaining.</returns>");
+
+        // The middleware in the order this method adds it
         builder.AppendLine(4, "/// <remarks>");
-        builder.AppendLine(4, "/// This method configures:");
+        builder.AppendLine(4, "/// This method adds, in this order:");
+        builder.AppendLine(4, useGlobalErrorHandler
+            ? "/// - Global error handling middleware (first: it turns what anything after it throws into a ProblemDetails)"
+            : "/// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)");
         builder.AppendLine(4, "/// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)");
-
-        if (features.HasRateLimiting)
+        var rateLimiter = features.HasRateLimiting ? "/// - Rate limiter middleware (auto-detected)" : null;
+        var authentication = features.RequiresAuthentication ? "/// - Authentication and authorization middleware (auto-detected)" : null;
+        foreach (var line in (features.LimiterNeedsUser ? new[] { authentication, rateLimiter } : new[] { rateLimiter, authentication }).OfType<string>())
         {
-            builder.AppendLine(4, "/// - Rate limiter middleware (auto-detected)");
-        }
-
-        if (features.RequiresAuthentication)
-        {
-            builder.AppendLine(4, "/// - Authentication and authorization middleware (auto-detected)");
+            builder.AppendLine(4, line);
         }
 
         if (features.HasOutputCaching)
@@ -109,10 +110,9 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine(4, "/// - Output cache middleware (auto-detected, after authentication)");
         }
 
-        builder.AppendLine(4, useGlobalErrorHandler
-            ? "/// - Global error handling middleware"
-            : "/// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)");
         builder.AppendLine(4, "/// - All API endpoints");
+        builder.AppendLine(4, "/// A host that orders its own pipeline (HostOwnsPipeline = true) keeps its own error handler, status code pages");
+        builder.AppendLine(4, "/// and authentication: this method then adds only the rest.");
         builder.AppendLine(4, "/// </remarks>");
         builder.AppendLine(4, $"public static WebApplication Map{apiName}Api(");
         builder.AppendLine(8, "this WebApplication app,");

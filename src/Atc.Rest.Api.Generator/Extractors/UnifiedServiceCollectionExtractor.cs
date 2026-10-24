@@ -159,12 +159,13 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         builder.AppendLine(4, "/// ");
-        builder.AppendLine(4, "/// Note: You also need to register handlers and validators from your Domain project:");
-        builder.AppendLine(4, "/// - services.AddApiHandlersFromDomain() - Handler implementations");
+        builder.AppendLine(4, "/// Note: this registers no handler. Register the handlers - and the validators - next to it, with the methods");
+        builder.AppendLine(4, "/// the handler project generates (named after it, e.g. Contoso.Api.Domain):");
+        builder.AppendLine(4, "/// - services.AddApiHandlersFrom{HandlerProject}() - Handler implementations");
 
         if (features.HasValidation)
         {
-            builder.AppendLine(4, "/// - services.AddApiValidatorsFromDomain() - FluentValidation validators");
+            builder.AppendLine(4, "/// - services.AddApiValidatorsFrom{HandlerProject}() - FluentValidation validators (generated when it has one)");
         }
 
         builder.AppendLine(4, "/// </remarks>");
