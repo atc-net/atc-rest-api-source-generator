@@ -679,7 +679,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             clientMethodCount,
             endpointCount,
             warnings,
-            errors);
+            errors,
+            handlersNoun: "client methods");
     }
 
     // The converter both client modes put first in their JSON options, when there is an enum to write - written last,

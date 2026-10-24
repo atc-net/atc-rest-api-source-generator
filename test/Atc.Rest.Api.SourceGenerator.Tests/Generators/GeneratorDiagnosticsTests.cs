@@ -365,6 +365,19 @@ public class GeneratorDiagnosticsTests
         Assert.DoesNotContain(diagnostics, d => d.Id == "ATC_API_SRV002");
     }
 
+    /// <summary>
+    /// A client's summary counts its client methods: a client has no handlers.
+    /// </summary>
+    [Fact]
+    public void Client_GenerationSummary_CountsClientMethods()
+    {
+        var diagnostics = RunDiagnostics(new ApiClientGenerator(), [Spec(Yaml), Marker(".atc-rest-api-client", """{ "generationMode": "TypedClient" }""")], Full());
+
+        var summary = Assert.Single(diagnostics, d => d.Id == Generator.RuleIdentifiers.GenerationSummary).GetMessage(CultureInfo.InvariantCulture);
+        Assert.Contains(" client methods, ", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("handlers", summary, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Domain_InjectLoggerWithoutLoggingAbstractions_ReportsDEP008()
     {

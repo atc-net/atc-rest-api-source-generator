@@ -470,10 +470,11 @@ internal static class DiagnosticHelpers
     /// <param name="specName">Name of the OpenAPI specification file.</param>
     /// <param name="generatorType">The type of generator ("Server" or "Client").</param>
     /// <param name="models">Number of models generated.</param>
-    /// <param name="handlers">Number of handlers generated.</param>
+    /// <param name="handlers">Number of handlers (a server) or client methods (a client) generated.</param>
     /// <param name="endpoints">Number of endpoints generated.</param>
     /// <param name="warnings">Number of validation warnings.</param>
     /// <param name="errors">Number of validation errors.</param>
+    /// <param name="handlersNoun">What <paramref name="handlers"/> counts: handlers, or client methods.</param>
     public static void ReportGenerationSummary(
         SourceProductionContext context,
         string specName,
@@ -482,9 +483,10 @@ internal static class DiagnosticHelpers
         int handlers,
         int endpoints,
         int warnings,
-        int errors)
+        int errors,
+        string handlersNoun = "handlers")
     {
-        var message = $"[{generatorType}] Generated from {specName}: {models} models, {handlers} handlers, {endpoints} endpoints. Validation: {errors} errors, {warnings} warnings.";
+        var message = $"[{generatorType}] Generated from {specName}: {models} models, {handlers} {handlersNoun}, {endpoints} endpoints. Validation: {errors} errors, {warnings} warnings.";
         context.ReportDiagnostic(Diagnostic.Create(
             GenerationSummary,
             Location.None,
