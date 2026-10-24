@@ -56,7 +56,7 @@ public static partial class OpenApiDocumentValidator
                 diagnostics.Add(new DiagnosticMessage(
                     RuleIdentifiers.SchemaWithoutRequiredProperties,
                     $"Schema '{schemaName}' has properties but no 'required' list, so every property is optional and " +
-                    "generated nullable (with a '= null' default). List the properties the API always sends in 'required'. " +
+                    "generated nullable (with a '= null' default). List in 'required' the properties that are always there: what the API always sends (a response), what it always needs (a request). " +
                     $"Location: #/components/schemas/{schemaName}",
                     DiagnosticSeverity.Info,
                     sourceFilePath));

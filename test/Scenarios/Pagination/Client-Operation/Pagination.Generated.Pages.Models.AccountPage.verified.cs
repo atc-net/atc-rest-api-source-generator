@@ -12,5 +12,5 @@ namespace Pagination.Generated.Pages.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record AccountPage(
-    string? Continuation,
-    List<Account> Results) : PaginatedResult<Account>(Continuation, Results);
+    string? Continuation = null,
+    List<Account>? Results = null) : PaginatedResult<Account>(Continuation, Results);

@@ -13,5 +13,5 @@ namespace Pagination.Generated.Reports.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PagedResult<T>(
-    int? PageNumber,
-    List<T> Content);
+    int? PageNumber = null,
+    List<T>? Content = null);

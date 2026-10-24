@@ -1125,8 +1125,10 @@ public class SchemaExtractorTests
         Assert.NotNull(accountPage.Parameters);
         Assert.Equal(["Continuation", "Results", "Total"], accountPage.Parameters.Select(p => p.Name), StringComparer.Ordinal);
         Assert.Equal("List<Account>", accountPage.Parameters[1].TypeName);
-        Assert.False(accountPage.Parameters[1].IsNullableType);
-        Assert.Null(accountPage.Parameters[1].DefaultValue);
+
+        // results is not in the page's required list: optional, so nullable and null by default, as every optional property
+        Assert.True(accountPage.Parameters[1].IsNullableType);
+        Assert.Equal("null", accountPage.Parameters[1].DefaultValue);
     }
 
     /// <summary>

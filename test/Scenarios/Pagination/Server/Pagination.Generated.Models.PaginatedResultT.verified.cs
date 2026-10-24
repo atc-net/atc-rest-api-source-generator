@@ -12,5 +12,5 @@ namespace Pagination.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record PaginatedResult<T>(
-    string? Continuation,
-    List<T> Results);
+    string? Continuation = null,
+    List<T>? Results = null);

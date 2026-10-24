@@ -423,7 +423,7 @@ public static class SchemaExtractor
         {
             BaseTypeName = $"{baseName}<{itemType}>",
             BaseConstructorArguments = forwarded.Select(p => p.Name).ToList(),
-            Parameters = forwarded.Concat(own).ToList(),
+            Parameters = forwarded.Concat(own).OrderBy(p => p.DefaultValue is not null ? 1 : 0).ToList(),
         };
     }
 
@@ -457,10 +457,12 @@ public static class SchemaExtractor
             string? genericTypeName = null;
             var isGenericListType = false;
 
-            // Special handling for pagination array properties - make it generic List<T>
-            if (PaginationConventions.IsArrayPropertyName(prop.Key))
+            // Special handling for pagination array properties - make it generic List<T> (nullable when optional, as
+            // every optional property is)
+            var isItems = PaginationConventions.IsArrayPropertyName(prop.Key);
+            if (isItems)
             {
-                csharpType = "List<T>";
+                csharpType = isRequired ? "List<T>" : "List<T>?";
                 genericTypeName = null;
                 isGenericListType = false;
             }
@@ -505,6 +507,12 @@ public static class SchemaExtractor
                 ? attributesList
                 : null;
 
+            // An optional property may be absent: null by default, as in every other generated record
+            var defaultValue = DefaultValueHelper.ForRecordParameter(
+                isItems ? null : DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry),
+                isRequired,
+                isNullableType);
+
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,
                 GenericTypeName: genericTypeName,
@@ -513,8 +521,11 @@ public static class SchemaExtractor
                 IsNullableType: isNullableType,
                 IsReferenceType: isReferenceType,
                 Name: propName,
-                DefaultValue: null));
+                DefaultValue: defaultValue));
         }
+
+        // A parameter with a default comes after every one without (CS1737)
+        parametersList = [.. parametersList.OrderBy(p => p.DefaultValue is not null ? 1 : 0)];
 
         // Return record with generic type parameter <T>
         var declarationModifier = DeclarationModifiers.PublicSealedRecord;
