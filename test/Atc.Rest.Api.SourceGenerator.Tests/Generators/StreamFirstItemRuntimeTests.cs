@@ -154,6 +154,33 @@ public sealed class StreamFirstItemRuntimeTests
         Assert.Equal("[]", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// A handler test reads every stream result alike: its status code and its items, through the framework's
+    /// IStatusCodeHttpResult and IValueHttpResult on the result inside the operation's result.
+    /// </summary>
+    [Theory]
+    [InlineData("Array")]
+    [InlineData("Lines")]
+    [InlineData("Seq")]
+    [InlineData("Mixed")]
+    [InlineData("Sse")]
+    public void EveryStreamResult_HasItsStatusCodeAndItsItems(string operation)
+    {
+        var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", Marker, includeMinimalApi: true, Yaml);
+        sources.Add(("RuntimeTestDomain.cs", DomainSource));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
+        var resultType = assembly.GetType($"Streams.Generated.Results.List{operation}Result", throwOnError: true)!;
+        var items = assembly.GetType("Streams.RuntimeTest.Things", throwOnError: true)!.GetMethod("Of")!.Invoke(null, ["ok", CancellationToken.None])!;
+
+        var result = (INestedHttpResult)resultType.GetMethod("Ok", [items.GetType().GetInterfaces().Single(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>))])!.Invoke(null, [items])!;
+
+        Assert.Equal(StatusCodes.Status200OK, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result.Result).StatusCode);
+
+        // The items (Server-Sent Events: the framework's result hands them on as its own stream)
+        var value = Assert.IsAssignableFrom<IValueHttpResult>(result.Result).Value;
+        Assert.Contains(value!.GetType().GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
+    }
+
     private static async Task<RunningHost> StartHostAsync()
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", Marker, includeMinimalApi: true, Yaml);

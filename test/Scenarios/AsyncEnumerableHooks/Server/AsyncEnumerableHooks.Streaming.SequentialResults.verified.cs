@@ -191,10 +191,16 @@ public sealed class JsonArrayResult<T> : IResult, IStatusCodeHttpResult, IValueH
 }
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class JsonLinesResult<T> : IResult
+public sealed class JsonLinesResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IAsyncEnumerable<T> items;
     private readonly string contentType;
+
+    public int? StatusCode
+        => StatusCodes.Status200OK;
+
+    public object? Value
+        => items;
 
     public JsonLinesResult(IAsyncEnumerable<T> items)
         : this(items, "application/jsonl")
@@ -220,10 +226,16 @@ public sealed class JsonLinesResult<T> : IResult
 }
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class JsonSequenceResult<T> : IResult
+public sealed class JsonSequenceResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IAsyncEnumerable<T> items;
     private readonly string contentType;
+
+    public int? StatusCode
+        => StatusCodes.Status200OK;
+
+    public object? Value
+        => items;
 
     public JsonSequenceResult(IAsyncEnumerable<T> items)
         : this(items, "application/json-seq")
@@ -249,12 +261,18 @@ public sealed class JsonSequenceResult<T> : IResult
 }
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class MultipartMixedResult<T> : IResult
+public sealed class MultipartMixedResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IAsyncEnumerable<T> items;
 
     public MultipartMixedResult(IAsyncEnumerable<T> items)
         => this.items = items;
+
+    public int? StatusCode
+        => StatusCodes.Status200OK;
+
+    public object? Value
+        => items;
 
     public async Task ExecuteAsync(HttpContext httpContext)
     {
@@ -269,8 +287,8 @@ public sealed class MultipartMixedResult<T> : IResult
 /// <summary>
 /// A stream written by the framework (Server-Sent Events) that starts its response at the first item, or -
 /// when it takes longer than <see cref="SequentialStreamWriter.FirstItemWait"/> - before it: an exception before
-/// the first item is a problem answer, a quiet stream still gets its headers. Its status code and value are the
-/// framework result's, which <see cref="Result"/> is.
+/// the first item is a problem answer, a quiet stream still gets its headers. Its status code is the framework
+/// result's (<see cref="Result"/>), and its value the items.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class StartedStreamResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
@@ -290,10 +308,11 @@ public sealed class StartedStreamResult<T> : IResult, IStatusCodeHttpResult, IVa
     public IResult Result { get; }
 
     public int? StatusCode
-        => (Result as IStatusCodeHttpResult)?.StatusCode;
+        => (Result as IStatusCodeHttpResult)?.StatusCode ?? StatusCodes.Status200OK;
 
+    // The framework's Server-Sent Events result has no value of its own: the items
     public object? Value
-        => (Result as IValueHttpResult)?.Value;
+        => (Result as IValueHttpResult)?.Value ?? items;
 
     public Task ExecuteAsync(HttpContext httpContext)
         => write(SequentialStreamWriter.StartAtFirstItem(items, httpContext.Response, httpContext.RequestAborted)).ExecuteAsync(httpContext);

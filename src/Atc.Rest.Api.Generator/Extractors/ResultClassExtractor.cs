@@ -1213,9 +1213,10 @@ public static class ResultClassExtractor
         XmlBody? xmlBody,
         string? streamingMediaType)
     {
-        // Server-Sent Events use the first-party TypedResults.ServerSentEvents writer; JSON
-        // Lines uses the emitted JsonLinesResult<T> writer (fully-qualified — the Results file
-        // has no Streaming using); all other framing's (JsonArray, ...) keep TypedResults.Ok.
+        // A stream is written by the emitted Streaming results (fully-qualified - the Results file has no Streaming
+        // using): Server-Sent Events by the framework's TypedResults.ServerSentEvents through StartedStreamResult<T>,
+        // JSON Lines, JSON Text Sequences, multipart/mixed and a JSON array by their own writers. Each starts the response
+        // at its first item and has the status code and the items (IStatusCodeHttpResult, IValueHttpResult).
         string content;
         if (isTextResponse)
         {

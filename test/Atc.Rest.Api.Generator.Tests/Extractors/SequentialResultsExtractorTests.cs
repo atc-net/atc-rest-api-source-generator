@@ -78,9 +78,9 @@ public class SequentialResultsExtractorTests
         Assert.Contains("public static async Task WriteJsonLinesAsync<T>(", content, StringComparison.Ordinal);
         Assert.Contains("public static async Task WriteJsonSequenceAsync<T>(", content, StringComparison.Ordinal);
         Assert.Contains("public static async Task WriteMultipartMixedAsync<T>(", content, StringComparison.Ordinal);
-        Assert.Contains("public sealed class JsonLinesResult<T> : IResult", content, StringComparison.Ordinal);
-        Assert.Contains("public sealed class JsonSequenceResult<T> : IResult", content, StringComparison.Ordinal);
-        Assert.Contains("public sealed class MultipartMixedResult<T> : IResult", content, StringComparison.Ordinal);
+        Assert.Contains("public sealed class JsonLinesResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult", content, StringComparison.Ordinal);
+        Assert.Contains("public sealed class JsonSequenceResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult", content, StringComparison.Ordinal);
+        Assert.Contains("public sealed class MultipartMixedResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult", content, StringComparison.Ordinal);
     }
 
     [Fact]
