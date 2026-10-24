@@ -16,7 +16,7 @@
          document contains. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <!-- Property-based tests of the escapers and sanitisers: any string, not a handful of odd ones -->
-    <PackageReference Include="CsCheck" Version="4.9.1" />
+    <PackageReference Include="CsCheck" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.11.0" />
     <!-- The scenario snapshots moved here from the integration-test project, so that they are
          produced by the real Roslyn generators rather than a parallel orchestration. -->

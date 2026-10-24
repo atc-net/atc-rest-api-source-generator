@@ -197,7 +197,7 @@ app.Run();
 
 ```xml
 <PackageReference Include="Atc.Rest.MinimalApi" Version="3.*" />
-<PackageReference Include="Atc" Version="3.*" />
+<PackageReference Include="Atc" Version="4.*" />
 <PackageReference Include="Atc.Rest.Client" Version="2.7.0" />
 ```
 
