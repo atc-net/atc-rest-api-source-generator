@@ -101,8 +101,11 @@ public static class RequestBodyProblems
         catch (global::System.Text.Json.JsonException ex)
         {
             // A value the converter rejects is a JsonException itself, with the path of its member; JSON that is
-            // not well formed comes from the reader (a type derived from it)
-            if (ex.GetType() == typeof(global::System.Text.Json.JsonException) && MemberOf(ex.Path) is { } member)
+            // not well formed comes from the reader - a type derived from it, or a JsonException around it (a body
+            // cut short), whose path is only where the reader stopped
+            if (ex.GetType() == typeof(global::System.Text.Json.JsonException) &&
+                ex.InnerException is not global::System.Text.Json.JsonException &&
+                MemberOf(ex.Path) is { } member)
             {
                 context.Items[RejectedMemberKey] = member;
                 var message = ex.Message.IndexOf(" Path:", global::System.StringComparison.Ordinal) is var end and > 0 ? ex.Message[..end] : ex.Message;
