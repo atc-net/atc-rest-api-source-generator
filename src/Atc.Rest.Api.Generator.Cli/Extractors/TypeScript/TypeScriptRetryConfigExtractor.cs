@@ -1,22 +1,23 @@
 namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 
 /// <summary>
-/// Generates retryConfig.ts containing retry policy type definitions and
-/// extracted policy constants from OpenAPI x-retry-* extensions.
+/// Generates the retry configuration, in two files: <c>retryRuntime.ts</c> with the retry policy types (the same for
+/// every specification) and <c>retryConfig.ts</c> with the policy constants from the OpenAPI x-retry-* extensions,
+/// which re-exports the types.
 /// </summary>
 public static class TypeScriptRetryConfigExtractor
 {
     /// <summary>
-    /// Generates the retry configuration TypeScript file.
-    /// Extracts x-retry-* extensions from the OpenAPI document and produces
-    /// typed policy constants and an operation-to-policy mapping.
+    /// The module of the generic half, next to <c>retryConfig.ts</c>.
     /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
+    public const string RuntimeModule = "retryRuntime";
+
+    /// <summary>
+    /// Generates <c>retryRuntime.ts</c>: the <c>RetryPolicy</c> and <c>RequestRetry</c> types.
+    /// </summary>
     /// <param name="headerContent">Optional auto-generated header.</param>
     /// <returns>The generated TypeScript source code.</returns>
-    public static string Generate(
-        OpenApiDocument document,
-        string? headerContent)
+    public static string GenerateRuntime(string? headerContent)
     {
         var sb = new StringBuilder();
 
@@ -55,7 +56,29 @@ public static class TypeScriptRetryConfigExtractor
         sb.AppendLine("  readonly enabled?: boolean;");
         sb.AppendLine("  /** Per-attempt timeout override in milliseconds. */");
         sb.AppendLine("  readonly timeoutMs?: number;");
-        sb.AppendLine("}");
+        sb.Append('}');
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Generates <c>retryConfig.ts</c>: the named policies from the x-retry-* extensions and the default policy, with
+    /// the types of <c>retryRuntime.ts</c> re-exported.
+    /// </summary>
+    /// <param name="document">The OpenAPI document.</param>
+    /// <param name="headerContent">Optional auto-generated header.</param>
+    /// <returns>The generated TypeScript source code.</returns>
+    public static string Generate(
+        OpenApiDocument document,
+        string? headerContent)
+    {
+        var sb = new StringBuilder();
+
+        sb.Append(headerContent);
+        sb.Append("import type { RetryPolicy } from './").Append(RuntimeModule).AppendLine("';");
+        sb.AppendLine();
+        sb.AppendLine("/** The retry policy types, for code that imports them from here. */");
+        sb.Append("export type { RequestRetry, RetryPolicy } from './").Append(RuntimeModule).AppendLine("';");
         sb.AppendLine();
 
         // Extract named policies from document

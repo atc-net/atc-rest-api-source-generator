@@ -16,7 +16,7 @@ public static class TypeScriptRetryInterceptorExtractor
         => headerContent + TemplateText.Lines(
         [
             """
-            import type { RequestRetry, RetryPolicy } from './retryConfig';
+            import type { RequestRetry, RetryPolicy } from './retryRuntime';
 
             /** The longest Retry-After a 429 or 503 may ask for when the policy has no timeout; longer goes back to the caller. */
             const MAX_RETRY_AFTER_MS = 30000;

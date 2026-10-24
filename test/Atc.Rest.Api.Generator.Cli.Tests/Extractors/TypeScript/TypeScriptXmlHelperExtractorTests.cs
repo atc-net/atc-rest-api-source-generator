@@ -96,17 +96,23 @@ public class TypeScriptXmlHelperExtractorTests
     }
 
     [Fact]
-    public void Generate_XmlBodies_EmitsRuntimeAndMappingsOfTheReachableModels()
+    public void Generate_XmlBodies_EmitsTheMappingsOfTheReachableModels_AndReExportsTheRuntime()
     {
         var doc = OpenApiDocumentHelper.ParseYaml(XmlYaml);
 
         var content = TypeScriptXmlHelperExtractor.Generate(doc, "// header\n", TypeScriptNamingStrategy.CamelCase, convertDates: false);
+        var runtime = TypeScriptXmlHelperExtractor.GenerateRuntime("// header\n");
 
         Assert.NotNull(content);
         Assert.StartsWith("// header\n", content, StringComparison.Ordinal);
         Assert.Contains("import type { Note, Pet } from '../models';", content, StringComparison.Ordinal);
-        Assert.Contains("export function setXmlParser(", content, StringComparison.Ordinal);
-        Assert.Contains("export function readProblemXml(", content, StringComparison.Ordinal);
+        Assert.Matches(@"import \{ [^}]*\bxmlChild\b[^}]* \} from './xmlRuntime';", content);
+        Assert.Contains("export * from './xmlRuntime';", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("export function setXmlParser(", content, StringComparison.Ordinal);
+        Assert.StartsWith("// header\n", runtime, StringComparison.Ordinal);
+        Assert.Contains("export function setXmlParser(", runtime, StringComparison.Ordinal);
+        Assert.Contains("export function readProblemXml(", runtime, StringComparison.Ordinal);
+        Assert.DoesNotContain("readPet", runtime, StringComparison.Ordinal);
         Assert.Contains("export function readPet(", content, StringComparison.Ordinal);
         Assert.Contains("export function writePet(", content, StringComparison.Ordinal);
         Assert.Contains("export function readPetList(", content, StringComparison.Ordinal);
@@ -125,7 +131,7 @@ public class TypeScriptXmlHelperExtractorTests
     {
         var client = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasXml: true);
 
-        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xml';", client, StringComparison.Ordinal);
+        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';", client, StringComparison.Ordinal);
         Assert.Contains("  xml?: XmlOptions;", client, StringComparison.Ordinal);
         Assert.Contains("headers.set('Accept', options.xml.accept);", client, StringComparison.Ordinal);
         Assert.Contains("fetchBody = options.xml.write(options.body as never);", client, StringComparison.Ordinal);
@@ -139,7 +145,7 @@ public class TypeScriptXmlHelperExtractorTests
     {
         var client = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, hasXml: true);
 
-        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xml';", client, StringComparison.Ordinal);
+        Assert.Contains("import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';", client, StringComparison.Ordinal);
         Assert.Contains("  xml?: XmlOptions;", client, StringComparison.Ordinal);
         Assert.Contains("data = options.xml.write(options.body as never);", client, StringComparison.Ordinal);
         Assert.Contains("headers['Accept'] = options.xml.accept;", client, StringComparison.Ordinal);

@@ -171,7 +171,8 @@ public sealed class TypeScriptWireNames
             : null;
 
     /// <summary>
-    /// Generates <c>helpers/wireNames.ts</c>, or <see langword="null"/> when nothing is renamed.
+    /// Generates <c>helpers/wireNames.ts</c>, the specification's half (its model table, converted with
+    /// <c>wireNamesRuntime.ts</c>, which it re-exports), or <see langword="null"/> when nothing is renamed.
     /// </summary>
     public string? GenerateFile(string? headerContent)
     {
@@ -180,6 +181,66 @@ public sealed class TypeScriptWireNames
             return null;
         }
 
+        var sb = new StringBuilder();
+        sb.Append(headerContent);
+        sb.Append("import { createWireConverter, type WireModels, type WireShape } from './").Append(RuntimeModule).AppendLine("';");
+        sb.AppendLine();
+        sb.AppendLine("/** The shape types and the converter, for code that imports them from here. */");
+        sb.Append("export * from './").Append(RuntimeModule).AppendLine("';");
+        sb.AppendLine();
+        sb.AppendLine("/** Per model: the wire name of each property to rename, its TypeScript name and the shape of its value. */");
+        sb.AppendLine("const wireModels: WireModels = {");
+        foreach (var name in mapped.OrderBy(n => n, StringComparer.Ordinal))
+        {
+            sb.Append("  ").Append(Key(name)).AppendLine(": {");
+            foreach (var property in models[name])
+            {
+                var shape = ShapeOf(property.Schema);
+                if (string.Equals(property.Wire, property.Ts, StringComparison.Ordinal) && shape is null)
+                {
+                    continue;
+                }
+
+                sb.Append("    ").Append(Key(property.Wire)).Append(": [").Append(Quote(property.Ts));
+                if (shape is not null)
+                {
+                    sb.Append(", ").Append(shape);
+                }
+
+                sb.AppendLine("],");
+            }
+
+            sb.AppendLine("  },");
+        }
+
+        sb.AppendLine("};");
+        sb.AppendLine();
+        sb.AppendLine("const converter = createWireConverter(wireModels);");
+        sb.AppendLine();
+        sb.AppendLine("/** Converts a value read from the wire to the TypeScript models (property names, dates). */");
+        sb.AppendLine("export function fromWire<T = unknown>(value: unknown, shape: WireShape | undefined): T {");
+        sb.AppendLine("  return converter.fromWire<T>(value, shape);");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** Converts a TypeScript model value to the API's form (property names, dates), for sending it. */");
+        sb.AppendLine("export function toWire(value: unknown, shape: WireShape | undefined): unknown {");
+        sb.AppendLine("  return converter.toWire(value, shape);");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// The module of the generic half, next to <c>wireNames.ts</c>.
+    /// </summary>
+    public const string RuntimeModule = "wireNamesRuntime";
+
+    /// <summary>
+    /// Generates <c>helpers/wireNamesRuntime.ts</c>, the generic half: the shape types and the converter a
+    /// specification's model table is turned into (<c>createWireConverter</c>).
+    /// </summary>
+    public static string GenerateRuntimeFile(string? headerContent)
+    {
         var sb = new StringBuilder();
         sb.Append(headerContent);
 
@@ -212,51 +273,15 @@ public sealed class TypeScriptWireNames
         sb.AppendLine("  readonly errors?: Readonly<Record<string, WireShape>>;");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("type WireProperties = Readonly<Record<string, readonly [name: string, shape?: WireShape]>>;");
+        sb.AppendLine("export type WireProperties = Readonly<Record<string, readonly [name: string, shape?: WireShape]>>;");
         sb.AppendLine();
         sb.AppendLine("/** Per model: the wire name of each property to rename, its TypeScript name and the shape of its value. */");
-        sb.AppendLine("const wireModels: Readonly<Record<string, WireProperties>> = {");
-        foreach (var name in mapped.OrderBy(n => n, StringComparer.Ordinal))
-        {
-            sb.Append("  ").Append(Key(name)).AppendLine(": {");
-            foreach (var property in models[name])
-            {
-                var shape = ShapeOf(property.Schema);
-                if (string.Equals(property.Wire, property.Ts, StringComparison.Ordinal) && shape is null)
-                {
-                    continue;
-                }
-
-                sb.Append("    ").Append(Key(property.Wire)).Append(": [").Append(Quote(property.Ts));
-                if (shape is not null)
-                {
-                    sb.Append(", ").Append(shape);
-                }
-
-                sb.AppendLine("],");
-            }
-
-            sb.AppendLine("  },");
-        }
-
-        sb.AppendLine("};");
+        sb.AppendLine("export type WireModels = Readonly<Record<string, WireProperties>>;");
         sb.AppendLine();
-        sb.AppendLine("const tsModels = new Map<string, WireProperties>();");
-        sb.AppendLine();
-        sb.AppendLine("/** The same properties keyed by their TypeScript name (for renaming the other way). */");
-        sb.AppendLine("function tsProperties(model: string): WireProperties | undefined {");
-        sb.AppendLine("  const wire = wireModels[model];");
-        sb.AppendLine("  if (!wire) {");
-        sb.AppendLine("    return undefined;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  let ts = tsModels.get(model);");
-        sb.AppendLine("  if (!ts) {");
-        sb.AppendLine("    ts = Object.fromEntries(Object.entries(wire).map(([wireName, [tsName, shape]]) => [tsName, [wireName, shape] as const]));");
-        sb.AppendLine("    tsModels.set(model, ts);");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  return ts;");
+        sb.AppendLine("/** Converts values between the wire and the TypeScript models with one specification's model table. */");
+        sb.AppendLine("export interface WireConverter {");
+        sb.AppendLine("  fromWire<T = unknown>(value: unknown, shape: WireShape | undefined): T;");
+        sb.AppendLine("  toWire(value: unknown, shape: WireShape | undefined): unknown;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("function isPlainObject(value: unknown): value is Record<string, unknown> {");
@@ -301,90 +326,110 @@ public sealed class TypeScriptWireNames
         sb.AppendLine("  return Number.isNaN(parsed.getTime()) ? value : parsed;");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("function convert(value: unknown, shape: WireShape | undefined, toWire: boolean): unknown {");
-        sb.AppendLine("  if (shape !== undefined && typeof shape === 'object' && 'date' in shape) {");
-        sb.AppendLine("    return convertDate(value, shape.date, toWire);");
+        sb.AppendLine("/** The converter of a model table (a specification's wireModels). */");
+        sb.AppendLine("export function createWireConverter(wireModels: WireModels): WireConverter {");
+        sb.AppendLine("  const tsModels = new Map<string, WireProperties>();");
+        sb.AppendLine();
+        sb.AppendLine("  /** The same properties keyed by their TypeScript name (for renaming the other way). */");
+        sb.AppendLine("  function tsProperties(model: string): WireProperties | undefined {");
+        sb.AppendLine("    const wire = wireModels[model];");
+        sb.AppendLine("    if (!wire) {");
+        sb.AppendLine("      return undefined;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    let ts = tsModels.get(model);");
+        sb.AppendLine("    if (!ts) {");
+        sb.AppendLine("      ts = Object.fromEntries(Object.entries(wire).map(([wireName, [tsName, shape]]) => [tsName, [wireName, shape] as const]));");
+        sb.AppendLine("      tsModels.set(model, ts);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    return ts;");
         sb.AppendLine("  }");
         sb.AppendLine();
-        sb.AppendLine("  if (shape === undefined || value === null || typeof value !== 'object') {");
-        sb.AppendLine("    return value;");
-        sb.AppendLine("  }");
+        sb.AppendLine("  function convert(value: unknown, shape: WireShape | undefined, toWire: boolean): unknown {");
+        sb.AppendLine("    if (shape !== undefined && typeof shape === 'object' && 'date' in shape) {");
+        sb.AppendLine("      return convertDate(value, shape.date, toWire);");
+        sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("  if (typeof shape === 'string') {");
+        sb.AppendLine("    if (shape === undefined || value === null || typeof value !== 'object') {");
+        sb.AppendLine("      return value;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if (typeof shape === 'string') {");
+        sb.AppendLine("      if (!isPlainObject(value)) {");
+        sb.AppendLine("        return value;");
+        sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      const properties = toWire ? tsProperties(shape) : wireModels[shape];");
+        sb.AppendLine("      if (!properties) {");
+        sb.AppendLine("        return value;");
+        sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      const result: Record<string, unknown> = {};");
+        sb.AppendLine("      for (const [key, item] of Object.entries(value)) {");
+        sb.AppendLine("        const property = properties[key];");
+        sb.AppendLine("        if (property) {");
+        sb.AppendLine("          result[property[0]] = convert(item, property[1], toWire);");
+        sb.AppendLine("        } else {");
+        sb.AppendLine("          result[key] = item;");
+        sb.AppendLine("        }");
+        sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      return result;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if ('array' in shape) {");
+        sb.AppendLine("      return Array.isArray(value) ? value.map((item) => convert(item, shape.array, toWire)) : value;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if ('record' in shape) {");
+        sb.AppendLine("      return isPlainObject(value)");
+        sb.AppendLine("        ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, convert(item, shape.record, toWire)]))");
+        sb.AppendLine("        : value;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    // A union: the member its discriminator names; without one (or with a value the specification does not");
+        sb.AppendLine("    // map), the member model the object has the most keys of.");
         sb.AppendLine("    if (!isPlainObject(value)) {");
         sb.AppendLine("      return value;");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const properties = toWire ? tsProperties(shape) : wireModels[shape];");
-        sb.AppendLine("    if (!properties) {");
-        sb.AppendLine("      return value;");
-        sb.AppendLine("    }");
+        sb.AppendLine("    const discriminator = shape.discriminator;");
+        sb.AppendLine("    if (discriminator) {");
+        sb.AppendLine("      const kind = value[toWire ? discriminator.ts : discriminator.wire];");
+        sb.AppendLine("      const member = typeof kind === 'string' ? discriminator.mapping[kind] : undefined;");
+        sb.AppendLine("      if (typeof member === 'string') {");
+        sb.AppendLine("        return convert(value, member, toWire);");
+        sb.AppendLine("      }");
         sb.AppendLine();
-        sb.AppendLine("    const result: Record<string, unknown> = {};");
-        sb.AppendLine("    for (const [key, item] of Object.entries(value)) {");
-        sb.AppendLine("      const property = properties[key];");
-        sb.AppendLine("      if (property) {");
-        sb.AppendLine("        result[property[0]] = convert(item, property[1], toWire);");
-        sb.AppendLine("      } else {");
-        sb.AppendLine("        result[key] = item;");
+        sb.AppendLine("      if (member === null) {");
+        sb.AppendLine("        return value;");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    return result;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  if ('array' in shape) {");
-        sb.AppendLine("    return Array.isArray(value) ? value.map((item) => convert(item, shape.array, toWire)) : value;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  if ('record' in shape) {");
-        sb.AppendLine("    return isPlainObject(value)");
-        sb.AppendLine("      ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, convert(item, shape.record, toWire)]))");
-        sb.AppendLine("      : value;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  // A union: the member its discriminator names; without one (or with a value the specification does not");
-        sb.AppendLine("  // map), the member model the object has the most keys of.");
-        sb.AppendLine("  if (!isPlainObject(value)) {");
-        sb.AppendLine("    return value;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  const discriminator = shape.discriminator;");
-        sb.AppendLine("  if (discriminator) {");
-        sb.AppendLine("    const kind = value[toWire ? discriminator.ts : discriminator.wire];");
-        sb.AppendLine("    const member = typeof kind === 'string' ? discriminator.mapping[kind] : undefined;");
-        sb.AppendLine("    if (typeof member === 'string') {");
-        sb.AppendLine("      return convert(value, member, toWire);");
+        sb.AppendLine("    const keys = Object.keys(value);");
+        sb.AppendLine("    let best: WireShape | undefined;");
+        sb.AppendLine("    let bestScore = 0;");
+        sb.AppendLine("    for (const member of shape.union) {");
+        sb.AppendLine("      const properties = typeof member === 'string' ? (toWire ? tsProperties(member) : wireModels[member]) : undefined;");
+        sb.AppendLine("      const score = properties ? keys.filter((key) => key in properties).length : 0;");
+        sb.AppendLine("      if (score > bestScore) {");
+        sb.AppendLine("        best = member;");
+        sb.AppendLine("        bestScore = score;");
+        sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    if (member === null) {");
-        sb.AppendLine("      return value;");
-        sb.AppendLine("    }");
+        sb.AppendLine("    return best === undefined ? value : convert(value, best, toWire);");
         sb.AppendLine("  }");
         sb.AppendLine();
-        sb.AppendLine("  const keys = Object.keys(value);");
-        sb.AppendLine("  let best: WireShape | undefined;");
-        sb.AppendLine("  let bestScore = 0;");
-        sb.AppendLine("  for (const member of shape.union) {");
-        sb.AppendLine("    const properties = typeof member === 'string' ? (toWire ? tsProperties(member) : wireModels[member]) : undefined;");
-        sb.AppendLine("    const score = properties ? keys.filter((key) => key in properties).length : 0;");
-        sb.AppendLine("    if (score > bestScore) {");
-        sb.AppendLine("      best = member;");
-        sb.AppendLine("      bestScore = score;");
-        sb.AppendLine("    }");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  return best === undefined ? value : convert(value, best, toWire);");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("/** Converts a value read from the wire to the TypeScript models (property names, dates). */");
-        sb.AppendLine("export function fromWire<T = unknown>(value: unknown, shape: WireShape | undefined): T {");
-        sb.AppendLine("  return convert(value, shape, false) as T;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("/** Converts a TypeScript model value to the API's form (property names, dates), for sending it. */");
-        sb.AppendLine("export function toWire(value: unknown, shape: WireShape | undefined): unknown {");
-        sb.AppendLine("  return convert(value, shape, true);");
+        sb.AppendLine("  return {");
+        sb.AppendLine("    fromWire<T = unknown>(value: unknown, shape: WireShape | undefined): T {");
+        sb.AppendLine("      return convert(value, shape, false) as T;");
+        sb.AppendLine("    },");
+        sb.AppendLine("    toWire(value: unknown, shape: WireShape | undefined): unknown {");
+        sb.AppendLine("      return convert(value, shape, true);");
+        sb.AppendLine("    },");
+        sb.AppendLine("  };");
         sb.AppendLine("}");
 
         return sb.ToString();

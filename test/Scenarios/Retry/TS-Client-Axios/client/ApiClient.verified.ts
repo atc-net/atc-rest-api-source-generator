@@ -7,7 +7,7 @@ import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
 import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';
 import { defaultRetryPolicy } from '../helpers/retryConfig';
-import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';
+import type { RequestRetry, RetryPolicy } from '../helpers/retryRuntime';
 
 class UnparseableBody {
   constructor(public readonly raw: string) {}

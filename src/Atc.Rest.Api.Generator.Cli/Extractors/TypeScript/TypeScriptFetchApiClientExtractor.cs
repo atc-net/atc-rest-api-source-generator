@@ -76,7 +76,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
         if (hasXml)
         {
-            sb.AppendLine("import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xml';");
+            sb.AppendLine("import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';");
         }
 
         if (hasWireNames)
@@ -90,7 +90,7 @@ public static class TypeScriptFetchApiClientExtractor
         {
             sb.AppendLine("import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';");
             sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
-            sb.AppendLine("import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';");
+            sb.AppendLine("import type { RequestRetry, RetryPolicy } from '../helpers/retryRuntime';");
         }
 
         if (zodRuntimeValidate)

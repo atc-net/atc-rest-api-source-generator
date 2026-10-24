@@ -183,7 +183,8 @@ public class TypeScriptWireNamesTests
         // which is the day before east of UTC).
         var sut = new TypeScriptWireNames(OpenApiDocumentHelper.ParseYaml(SpecYaml), TypeScriptNamingStrategy.CamelCase, convertDates: true);
 
-        var file = sut.GenerateFile(headerContent: null)!;
+        Assert.NotNull(sut.GenerateFile(headerContent: null));
+        var file = TypeScriptWireNames.GenerateRuntimeFile(headerContent: null);
 
         Assert.Contains("const DATE_ONLY = /^(\\d{4})-(\\d{2})-(\\d{2})$/;", file, StringComparison.Ordinal);
         Assert.Contains("? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))", file, StringComparison.Ordinal);
@@ -280,8 +281,11 @@ public class TypeScriptWireNamesTests
 
         Assert.NotNull(file);
         Assert.StartsWith("// header\n", file, StringComparison.Ordinal);
-        Assert.Contains("export type WireShape =", file, StringComparison.Ordinal);
-        Assert.Contains("const wireModels: Readonly<Record<string, WireProperties>> = {", file, StringComparison.Ordinal);
+        Assert.Contains("import { createWireConverter, type WireModels, type WireShape } from './wireNamesRuntime';", file, StringComparison.Ordinal);
+        Assert.Contains("export * from './wireNamesRuntime';", file, StringComparison.Ordinal);
+        Assert.DoesNotContain("export type WireShape =", file, StringComparison.Ordinal);
+        Assert.Contains("const wireModels: WireModels = {", file, StringComparison.Ordinal);
+        Assert.Contains("const converter = createWireConverter(wireModels);", file, StringComparison.Ordinal);
         Assert.Contains("    user_name: ['userName'],", file, StringComparison.Ordinal);
         Assert.Contains("    home_address: ['homeAddress', 'Address'],", file, StringComparison.Ordinal);
         Assert.Contains("    tags: ['tags', { array: 'Tag' }],", file, StringComparison.Ordinal);
@@ -289,6 +293,19 @@ public class TypeScriptWireNamesTests
         Assert.Contains("    error_code: ['errorCode'],", file, StringComparison.Ordinal);
         Assert.DoesNotContain("displayName: [", file, StringComparison.Ordinal);
         Assert.DoesNotContain("  Plain: {", file, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateRuntimeFile_HoldsTheShapeTypesAndTheConverter_AndNoModelTable()
+    {
+        var runtime = TypeScriptWireNames.GenerateRuntimeFile("// header\n");
+
+        Assert.Equal("wireNamesRuntime", TypeScriptWireNames.RuntimeModule);
+        Assert.StartsWith("// header\n", runtime, StringComparison.Ordinal);
+        Assert.Contains("export type WireShape =", runtime, StringComparison.Ordinal);
+        Assert.Contains("export type WireModels = Readonly<Record<string, WireProperties>>;", runtime, StringComparison.Ordinal);
+        Assert.Contains("export function createWireConverter(wireModels: WireModels): WireConverter {", runtime, StringComparison.Ordinal);
+        Assert.DoesNotContain("const wireModels", runtime, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -361,8 +378,8 @@ public class TypeScriptWireNamesTests
             "{ union: ['Card', 'Bank'], discriminator: { wire: 'payment_type', ts: 'paymentType', mapping: { card: 'Card', Bank: 'Bank', cash: null } } }",
             sut.ShapeOfModel("Payment"));
 
-        var file = sut.GenerateFile(headerContent: null);
-        Assert.NotNull(file);
+        Assert.NotNull(sut.GenerateFile(headerContent: null));
+        var file = TypeScriptWireNames.GenerateRuntimeFile(headerContent: null);
         Assert.Contains("export interface WireDiscriminator {", file, StringComparison.Ordinal);
         Assert.Contains("const kind = value[toWire ? discriminator.ts : discriminator.wire];", file, StringComparison.Ordinal);
     }

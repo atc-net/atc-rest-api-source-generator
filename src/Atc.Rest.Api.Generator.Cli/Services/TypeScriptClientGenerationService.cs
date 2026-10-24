@@ -104,6 +104,7 @@ public static class TypeScriptClientGenerationService
             if (wireNamesContent is not null)
             {
                 plan.Add("helpers/wireNames.ts", wireNamesContent);
+                plan.Add($"helpers/{TypeScriptWireNames.RuntimeModule}.ts", TypeScriptWireNames.GenerateRuntimeFile(headerContent));
                 helperModules.Add("wireNames");
             }
 
@@ -118,6 +119,7 @@ public static class TypeScriptClientGenerationService
             {
                 var retryConfigContent = TypeScriptRetryConfigExtractor.Generate(openApiDoc, headerContent);
                 plan.Add("helpers/retryConfig.ts", retryConfigContent);
+                plan.Add($"helpers/{TypeScriptRetryConfigExtractor.RuntimeModule}.ts", TypeScriptRetryConfigExtractor.GenerateRuntime(headerContent));
                 helperModules.Add("retryConfig");
 
                 var retryInterceptorContent = TypeScriptRetryInterceptorExtractor.Generate(headerContent);
@@ -135,6 +137,7 @@ public static class TypeScriptClientGenerationService
             if (xmlContent is not null)
             {
                 plan.Add("helpers/xml.ts", xmlContent);
+                plan.Add($"helpers/{TypeScriptXmlHelperExtractor.RuntimeModule}.ts", TypeScriptXmlHelperExtractor.GenerateRuntime(headerContent));
                 helperModules.Add("xml");
             }
 

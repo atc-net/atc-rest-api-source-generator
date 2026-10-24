@@ -1,14 +1,20 @@
 namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 
 /// <summary>
-/// Generates <c>helpers/xml.ts</c>: the XML mapping of the models an XML body carries (<c>read{Model}</c> /
-/// <c>write{Model}</c>, and the list forms) as the OpenAPI <c>xml</c> keyword describes it - the same rules as the C#
-/// <c>{Model}Xml</c> - plus the runtime the generated ApiClient uses: an injectable parser (<c>setXmlParser</c>;
-/// browsers have <c>DOMParser</c>, Node takes e.g. <c>@xmldom/xmldom</c>), the media-type check and
-/// <c>readProblemXml</c> for <c>application/problem+xml</c> errors (RFC 9457 Appendix B).
+/// Generates the XML helpers, in two files. <c>helpers/xml.ts</c> holds the XML mapping of the models an XML body
+/// carries (<c>read{Model}</c> / <c>write{Model}</c>, and the list forms) as the OpenAPI <c>xml</c> keyword describes
+/// it - the same rules as the C# <c>{Model}Xml</c> - and re-exports the runtime. <c>helpers/xmlRuntime.ts</c> is the
+/// same for every specification: an injectable parser (<c>setXmlParser</c>; browsers have <c>DOMParser</c>, Node takes
+/// e.g. <c>@xmldom/xmldom</c>), the media-type check, <c>readProblemXml</c> for <c>application/problem+xml</c> errors
+/// (RFC 9457 Appendix B) and the primitives the model mapping is written with.
 /// </summary>
 public static class TypeScriptXmlHelperExtractor
 {
+    /// <summary>
+    /// The module of the generic half, next to <c>xml.ts</c>.
+    /// </summary>
+    public const string RuntimeModule = "xmlRuntime";
+
     private enum ValueKind
     {
         Text,
@@ -32,7 +38,16 @@ public static class TypeScriptXmlHelperExtractor
     }
 
     /// <summary>
-    /// Generates the helper module, or <see langword="null"/> when the specification has no XML body.
+    /// Generates <c>helpers/xmlRuntime.ts</c>, the generic half: the same for every specification with an XML body.
+    /// </summary>
+    /// <param name="headerContent">The file header.</param>
+    /// <returns>The module content.</returns>
+    public static string GenerateRuntime(string? headerContent)
+        => headerContent + Runtime.TrimEnd() + Environment.NewLine;
+
+    /// <summary>
+    /// Generates <c>helpers/xml.ts</c>, the specification's half (it re-exports the runtime), or
+    /// <see langword="null"/> when the specification has no XML body.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <param name="headerContent">The file header.</param>
@@ -59,6 +74,12 @@ public static class TypeScriptXmlHelperExtractor
             .OrderBy(key => key, StringComparer.Ordinal)
             .ToList();
 
+        var mapping = new StringBuilder();
+        foreach (var key in models)
+        {
+            AppendModel(mapping, key, (OpenApiSchema)openApiDoc.Components!.Schemas![key], openApiDoc, models, namingStrategy, convertDates);
+        }
+
         var sb = new StringBuilder();
         sb.Append(headerContent);
 
@@ -67,15 +88,29 @@ public static class TypeScriptXmlHelperExtractor
             sb.Append("import type { ")
               .Append(string.Join(", ", models.Select(OpenApiSchemaExtensions.SanitizeSchemaName)))
               .AppendLine(" } from '../models';");
+        }
+
+        // The runtime primitives the mapping is written with (a type with the type modifier)
+        var mappingText = mapping.ToString();
+        var used = System.Text.RegularExpressions.Regex
+            .Matches(Runtime, @"^export (?<kind>function|interface|type|const) (?<name>\w+)", System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1))
+            .Where(m => TypeScriptOperationHelper.ReferencesIdentifier(mappingText, m.Groups["name"].Value))
+            .OrderBy(m => m.Groups["name"].Value, StringComparer.Ordinal)
+            .Select(m => (m.Groups["kind"].Value is "interface" or "type" ? "type " : string.Empty) + m.Groups["name"].Value)
+            .ToList();
+        if (used.Count > 0)
+        {
+            sb.Append("import { ").Append(string.Join(", ", used)).Append(" } from './").Append(RuntimeModule).AppendLine("';");
+        }
+
+        if (models.Count > 0 || used.Count > 0)
+        {
             sb.AppendLine();
         }
 
-        sb.Append(Runtime);
-
-        foreach (var key in models)
-        {
-            AppendModel(sb, key, (OpenApiSchema)openApiDoc.Components!.Schemas![key], openApiDoc, models, namingStrategy, convertDates);
-        }
+        sb.AppendLine("/** The XML runtime (the parser, the media-type check, the primitives), for code that imports it from here. */");
+        sb.Append("export * from './").Append(RuntimeModule).AppendLine("';");
+        sb.Append(mapping);
 
         return sb.ToString().TrimEnd() + Environment.NewLine;
     }

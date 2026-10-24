@@ -5,7 +5,7 @@ import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
 import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';
 import { defaultRetryPolicy } from '../helpers/retryConfig';
-import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';
+import type { RequestRetry, RetryPolicy } from '../helpers/retryRuntime';
 
 export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;
 export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;

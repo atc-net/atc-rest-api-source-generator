@@ -4,7 +4,7 @@ import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, decodeText, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
-import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xml';
+import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';
 import type { ApiResult } from '../types/ApiResult';
 
 class UnparseableBody {

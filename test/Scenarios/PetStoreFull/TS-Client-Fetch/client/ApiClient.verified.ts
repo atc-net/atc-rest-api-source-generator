@@ -2,7 +2,7 @@
 // atc-rest-api-gen 1.0.0
 import { ApiError, decodeText, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
-import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xml';
+import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';
 import type { ApiResult } from '../types/ApiResult';
 
 export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;

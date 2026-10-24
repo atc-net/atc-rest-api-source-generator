@@ -41,6 +41,33 @@ public class TypeScriptRetryExtractorTests
     }
 
     [Fact]
+    public void RetryConfig_TheTypesAreInTheRuntime_AndReExported()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info: { title: Test, version: 1.0.0 }
+            x-retry-policy: standard
+            x-retry-max-attempts: 3
+            paths: {}
+            """);
+
+        // Act
+        var config = TypeScriptRetryConfigExtractor.Generate(document, null);
+        var runtime = TypeScriptRetryConfigExtractor.GenerateRuntime("// header\n");
+
+        // Assert
+        Assert.Equal("retryRuntime", TypeScriptRetryConfigExtractor.RuntimeModule);
+        Assert.Contains("import type { RetryPolicy } from './retryRuntime';", config, StringComparison.Ordinal);
+        Assert.Contains("export type { RequestRetry, RetryPolicy } from './retryRuntime';", config, StringComparison.Ordinal);
+        Assert.DoesNotContain("export interface RetryPolicy", config, StringComparison.Ordinal);
+        Assert.StartsWith("// header\n", runtime, StringComparison.Ordinal);
+        Assert.Contains("export interface RetryPolicy {", runtime, StringComparison.Ordinal);
+        Assert.Contains("export interface RequestRetry {", runtime, StringComparison.Ordinal);
+        Assert.DoesNotContain("standard", runtime, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RetryConfig_WithPathLevelOverride_GeneratesMultiplePolicies()
     {
         // Arrange
@@ -192,7 +219,7 @@ public class TypeScriptRetryExtractorTests
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
         // Assert
-        Assert.Contains("import type { RequestRetry, RetryPolicy } from './retryConfig'", result, StringComparison.Ordinal);
+        Assert.Contains("import type { RequestRetry, RetryPolicy } from './retryRuntime'", result, StringComparison.Ordinal);
     }
 
     [Fact]
