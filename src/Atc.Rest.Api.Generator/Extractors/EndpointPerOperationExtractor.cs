@@ -1286,6 +1286,11 @@ public static class EndpointPerOperationExtractor
                 FormBodyHelper.AppendUrlEncodedFields(sb, formSchema, "parameters.Request", "fields");
                 sb.AppendLine("requestBuilder.WithUrlEncodedForm(fields);");
             }
+            else if (operation.GetTextRequestBodyMediaType() is { } textMediaType)
+            {
+                // Text: the string as UTF-8, with the declared media type
+                sb.AppendLine($"requestBuilder.WithBinaryBody(new global::System.IO.MemoryStream(global::System.Text.Encoding.UTF8.GetBytes(parameters.Request)), {CSharpLiteralHelper.ToStringLiteral(textMediaType.BaseType + "; charset=utf-8")});");
+            }
             else if (XmlBodyHelper.ClientRequestBody(operation, preferXml) is { } xmlRequestBody)
             {
                 // An XML body (XML-only, or with preferXml the XML alternative): the model's XML with its media type

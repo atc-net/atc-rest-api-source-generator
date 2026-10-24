@@ -95,6 +95,26 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         ["style-label-matrix"] = RuleIdentifiers.ParameterValueNotBindable,
     };
 
+    /// <summary>
+    /// Every OpenAPI construct the report lists, and every Atc extension the generator reads, is used by a scenario
+    /// specification - so each is generated, compiled and compared with its snapshot - unless the generator rejects it.
+    /// </summary>
+    [Fact]
+    public void EveryOpenApiConstruct_IsUsedByAScenario_OrRejected()
+    {
+        var data = CollectOpenApiConstructs(FindRepositoryRoot());
+        var used = data["scenarios"]!.AsArray()
+            .SelectMany(s => s!["constructs"]!.AsArray().Select(c => (string)c!))
+            .ToHashSet(StringComparer.Ordinal);
+        var gaps = data["constructs"]!.AsArray()
+            .Select(c => c!.AsObject())
+            .Where(c => c["rejected"] is null && !used.Contains((string)c["key"]!))
+            .Select(c => (string)c["key"]!)
+            .ToList();
+
+        Assert.True(gaps.Count == 0, $"Not used by any scenario: {string.Join(", ", gaps)}");
+    }
+
     private static JsonObject CollectOpenApiConstructs(string root)
     {
         var scenariosRoot = Path.Combine(root, "test", "Scenarios");

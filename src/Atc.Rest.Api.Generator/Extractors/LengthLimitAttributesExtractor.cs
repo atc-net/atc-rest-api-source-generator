@@ -70,8 +70,12 @@ public static class LengthLimitAttributesExtractor
     /// is in, so a model or parameters type names them without a using.
     /// </summary>
     /// <param name="namespaceName">The namespace of the generated file.</param>
+    /// <param name="readsTextBody">Whether the attributes read the text of the server's text request body (the
+    /// specification has one).</param>
     /// <returns>The file content.</returns>
-    public static string Generate(string namespaceName)
+    public static string Generate(
+        string namespaceName,
+        bool readsTextBody = false)
         => $$"""
              {{HeaderBuilder.WithUsings(
                  NamespaceConstants.System,
@@ -93,7 +97,7 @@ public static class LengthLimitAttributesExtractor
                  public {{MinLengthName}}Attribute(int length)
                      : base(length)
                  {
-                 }
+                 }{{TextOverride(readsTextBody)}}
              }
 
              /// <summary>
@@ -108,7 +112,7 @@ public static class LengthLimitAttributesExtractor
                  public {{MaxLengthName}}Attribute(int length)
                      : base(length)
                  {
-                 }
+                 }{{TextOverride(readsTextBody)}}
              }
              """;
 
@@ -118,10 +122,13 @@ public static class LengthLimitAttributesExtractor
     /// </summary>
     /// <param name="namespaceName">The namespace of the generated file.</param>
     /// <param name="attributeNames">The attributes to declare.</param>
+    /// <param name="readsTextBody">Whether the pattern attribute reads the text of the server's text request body (the
+    /// specification has one).</param>
     /// <returns>The file content.</returns>
     public static string GenerateValueAttributes(
         string namespaceName,
-        IReadOnlyCollection<string> attributeNames)
+        IReadOnlyCollection<string> attributeNames,
+        bool readsTextBody = false)
     {
         if (attributeNames is null)
         {
@@ -131,7 +138,7 @@ public static class LengthLimitAttributesExtractor
         var declarations = new List<string>();
         if (attributeNames.Contains(RegularExpressionName, StringComparer.Ordinal))
         {
-            declarations.Add(RegularExpressionDeclaration);
+            declarations.Add(RegularExpressionDeclaration(readsTextBody));
         }
 
         if (attributeNames.Contains(ItemsRegularExpressionName, StringComparer.Ordinal))
@@ -159,7 +166,18 @@ public static class LengthLimitAttributesExtractor
     private static string GeneratedCodeAttribute
         => $"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]";
 
-    private static string RegularExpressionDeclaration
+    // A length attribute on the server's text request body counts its text
+    private static string TextOverride(bool readsTextBody)
+        => readsTextBody
+            ? $$"""
+
+
+                 public override bool IsValid(object? value)
+                     => base.IsValid(value is {{TextRequestBodyExtractor.TypeName}} text ? text.Text : value);
+             """.TrimEnd()
+            : string.Empty;
+
+    private static string RegularExpressionDeclaration(bool readsTextBody)
         => $$"""
              /// <summary>
              /// <see cref="RegularExpressionAttribute"/> for a <c>pattern</c> in the specification: the same validation, message and
@@ -176,7 +194,7 @@ public static class LengthLimitAttributesExtractor
                  }
 
                  public override bool IsValid(object? value)
-                 {
+                 {{{(readsTextBody ? $"\n                     value = value is {TextRequestBodyExtractor.TypeName} text ? text.Text : value;" : string.Empty)}}
                      if (value is not string { Length: 0 })
                      {
                          return base.IsValid(value);

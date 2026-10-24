@@ -377,7 +377,37 @@ public static class OpenApiOperationExtensions
                 }
             }
 
+            // Priority 5: text (text/plain first) - a string, whatever its schema says of the bytes
+            var text = operation.RequestBody.Content
+                .Where(kvp => IsTextRequestBodyContentType(kvp.Key, kvp.Value?.Schema))
+                .OrderBy(kvp => kvp.Key.BaseType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .Select(kvp => (KeyValuePair<string, IOpenApiMediaType>?)kvp)
+                .FirstOrDefault();
+            if (text is { } textBody)
+            {
+                var schema = textBody.Value?.Schema;
+                return (schema is null || string.Equals(schema.Format, "binary", StringComparison.OrdinalIgnoreCase)
+                    ? new OpenApiSchema { Type = JsonSchemaType.String }
+                    : schema, textBody.Key);
+            }
+
             return (null, string.Empty);
+        }
+
+        /// <summary>
+        /// The media type of a request body that is text - a <c>text/*</c> media type that is not a stream, or XML
+        /// with a string schema (<c>text/plain</c> first when several are declared) - when the body offers nothing the
+        /// generated code sends before it: a stream of records, JSON, a file, a form or an XML model. The server reads
+        /// it by its charset into a string, the clients send a string as UTF-8.
+        /// </summary>
+        /// <returns>The declared media type, or null when the request body is not text.</returns>
+        public string? GetTextRequestBodyMediaType()
+        {
+            var (_, contentType) = operation.GetRequestBodySchemaWithContentType();
+            return contentType.Length > 0 &&
+                   IsTextRequestBodyContentType(contentType, operation.RequestBody!.Content![contentType].Schema)
+                ? contentType
+                : null;
         }
 
         /// <summary>
@@ -822,6 +852,23 @@ public static class OpenApiOperationExtensions
             }
         }
     }
+
+    /// <summary>
+    /// Determines if a request body media type is text: a <c>text/*</c> media type that is not a stream (also with a
+    /// <c>format: binary</c> schema - a raw file upload is never <c>text/*</c>), or XML with a string schema (or none).
+    /// </summary>
+    /// <param name="contentType">The media type as declared.</param>
+    /// <param name="schema">The schema declared under it, if any.</param>
+    /// <returns>True if the body is text.</returns>
+    public static bool IsTextRequestBodyContentType(
+        string contentType,
+        IOpenApiSchema? schema)
+        => ResponseBodyClassifier.Classify(contentType, schema) switch
+        {
+            ResponseBodyKind.Text => true,
+            ResponseBodyKind.Binary => contentType.BaseType.StartsWith("text/", StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
 
     /// <summary>
     /// Determines if a content type represents a file upload.

@@ -1073,7 +1073,8 @@ using Microsoft.AspNetCore.Builder;
         // A body the generated reader reads (XML, or JSON next to it): one it cannot read is a problem with its status,
         // not the host exception handler's 500
         if (XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is not null ||
-            operation.GetStreamedRequestBody() is not null)
+            operation.GetStreamedRequestBody() is not null ||
+            operation.GetTextRequestBodyMediaType() is not null)
         {
             builder.AppendLine();
             builder.Append("    .WithRequestBodyProblems()");
@@ -1116,6 +1117,14 @@ using Microsoft.AspNetCore.Builder;
             // is listed when one is declared
             builder.AppendLine();
             builder.Append($"    .Accepts<{GetStreamedRecordTypeName(streamedBody, registry)}>({string.Join(", ", streamedBody.AcceptedMediaTypes.Select(m => $"\"{m}\""))})");
+        }
+
+        // Text: Accepts names its media types (routing answers another with a 415, and the runtime OpenAPI document
+        // describes the body - BindAsync is not [FromBody])
+        if (TextRequestBodyExtractor.AcceptedMediaTypes(operation) is { Count: > 0 } textMediaTypes)
+        {
+            builder.AppendLine();
+            builder.Append($"    .Accepts<string>({string.Join(", ", textMediaTypes.Select(m => $"\"{m}\""))})");
         }
 
         // Add Accepts and DisableAntiforgery for file upload endpoints

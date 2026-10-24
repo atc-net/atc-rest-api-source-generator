@@ -129,6 +129,13 @@ public static class WebhookParameterExtractor
             isRequired = true;
         }
 
+        // A text payload is read by its charset by the generated TextRequestBody (bound by its BindAsync)
+        var isText = !isStreamed && operation.GetTextRequestBodyMediaType() is not null;
+        if (isText)
+        {
+            bodyTypeName = TextRequestBodyExtractor.TypeName;
+        }
+
         var propertyType = isRequired ? bodyTypeName : $"{bodyTypeName}?";
 
         // Get the correct model usings for this webhook's schemas
@@ -161,7 +168,7 @@ public static class WebhookParameterExtractor
         sb.AppendLine(4, "/// <summary>");
         sb.AppendLine(4, "/// The webhook payload.");
         sb.AppendLine(4, "/// </summary>");
-        if (boundBody is null && !isStreamed)
+        if (boundBody is null && !isStreamed && !isText)
         {
             sb.AppendLine(4, "[FromBody]");
         }

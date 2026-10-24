@@ -10,6 +10,7 @@ using NonJsonContent.Generated;
 using NonJsonContent.Generated.Exports.Handlers;
 using NonJsonContent.Generated.Files.Handlers;
 using NonJsonContent.Generated.Items.Handlers;
+using NonJsonContent.Generated.Notes.Handlers;
 using NonJsonContent.Generated.Reports.Handlers;
 
 namespace NonJsonContent.Generated.Extensions;

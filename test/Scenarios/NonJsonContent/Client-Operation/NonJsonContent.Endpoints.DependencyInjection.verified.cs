@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NonJsonContent.Generated.Exports;
 using NonJsonContent.Generated.Files;
 using NonJsonContent.Generated.Items;
+using NonJsonContent.Generated.Notes;
 using NonJsonContent.Generated.Reports;
 
 namespace NonJsonContent.Generated;
@@ -32,6 +33,7 @@ public static class NonJsonContentEndpointsServiceCollectionExtensions
         services.AddExportsEndpoints();
         services.AddFilesEndpoints();
         services.AddItemsEndpoints();
+        services.AddNotesEndpoints();
         services.AddReportsEndpoints();
 
         if (configureJsonSerializerOptions is not null)

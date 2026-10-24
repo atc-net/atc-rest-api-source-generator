@@ -4,6 +4,7 @@ import { ApiClient, type ApiClientOptions } from './ApiClient';
 import { ExportsClient } from './ExportsClient';
 import { FilesClient } from './FilesClient';
 import { ItemsClient } from './ItemsClient';
+import { NotesClient } from './NotesClient';
 import { ReportsClient } from './ReportsClient';
 
 export class ApiService {
@@ -11,6 +12,7 @@ export class ApiService {
   readonly exports: ExportsClient;
   readonly files: FilesClient;
   readonly items: ItemsClient;
+  readonly notes: NotesClient;
   readonly reports: ReportsClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
@@ -19,6 +21,7 @@ export class ApiService {
     this.exports = new ExportsClient(api);
     this.files = new FilesClient(api);
     this.items = new ItemsClient(api);
+    this.notes = new NotesClient(api);
     this.reports = new ReportsClient(api);
   }
 }

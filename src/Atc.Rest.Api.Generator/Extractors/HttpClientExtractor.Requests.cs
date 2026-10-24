@@ -791,6 +791,12 @@ public static partial class HttpClientExtractor
             return xmlContent;
         }
 
+        // Text: the string as UTF-8, with the declared media type (StringContent adds the charset)
+        if (operation.GetTextRequestBodyMediaType() is { } textMediaType)
+        {
+            return $"new StringContent({requestAccess}, global::System.Text.Encoding.UTF8, {CSharpLiteralHelper.ToStringLiteral(textMediaType.BaseType)})";
+        }
+
         return operation.GetJsonRequestBodyMediaType() is not null
             ? JsonBodyContent(operation, requestAccess)
             : null;

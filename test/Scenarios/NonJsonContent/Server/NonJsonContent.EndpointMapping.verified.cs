@@ -24,6 +24,7 @@ public static class EndpointMappingExtensions
         app.MapExportsEndpoints();
         app.MapFilesEndpoints();
         app.MapItemsEndpoints();
+        app.MapNotesEndpoints();
         app.MapReportsEndpoints();
 
         return app;

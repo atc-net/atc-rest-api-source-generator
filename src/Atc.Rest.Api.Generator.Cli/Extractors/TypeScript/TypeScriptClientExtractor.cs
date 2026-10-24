@@ -853,6 +853,13 @@ public static class TypeScriptClientExtractor
         {
             AppendUrlEncodedBody(sb, bodySchema!, namingStrategy, convertDates);
         }
+        else if (hasBody && OpenApiOperationExtensions.IsTextRequestBodyContentType(bodyContentType, operation.BodyMediaType?.Schema))
+        {
+            // Text: the string as it is - a Blob of its media type, which both runtimes send as given (not as JSON)
+            var textType = TypeScriptLiteralHelper.ToStringLiteral(bodyContentType.BaseType + "; charset=utf-8");
+            sb.Append("      body: new Blob([body], { type: ").Append(textType).AppendLine(" }),");
+            sb.Append("      contentType: ").Append(textType).AppendLine(",");
+        }
         else if (hasBody)
         {
             sb.AppendLine("      body,");

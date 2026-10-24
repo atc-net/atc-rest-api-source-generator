@@ -313,6 +313,12 @@ public static class WebhookEndpointExtractor
             builder.AppendLine(4, ".WithRequestBodyProblems()");
             builder.AppendLine(4, $".Accepts<{streamedBody.ItemSchema.ToCSharpType(isRequired: true).TrimEnd('?')}>({string.Join(", ", streamedBody.AcceptedMediaTypes.Select(m => $"\"{m}\""))})");
         }
+        else if (TextRequestBodyExtractor.AcceptedMediaTypes(operation) is { Count: > 0 } textMediaTypes)
+        {
+            // Text: a charset the server does not know is a problem; Accepts names its media types
+            builder.AppendLine(4, ".WithRequestBodyProblems()");
+            builder.AppendLine(4, $".Accepts<string>({string.Join(", ", textMediaTypes.Select(m => $"\"{m}\""))})");
+        }
 
         // Add Produces metadata based on responses
         GenerateProducesMetadata(builder, operation);

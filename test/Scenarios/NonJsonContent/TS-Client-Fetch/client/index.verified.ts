@@ -5,4 +5,5 @@ export * from './ApiService';
 export * from './ExportsClient';
 export * from './FilesClient';
 export * from './ItemsClient';
+export * from './NotesClient';
 export * from './ReportsClient';

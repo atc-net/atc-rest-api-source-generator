@@ -633,6 +633,14 @@ public static class OperationParameterExtractor
                         : $"IAsyncEnumerable<{itemType}>?";
                 isDirectFileUpload = false;
             }
+            else if (operation.GetTextRequestBodyMediaType() is not null)
+            {
+                // Text: the server reads it by its charset into the generated TextRequestBody (bound by its BindAsync, no
+                // attribute; a handler takes it as a string), a client sends the string
+                propertyName = "Request";
+                bodyType = includeBindingAttributes ? TextRequestBodyExtractor.TypeName : "string";
+                isDirectFileUpload = false;
+            }
             else if (isDirectFileUpload)
             {
                 // File uploads: type depends on content type and server/client mode
@@ -712,7 +720,12 @@ public static class OperationParameterExtractor
             // as they are read)
             if (streamedBody is null && !isDirectFileUpload)
             {
-                var validationAttributes = requestBodySchema.GetValidationAttributes(isRequired);
+                // On the server's text body the length and pattern attributes read its text; a format's attribute (an
+                // email address, an absolute URI) reads a string only, so it is not written there
+                var validationAttributes = requestBodySchema.GetValidationAttributes(isRequired)
+                    .Where(attribute => !includeBindingAttributes ||
+                                        operation.GetTextRequestBodyMediaType() is null ||
+                                        attribute is not ("EmailAddress" or LengthLimitAttributesExtractor.AbsoluteUriName));
                 bodyAttributes.AddRange(
                     validationAttributes.Select(
                         validationAttr => new AttributeParameters(validationAttr, null)));

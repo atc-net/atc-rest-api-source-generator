@@ -475,8 +475,17 @@ public class ApiServerGenerator : IIncrementalGenerator
                 StreamedRequestBodyExtractor.GenerateContent(projectName));
         }
 
+        // A request body that is text, read by its charset
+        var hasTextRequestBody = TextRequestBodyExtractor.DocumentHasTextRequestBody(openApiDoc);
+        if (hasTextRequestBody)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{TextRequestBodyExtractor.TypeName}.g.cs",
+                TextRequestBodyExtractor.GenerateContent(projectName));
+        }
+
         // A body the generated reader cannot read is a problem with its status on every host
-        if (boundRequestModels.Count > 0 || XmlBodyHelper.HasServerBoundBody(openApiDoc) || hasStreamedRequestBody)
+        if (boundRequestModels.Count > 0 || XmlBodyHelper.HasServerBoundBody(openApiDoc) || hasStreamedRequestBody || hasTextRequestBody)
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.{XmlModelMapperExtractor.RequestBodyProblemsTypeName}.g.cs",
@@ -683,7 +692,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Generated.LengthLimitAttributes.g.cs",
-                LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)));
+                LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName), TextRequestBodyExtractor.DocumentHasTextRequestBody(openApiDoc)));
         }
 
         // The attributes a pattern (on a value or on the items of an array) and a format: uri are written with
@@ -691,7 +700,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             generatedContext.AddGeneratedSource(
                 $"{projectName}.Generated.ValueAttributes.g.cs",
-                LengthLimitAttributesExtractor.GenerateValueAttributes(NamespaceBuilder.BuildBase(projectName), valueAttributes));
+                LengthLimitAttributesExtractor.GenerateValueAttributes(NamespaceBuilder.BuildBase(projectName), valueAttributes, TextRequestBodyExtractor.DocumentHasTextRequestBody(openApiDoc)));
         }
 
         // Generate the server-side SequentialResults helper (the writer-based sequential-streaming
