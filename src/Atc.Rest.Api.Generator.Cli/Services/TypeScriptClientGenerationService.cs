@@ -5,10 +5,21 @@ namespace Atc.Rest.Api.Generator.Cli.Services;
 /// </summary>
 public static class TypeScriptClientGenerationService
 {
-    // The files the current run writes (per async flow, so concurrent runs do not mix): what is left in their folders
-    // with the generated header is the output of something the specification no longer has.
-    private static readonly AsyncLocal<HashSet<string>?> WrittenFiles = new();
-    private static readonly AsyncLocal<List<string>?> KeptFiles = new();
+    // The folders the root barrel re-exports, in order, each when the plan has its index.ts
+    private static readonly string[] RootBarrelFolders =
+    [
+        "models",
+        "enums",
+        "errors",
+        "types",
+        "client",
+        "helpers",
+        "hooks",
+        "mocks",
+        "servers",
+        "webhooks",
+        "hubs",
+    ];
 
     /// <summary>
     /// Generates all TypeScript client files from an OpenAPI document.
@@ -45,36 +56,35 @@ public static class TypeScriptClientGenerationService
             openApiDoc = DeprecationDetector.WithoutDeprecatedOperations(openApiDoc);
         }
 
-        var dryRun = config.DryRun;
-        WrittenFiles.Value = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        KeptFiles.Value = [];
+        // Every file is decided first (the plan), then written in one go
+        var plan = new TypeScriptEmitPlan();
         var headerContent = config.FileHeader;
 
         // Step 1: Extract enums first (needed for correct import paths in models)
         var enums = TypeScriptEnumExtractor.Extract(openApiDoc, config);
         var enumNameSet = new HashSet<string>(enums.Select(e => e.Name), StringComparer.Ordinal);
-        var enumCount = WriteEnums(enums, outputPath, headerContent, config.GenerateZodSchemas, dryRun);
+        var enumCount = AddEnums(plan, enums, headerContent, config.GenerateZodSchemas);
 
         // Step 2: Extract and generate models (with enum names for correct import paths)
         var models = TypeScriptModelExtractor.Extract(openApiDoc, config, enumNameSet);
         var arrayTypeAliases = TypeScriptModelExtractor.ExtractArrayTypeAliases(openApiDoc, config);
         var unionTypeAliases = TypeScriptModelExtractor.ExtractUnionTypeAliases(openApiDoc, config);
-        var modelCount = WriteModels(models, arrayTypeAliases, unionTypeAliases, outputPath, headerContent, config.GenerateZodSchemas, dryRun);
+        var modelCount = AddModels(plan, models, arrayTypeAliases, unionTypeAliases, headerContent, config.GenerateZodSchemas);
 
         // The keys the models rename (the naming strategy) and, with --convert-dates, the declared dates - the client
         // converts them on the way in and out.
         var wireNames = new TypeScriptWireNames(openApiDoc, config.NamingStrategy, config.ConvertDates);
 
         // Step 3: Generate error types
-        var errorTypeCount = WriteErrorTypes(outputPath, headerContent, config.HttpClient, wireNames.HasRenames, dryRun);
+        var errorTypeCount = AddErrorTypes(plan, headerContent, config.HttpClient, wireNames.HasRenames);
 
         // Step 4: Generate ApiResult type
-        var typeCount = WriteApiResultType(outputPath, headerContent, config.HttpClient, config.ZodRuntimeValidate, dryRun);
+        var typeCount = AddApiResultType(plan, headerContent, config.HttpClient, config.ZodRuntimeValidate);
 
         // Step 5: Generate client classes
         var specHasRetry = openApiDoc.HasRetryConfiguration();
         var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(openApiDoc);
-        var (clientCount, segmentClientNames) = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas, config.BrandedIds, config.ZodRuntimeValidate, wireNames, config.PreferXml);
+        var (clientCount, segmentClientNames) = AddClients(plan, openApiDoc, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, writableSchemas, config.BrandedIds, config.ZodRuntimeValidate, wireNames, config.PreferXml);
 
         // Step 5b: Generate helpers (pagination, retry, key renaming)
         var hasRetry = clientCount > 0 && specHasRetry;
@@ -89,94 +99,93 @@ public static class TypeScriptClientGenerationService
         var hasHelpers = hasPagination || hasRetry || hasDownload || wireNamesContent is not null || xmlContent is not null;
         if (hasHelpers)
         {
-            var helpersDir = Path.Combine(outputPath, "helpers");
             var helperModules = new List<string>();
 
             if (wireNamesContent is not null)
             {
-                WriteTsFile(Path.Combine(helpersDir, "wireNames.ts"), wireNamesContent, dryRun);
+                plan.Add("helpers/wireNames.ts", wireNamesContent);
                 helperModules.Add("wireNames");
             }
 
             if (hasPagination)
             {
                 var paginationContent = TypeScriptPaginationHelperExtractor.Generate(headerContent);
-                WriteTsFile(Path.Combine(helpersDir, "paginate.ts"), paginationContent, dryRun);
+                plan.Add("helpers/paginate.ts", paginationContent);
                 helperModules.Add("paginate");
             }
 
             if (hasRetry)
             {
                 var retryConfigContent = TypeScriptRetryConfigExtractor.Generate(openApiDoc, headerContent);
-                WriteTsFile(Path.Combine(helpersDir, "retryConfig.ts"), retryConfigContent, dryRun);
+                plan.Add("helpers/retryConfig.ts", retryConfigContent);
                 helperModules.Add("retryConfig");
 
                 var retryInterceptorContent = TypeScriptRetryInterceptorExtractor.Generate(headerContent);
-                WriteTsFile(Path.Combine(helpersDir, "retryInterceptor.ts"), retryInterceptorContent, dryRun);
+                plan.Add("helpers/retryInterceptor.ts", retryInterceptorContent);
                 helperModules.Add("retryInterceptor");
             }
 
             if (hasDownload)
             {
-                WriteTsFile(Path.Combine(helpersDir, "download.ts"), TypeScriptDownloadHelperExtractor.Generate(headerContent), dryRun);
+                plan.Add("helpers/download.ts", TypeScriptDownloadHelperExtractor.Generate(headerContent));
                 helperModules.Add("download");
             }
 
             // XML bodies: the models' XML mapping and the parser the ApiClient uses
             if (xmlContent is not null)
             {
-                WriteTsFile(Path.Combine(helpersDir, "xml.ts"), xmlContent, dryRun);
+                plan.Add("helpers/xml.ts", xmlContent);
                 helperModules.Add("xml");
             }
 
             // Generate barrel export for helpers
             var helperBarrel = TypeScriptBarrelExportExtractor.Create(headerContent, helperModules, isTypeOnly: false);
-            WriteTsFile(Path.Combine(helpersDir, "index.ts"), new GenerateContentForBarrelExport(helperBarrel).Generate(), dryRun);
+            plan.Add("helpers/index.ts", new GenerateContentForBarrelExport(helperBarrel).Generate());
         }
 
         // Step 6: Generate React Query hooks (if configured)
         var hookCount = 0;
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery && clientCount > 0)
         {
-            hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, dryRun, writableSchemas, config.HooksMode, config.BrandedIds);
+            hookCount = AddReactQueryHooks(plan, openApiDoc, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, writableSchemas, config.HooksMode, config.BrandedIds);
         }
         else if (config.HooksStyle == TypeScriptHooksStyle.Swr && clientCount > 0)
         {
-            hookCount = WriteSwrHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, dryRun, config.BrandedIds, config.ConvertDates, writableSchemas);
+            hookCount = AddSwrHooks(plan, openApiDoc, headerContent, enumNameSet, config.NamingStrategy, config.BrandedIds, config.ConvertDates, writableSchemas);
         }
 
         // Step 6b: Generate Zod schemas (if configured)
         var zodSchemaCount = 0;
         if (config.GenerateZodSchemas)
         {
-            zodSchemaCount = WriteZodSchemas(openApiDoc, outputPath, headerContent, config, enumNameSet, dryRun);
+            zodSchemaCount = AddZodSchemas(plan, openApiDoc, headerContent, config, enumNameSet);
         }
 
         // Step 6c: Generate MSW handlers (if configured)
         var mswHandlerCount = 0;
         if (config.GenerateMswHandlers)
         {
-            mswHandlerCount = WriteMswHandlers(openApiDoc, outputPath, headerContent, config, dryRun);
+            mswHandlerCount = AddMswHandlers(plan, openApiDoc, headerContent, config);
         }
 
         // Step 6d: Emit a typed Servers map when the spec declares >1 server entry.
         // Single-server specs keep the existing baseUrl ctor-arg pattern unchanged.
-        var serversEmitted = WriteServersFile(openApiDoc, outputPath, headerContent, dryRun);
+        var serversEmitted = AddServersFile(plan, openApiDoc, headerContent);
 
         // Step 6e: Emit typed Webhook payload aliases for any operation with a
         // callbacks: block whose body resolves to a named component schema.
-        var webhooksEmitted = WriteWebhooksFile(openApiDoc, outputPath, headerContent, dryRun);
+        var webhooksEmitted = AddWebhooksFile(plan, openApiDoc, headerContent);
 
         // Step 6f: Emit SignalR-style hubs when the doc declares an x-signalr-hubs vendor extension: a
         // framework-neutral connection per hub, and its React hook when the client has React hooks.
-        var hubsEmitted = WriteSignalRHubFiles(openApiDoc, outputPath, headerContent, wireNames, config.HooksStyle is TypeScriptHooksStyle.ReactQuery or TypeScriptHooksStyle.Swr, dryRun);
+        var hubsEmitted = AddSignalRHubFiles(plan, openApiDoc, headerContent, wireNames, config.HooksStyle is TypeScriptHooksStyle.ReactQuery or TypeScriptHooksStyle.Swr);
 
         // Step 6g: Emit branded ID type aliases when --branded-ids is set. The file
         // lives under types/ so it joins the existing type-only barrel. typeCount is
         // bumped so the root barrel includes the types/ subdirectory.
         if (config.BrandedIds)
         {
-            var brandedEmitted = WriteBrandedIdsFile(openApiDoc, outputPath, headerContent, dryRun);
+            var brandedEmitted = AddBrandedIdsFile(plan, openApiDoc, headerContent);
             if (brandedEmitted)
             {
                 typeCount++;
@@ -187,84 +196,24 @@ public static class TypeScriptClientGenerationService
         var scaffoldGenerated = false;
         if (config.Scaffold)
         {
-            scaffoldGenerated = WritePackageScaffold(openApiDoc, outputPath, config, segmentClientNames, hubsEmitted, dryRun);
+            scaffoldGenerated = AddPackageScaffold(plan, openApiDoc, config, segmentClientNames, hubsEmitted);
         }
 
-        // Step 8: Generate root barrel export
-        var subdirectories = new List<string>();
-        if (modelCount > 0)
-        {
-            subdirectories.Add("models");
-        }
-
-        if (enumCount > 0)
-        {
-            subdirectories.Add("enums");
-        }
-
-        if (errorTypeCount > 0)
-        {
-            subdirectories.Add("errors");
-        }
-
-        if (typeCount > 0)
-        {
-            subdirectories.Add("types");
-        }
-
-        if (clientCount > 0)
-        {
-            subdirectories.Add("client");
-        }
-
-        if (hasHelpers)
-        {
-            subdirectories.Add("helpers");
-        }
-
-        if (hookCount > 0)
-        {
-            subdirectories.Add("hooks");
-        }
-
-        if (mswHandlerCount > 0)
-        {
-            subdirectories.Add("mocks");
-        }
-
-        if (serversEmitted)
-        {
-            subdirectories.Add("servers");
-        }
-
-        if (webhooksEmitted)
-        {
-            subdirectories.Add("webhooks");
-        }
-
-        if (hubsEmitted)
-        {
-            subdirectories.Add("hubs");
-        }
-
+        // Step 8: Generate root barrel export - every folder the plan has an index.ts for
+        var subdirectories = RootBarrelFolders
+            .Where(folder => plan.Contains(folder + "/index.ts"))
+            .ToList();
         if (subdirectories.Count > 0)
         {
-            WriteRootBarrelExport(outputPath, headerContent, subdirectories, dryRun);
+            AddRootBarrelExport(plan, headerContent, subdirectories);
         }
 
         var warnings = CollectCookieParameterWarnings(openApiDoc);
 
         // A schema, operation or option the specification no longer has leaves no file behind
-        if (!dryRun && config.GenerateFileHeaders)
-        {
-            RemoveStaleGeneratedFiles(WrittenFiles.Value);
-        }
-
-        WrittenFiles.Value = null;
-        var keptFiles = KeptFiles.Value!
-            .Select(file => Path.GetRelativePath(outputPath, file).Replace('\\', '/'))
-            .ToList();
-        KeptFiles.Value = null;
+        var keptFiles = config.DryRun
+            ? Array.Empty<string>()
+            : TypeScriptEmitWriter.Write(plan, outputPath, removeStale: config.GenerateFileHeaders);
 
         return new TypeScriptGenerationResult(
             ModelCount: modelCount,
@@ -367,16 +316,15 @@ public static class TypeScriptClientGenerationService
     }
 
     /// <summary>
-    /// Writes model files (interfaces and array type aliases) and their barrel export.
+    /// Adds the model files (interfaces and array type aliases) and their barrel export.
     /// </summary>
-    private static int WriteModels(
+    private static int AddModels(
+        TypeScriptEmitPlan plan,
         List<(string Name, TypeScriptInterfaceParameters Parameters)> models,
         List<(string Name, string Content)> arrayTypeAliases,
         List<(string Name, string Content)> unionTypeAliases,
-        string outputPath,
         string? headerContent,
-        bool includeZod,
-        bool dryRun)
+        bool includeZod)
     {
         var totalCount = models.Count + arrayTypeAliases.Count + unionTypeAliases.Count;
         if (totalCount == 0)
@@ -384,30 +332,25 @@ public static class TypeScriptClientGenerationService
             return 0;
         }
 
-        var modelsDir = Path.Combine(outputPath, "models");
         var jsDocGenerator = new JsDocCommentGenerator();
         var writer = new GenerateContentWriter(jsDocGenerator);
 
         foreach (var (name, parameters) in models)
         {
             var generator = new GenerateContentForInterface(writer, parameters);
-            var content = generator.Generate();
-            var filePath = Path.Combine(modelsDir, $"{name}.ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"models/{name}.ts", generator.Generate());
         }
 
         // Write array type alias files (e.g., export type Accounts = Account[];)
         foreach (var (name, content) in arrayTypeAliases)
         {
-            var filePath = Path.Combine(modelsDir, $"{name}.ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"models/{name}.ts", content);
         }
 
         // Write union type alias files (e.g., export type PaymentMethod = CreditCard | BankTransfer;)
         foreach (var (name, content) in unionTypeAliases)
         {
-            var filePath = Path.Combine(modelsDir, $"{name}.ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"models/{name}.ts", content);
         }
 
         // Generate barrel export for all models (interfaces + array aliases + union aliases)
@@ -426,34 +369,28 @@ public static class TypeScriptClientGenerationService
         var barrelParams = includeZod
             ? TypeScriptBarrelExportExtractor.CreateWithZod(headerContent, allModelNames, namesWithoutZod: writableVariants)
             : TypeScriptBarrelExportExtractor.Create(headerContent, allModelNames);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        var barrelContent = barrelGenerator.Generate();
-        WriteTsFile(Path.Combine(modelsDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("models/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return totalCount;
     }
 
     /// <summary>
-    /// Writes enum files and their barrel export.
+    /// Adds the enum files and their barrel export.
     /// </summary>
-    private static int WriteEnums(
+    private static int AddEnums(
+        TypeScriptEmitPlan plan,
         List<(string Name, string Content)> enums,
-        string outputPath,
         string? headerContent,
-        bool includeZod,
-        bool dryRun)
+        bool includeZod)
     {
         if (enums.Count == 0)
         {
             return 0;
         }
 
-        var enumsDir = Path.Combine(outputPath, "enums");
-
         foreach (var (name, content) in enums)
         {
-            var filePath = Path.Combine(enumsDir, $"{name}.ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"enums/{name}.ts", content);
         }
 
         // Generate barrel export for enums - use non-type-only for enum style Enum (they are values)
@@ -461,79 +398,62 @@ public static class TypeScriptClientGenerationService
         var barrelParams = includeZod
             ? TypeScriptBarrelExportExtractor.CreateWithZod(headerContent, enumNames, isTypeOnly: false)
             : TypeScriptBarrelExportExtractor.Create(headerContent, enumNames, isTypeOnly: false);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        var barrelContent = barrelGenerator.Generate();
-        WriteTsFile(Path.Combine(enumsDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("enums/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return enums.Count;
     }
 
     /// <summary>
-    /// Writes error type files and their barrel export.
+    /// Adds the error type files and their barrel export.
     /// </summary>
-    private static int WriteErrorTypes(
-        string outputPath,
+    private static int AddErrorTypes(
+        TypeScriptEmitPlan plan,
         string? headerContent,
         TypeScriptHttpClient httpClient,
-        bool hasWireNames,
-        bool dryRun)
+        bool hasWireNames)
     {
-        var errorsDir = Path.Combine(outputPath, "errors");
-
-        var apiErrorContent = TypeScriptErrorExtractor.GenerateApiError(headerContent, httpClient, hasWireNames);
-        WriteTsFile(Path.Combine(errorsDir, "ApiError.ts"), apiErrorContent, dryRun);
-
-        var validationErrorContent = TypeScriptErrorExtractor.GenerateValidationError(headerContent, httpClient, hasWireNames);
-        WriteTsFile(Path.Combine(errorsDir, "ValidationError.ts"), validationErrorContent, dryRun);
+        plan.Add("errors/ApiError.ts", TypeScriptErrorExtractor.GenerateApiError(headerContent, httpClient, hasWireNames));
+        plan.Add("errors/ValidationError.ts", TypeScriptErrorExtractor.GenerateValidationError(headerContent, httpClient, hasWireNames));
 
         // Generate barrel export for errors (not type-only, they are classes)
         var errorNames = new[] { "ApiError", "ValidationError" };
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, errorNames, isTypeOnly: false);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        var barrelContent = barrelGenerator.Generate();
-        WriteTsFile(Path.Combine(errorsDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("errors/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return 2;
     }
 
     /// <summary>
-    /// Writes the ApiResult type file and its barrel export.
+    /// Adds the ApiResult type file and its barrel export.
     /// </summary>
-    private static int WriteApiResultType(
-        string outputPath,
+    private static int AddApiResultType(
+        TypeScriptEmitPlan plan,
         string? headerContent,
         TypeScriptHttpClient httpClient,
-        bool zodRuntimeValidate,
-        bool dryRun)
+        bool zodRuntimeValidate)
     {
-        var typesDir = Path.Combine(outputPath, "types");
-
-        var apiResultContent = TypeScriptApiResultExtractor.Generate(headerContent, httpClient, zodRuntimeValidate);
-        WriteTsFile(Path.Combine(typesDir, "ApiResult.ts"), apiResultContent, dryRun);
+        plan.Add("types/ApiResult.ts", TypeScriptApiResultExtractor.Generate(headerContent, httpClient, zodRuntimeValidate));
 
         // Generate barrel export for types
         var typeNames = new[] { "ApiResult" };
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, typeNames);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        var barrelContent = barrelGenerator.Generate();
-        WriteTsFile(Path.Combine(typesDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("types/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return 1;
     }
 
     /// <summary>
-    /// Writes client class files and their barrel export.
+    /// Adds the client class files and their barrel export.
     /// </summary>
-    private static (int Count, IReadOnlyList<string> SegmentNames) WriteClients(
+    private static (int Count, IReadOnlyList<string> SegmentNames) AddClients(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
         string? headerContent,
         HashSet<string> enumNameSet,
         TypeScriptHttpClient httpClient,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         bool hasRetry,
-        bool dryRun,
         HashSet<string> writableSchemas,
         bool brandedIds,
         bool zodRuntimeValidate,
@@ -545,8 +465,6 @@ public static class TypeScriptClientGenerationService
         {
             return (0, Array.Empty<string>());
         }
-
-        var clientDir = Path.Combine(outputPath, "client");
 
         // Write base ApiClient (fetch or axios); with XML bodies: the xml request option, XML responses and
         // application/problem+xml errors
@@ -569,20 +487,19 @@ public static class TypeScriptClientGenerationService
             ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies)
             : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames, exportsDateOnly, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
 
-        WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);
+        plan.Add("client/ApiClient.ts", apiClientContent);
 
         // Write per-segment client files
         var segmentClientNames = new List<string>();
         foreach (var (className, content) in clients)
         {
-            var filePath = Path.Combine(clientDir, $"{className}.ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"client/{className}.ts", content);
             segmentClientNames.Add(className);
         }
 
         // Write ApiService root orchestrator
         var apiServiceContent = TypeScriptApiServiceExtractor.Generate(headerContent, segmentClientNames);
-        WriteTsFile(Path.Combine(clientDir, "ApiService.ts"), apiServiceContent, dryRun);
+        plan.Add("client/ApiService.ts", apiServiceContent);
 
         // Generate barrel export for client directory (not type-only, they are classes)
         var clientItems = new List<(string Name, string? Summary)> { ("ApiClient", null) };
@@ -602,24 +519,21 @@ public static class TypeScriptClientGenerationService
 
         clientItems.Add(("ApiService", null));
         var barrelParams = TypeScriptBarrelExportExtractor.CreateWithSummaries(headerContent, clientItems, isTypeOnly: false);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        var barrelContent = barrelGenerator.Generate();
-        WriteTsFile(Path.Combine(clientDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("client/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return (clients.Count, segmentClientNames);
     }
 
     /// <summary>
-    /// Writes React Query hook files (ApiProvider, useApiService, per-segment hooks) and their barrel export.
+    /// Adds the React Query hook files (ApiProvider, useApiService, per-segment hooks) and their barrel export.
     /// </summary>
-    private static int WriteReactQueryHooks(
+    private static int AddReactQueryHooks(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
         string? headerContent,
         HashSet<string> enumNameSet,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        bool dryRun,
         HashSet<string> writableSchemas,
         TypeScriptHooksMode hooksMode,
         bool brandedIds)
@@ -630,53 +544,33 @@ public static class TypeScriptClientGenerationService
             return 0;
         }
 
-        var hooksDir = Path.Combine(outputPath, "hooks");
-
-        // Write ApiProvider.ts
-        var providerContent = TypeScriptApiProviderExtractor.GenerateApiProvider(headerContent);
-        WriteTsFile(
-            Path.Combine(hooksDir, "ApiProvider.ts"),
-            providerContent,
-            dryRun);
-
-        // Write useApiService.ts
-        var useApiServiceContent = TypeScriptApiProviderExtractor.GenerateUseApiService(headerContent);
-        WriteTsFile(
-            Path.Combine(hooksDir, "useApiService.ts"),
-            useApiServiceContent,
-            dryRun);
+        plan.Add("hooks/ApiProvider.ts", TypeScriptApiProviderExtractor.GenerateApiProvider(headerContent));
+        plan.Add("hooks/useApiService.ts", TypeScriptApiProviderExtractor.GenerateUseApiService(headerContent));
 
         // Write per-segment hook files
         var hookFileNames = new List<string> { "ApiProvider", "useApiService" };
         foreach (var (fileName, content) in hooks)
         {
-            var filePath = Path.Combine(hooksDir, fileName + ".ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"hooks/{fileName}.ts", content);
             hookFileNames.Add(fileName);
         }
 
         // Generate barrel export (not type-only, they export functions)
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, hookFileNames, isTypeOnly: false);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        var barrelContent = barrelGenerator.Generate();
-        WriteTsFile(
-            Path.Combine(hooksDir, "index.ts"),
-            barrelContent,
-            dryRun);
+        plan.Add("hooks/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return hooks.Count;
     }
 
     /// <summary>
-    /// Writes SWR hook files (ApiProvider, useApiService, per-segment hooks) and their barrel export.
+    /// Adds the SWR hook files (ApiProvider, useApiService, per-segment hooks) and their barrel export.
     /// </summary>
-    private static int WriteSwrHooks(
+    private static int AddSwrHooks(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
         string? headerContent,
         HashSet<string> enumNameSet,
         TypeScriptNamingStrategy namingStrategy,
-        bool dryRun,
         bool brandedIds,
         bool convertDates,
         HashSet<string> writableSchemas)
@@ -687,42 +581,34 @@ public static class TypeScriptClientGenerationService
             return 0;
         }
 
-        var hooksDir = Path.Combine(outputPath, "hooks");
-
         // Reuse ApiProvider and useApiService from React Query (same context pattern)
-        var providerContent = TypeScriptApiProviderExtractor.GenerateApiProvider(headerContent);
-        WriteTsFile(Path.Combine(hooksDir, "ApiProvider.ts"), providerContent, dryRun);
-
-        var useApiServiceContent = TypeScriptApiProviderExtractor.GenerateUseApiService(headerContent);
-        WriteTsFile(Path.Combine(hooksDir, "useApiService.ts"), useApiServiceContent, dryRun);
+        plan.Add("hooks/ApiProvider.ts", TypeScriptApiProviderExtractor.GenerateApiProvider(headerContent));
+        plan.Add("hooks/useApiService.ts", TypeScriptApiProviderExtractor.GenerateUseApiService(headerContent));
 
         // Write per-segment hook files
         var hookFileNames = new List<string> { "ApiProvider", "useApiService" };
         foreach (var (fileName, content) in hooks)
         {
-            var filePath = Path.Combine(hooksDir, fileName + ".ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"hooks/{fileName}.ts", content);
             hookFileNames.Add(fileName);
         }
 
         // Generate barrel export
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, hookFileNames, isTypeOnly: false);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        WriteTsFile(Path.Combine(hooksDir, "index.ts"), barrelGenerator.Generate(), dryRun);
+        plan.Add("hooks/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return hooks.Count;
     }
 
     /// <summary>
-    /// Writes Zod validation schema files for enums, models, and array type aliases.
+    /// Adds the Zod validation schema files for enums, models, and array type aliases.
     /// </summary>
-    private static int WriteZodSchemas(
+    private static int AddZodSchemas(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
         string? headerContent,
         TypeScriptClientConfig config,
-        HashSet<string> enumNameSet,
-        bool dryRun)
+        HashSet<string> enumNameSet)
     {
         var zodCount = 0;
 
@@ -730,11 +616,9 @@ public static class TypeScriptClientGenerationService
         var zodEnums = TypeScriptZodEnumExtractor.Extract(openApiDoc, config);
         if (zodEnums.Count > 0)
         {
-            var enumsDir = Path.Combine(outputPath, "enums");
             foreach (var (name, content) in zodEnums)
             {
-                var filePath = Path.Combine(enumsDir, $"{name}.zod.ts");
-                WriteTsFile(filePath, content, dryRun);
+                plan.Add($"enums/{name}.zod.ts", content);
             }
 
             zodCount += zodEnums.Count;
@@ -744,11 +628,9 @@ public static class TypeScriptClientGenerationService
         var zodModels = TypeScriptZodModelExtractor.Extract(openApiDoc, config, enumNameSet);
         if (zodModels.Count > 0)
         {
-            var modelsDir = Path.Combine(outputPath, "models");
             foreach (var (name, content) in zodModels)
             {
-                var filePath = Path.Combine(modelsDir, $"{name}.zod.ts");
-                WriteTsFile(filePath, content, dryRun);
+                plan.Add($"models/{name}.zod.ts", content);
             }
 
             zodCount += zodModels.Count;
@@ -758,10 +640,9 @@ public static class TypeScriptClientGenerationService
         var zodUnions = TypeScriptZodModelExtractor.ExtractUnionTypeAliases(openApiDoc, config);
         if (zodUnions.Count > 0)
         {
-            var modelsDir = Path.Combine(outputPath, "models");
             foreach (var (name, content) in zodUnions)
             {
-                WriteTsFile(Path.Combine(modelsDir, $"{name}.zod.ts"), content, dryRun);
+                plan.Add($"models/{name}.zod.ts", content);
             }
 
             zodCount += zodUnions.Count;
@@ -771,11 +652,9 @@ public static class TypeScriptClientGenerationService
         var zodArrays = TypeScriptZodModelExtractor.ExtractArrayTypeAliases(openApiDoc, config);
         if (zodArrays.Count > 0)
         {
-            var modelsDir = Path.Combine(outputPath, "models");
             foreach (var (name, content) in zodArrays)
             {
-                var filePath = Path.Combine(modelsDir, $"{name}.zod.ts");
-                WriteTsFile(filePath, content, dryRun);
+                plan.Add($"models/{name}.zod.ts", content);
             }
 
             zodCount += zodArrays.Count;
@@ -785,24 +664,14 @@ public static class TypeScriptClientGenerationService
     }
 
     /// <summary>
-    /// Writes the root barrel export (index.ts) that re-exports from subdirectories.
-    /// </summary>
-    /// <summary>
-    /// Writes <c>servers/Servers.ts</c> + <c>servers/index.ts</c> when the spec declares
-    /// more than one <c>servers:</c> entry. Single-server specs keep the existing
-    /// single-baseUrl ctor pattern; emitting a one-entry Servers const would add noise
-    /// without giving the consumer a real choice.
-    /// </summary>
-    /// <summary>
-    /// Writes <c>types/BrandedIds.ts</c> when --branded-ids is enabled and the spec
+    /// Adds <c>types/BrandedIds.ts</c> when --branded-ids is enabled and the spec
     /// has at least one qualifying property or path parameter. The <c>types/</c>
-    /// barrel is rewritten to include the new module alongside ApiResult.
+    /// barrel is replaced by one with the new module alongside ApiResult.
     /// </summary>
-    private static bool WriteBrandedIdsFile(
+    private static bool AddBrandedIdsFile(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
-        string? headerContent,
-        bool dryRun)
+        string? headerContent)
     {
         var brands = TypeScriptBrandedIdExtractor.CollectBrandNames(openApiDoc);
         if (brands.Count == 0)
@@ -816,24 +685,27 @@ public static class TypeScriptClientGenerationService
             return false;
         }
 
-        var typesDir = Path.Combine(outputPath, "types");
-        WriteTsFile(Path.Combine(typesDir, "BrandedIds.ts"), content, dryRun);
+        plan.Add("types/BrandedIds.ts", content);
 
-        // Rewrite the types/ barrel to include BrandedIds alongside ApiResult.
+        // Replace the types/ barrel by one with BrandedIds alongside ApiResult.
         // ApiResult is unconditional (every spec emits it), BrandedIds is new.
         var typeNames = new[] { "ApiResult", "BrandedIds" };
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, typeNames);
-        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
-        WriteTsFile(Path.Combine(typesDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("types/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return true;
     }
 
-    private static bool WriteServersFile(
+    /// <summary>
+    /// Adds <c>servers/Servers.ts</c> + <c>servers/index.ts</c> when the spec declares
+    /// more than one <c>servers:</c> entry. Single-server specs keep the existing
+    /// single-baseUrl ctor pattern; emitting a one-entry Servers const would add noise
+    /// without giving the consumer a real choice.
+    /// </summary>
+    private static bool AddServersFile(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
-        string? headerContent,
-        bool dryRun)
+        string? headerContent)
     {
         var content = TypeScriptServersExtractor.Generate(openApiDoc, headerContent);
         if (content is null)
@@ -841,27 +713,24 @@ public static class TypeScriptClientGenerationService
             return false;
         }
 
-        var serversDir = Path.Combine(outputPath, "servers");
-        WriteTsFile(Path.Combine(serversDir, "Servers.ts"), content, dryRun);
+        plan.Add("servers/Servers.ts", content);
 
         // Barrel: re-exports both the Servers const and the ServerName type union.
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, new[] { "Servers" }, isTypeOnly: false);
-        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
-        WriteTsFile(Path.Combine(serversDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("servers/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return true;
     }
 
     /// <summary>
-    /// Writes <c>webhooks/Webhooks.ts</c> + <c>webhooks/index.ts</c> when at least one
+    /// Adds <c>webhooks/Webhooks.ts</c> + <c>webhooks/index.ts</c> when at least one
     /// operation declares a <c>callbacks:</c> block whose body references a named
     /// component schema. Inline callback bodies are skipped (no canonical name to alias).
     /// </summary>
-    private static bool WriteWebhooksFile(
+    private static bool AddWebhooksFile(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
-        string? headerContent,
-        bool dryRun)
+        string? headerContent)
     {
         var content = TypeScriptWebhookExtractor.Generate(openApiDoc, headerContent);
         if (content is null)
@@ -869,29 +738,26 @@ public static class TypeScriptClientGenerationService
             return false;
         }
 
-        var webhooksDir = Path.Combine(outputPath, "webhooks");
-        WriteTsFile(Path.Combine(webhooksDir, "Webhooks.ts"), content, dryRun);
+        plan.Add("webhooks/Webhooks.ts", content);
 
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, new[] { "Webhooks" });
-        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
-        WriteTsFile(Path.Combine(webhooksDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("webhooks/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return true;
     }
 
     /// <summary>
-    /// Writes per-hub <c>xxxHub.ts</c> files (a framework-neutral connection whose inbound events go to caller-supplied
+    /// Adds the per-hub <c>xxxHub.ts</c> files (a framework-neutral connection whose inbound events go to caller-supplied
     /// optional callbacks), with React hooks the <c>useXxxHub.ts</c> hooks that own its lifecycle, plus a
     /// <c>hubs/index.ts</c> barrel, when the document declares an <c>x-signalr-hubs</c> vendor extension. No-op when
     /// the extension is missing or declares no hubs.
     /// </summary>
-    private static bool WriteSignalRHubFiles(
+    private static bool AddSignalRHubFiles(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
         string? headerContent,
         TypeScriptWireNames wireNames,
-        bool includeReactHooks,
-        bool dryRun)
+        bool includeReactHooks)
     {
         var hubs = TypeScriptSignalRHubExtractor.Extract(openApiDoc, headerContent, wireNames, includeReactHooks);
         if (hubs.Count == 0)
@@ -899,44 +765,41 @@ public static class TypeScriptClientGenerationService
             return false;
         }
 
-        var hubsDir = Path.Combine(outputPath, "hubs");
         var hookFileNames = new List<string>();
         foreach (var (fileName, content) in hubs)
         {
-            WriteTsFile(Path.Combine(hubsDir, fileName + ".ts"), content, dryRun);
+            plan.Add($"hubs/{fileName}.ts", content);
             hookFileNames.Add(fileName);
         }
 
         // Barrel — exports functions, not type-only.
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, hookFileNames, isTypeOnly: false);
-        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
-        WriteTsFile(Path.Combine(hubsDir, "index.ts"), barrelContent, dryRun);
+        plan.Add("hubs/index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
 
         return true;
     }
 
-    private static void WriteRootBarrelExport(
-        string outputPath,
+    /// <summary>
+    /// Adds the root barrel export (index.ts) that re-exports from subdirectories.
+    /// </summary>
+    private static void AddRootBarrelExport(
+        TypeScriptEmitPlan plan,
         string? headerContent,
-        List<string> subdirectories,
-        bool dryRun)
+        List<string> subdirectories)
     {
         var barrelParams = TypeScriptBarrelExportExtractor.CreateForSubdirectories(headerContent, subdirectories);
-        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
-        var barrelContent = barrelGenerator.Generate();
-        WriteTsFile(Path.Combine(outputPath, "index.ts"), barrelContent, dryRun);
+        plan.Add("index.ts", new GenerateContentForBarrelExport(barrelParams).Generate());
     }
 
     /// <summary>
-    /// Writes package.json, tsconfig.json, and README.md scaffold files.
+    /// Adds the package.json, tsconfig.json, and README.md scaffold files (written once, then the user's).
     /// </summary>
-    private static bool WritePackageScaffold(
+    private static bool AddPackageScaffold(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
         TypeScriptClientConfig config,
         IReadOnlyList<string> segmentClientNames,
-        bool hasSignalRHubs,
-        bool dryRun)
+        bool hasSignalRHubs)
     {
         var packageName = config.PackageName
             ?? TypeScriptPackageScaffoldExtractor.DerivePackageName(openApiDoc.Info?.Title ?? string.Empty);
@@ -949,16 +812,16 @@ public static class TypeScriptClientGenerationService
             description,
             config,
             hasSignalRHubs);
-        WriteScaffoldFile(Path.Combine(outputPath, "package.json"), packageJsonContent, dryRun);
+        plan.AddScaffold("package.json", packageJsonContent);
 
         var tsConfigContent = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();
-        WriteScaffoldFile(Path.Combine(outputPath, "tsconfig.json"), tsConfigContent, dryRun);
+        plan.AddScaffold("tsconfig.json", tsConfigContent);
 
         var tsConfigCjsContent = TypeScriptPackageScaffoldExtractor.GenerateTsConfigCjs();
-        WriteScaffoldFile(Path.Combine(outputPath, "tsconfig.cjs.json"), tsConfigCjsContent, dryRun);
+        plan.AddScaffold("tsconfig.cjs.json", tsConfigCjsContent);
 
         var postbuildContent = TypeScriptPackageScaffoldExtractor.GeneratePostBuildCjsScript();
-        WriteScaffoldFile(Path.Combine(outputPath, "scripts", "postbuild-cjs.mjs"), postbuildContent, dryRun);
+        plan.AddScaffold("scripts/postbuild-cjs.mjs", postbuildContent);
 
         var readmeContent = TypeScriptPackageScaffoldExtractor.GenerateReadme(
             packageName,
@@ -966,111 +829,9 @@ public static class TypeScriptClientGenerationService
             description,
             segmentClientNames,
             config);
-        WriteScaffoldFile(Path.Combine(outputPath, "README.md"), readmeContent, dryRun);
+        plan.AddScaffold("README.md", readmeContent);
 
         return true;
-    }
-
-    /// <summary>
-    /// Writes a scaffold file (package.json, a tsconfig, README.md) as UTF-8 without BOM when there is none yet,
-    /// skipping the actual write when dry-run is active. A scaffold file is the user's once it exists: the versions,
-    /// scripts and text they put in it are not rewritten by the next run.
-    /// </summary>
-    private static void WriteScaffoldFile(
-        string filePath,
-        string content,
-        bool dryRun)
-    {
-        if (dryRun || File.Exists(filePath))
-        {
-            return;
-        }
-
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        WriteIfChanged(filePath, content);
-    }
-
-    /// <summary>
-    /// Writes a TypeScript file, skipping the actual write when dry-run is active. A file that exists there without
-    /// the generated header (while the content to write carries it) is somebody's own file: it is kept and reported.
-    /// </summary>
-    private static void WriteTsFile(
-        string filePath,
-        string content,
-        bool dryRun)
-    {
-        if (dryRun)
-        {
-            return;
-        }
-
-        if (File.Exists(filePath) &&
-            content.StartsWith(TypeScriptHeaderBuilder.AutoGeneratedHeader, StringComparison.Ordinal) &&
-            !StartsWithGeneratedHeader(filePath))
-        {
-            KeptFiles.Value?.Add(Path.GetFullPath(filePath));
-            return;
-        }
-
-        CodeGeneration.TypeScript.Helpers.FileHelper.WriteTsFile(filePath, content);
-        WrittenFiles.Value?.Add(Path.GetFullPath(filePath));
-    }
-
-    /// <summary>
-    /// Writes UTF-8 without BOM, leaving a file that already holds exactly that content untouched (a watcher or
-    /// bundler does not see it change), and records it as written by this run.
-    /// </summary>
-    private static void WriteIfChanged(
-        string filePath,
-        string content)
-    {
-        var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-        if (!File.Exists(filePath) ||
-            !string.Equals(File.ReadAllText(filePath, encoding), content, StringComparison.Ordinal))
-        {
-            File.WriteAllText(filePath, content, encoding);
-        }
-
-        WrittenFiles.Value?.Add(Path.GetFullPath(filePath));
-    }
-
-    /// <summary>
-    /// Removes the TypeScript files with the generated header that this run did not write, in the folders it wrote to
-    /// (not their subfolders, and never a file without the header - a hand-written file stays).
-    /// </summary>
-    private static void RemoveStaleGeneratedFiles(HashSet<string>? written)
-    {
-        if (written is null || written.Count == 0)
-        {
-            return;
-        }
-
-        var folders = written
-            .Select(Path.GetDirectoryName)
-            .OfType<string>()
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var folder in folders)
-        {
-            foreach (var file in Directory.EnumerateFiles(folder, "*.ts", SearchOption.TopDirectoryOnly))
-            {
-                if (!written.Contains(Path.GetFullPath(file)) && StartsWithGeneratedHeader(file))
-                {
-                    File.Delete(file);
-                }
-            }
-        }
-    }
-
-    private static bool StartsWithGeneratedHeader(string filePath)
-    {
-        using var reader = new StreamReader(filePath);
-        return string.Equals(reader.ReadLine()?.Trim(), TypeScriptHeaderBuilder.AutoGeneratedHeader.Trim(), StringComparison.Ordinal);
     }
 
     private static bool HasPaginationSchemas(OpenApiDocument openApiDoc)
@@ -1102,12 +863,11 @@ public static class TypeScriptClientGenerationService
         return false;
     }
 
-    private static int WriteMswHandlers(
+    private static int AddMswHandlers(
+        TypeScriptEmitPlan plan,
         OpenApiDocument openApiDoc,
-        string outputPath,
         string? headerContent,
-        TypeScriptClientConfig config,
-        bool dryRun)
+        TypeScriptClientConfig config)
     {
         // The handlers match any origin and base path (`http.get('*/items')`): the client requests the spec's
         // server path (`/api/v1/items`) or whatever base URL it is given, and a handler for '/items' alone
@@ -1125,7 +885,6 @@ public static class TypeScriptClientGenerationService
             return 0;
         }
 
-        var mocksDir = Path.Combine(outputPath, "mocks");
         var moduleNames = new List<string>();
         foreach (var (segmentName, content) in handlers)
         {
@@ -1134,8 +893,7 @@ public static class TypeScriptClientGenerationService
             var moduleName = segmentName == "handlers"
                 ? "handlers"
                 : segmentName.EnsureFirstCharacterToLower();
-            var filePath = Path.Combine(mocksDir, moduleName + ".ts");
-            WriteTsFile(filePath, content, dryRun);
+            plan.Add($"mocks/{moduleName}.ts", content);
             moduleNames.Add(moduleName);
         }
 
@@ -1143,8 +901,7 @@ public static class TypeScriptClientGenerationService
         // handler files exist; that requires a real mocks/index.ts. Without this barrel,
         // strict tsc -b emits TS2307: Cannot find module './mocks'.
         var mocksBarrel = TypeScriptBarrelExportExtractor.Create(headerContent, moduleNames, isTypeOnly: false);
-        var mocksBarrelContent = new GenerateContentForBarrelExport(mocksBarrel).Generate();
-        WriteTsFile(Path.Combine(mocksDir, "index.ts"), mocksBarrelContent, dryRun);
+        plan.Add("mocks/index.ts", new GenerateContentForBarrelExport(mocksBarrel).Generate());
 
         // Exclude the combined "handlers" index from count
         return handlers.Count - 1;
