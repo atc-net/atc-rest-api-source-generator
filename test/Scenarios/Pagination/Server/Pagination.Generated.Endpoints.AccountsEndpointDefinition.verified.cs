@@ -47,7 +47,6 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .WithSummary("Create an account (revalidates the infinite list)")
             .Produces<Account>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

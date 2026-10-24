@@ -51,12 +51,6 @@ public partial class UpdatePetWithFormEndpointResult : EndpointResponse, IUpdate
         => Create(HttpStatusCode.Forbidden, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static UpdatePetWithFormEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static UpdatePetWithFormEndpointResult InternalServerError(ProblemDetails content)
@@ -96,9 +90,6 @@ public partial class UpdatePetWithFormEndpointResult : EndpointResponse, IUpdate
     public bool IsForbidden
         => StatusCode == HttpStatusCode.Forbidden;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -106,7 +97,7 @@ public partial class UpdatePetWithFormEndpointResult : EndpointResponse, IUpdate
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
     public bool IsDefaultError
-        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
+        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
 
     public PetStoreFull.Generated.Pet.Models.Pet OkContent
         => IsOk && ContentObject is PetStoreFull.Generated.Pet.Models.Pet result
@@ -147,17 +138,6 @@ public partial class UpdatePetWithFormEndpointResult : EndpointResponse, IUpdate
                     : IsForbidden
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.Forbidden, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Forbidden, "ForbiddenContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

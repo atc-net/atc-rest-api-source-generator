@@ -46,7 +46,6 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithRequestBodyProblems()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
@@ -64,7 +63,6 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithRequestBodyProblems()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
@@ -127,7 +125,6 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithWireBinding(UpdatePetWithFormParametersWire.Parameters, requireParameters: true)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
@@ -160,7 +157,6 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithWireBinding(UploadFileParametersWire.Parameters, requireParameters: true)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")

@@ -7,7 +7,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type ImportReadingsResult =
   | { status: 'accepted'; data: ImportSummary; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -15,7 +14,6 @@ export type ImportReadingsResult =
 export type ImportReadingSequenceResult =
   | { status: 'accepted'; data: ImportSummary; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -23,7 +21,6 @@ export type ImportReadingSequenceResult =
 export type ImportReadingsAnyFormatResult =
   | { status: 'accepted'; data: ImportSummary; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -31,7 +28,6 @@ export type ImportReadingsAnyFormatResult =
 export type UpdateReadingsResult =
   | { status: 'noContent'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -59,7 +55,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/jsonl',
       sequence: 'json-lines',
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ImportReadingsResult>;
   }
@@ -70,7 +66,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/json-seq',
       sequence: 'json-seq',
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ImportReadingSequenceResult>;
   }
@@ -81,7 +77,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/jsonl',
       sequence: 'json-lines',
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ImportReadingsAnyFormatResult>;
   }
@@ -92,7 +88,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/x-ndjson',
       sequence: 'json-lines',
-      arms: ['noContent', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateReadingsResult>;
   }

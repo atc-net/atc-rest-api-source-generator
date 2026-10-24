@@ -22,8 +22,6 @@ public interface ICreateExportEndpointResult : IEndpointResponse, IEndpointResul
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsTooManyRequests { get; }
 
     bool IsInternalServerError { get; }
@@ -33,8 +31,6 @@ public interface ICreateExportEndpointResult : IEndpointResponse, IEndpointResul
     ExportJob AcceptedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails TooManyRequestsContent { get; }
 

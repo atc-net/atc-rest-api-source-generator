@@ -45,12 +45,6 @@ public partial class UpdateItemAttachmentEndpointResult : EndpointResponse, IUpd
         => Create(HttpStatusCode.NotFound, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static UpdateItemAttachmentEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static UpdateItemAttachmentEndpointResult InternalServerError(ProblemDetails content)
@@ -88,9 +82,6 @@ public partial class UpdateItemAttachmentEndpointResult : EndpointResponse, IUpd
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -118,17 +109,6 @@ public partial class UpdateItemAttachmentEndpointResult : EndpointResponse, IUpd
                     : IsNotFound
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.NotFound, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

@@ -37,7 +37,6 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .WithSummary("Generate report (no retry, long timeout)")
             .Produces<ReportJob>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

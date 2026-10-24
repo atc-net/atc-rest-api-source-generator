@@ -55,7 +55,6 @@ public sealed class NormalizeReadingsEndpoint : INormalizeReadingsEndpoint
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildStreamingEndpointResponseAsync<Reading, NormalizeReadingsEndpointResult>(x => new NormalizeReadingsEndpointResult(x), StreamFraming.JsonLines, streamReadOptions, cancellationToken).ConfigureAwait(false);

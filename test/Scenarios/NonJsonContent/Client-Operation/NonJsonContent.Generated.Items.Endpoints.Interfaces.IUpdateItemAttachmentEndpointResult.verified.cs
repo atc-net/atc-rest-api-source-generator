@@ -24,8 +24,6 @@ public interface IUpdateItemAttachmentEndpointResult : IEndpointResponse, IEndpo
 
     bool IsNotFound { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -33,8 +31,6 @@ public interface IUpdateItemAttachmentEndpointResult : IEndpointResponse, IEndpo
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails NotFoundContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

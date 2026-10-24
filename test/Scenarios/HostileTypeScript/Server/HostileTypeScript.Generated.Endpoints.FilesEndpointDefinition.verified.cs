@@ -38,7 +38,6 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .WithSummary("Creates a file - the model is named like the browser's File.")
             .Produces<ApiResult>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

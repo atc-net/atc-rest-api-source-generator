@@ -37,7 +37,6 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
             .WithSummary("Create a webhook subscription")
             .Produces<Subscription>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

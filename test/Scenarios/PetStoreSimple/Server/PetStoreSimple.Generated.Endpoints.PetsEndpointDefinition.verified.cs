@@ -46,8 +46,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithName("CreatePets")
             .WithSummary("Create a pet")
             .Produces(StatusCodes.Status201Created)
-            .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json");
 
         pets
             .MapGet("{petId}", ShowPetById)

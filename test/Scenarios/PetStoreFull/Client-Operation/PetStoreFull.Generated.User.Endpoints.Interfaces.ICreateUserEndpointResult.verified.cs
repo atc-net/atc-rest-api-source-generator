@@ -22,8 +22,6 @@ public interface ICreateUserEndpointResult : IEndpointResponse, IEndpointResult
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -33,8 +31,6 @@ public interface ICreateUserEndpointResult : IEndpointResponse, IEndpointResult
     PetStoreFull.Generated.User.Models.User OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

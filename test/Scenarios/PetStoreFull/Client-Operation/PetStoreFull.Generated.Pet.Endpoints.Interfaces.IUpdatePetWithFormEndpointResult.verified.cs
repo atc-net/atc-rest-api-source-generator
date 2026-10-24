@@ -26,8 +26,6 @@ public interface IUpdatePetWithFormEndpointResult : IEndpointResponse, IEndpoint
 
     bool IsForbidden { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -41,8 +39,6 @@ public interface IUpdatePetWithFormEndpointResult : IEndpointResponse, IEndpoint
     ProblemDetails UnauthorizedContent { get; }
 
     ProblemDetails ForbiddenContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

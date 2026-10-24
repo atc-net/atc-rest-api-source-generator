@@ -51,12 +51,6 @@ public partial class CreateOrderEndpointResult : EndpointResponse, ICreateOrderE
         => Create(HttpStatusCode.Forbidden, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static CreateOrderEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static CreateOrderEndpointResult InternalServerError(ProblemDetails content)
@@ -96,9 +90,6 @@ public partial class CreateOrderEndpointResult : EndpointResponse, ICreateOrderE
 
     public bool IsForbidden
         => StatusCode == HttpStatusCode.Forbidden;
-
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
 
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
@@ -143,17 +134,6 @@ public partial class CreateOrderEndpointResult : EndpointResponse, ICreateOrderE
                     : IsForbidden
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.Forbidden, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Forbidden, "ForbiddenContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

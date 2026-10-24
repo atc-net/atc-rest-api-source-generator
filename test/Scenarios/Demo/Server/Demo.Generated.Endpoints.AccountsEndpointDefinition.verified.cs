@@ -83,7 +83,6 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .Produces<Account>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(UpdateAccountByIdParametersWire.Parameters, requireParameters: true)

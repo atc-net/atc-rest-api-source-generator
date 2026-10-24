@@ -39,12 +39,6 @@ public partial class ReceiveWebhookEndpointResult : EndpointResponse, IReceiveWe
         => Create(HttpStatusCode.BadRequest, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static ReceiveWebhookEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP TooManyRequests.
     /// </summary>
     public static ReceiveWebhookEndpointResult TooManyRequests(ProblemDetails content)
@@ -85,9 +79,6 @@ public partial class ReceiveWebhookEndpointResult : EndpointResponse, IReceiveWe
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsTooManyRequests
         => StatusCode == HttpStatusCode.TooManyRequests;
 
@@ -107,17 +98,6 @@ public partial class ReceiveWebhookEndpointResult : EndpointResponse, IReceiveWe
                     : IsBadRequest
                         ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, Content)
                         : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails TooManyRequestsContent
         => IsTooManyRequests && ContentObject is ProblemDetails result

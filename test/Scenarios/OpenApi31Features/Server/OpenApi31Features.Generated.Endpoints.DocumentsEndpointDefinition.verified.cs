@@ -38,7 +38,6 @@ public sealed class DocumentsEndpointDefinition : IEndpointDefinition
             .WithSummary("Create a document with base64 content")
             .Produces<DocumentResponse>(StatusCodes.Status201Created)
             .Produces<Error>(StatusCodes.Status400BadRequest, contentType: "application/json")
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

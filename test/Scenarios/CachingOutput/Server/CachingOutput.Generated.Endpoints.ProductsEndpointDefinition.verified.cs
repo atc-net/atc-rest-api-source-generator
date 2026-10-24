@@ -52,7 +52,6 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .WithSummary("Create product (no caching)")
             .Produces<Product>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

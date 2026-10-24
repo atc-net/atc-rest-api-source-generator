@@ -28,8 +28,6 @@ public interface IUploadFileEndpointResult : IEndpointResponse, IEndpointResult
 
     bool IsForbidden { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -45,8 +43,6 @@ public interface IUploadFileEndpointResult : IEndpointResponse, IEndpointResult
     ProblemDetails UnauthorizedContent { get; }
 
     ProblemDetails ForbiddenContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

@@ -14,7 +14,6 @@ export type ListPetsResult =
 export type CreatePetResult =
   | { status: 'created'; data: Pet; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -31,7 +30,6 @@ export type UpdatePetResult =
   | { status: 'ok'; data: Pet; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -68,7 +66,7 @@ export class PetsClient {
     return this.api.request<Pet>('POST', '/pets', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreatePetResult>;
   }
@@ -87,7 +85,7 @@ export class PetsClient {
     return this.api.request<Pet>('PUT', `/pets/${encodeURIComponent(petId)}`, {
       body,
       responseType: 'json',
-      arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdatePetResult>;
   }

@@ -22,8 +22,6 @@ public interface IReceiveWebhookEndpointResult : IEndpointResponse, IEndpointRes
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsTooManyRequests { get; }
 
     bool IsInternalServerError { get; }
@@ -31,8 +29,6 @@ public interface IReceiveWebhookEndpointResult : IEndpointResponse, IEndpointRes
     bool IsGatewayTimeout { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails TooManyRequestsContent { get; }
 

@@ -50,7 +50,6 @@ public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse(HttpStatusCode.Created);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict, "application/problem+json");
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError, "application/problem+json");
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout, "application/problem+json");
         responseBuilder.AddDefaultErrorResponse<Error>();

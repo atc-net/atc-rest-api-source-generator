@@ -45,12 +45,6 @@ public partial class UpdateAdminSettingsEndpointResult : EndpointResponse, IUpda
         => Create(HttpStatusCode.Unauthorized, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static UpdateAdminSettingsEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static UpdateAdminSettingsEndpointResult InternalServerError(ProblemDetails content)
@@ -88,9 +82,6 @@ public partial class UpdateAdminSettingsEndpointResult : EndpointResponse, IUpda
     public bool IsUnauthorized
         => StatusCode == HttpStatusCode.Unauthorized;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -123,17 +114,6 @@ public partial class UpdateAdminSettingsEndpointResult : EndpointResponse, IUpda
                     : IsUnauthorized
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.Unauthorized, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Unauthorized, "UnauthorizedContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

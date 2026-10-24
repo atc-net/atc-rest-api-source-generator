@@ -46,7 +46,6 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
             .WithSummary("Create a profile")
             .Produces<Profile>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

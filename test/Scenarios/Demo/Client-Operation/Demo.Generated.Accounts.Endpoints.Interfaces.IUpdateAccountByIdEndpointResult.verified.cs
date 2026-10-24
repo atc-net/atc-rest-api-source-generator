@@ -24,8 +24,6 @@ public interface IUpdateAccountByIdEndpointResult : IEndpointResponse, IEndpoint
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -35,8 +33,6 @@ public interface IUpdateAccountByIdEndpointResult : IEndpointResponse, IEndpoint
     ProblemDetails NotFoundContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

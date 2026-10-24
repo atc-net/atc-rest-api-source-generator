@@ -8,7 +8,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type CreateExportResult =
   | { status: 'accepted'; data: ExportJob; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
@@ -25,7 +24,7 @@ export class ExportsClient {
   async createExport(body: ExportRequest, signal?: AbortSignal): Promise<CreateExportResult> {
     return this.api.request<void>('POST', '/exports', {
       body,
-      arms: ['accepted', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateExportResult>;
   }

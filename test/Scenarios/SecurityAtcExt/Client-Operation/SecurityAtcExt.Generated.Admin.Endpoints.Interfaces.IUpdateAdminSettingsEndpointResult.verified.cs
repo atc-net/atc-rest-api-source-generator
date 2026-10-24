@@ -26,8 +26,6 @@ public interface IUpdateAdminSettingsEndpointResult : IEndpointResponse, IEndpoi
 
     bool IsForbidden { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -39,8 +37,6 @@ public interface IUpdateAdminSettingsEndpointResult : IEndpointResponse, IEndpoi
     ProblemDetails UnauthorizedContent { get; }
 
     ProblemDetails ForbiddenContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

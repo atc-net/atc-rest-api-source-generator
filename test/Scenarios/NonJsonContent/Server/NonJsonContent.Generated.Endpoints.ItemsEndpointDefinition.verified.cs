@@ -59,7 +59,6 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(UpdateItemAttachmentParametersWire.Parameters, requireParameters: true)

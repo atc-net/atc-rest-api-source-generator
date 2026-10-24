@@ -67,7 +67,6 @@ public sealed class UpdatePetEndpoint : IUpdatePetEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.UnprocessableEntity);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         responseBuilder.AddDefaultErrorResponse<ProblemDetails>();

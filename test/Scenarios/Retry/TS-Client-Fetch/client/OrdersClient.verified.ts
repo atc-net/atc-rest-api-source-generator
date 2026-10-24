@@ -14,7 +14,6 @@ export type ListOrdersResult =
 export type CreateOrderResult =
   | { status: 'created'; data: Order; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -58,7 +57,7 @@ export class OrdersClient {
       body,
       responseType: 'json',
       retry: { policy: retryPolicies.ordersFast, enabled: false },
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateOrderResult>;
   }

@@ -15,7 +15,6 @@ export type UpdateAdminSettingsResult =
   | { status: 'ok'; data: AdminSettings; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -42,7 +41,7 @@ export class AdminClient {
     return this.api.request<AdminSettings>('PUT', '/admin/settings', {
       body,
       responseType: 'json',
-      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'unauthorized', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'apiKey', scheme: 'api_key', in: 'header', name: 'X-API-Key' }],
       signal,
     }) as Promise<UpdateAdminSettingsResult>;

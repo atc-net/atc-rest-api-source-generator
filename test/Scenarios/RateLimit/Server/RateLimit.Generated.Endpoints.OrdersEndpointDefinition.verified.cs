@@ -49,7 +49,6 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Create order (orders-standard policy)")
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)

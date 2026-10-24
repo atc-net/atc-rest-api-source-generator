@@ -36,7 +36,6 @@ public sealed class TrackingEndpointDefinition : IEndpointDefinition
             .WithSummary("Track an event with user context")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(TrackEventParametersWire.Parameters, requireParameters: true);

@@ -37,7 +37,6 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
             .WithSummary("Send notification (constant backoff)")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

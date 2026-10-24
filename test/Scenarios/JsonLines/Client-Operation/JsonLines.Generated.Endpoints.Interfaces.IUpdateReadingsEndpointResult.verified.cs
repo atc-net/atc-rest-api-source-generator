@@ -22,15 +22,11 @@ public interface IUpdateReadingsEndpointResult : IEndpointResponse, IEndpointRes
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

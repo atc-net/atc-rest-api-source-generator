@@ -39,12 +39,6 @@ public partial class SearchReadingsEndpointResult : StreamingEndpointResponse<Re
         => Create(HttpStatusCode.BadRequest, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static SearchReadingsEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static SearchReadingsEndpointResult InternalServerError(ProblemDetails content)
@@ -88,9 +82,6 @@ public partial class SearchReadingsEndpointResult : StreamingEndpointResponse<Re
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -107,17 +98,6 @@ public partial class SearchReadingsEndpointResult : StreamingEndpointResponse<Re
                     : IsBadRequest
                         ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, ErrorText)
                         : throw InvalidContentAccessException(HttpStatusCode.BadRequest, "BadRequestContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ErrorObject is ProblemDetails result
-            ? result
-            : IsConflict && ErrorObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ErrorObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, ErrorText)
-                        : throw InvalidContentAccessException(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ErrorObject is ProblemDetails result

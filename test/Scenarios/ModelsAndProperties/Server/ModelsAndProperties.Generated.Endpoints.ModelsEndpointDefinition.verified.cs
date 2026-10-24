@@ -47,7 +47,6 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
             .WithSummary("Create a new model")
             .Produces<ComprehensiveModel>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

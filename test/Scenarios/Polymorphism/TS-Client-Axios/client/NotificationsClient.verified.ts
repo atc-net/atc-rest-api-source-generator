@@ -8,7 +8,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type SendNotificationResult =
   | { status: 'accepted'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -30,7 +29,7 @@ export class NotificationsClient {
   async sendNotification(body: Notification, signal?: AbortSignal): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<SendNotificationResult>;
   }

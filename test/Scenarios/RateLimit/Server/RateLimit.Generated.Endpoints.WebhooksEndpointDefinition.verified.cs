@@ -38,7 +38,6 @@ public sealed class WebhooksEndpointDefinition : IEndpointDefinition
             .WithSummary("Receive webhook (rate limiting disabled)")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)

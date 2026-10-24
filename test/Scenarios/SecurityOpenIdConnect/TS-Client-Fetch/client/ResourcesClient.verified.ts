@@ -17,7 +17,6 @@ export type CreateResourceResult =
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
   | { status: 'forbidden'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -64,7 +63,7 @@ export class ResourcesClient {
     return this.api.request<Resource>('POST', '/resources', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateResourceResult>;

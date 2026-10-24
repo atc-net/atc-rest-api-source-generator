@@ -15,7 +15,6 @@ export type GetFileByIdResult =
 export type UploadFormDataFileResult =
   | { status: 'ok'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -23,7 +22,6 @@ export type UploadFormDataFileResult =
 export type UploadFormDataFilesResult =
   | { status: 'ok'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -31,7 +29,6 @@ export type UploadFormDataFilesResult =
 export type UploadSingleFileAsFormDataResult =
   | { status: 'ok'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -39,7 +36,6 @@ export type UploadSingleFileAsFormDataResult =
 export type UploadMultiFilesAsFormDataResult =
   | { status: 'ok'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -70,7 +66,7 @@ export class FilesClient {
         for (const item of data.items ?? []) formData.append('items', String(item));
         return formData;
       })(),
-      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UploadFormDataFileResult>;
   }
@@ -83,7 +79,7 @@ export class FilesClient {
         for (const f of data.files ?? []) formData.append('files', f);
         return formData;
       })(),
-      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UploadFormDataFilesResult>;
   }
@@ -93,7 +89,7 @@ export class FilesClient {
     return this.api.request<void>('POST', '/files/form-data/singleFile', {
       body: file,
       contentType: 'application/octet-stream',
-      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UploadSingleFileAsFormDataResult>;
   }
@@ -108,7 +104,7 @@ export class FilesClient {
         }
         return formData;
       })(),
-      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UploadMultiFilesAsFormDataResult>;
   }

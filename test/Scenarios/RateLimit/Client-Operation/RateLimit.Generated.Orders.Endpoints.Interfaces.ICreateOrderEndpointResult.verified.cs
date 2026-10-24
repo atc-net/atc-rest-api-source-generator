@@ -22,8 +22,6 @@ public interface ICreateOrderEndpointResult : IEndpointResponse, IEndpointResult
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsTooManyRequests { get; }
 
     bool IsInternalServerError { get; }
@@ -33,8 +31,6 @@ public interface ICreateOrderEndpointResult : IEndpointResponse, IEndpointResult
     Order CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails TooManyRequestsContent { get; }
 

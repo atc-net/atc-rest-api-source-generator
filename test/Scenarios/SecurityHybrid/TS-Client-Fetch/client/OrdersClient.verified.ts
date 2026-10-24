@@ -17,7 +17,6 @@ export type CreateOrderResult =
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
   | { status: 'forbidden'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -72,7 +71,7 @@ export class OrdersClient {
     return this.api.request<Order>('POST', '/orders', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
       security: [{ type: 'bearer' }],
       signal,
     }) as Promise<CreateOrderResult>;

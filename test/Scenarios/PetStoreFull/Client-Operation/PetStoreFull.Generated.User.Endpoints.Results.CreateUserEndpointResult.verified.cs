@@ -39,12 +39,6 @@ public partial class CreateUserEndpointResult : EndpointResponse, ICreateUserEnd
         => Create(HttpStatusCode.BadRequest, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static CreateUserEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static CreateUserEndpointResult InternalServerError(ProblemDetails content)
@@ -78,9 +72,6 @@ public partial class CreateUserEndpointResult : EndpointResponse, ICreateUserEnd
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -88,7 +79,7 @@ public partial class CreateUserEndpointResult : EndpointResponse, ICreateUserEnd
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
     public bool IsDefaultError
-        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
+        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
 
     public PetStoreFull.Generated.User.Models.User OkContent
         => IsOk && ContentObject is PetStoreFull.Generated.User.Models.User result
@@ -107,17 +98,6 @@ public partial class CreateUserEndpointResult : EndpointResponse, ICreateUserEnd
                     : IsBadRequest
                         ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, Content)
                         : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

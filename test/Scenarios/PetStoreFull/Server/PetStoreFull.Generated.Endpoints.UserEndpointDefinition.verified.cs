@@ -40,7 +40,6 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .Produces<PetStoreFull.Generated.User.Models.User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithRequestBodyProblems()
             .Accepts<PetStoreFull.Generated.User.Models.User>("application/json", "application/xml");
 
@@ -51,7 +50,6 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .Produces<PetStoreFull.Generated.User.Models.User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithRequestBodyProblems()
             .Accepts<List<PetStoreFull.Generated.User.Models.User>>("application/json");
 
@@ -89,7 +87,6 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithWireBinding(UpdateUserParametersWire.Parameters, requireParameters: true)
             .WithRequestBodyProblems()
             .Accepts<PetStoreFull.Generated.User.Models.User>("application/json", "application/xml");

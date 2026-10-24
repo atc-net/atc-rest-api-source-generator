@@ -46,7 +46,6 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Create order (retry disabled for non-idempotent)")
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

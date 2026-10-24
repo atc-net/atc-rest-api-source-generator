@@ -45,12 +45,6 @@ public partial class UpdateAccountByIdEndpointResult : EndpointResponse, IUpdate
         => Create(HttpStatusCode.BadRequest, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static UpdateAccountByIdEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static UpdateAccountByIdEndpointResult InternalServerError(ProblemDetails content)
@@ -88,9 +82,6 @@ public partial class UpdateAccountByIdEndpointResult : EndpointResponse, IUpdate
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -123,17 +114,6 @@ public partial class UpdateAccountByIdEndpointResult : EndpointResponse, IUpdate
                     : IsBadRequest
                         ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, Content)
                         : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

@@ -57,7 +57,6 @@ public sealed class UpdateItemAttachmentEndpoint : IUpdateItemAttachmentEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.NoContent);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new UpdateItemAttachmentEndpointResult(x), cancellationToken).ConfigureAwait(false);

@@ -9,7 +9,6 @@ export type ProcessPaymentResult =
   | { status: 'ok'; data: PaymentResult; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -26,7 +25,7 @@ export class ExternalClient {
       body,
       responseType: 'json',
       retry: { policy: retryPolicies.externalService, enabled: false },
-      arms: ['ok', 'serverError', 'badRequest', 'conflict', 'clientError', 'parseError'],
+      arms: ['ok', 'serverError', 'badRequest', 'clientError', 'parseError'],
       signal,
     }) as Promise<ProcessPaymentResult>;
   }

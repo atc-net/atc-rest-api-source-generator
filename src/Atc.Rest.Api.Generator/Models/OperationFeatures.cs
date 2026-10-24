@@ -45,8 +45,9 @@ public sealed class OperationFeatures
     /// <summary>
     /// The error statuses the generated server answers by itself that the specification does not list - one rule for
     /// the server's endpoint metadata and every client: 400 with parameters (validation), 401 with security, 403 with
-    /// roles or policies, 404 for GET/PUT/DELETE/PATCH with path parameters, 409 for POST/PUT, 429 with rate limiting,
-    /// and 500 and 504 (the global error handler) unless a <c>default</c> response says what any other status carries.
+    /// roles or policies, 404 for GET/PUT/DELETE/PATCH with path parameters, 429 with rate limiting, and 500 and 504 (the
+    /// global error handler) unless a <c>default</c> response says what any other status carries. A 409 is not one: the
+    /// handler answers it, and declares it.
     /// </summary>
     /// <param name="definedCodes">The status codes the specification lists for the operation.</param>
     /// <param name="hasDefaultResponse">Whether the operation has a <c>default</c> response.</param>
@@ -75,7 +76,6 @@ public sealed class OperationFeatures
         AddWhen(HasSecurity, "401");
         AddWhen(HasRolesOrPolicies, "403");
         AddWhen(HasPathParameters && HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH", "404");
-        AddWhen(HttpMethod is "POST" or "PUT", "409");
         AddWhen(HasRateLimiting, "429");
         AddWhen(!hasDefaultResponse, "500");
         AddWhen(!hasDefaultResponse, "504");

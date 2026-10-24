@@ -20,15 +20,11 @@ public interface ICreatePetsEndpointResult : IEndpointResponse, IEndpointResult
 {
     bool IsCreated { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
 
     bool IsDefaultError { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

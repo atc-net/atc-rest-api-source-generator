@@ -7,7 +7,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type ReceiveWebhookResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -24,7 +23,7 @@ export class WebhooksClient {
   async receiveWebhook(body: WebhookPayload, signal?: AbortSignal): Promise<ReceiveWebhookResult> {
     return this.api.request<void>('POST', '/webhooks', {
       body,
-      arms: ['ok', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ReceiveWebhookResult>;
   }

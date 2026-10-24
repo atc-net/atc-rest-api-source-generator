@@ -22,8 +22,6 @@ public interface ICreateTicketEndpointResult : IEndpointResponse, IEndpointResul
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -31,8 +29,6 @@ public interface ICreateTicketEndpointResult : IEndpointResponse, IEndpointResul
     Ticket CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

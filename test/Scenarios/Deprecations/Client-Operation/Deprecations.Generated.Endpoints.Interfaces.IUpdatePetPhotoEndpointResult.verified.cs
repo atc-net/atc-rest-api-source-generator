@@ -25,8 +25,6 @@ public interface IUpdatePetPhotoEndpointResult : IEndpointResponse, IEndpointRes
 
     bool IsNotFound { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -34,8 +32,6 @@ public interface IUpdatePetPhotoEndpointResult : IEndpointResponse, IEndpointRes
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails NotFoundContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

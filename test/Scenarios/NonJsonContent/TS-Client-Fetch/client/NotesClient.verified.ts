@@ -6,7 +6,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type CreateNoteResult =
   | { status: 'noContent'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -23,7 +22,7 @@ export class NotesClient {
     return this.api.request<void>('POST', '/notes', {
       body: new Blob([body], { type: 'text/plain; charset=utf-8' }),
       contentType: 'text/plain; charset=utf-8',
-      arms: ['noContent', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateNoteResult>;
   }

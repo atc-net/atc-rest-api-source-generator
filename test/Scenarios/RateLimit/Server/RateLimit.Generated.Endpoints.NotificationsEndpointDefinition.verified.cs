@@ -39,7 +39,6 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
             .WithSummary("Send notification (token bucket with queue)")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)

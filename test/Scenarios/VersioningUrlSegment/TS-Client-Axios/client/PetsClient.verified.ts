@@ -15,7 +15,6 @@ export type ListPetsResult =
 export type CreatePetResult =
   | { status: 'created'; data: Pet; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -32,7 +31,6 @@ export type UpdatePetResult =
   | { status: 'ok'; data: Pet; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -69,7 +67,7 @@ export class PetsClient {
     return this.api.request<Pet>('POST', '/pets', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreatePetResult>;
   }
@@ -88,7 +86,7 @@ export class PetsClient {
     return this.api.request<Pet>('PUT', `/pets/${encodeURIComponent(petId)}`, {
       body,
       responseType: 'json',
-      arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdatePetResult>;
   }

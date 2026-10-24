@@ -40,7 +40,6 @@ export type UpdateTaskByIdResult =
   | { status: 'ok'; data: Task; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -96,7 +95,7 @@ export class TasksClient {
     return this.api.request<Task>('PUT', `/tasks/${encodeURIComponent(taskId)}`, {
       body,
       responseType: 'json',
-      arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateTaskByIdResult>;
   }

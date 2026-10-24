@@ -40,7 +40,6 @@ export type UpdateAccountByIdResult =
   | { status: 'ok'; data: Account; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -103,7 +102,7 @@ export class AccountsClient {
     return this.api.request<Account>('PUT', `/accounts/${encodeURIComponent(accountId)}`, {
       body,
       responseType: 'json',
-      arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateAccountByIdResult>;
   }

@@ -22,7 +22,6 @@ export type UpdateItemAttachmentResult =
   | { status: 'noContent'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -74,7 +73,7 @@ export class ItemsClient {
     return this.api.request<void>('PUT', `/items/${encodeURIComponent(itemId)}/attachment`, {
       body: file,
       contentType: 'application/octet-stream',
-      arms: ['noContent', 'badRequest', 'notFound', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateItemAttachmentResult>;
   }

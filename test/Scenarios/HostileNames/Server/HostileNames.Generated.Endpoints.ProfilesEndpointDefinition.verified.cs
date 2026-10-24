@@ -38,7 +38,6 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
             .WithSummary("Creates a profile from a URL-encoded form whose model is snake_case-named.")
             .Produces<user_profile>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireFormBinding((WireParameter.Text("form", "user_name"), true, false), (WireParameter.Text("form", "display_name"), false, false))

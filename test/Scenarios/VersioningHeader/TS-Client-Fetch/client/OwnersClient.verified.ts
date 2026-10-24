@@ -13,7 +13,6 @@ export type ListOwnersResult =
 export type CreateOwnerResult =
   | { status: 'created'; data: Owner; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -47,7 +46,7 @@ export class OwnersClient {
     return this.api.request<Owner>('POST', '/owners', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateOwnerResult>;
   }

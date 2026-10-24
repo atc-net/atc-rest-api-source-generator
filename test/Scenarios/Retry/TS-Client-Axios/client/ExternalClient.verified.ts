@@ -10,7 +10,6 @@ export type ProcessPaymentResult =
   | { status: 'ok'; data: PaymentResult; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -27,7 +26,7 @@ export class ExternalClient {
       body,
       responseType: 'json',
       retry: { policy: retryPolicies.externalService, enabled: false },
-      arms: ['ok', 'serverError', 'badRequest', 'conflict', 'clientError', 'parseError'],
+      arms: ['ok', 'serverError', 'badRequest', 'clientError', 'parseError'],
       signal,
     }) as Promise<ProcessPaymentResult>;
   }

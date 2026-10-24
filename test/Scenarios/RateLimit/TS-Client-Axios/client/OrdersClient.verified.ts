@@ -15,7 +15,6 @@ export type ListOrdersResult =
 export type CreateOrderResult =
   | { status: 'created'; data: Order; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
@@ -60,7 +59,7 @@ export class OrdersClient {
     return this.api.request<Order>('POST', '/orders', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateOrderResult>;
   }

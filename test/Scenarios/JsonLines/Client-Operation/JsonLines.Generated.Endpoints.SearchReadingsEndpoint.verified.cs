@@ -61,7 +61,6 @@ public sealed class SearchReadingsEndpoint : ISearchReadingsEndpoint
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildStreamingEndpointResponseAsync<Reading, SearchReadingsEndpointResult>(x => new SearchReadingsEndpointResult(x), StreamFraming.JsonLines, streamReadOptions, cancellationToken).ConfigureAwait(false);

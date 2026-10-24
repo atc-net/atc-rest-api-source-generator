@@ -7,7 +7,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type CreateTestItemWithModelResult =
   | { status: 'created'; data: TestItem; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -20,7 +19,6 @@ export interface CreateTestItemWithLocationHeaderCreatedHeaders {
 export type CreateTestItemWithLocationHeaderResult =
   | { status: 'created'; headers: CreateTestItemWithLocationHeaderCreatedHeaders; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -28,7 +26,6 @@ export type CreateTestItemWithLocationHeaderResult =
 export type CreateTestItemWithLocationInBodyResult =
   | { status: 'created'; data: string; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -36,7 +33,6 @@ export type CreateTestItemWithLocationInBodyResult =
 export type CreateTestItemEmptyResult =
   | { status: 'created'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -53,7 +49,7 @@ export class TestsClient {
     return this.api.request<TestItem>('POST', '/tests/create/create-model', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateTestItemWithModelResult>;
   }
@@ -62,7 +58,7 @@ export class TestsClient {
   async createTestItemWithLocationHeader(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemWithLocationHeaderResult> {
     return this.api.request<void>('POST', '/tests/create/create-location-header', {
       body,
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       responseHeaders: {
         created: (header): CreateTestItemWithLocationHeaderCreatedHeaders => ({
           'Location': header.text('Location'),
@@ -77,7 +73,7 @@ export class TestsClient {
     return this.api.request<string>('POST', '/tests/create/create-location-body', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateTestItemWithLocationInBodyResult>;
   }
@@ -86,7 +82,7 @@ export class TestsClient {
   async createTestItemEmpty(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemEmptyResult> {
     return this.api.request<void>('POST', '/tests/create/create-empty', {
       body,
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateTestItemEmptyResult>;
   }

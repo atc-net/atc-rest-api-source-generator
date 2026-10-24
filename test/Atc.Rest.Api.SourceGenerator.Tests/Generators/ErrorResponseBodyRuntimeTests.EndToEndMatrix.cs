@@ -842,7 +842,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <summary>
     /// The statuses the client adds by itself when the specification does not declare them (Working with Error
     /// Responses, "The client adds some statuses by itself"): 400 for operations with parameters, 404 for
-    /// GET/PUT/PATCH/DELETE with path parameters, 409 for POST/PUT, 500 and 504 always (no operation here is secured
+    /// GET/PUT/PATCH/DELETE with path parameters, 500 and 504 always (no operation here is secured
     /// or rate limited, so 401/403/429 are never added). Every matrix operation has a path parameter.
     /// </summary>
     private static bool IsAddedByClient(
@@ -852,7 +852,6 @@ public partial class ErrorResponseBodyRuntimeTests
            status switch
            {
                400 or 404 or 500 or 504 => true,
-               409 => operationId.StartsWith("set", StringComparison.Ordinal),
                _ => false,
            };
 

@@ -23,7 +23,6 @@ export type UpdateItemAttachmentResult =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -75,7 +74,7 @@ export class ItemsClient {
     return this.api.request<void>('PUT', `/items/${encodeURIComponent(itemId)}/attachment`, {
       body: file,
       contentType: 'application/octet-stream',
-      arms: ['noContent', 'badRequest', 'notFound', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateItemAttachmentResult>;
   }

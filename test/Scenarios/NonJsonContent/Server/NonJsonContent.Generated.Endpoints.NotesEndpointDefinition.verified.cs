@@ -36,7 +36,6 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
             .WithSummary("Create a note from plain text")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

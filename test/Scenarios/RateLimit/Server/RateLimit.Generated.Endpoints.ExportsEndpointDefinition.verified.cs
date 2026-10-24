@@ -39,7 +39,6 @@ public sealed class ExportsEndpointDefinition : IEndpointDefinition
             .WithSummary("Create export (concurrency limited)")
             .Produces<ExportJob>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)

@@ -14,7 +14,6 @@ export type ListOrdersResult =
 export type CreateOrderResult =
   | { status: 'created'; data: Order; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -59,7 +58,7 @@ export class OrdersClient {
     return this.api.request<Order>('POST', '/orders', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateOrderResult>;
   }

@@ -8,7 +8,6 @@ import { OrderSchema } from '../models/Order.zod';
 export type CreateOrderResult =
   | { status: 'created'; data: Order; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -16,7 +15,6 @@ export type CreateOrderResult =
 export type CreateOrderFromFormResult =
   | { status: 'noContent'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -33,7 +31,7 @@ export class OrdersClient {
       body,
       responseType: 'json',
       parseSchema: OrderSchema,
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateOrderResult>;
   }
@@ -46,7 +44,7 @@ export class OrdersClient {
         if (data.note != null) formData.append('note', String(data.note));
         return formData;
       })(),
-      arms: ['noContent', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateOrderFromFormResult>;
   }

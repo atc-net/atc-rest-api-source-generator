@@ -46,7 +46,6 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
             .WithSummary("Create a shape")
             .Produces<Shape>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

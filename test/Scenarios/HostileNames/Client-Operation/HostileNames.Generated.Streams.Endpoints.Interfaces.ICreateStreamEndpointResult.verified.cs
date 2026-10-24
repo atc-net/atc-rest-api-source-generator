@@ -23,8 +23,6 @@ public interface ICreateStreamEndpointResult : IEndpointResponse, IEndpointResul
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -32,8 +30,6 @@ public interface ICreateStreamEndpointResult : IEndpointResponse, IEndpointResul
     HostileNames.Generated.Streams.Models.Results CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

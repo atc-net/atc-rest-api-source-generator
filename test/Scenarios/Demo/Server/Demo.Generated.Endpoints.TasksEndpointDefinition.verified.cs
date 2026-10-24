@@ -83,7 +83,6 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .Produces<Demo.Generated.Tasks.Models.Task>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(UpdateTaskByIdParametersWire.Parameters, requireParameters: true)

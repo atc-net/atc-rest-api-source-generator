@@ -14,7 +14,6 @@ export type ListPetsResult =
 export type CreatePetResult =
   | { status: 'created'; data: Pet; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -48,7 +47,7 @@ export class PetsClient {
     return this.api.request<Pet>('POST', '/pets', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreatePetResult>;
   }

@@ -13,7 +13,6 @@ export type ListModelsResult =
 export type CreateModelResult =
   | { status: 'created'; data: ComprehensiveModel; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -47,7 +46,7 @@ export class ModelsClient {
     return this.api.request<ComprehensiveModel>('POST', '/models', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateModelResult>;
   }

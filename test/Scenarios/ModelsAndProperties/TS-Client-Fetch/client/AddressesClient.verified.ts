@@ -13,7 +13,6 @@ export type ListAddressesResult =
 export type CreateAddressResult =
   | { status: 'created'; data: Address; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -39,7 +38,7 @@ export class AddressesClient {
     return this.api.request<Address>('POST', '/addresses', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateAddressResult>;
   }

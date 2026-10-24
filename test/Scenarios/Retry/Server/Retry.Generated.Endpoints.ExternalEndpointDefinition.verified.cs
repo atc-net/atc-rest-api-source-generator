@@ -38,7 +38,6 @@ public sealed class ExternalEndpointDefinition : IEndpointDefinition
             .Produces<PaymentResult>()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

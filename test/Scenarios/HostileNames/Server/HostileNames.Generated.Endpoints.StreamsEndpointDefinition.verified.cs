@@ -47,7 +47,6 @@ public sealed class StreamsEndpointDefinition : IEndpointDefinition
             .WithName("CreateStream")
             .Produces<HostileNames.Generated.Streams.Models.Results>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

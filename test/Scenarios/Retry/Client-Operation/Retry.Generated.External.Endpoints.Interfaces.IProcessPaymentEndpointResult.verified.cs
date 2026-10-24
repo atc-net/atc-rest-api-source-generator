@@ -24,8 +24,6 @@ public interface IProcessPaymentEndpointResult : IEndpointResponse, IEndpointRes
 
     bool IsBadRequest { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -35,8 +33,6 @@ public interface IProcessPaymentEndpointResult : IEndpointResponse, IEndpointRes
     ProblemDetails ServiceUnavailableContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

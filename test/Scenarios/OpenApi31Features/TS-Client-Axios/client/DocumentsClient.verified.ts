@@ -8,7 +8,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type CreateDocumentResult =
   | { status: 'created'; data: DocumentResponse; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError<ErrorModel>; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -25,7 +24,7 @@ export class DocumentsClient {
     return this.api.request<DocumentResponse>('POST', '/documents', {
       body,
       responseType: 'json',
-      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['created', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<CreateDocumentResult>;
   }

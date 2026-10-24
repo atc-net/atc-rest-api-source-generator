@@ -24,8 +24,6 @@ public interface IUpdateAdminSettingsEndpointResult : IEndpointResponse, IEndpoi
 
     bool IsUnauthorized { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -35,8 +33,6 @@ public interface IUpdateAdminSettingsEndpointResult : IEndpointResponse, IEndpoi
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

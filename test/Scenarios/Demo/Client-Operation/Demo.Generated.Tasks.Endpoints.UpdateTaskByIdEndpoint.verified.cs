@@ -56,7 +56,6 @@ public sealed class UpdateTaskByIdEndpoint : IUpdateTaskByIdEndpoint
         responseBuilder.AddSuccessResponse<Demo.Generated.Tasks.Models.Task>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new UpdateTaskByIdEndpointResult(x), cancellationToken).ConfigureAwait(false);

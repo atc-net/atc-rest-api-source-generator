@@ -33,12 +33,6 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
         => Create(HttpStatusCode.Created, contentObject: null);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static CreatePetsEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static CreatePetsEndpointResult InternalServerError(ProblemDetails content)
@@ -69,9 +63,6 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
     public bool IsCreated
         => StatusCode == HttpStatusCode.Created;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -80,17 +71,6 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
 
     public bool IsDefaultError
         => !IsSuccess && ContentObject is Error;
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

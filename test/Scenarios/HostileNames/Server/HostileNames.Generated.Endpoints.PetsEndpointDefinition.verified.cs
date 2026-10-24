@@ -47,7 +47,6 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithSummary("Creates a pet from a snake_case-named model.")
             .Produces<pet>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithRequestBodyProblems()

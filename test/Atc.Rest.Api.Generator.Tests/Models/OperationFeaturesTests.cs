@@ -5,8 +5,8 @@ public class OperationFeaturesTests
     [Theory]
     [InlineData("GET", false, false, false, false, false, false, "500,504")]
     [InlineData("GET", true, true, true, true, true, false, "400,401,403,404,429,500,504")]
-    [InlineData("POST", true, true, false, false, false, false, "400,409,500,504")]
-    [InlineData("PUT", true, true, false, false, false, true, "400,404,409")]
+    [InlineData("POST", true, true, false, false, false, false, "400,500,504")]
+    [InlineData("PUT", true, true, false, false, false, true, "400,404")]
     [InlineData("DELETE", true, false, false, false, false, true, "400")]
     public void ImplicitErrorStatuses_FollowTheOperation_AndADefaultResponseTakes5xx(
         string httpMethod,
@@ -29,7 +29,41 @@ public class OperationFeaturesTests
         };
 
         Assert.Equal(expected, string.Join(",", features.ImplicitErrorStatuses([], hasDefaultResponse)));
-        Assert.DoesNotContain("409", features.ImplicitErrorStatuses(["409"], hasDefaultResponse), StringComparer.Ordinal);
+        Assert.DoesNotContain("404", features.ImplicitErrorStatuses(["404"], hasDefaultResponse), StringComparer.Ordinal);
+    }
+
+    // Only a status something answers by itself is implicit: a 409 is the handler's, which declares it - nothing in
+    // the host answers one, so a client given an IsConflict for it would test for a status that never comes
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    [InlineData("PUT")]
+    [InlineData("PATCH")]
+    [InlineData("DELETE")]
+    [InlineData("HEAD")]
+    [InlineData("OPTIONS")]
+    [InlineData("TRACE")]
+    public void ImplicitErrorStatuses_AreOnlyThoseTheHostAnswers_AndNeverADeclaredOne(
+        string httpMethod)
+    {
+        var features = new OperationFeatures
+        {
+            HttpMethod = httpMethod,
+            HasParameters = true,
+            HasPathParameters = true,
+            HasSecurity = true,
+            HasRolesOrPolicies = true,
+            HasRateLimiting = true,
+        };
+        string[] answeredByTheHost = ["400", "401", "403", "404", "429", "500", "504"];
+
+        Assert.All(features.ImplicitErrorStatuses([], hasDefaultResponse: false), status => Assert.Contains(status, answeredByTheHost, StringComparer.Ordinal));
+        for (var code = 100; code <= 599; code++)
+        {
+            var declared = code.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Assert.DoesNotContain(declared, features.ImplicitErrorStatuses([declared], hasDefaultResponse: false), StringComparer.Ordinal);
+            Assert.DoesNotContain(declared, features.ImplicitErrorStatuses([declared], hasDefaultResponse: true), StringComparer.Ordinal);
+        }
     }
 
     [Fact]

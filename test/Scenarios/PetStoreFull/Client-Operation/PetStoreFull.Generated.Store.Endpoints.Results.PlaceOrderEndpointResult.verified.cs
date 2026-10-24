@@ -45,12 +45,6 @@ public partial class PlaceOrderEndpointResult : EndpointResponse, IPlaceOrderEnd
         => Create(HttpStatusCode.UnprocessableEntity, content);
 
     /// <summary>
-    /// Creates a result representing HTTP Conflict.
-    /// </summary>
-    public static PlaceOrderEndpointResult Conflict(ProblemDetails content)
-        => Create(HttpStatusCode.Conflict, content);
-
-    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static PlaceOrderEndpointResult InternalServerError(ProblemDetails content)
@@ -87,9 +81,6 @@ public partial class PlaceOrderEndpointResult : EndpointResponse, IPlaceOrderEnd
     public bool IsUnprocessableEntity
         => StatusCode == HttpStatusCode.UnprocessableEntity;
 
-    public bool IsConflict
-        => StatusCode == HttpStatusCode.Conflict;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -97,7 +88,7 @@ public partial class PlaceOrderEndpointResult : EndpointResponse, IPlaceOrderEnd
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
     public bool IsDefaultError
-        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity or HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
+        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
 
     public Order OkContent
         => IsOk && ContentObject is Order result
@@ -125,17 +116,6 @@ public partial class PlaceOrderEndpointResult : EndpointResponse, IPlaceOrderEnd
                     : IsUnprocessableEntity
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.UnprocessableEntity, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.UnprocessableEntity, "UnprocessableEntityContent");
-
-    public ProblemDetails ConflictContent
-        => IsConflict && ContentObject is ProblemDetails result
-            ? result
-            : IsConflict && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
-                : IsConflict && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : IsConflict
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

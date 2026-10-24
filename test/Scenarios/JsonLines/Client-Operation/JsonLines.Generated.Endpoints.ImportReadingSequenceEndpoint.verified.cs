@@ -54,7 +54,6 @@ public sealed class ImportReadingSequenceEndpoint : IImportReadingSequenceEndpoi
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<ImportSummary>(HttpStatusCode.Accepted);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ImportReadingSequenceEndpointResult(x), cancellationToken).ConfigureAwait(false);

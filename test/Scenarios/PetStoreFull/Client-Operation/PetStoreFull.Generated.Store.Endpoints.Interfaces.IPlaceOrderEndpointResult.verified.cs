@@ -24,8 +24,6 @@ public interface IPlaceOrderEndpointResult : IEndpointResponse, IEndpointResult
 
     bool IsUnprocessableEntity { get; }
 
-    bool IsConflict { get; }
-
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -37,8 +35,6 @@ public interface IPlaceOrderEndpointResult : IEndpointResponse, IEndpointResult
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails UnprocessableEntityContent { get; }
-
-    ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

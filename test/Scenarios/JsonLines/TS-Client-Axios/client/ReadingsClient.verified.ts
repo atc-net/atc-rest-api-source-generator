@@ -8,7 +8,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type ImportReadingsResult =
   | { status: 'accepted'; data: ImportSummary; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -16,7 +15,6 @@ export type ImportReadingsResult =
 export type ImportReadingSequenceResult =
   | { status: 'accepted'; data: ImportSummary; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -24,7 +22,6 @@ export type ImportReadingSequenceResult =
 export type ImportReadingsAnyFormatResult =
   | { status: 'accepted'; data: ImportSummary; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -32,7 +29,6 @@ export type ImportReadingsAnyFormatResult =
 export type UpdateReadingsResult =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -60,7 +56,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/jsonl',
       sequence: 'json-lines',
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ImportReadingsResult>;
   }
@@ -71,7 +67,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/json-seq',
       sequence: 'json-seq',
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ImportReadingSequenceResult>;
   }
@@ -82,7 +78,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/jsonl',
       sequence: 'json-lines',
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<ImportReadingsAnyFormatResult>;
   }
@@ -93,7 +89,7 @@ export class ReadingsClient {
       body,
       contentType: 'application/x-ndjson',
       sequence: 'json-lines',
-      arms: ['noContent', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['noContent', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateReadingsResult>;
   }

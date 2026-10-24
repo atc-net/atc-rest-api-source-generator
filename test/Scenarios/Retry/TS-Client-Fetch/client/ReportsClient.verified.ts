@@ -7,7 +7,6 @@ import type { ApiError, ValidationError } from '../errors';
 export type GenerateReportResult =
   | { status: 'accepted'; data: ReportJob; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -24,7 +23,7 @@ export class ReportsClient {
     return this.api.request<void>('POST', '/reports/generate', {
       body,
       retry: { enabled: false, timeoutMs: 600000 },
-      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      arms: ['accepted', 'badRequest', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<GenerateReportResult>;
   }
