@@ -84,8 +84,9 @@ public sealed class StringFormatGenerationTests
         Assert.Equal(6, Regex.Matches(model, "JsonNumberHandling.WriteAsString", RegexOptions.None, TimeSpan.FromSeconds(1)).Count);
 
         // A length or a pattern is the string's: on the integer it would throw when it validates
-        Assert.DoesNotMatch(new Regex(@"(MaxLength|RegularExpression)[^
-]*long K", RegexOptions.None, TimeSpan.FromSeconds(1)), model);
+        var k = model.Split('\n').Single(line => line.Contains(" long K", StringComparison.Ordinal));
+        Assert.DoesNotContain("MaxLength", k, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegularExpression", k, StringComparison.Ordinal);
     }
 
     [Fact]
