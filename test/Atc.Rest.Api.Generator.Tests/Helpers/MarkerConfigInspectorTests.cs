@@ -111,6 +111,33 @@ public sealed class MarkerConfigInspectorTests
     }
 
     [Fact]
+    public void Read_RuleSeverities_KeepsTheKnownRulesWithAKnownSeverity_AndNamesTheOthers()
+    {
+        const string json = """
+            {
+              "ruleSeverities": {
+                "ATC_API_SCH022": "warning",
+                "ATC_API_OPR003": "None",
+                "ATC_API_NAM005": "loud",
+                "ATC_API_XYZ999": "error"
+              }
+            }
+            """;
+
+        var config = MarkerConfigInspector.Read<ServerConfig>(json, out var problems);
+
+        Assert.Equal(2, config.RuleSeverities!.Count);
+        Assert.Equal("warning", config.RuleSeverities["ATC_API_SCH022"]);
+        Assert.Equal("None", config.RuleSeverities["ATC_API_OPR003"]);
+        Assert.Equal(
+            [
+                "'ruleSeverities.ATC_API_NAM005' has the unknown value \"loud\" (expected default, none, silent, suggestion, warning or error), so the rule keeps its severity",
+                "'ruleSeverities.ATC_API_XYZ999' is not a rule of the generator and is ignored",
+            ],
+            problems);
+    }
+
+    [Fact]
     public void Read_AnUnknownValue_IsTheDefaultOfTheSetting()
     {
         const string json = """

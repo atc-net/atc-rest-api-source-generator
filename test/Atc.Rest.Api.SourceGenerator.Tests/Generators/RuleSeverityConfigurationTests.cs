@@ -1,10 +1,11 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
 /// <summary>
-/// A rule about the specification is reported in the specification file, which is no C# file: the build's
-/// <c>.editorconfig</c> / <c>.globalconfig</c> severities would not reach it, so the generator reads
-/// <c>dotnet_diagnostic.&lt;id&gt;.severity</c> for the specification file itself. Beside that, the marker's
-/// <c>suppressRules</c> switches a rule off for the project, and <c>x-atc-suppress</c> for one operation, path or schema.
+/// A rule about the specification is reported in the specification file, which is no C# file: an <c>.editorconfig</c>
+/// section's <c>dotnet_diagnostic.&lt;id&gt;.severity</c> never reaches it (Roslyn hands a severity to the syntax trees
+/// it matches, never to a file's analyzer options), so the marker's <c>ruleSeverities</c> gives a rule its severity for
+/// the project, <c>suppressRules</c> switches a rule off, and <c>x-atc-suppress</c> switches it off for one operation,
+/// path or schema.
 /// </summary>
 public class RuleSeverityConfigurationTests
 {
@@ -79,7 +80,7 @@ public class RuleSeverityConfigurationTests
     [Fact]
     public void WithoutConfiguration_TheRulesAreReported()
     {
-        var diagnostics = Run(Marker, specificationOptions: []);
+        var diagnostics = Run(Marker);
 
         // fetchThing is no get/list name; captureSnapshot says so in the spec
         var getPrefix = Assert.Single(diagnostics, d => d.Id == Generator.RuleIdentifiers.GetOperationIdPrefix);
@@ -97,14 +98,11 @@ public class RuleSeverityConfigurationTests
     [InlineData("suggestion", DiagnosticSeverity.Info)]
     [InlineData("warning", DiagnosticSeverity.Warning)]
     [InlineData("error", DiagnosticSeverity.Error)]
-    public void TheSpecificationFilesSeverity_IsTheRulesSeverity(
+    public void TheMarkersRuleSeverity_IsTheRulesSeverity(
         string severity,
         DiagnosticSeverity? expected)
     {
-        var diagnostics = Run(Marker, specificationOptions: new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [$"dotnet_diagnostic.{Generator.RuleIdentifiers.GetOperationIdPrefix}.severity"] = severity,
-        });
+        var diagnostics = Run($$"""{ "validateSpecificationStrategy": "Strict", "ruleSeverities": { "{{Generator.RuleIdentifiers.GetOperationIdPrefix}}": "{{severity}}" } }""");
 
         var reported = diagnostics.Where(d => d.Id == Generator.RuleIdentifiers.GetOperationIdPrefix).ToList();
         if (expected is null)
@@ -117,12 +115,61 @@ public class RuleSeverityConfigurationTests
         }
     }
 
+    /// <summary>
+    /// Why the marker: Roslyn's own <c>AnalyzerConfigSet</c> - what a build reads its <c>.editorconfig</c> and global
+    /// configs with - gives a specification file's analyzer options no <c>dotnet_diagnostic.&lt;id&gt;.severity</c>: a
+    /// severity goes to the syntax trees a section matches, and a specification file is none.
+    /// </summary>
+    [Fact]
+    public void AnEditorConfigSeverity_IsNoAnalyzerOptionOfTheSpecificationFile()
+    {
+        var editorConfig = AnalyzerConfig.Parse(
+            $$"""
+             root = true
+
+             [*.{yaml,yml}]
+             dotnet_diagnostic.{{Generator.RuleIdentifiers.GetOperationIdPrefix}}.severity = error
+             some_option = some_value
+             """,
+            "/project/.editorconfig");
+
+        var options = AnalyzerConfigSet.Create(ImmutableArray.Create(editorConfig)).GetOptionsForSourcePath(SpecPath);
+
+        Assert.True(options.AnalyzerOptions.ContainsKey("some_option"));
+        Assert.DoesNotContain(options.AnalyzerOptions.Keys, key => key.StartsWith("dotnet_diagnostic.", StringComparison.Ordinal));
+        Assert.Equal(ReportDiagnostic.Error, options.TreeOptions[Generator.RuleIdentifiers.GetOperationIdPrefix]);
+    }
+
+    [Fact]
+    public void TheMarkersRuleSeverities_ReachAMultiPartSpecification()
+    {
+        var diagnostics = Run(
+            $$"""{ "validateSpecificationStrategy": "Strict", "ruleSeverities": { "{{Generator.RuleIdentifiers.GetOperationIdPrefix}}": "error" } }""",
+            parts: [("/project/Things_More.yaml", """
+                openapi: 3.1.1
+                info:
+                  title: Things
+                  version: 1.0.0
+                paths:
+                  /others:
+                    get:
+                      operationId: fetchOthers
+                      responses:
+                        '204':
+                          description: None
+                """)]);
+
+        Assert.All(
+            diagnostics.Where(d => d.Id == Generator.RuleIdentifiers.GetOperationIdPrefix),
+            d => Assert.Equal(DiagnosticSeverity.Error, d.Severity));
+        Assert.Contains(diagnostics, d => d.Id == Generator.RuleIdentifiers.GetOperationIdPrefix && d.GetMessage(CultureInfo.InvariantCulture).Contains("fetchOthers", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void TheMarkersSuppressRules_SwitchARuleOff()
     {
         var diagnostics = Run(
-            """{ "validateSpecificationStrategy": "Strict", "suppressRules": ["ATC_API_OPR003"] }""",
-            specificationOptions: []);
+            """{ "validateSpecificationStrategy": "Strict", "suppressRules": ["ATC_API_OPR003"] }""");
 
         Assert.DoesNotContain(diagnostics, d => d.Id == Generator.RuleIdentifiers.GetOperationIdPrefix);
     }
@@ -149,8 +196,7 @@ public class RuleSeverityConfigurationTests
                             $ref: '#/components/schemas/Missing'
             """;
         var diagnostics = Run(
-            """{ "validateSpecificationStrategy": "Strict", "suppressRules": ["ATC_API_SCH013"] }""",
-            specificationOptions: new Dictionary<string, string>(StringComparer.Ordinal) { ["dotnet_diagnostic.ATC_API_SCH013.severity"] = "none" },
+            """{ "validateSpecificationStrategy": "Strict", "suppressRules": ["ATC_API_SCH013"], "ruleSeverities": { "ATC_API_SCH013": "none" } }""",
             yaml);
 
         Assert.Contains(diagnostics, d => d.Id == "ATC_API_SCH013" && d.Severity == DiagnosticSeverity.Error);
@@ -158,8 +204,8 @@ public class RuleSeverityConfigurationTests
 
     private static List<Diagnostic> Run(
         string marker,
-        Dictionary<string, string> specificationOptions,
-        string yaml = Yaml)
+        string yaml = Yaml,
+        IReadOnlyList<(string Path, string Yaml)>? parts = null)
     {
         var compilation = CSharpCompilation.Create(
             "Things",
@@ -168,42 +214,15 @@ public class RuleSeverityConfigurationTests
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var driver = CSharpGeneratorDriver
-            .Create([new ApiServerGenerator().AsSourceGenerator()], optionsProvider: new FileOptions(SpecPath, specificationOptions))
+            .Create(new ApiServerGenerator().AsSourceGenerator())
             .AddAdditionalTexts(
             [
                 new CompilationVerificationHarness.InMemoryAdditionalText(SpecPath, yaml),
+                .. (parts ?? []).Select(part => new CompilationVerificationHarness.InMemoryAdditionalText(part.Path, part.Yaml)),
                 new CompilationVerificationHarness.InMemoryAdditionalText("/project/.atc-rest-api-server", marker),
             ]);
 
         driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics, CancellationToken.None);
         return [.. diagnostics];
-    }
-
-    // What the build gives a generator for an additional file: the .editorconfig sections that match its path (and the
-    // global configs); nothing for another file
-    private sealed class FileOptions(
-        string path,
-        Dictionary<string, string> values) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptionsProvider
-    {
-        private static readonly Options Empty = new([]);
-
-        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GlobalOptions
-            => Empty;
-
-        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(
-            SyntaxTree tree)
-            => Empty;
-
-        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(
-            AdditionalText textFile)
-            => string.Equals(textFile.Path, path, StringComparison.Ordinal) ? new Options(values) : Empty;
-
-        private sealed class Options(Dictionary<string, string> values) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions
-        {
-            public override bool TryGetValue(
-                string key,
-                [NotNullWhen(true)] out string? value)
-                => values.TryGetValue(key, out value);
-        }
     }
 }

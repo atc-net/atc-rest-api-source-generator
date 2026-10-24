@@ -26,6 +26,16 @@ public abstract class BaseConfig
     public List<string>? SuppressRules { get; set; }
 
     /// <summary>
+    /// The severity this project gives a rule about the specification, by its id (e.g. <c>"ATC_API_SCH022": "warning"</c>):
+    /// default, none, silent, suggestion, warning or error. Default: none. An error, which stands for code the generator
+    /// cannot write, keeps its severity. The specification is no C# file, so an <c>.editorconfig</c> severity does not
+    /// reach its rules; a global config (<c>is_global = true</c>) does.
+    /// </summary>
+    [MarkerValues("default", "none", "silent", "suggestion", "warning", "error")]
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Deserialized from the marker file.")]
+    public Dictionary<string, string>? RuleSeverities { get; set; }
+
+    /// <summary>
     /// Include deprecated operations and schemas in generated code. Default: false.
     /// When false, operations and schemas marked as deprecated in the OpenAPI spec are excluded.
     /// </summary>

@@ -98,12 +98,25 @@ internal static class ConfigurationSchemaBuilder
         Func<PropertyInfo, IReadOnlyList<JsonNode?>?> valuesOf,
         Func<PropertyInfo, object, JsonNode?> writeValue)
     {
+        var nullable = Nullability.Create(setting).WriteState == NullabilityState.Nullable;
+
+        // A map of strings (ruleSeverities): any key, each value one of the setting's values
+        if (setting.PropertyType == typeof(Dictionary<string, string>))
+        {
+            return new JsonObject
+            {
+                ["type"] = nullable ? new JsonArray("object", "null") : "object",
+                ["additionalProperties"] = valuesOf(setting) is { } entryValues
+                    ? new JsonObject { ["enum"] = new JsonArray(entryValues.Select(v => v?.DeepClone()).ToArray()) }
+                    : new JsonObject { ["type"] = "string" },
+            };
+        }
+
         if (valuesOf(setting) is { } values)
         {
             return new JsonObject { ["enum"] = new JsonArray(values.Select(v => v?.DeepClone()).ToArray()) };
         }
 
-        var nullable = Nullability.Create(setting).WriteState == NullabilityState.Nullable;
         var type = Nullable.GetUnderlyingType(setting.PropertyType) ?? setting.PropertyType;
         if (MarkerConfigInspector.SectionTypeOf(setting, out var isDictionary) is { } sectionType ||
             IsOptionsSection(type, out sectionType))

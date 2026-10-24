@@ -203,6 +203,40 @@ public static class MarkerConfigInspector
         return setting;
     }
 
+    // A map of strings (ruleSeverities): its keys are rule ids, each value one of the setting's values
+    private static bool IsStringMap(PropertyInfo setting)
+        => setting.PropertyType == typeof(Dictionary<string, string>);
+
+    // A rule the generator does not have, or a severity it does not know, is named and left out: the rule keeps its
+    // severity
+    private static void InspectRuleSeverities(
+        JsonElement value,
+        PropertyInfo setting,
+        object? config,
+        string settingPath,
+        List<string> problems)
+    {
+        if (value.ValueKind != JsonValueKind.Object || ValuesOf(setting) is not { } values)
+        {
+            return;
+        }
+
+        var entries = config is null ? null : setting.GetValue(config) as Dictionary<string, string>;
+        foreach (var entry in value.EnumerateObject())
+        {
+            var problem = !Validators.RuleSeverityOverrides.IsRule(entry.Name)
+                ? $"'{settingPath}.{entry.Name}' is not a rule of the generator and is ignored"
+                : !values.Accepts(entry.Value)
+                    ? $"'{settingPath}.{entry.Name}' has the unknown value {entry.Value.GetRawText()} (expected {DescribeValues(values)}), so the rule keeps its severity"
+                    : null;
+            if (problem is not null)
+            {
+                problems.Add(problem);
+                entries?.Remove(entry.Name);
+            }
+        }
+    }
+
     private static string KindOf(Type type)
     {
         var underlying = Nullable.GetUnderlyingType(type) ?? type;
@@ -287,6 +321,12 @@ public static class MarkerConfigInspector
             }
 
             var value = jsonProperty.Value;
+            if (IsStringMap(setting))
+            {
+                InspectRuleSeverities(value, setting, config, settingPath, problems);
+                continue;
+            }
+
             if (ValuesOf(setting) is { } values)
             {
                 if (!values.Accepts(value))

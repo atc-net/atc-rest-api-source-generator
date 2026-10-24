@@ -1174,9 +1174,9 @@ internal static class DiagnosticHelpers
     /// <summary>
     /// Builds a file-based <see cref="Location"/> from a <see cref="GeneratorDiagnosticMessage"/>,
     /// falling back to <see cref="Location.None"/> when no file path is available.
-    /// Diagnostics without a file-based location are not subject to `.editorconfig`
-    /// severity overrides (e.g. dotnet_diagnostic.ATC_API_OPR001.severity), because
-    /// Roslyn resolves those overrides based on the diagnostic's source file path.
+    /// The location is the specification file, which is no C# file: an <c>.editorconfig</c> section's
+    /// <c>dotnet_diagnostic.&lt;id&gt;.severity</c> does not reach it (Roslyn applies it to the syntax trees it matches); a
+    /// global config's does, and the marker's <c>ruleSeverities</c>, which the generator applies itself.
     /// </summary>
     private static Location CreateLocation(GeneratorDiagnosticMessage message)
     {

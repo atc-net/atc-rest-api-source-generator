@@ -93,12 +93,12 @@ internal static class SpecificationLoader
         ValidateSpecificationStrategy strategy,
         IReadOnlyList<OverlayFile>? overlays = null,
         bool parametersMustBind = false,
-        IEnumerable<string>? suppressRules = null)
+        RuleSeverityOverrides? severities = null)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
 
-        var severities = RuleSeverityOverrides.From(baseFile.RuleSeverities, suppressRules);
+        severities ??= RuleSeverityOverrides.None;
         var document = Merge(context, baseFile, partFiles, mergeConfiguration, overlays, severities);
         if (document is null)
         {
