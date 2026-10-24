@@ -120,6 +120,19 @@ public sealed class ItemsClient : IItemsClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task PatchItemAsync(
+        PatchItemParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}";
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Patch, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request, new System.Net.Http.Headers.MediaTypeHeaderValue("application/merge-patch+json"));
+
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

@@ -6,14 +6,14 @@ using System;
 using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
+using Atc.Rest.Client;
 using NonJsonContent.Generated.Files.Client;
-using NonJsonContent.Generated.Files.Endpoints.Results;
 
 namespace NonJsonContent.Generated.Files.Endpoints.Interfaces;
 
 /// <summary>
 /// Interface for Client Endpoint.
-/// Description: Download a binary file
+/// Description: Download a binary file (the C# clients hand over the open stream)
 /// Operation: DownloadFile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
@@ -22,7 +22,7 @@ public interface IDownloadFileEndpoint
     /// <summary>
     /// Execute method.
     /// </summary>
-    Task<DownloadFileEndpointResult> ExecuteAsync(
+    Task<StreamBinaryEndpointResponse> ExecuteAsync(
         DownloadFileParameters parameters,
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);

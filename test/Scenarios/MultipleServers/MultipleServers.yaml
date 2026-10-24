@@ -11,6 +11,16 @@ servers:
     description: Staging
   - url: http://localhost:3000/v1
     description: Local development
+  - url: https://{region}.example.com/{basePath}
+    description: Regional
+    variables:
+      region:
+        default: eu
+        enum:
+          - eu
+          - us
+      basePath:
+        default: v1
 
 paths:
   /health:

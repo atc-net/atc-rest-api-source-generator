@@ -4,9 +4,13 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Threading;
+using System.Threading.Tasks;
 using CachingOutput.Generated.Caching;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CachingOutput.Generated.Caching;
@@ -40,14 +44,66 @@ public static class OutputCachingServiceCollectionExtensions
                 policy.Tag(OutputCacheTags.ProductDetail, OutputCacheTags.Products);
             });
 
-            options.AddPolicy(OutputCachePolicies.Products, policy =>
-            {
-                policy.Expire(TimeSpan.FromSeconds(60));
-                policy.SetVaryByQuery("page", "limit", "category");
-                policy.Tag(OutputCacheTags.Products);
-            });
+            options.AddPolicy(
+                OutputCachePolicies.Products,
+                policy =>
+                {
+                    policy.AddPolicy<SharedOutputCachePolicy>();
+                    policy.Expire(TimeSpan.FromSeconds(60));
+                    policy.SetVaryByQuery("page", "limit", "category");
+                    policy.Tag(OutputCacheTags.Products);
+                },
+                excludeDefaultPolicy: true);
         });
 
         return services;
+    }
+}
+
+/// <summary>
+/// The output cache for an answer that is the same for every caller (<c>x-cache-shared</c>): ASP.NET Core's default
+/// policy without its rule that skips a request with an <c>Authorization</c> header or an authenticated user. Only a
+/// GET or HEAD is cached, and only a 200 without a cookie is stored; authorization has run before the cache is read.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class SharedOutputCachePolicy : IOutputCachePolicy
+{
+    /// <inheritdoc />
+    ValueTask IOutputCachePolicy.CacheRequestAsync(
+        OutputCacheContext context,
+        CancellationToken cancellation)
+    {
+        var method = context.HttpContext.Request.Method;
+        var cacheable = HttpMethods.IsGet(method) || HttpMethods.IsHead(method);
+        context.EnableOutputCaching = true;
+        context.AllowCacheLookup = cacheable;
+        context.AllowCacheStorage = cacheable;
+        context.AllowLocking = true;
+
+        // Every query value is part of the key, as with the default policy (a vary-by-query narrows it)
+        context.CacheVaryByRules.QueryKeys = "*";
+        return ValueTask.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    ValueTask IOutputCachePolicy.ServeFromCacheAsync(
+        OutputCacheContext context,
+        CancellationToken cancellation)
+        => ValueTask.CompletedTask;
+
+    /// <inheritdoc />
+    ValueTask IOutputCachePolicy.ServeResponseAsync(
+        OutputCacheContext context,
+        CancellationToken cancellation)
+    {
+        // Only a 200 without a cookie is stored: an error, or an answer that sets a cookie, is not every caller's
+        var response = context.HttpContext.Response;
+        if (response.StatusCode != StatusCodes.Status200OK ||
+            !Microsoft.Extensions.Primitives.StringValues.IsNullOrEmpty(response.Headers.SetCookie))
+        {
+            context.AllowCacheStorage = false;
+        }
+
+        return ValueTask.CompletedTask;
     }
 }

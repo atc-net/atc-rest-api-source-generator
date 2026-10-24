@@ -24,6 +24,7 @@ public sealed record ListItemsParameters(
     // Nullable-oblivious for the Request Delegate Generator (CS8639); the nullable property is declared in the body
 #nullable disable annotations
     ParsableList<string> Tags = null,
+    ParsableList<string> Sizes = null,
     string Q = null,
     ParsableList<string> Legacy = null,
     ParsableList<string> Ids = null,
@@ -36,6 +37,9 @@ public sealed record ListItemsParameters(
 {
     [FromQuery(Name = "tags")]
     public ParsableList<string>? Tags { get; init; } = Tags;
+
+    [FromQuery(Name = "sizes")]
+    public ParsableList<string>? Sizes { get; init; } = Sizes;
 
     [FromQuery(Name = "q")]
     public string? Q { get; init; } = Q;

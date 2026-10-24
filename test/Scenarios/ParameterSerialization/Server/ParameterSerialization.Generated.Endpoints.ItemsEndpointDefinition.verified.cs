@@ -40,7 +40,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .WithWireBinding(ListItemsParametersWire.Parameters, requireParameters: true, ("legacy", ' '));
+            .WithWireBinding(ListItemsParametersWire.Parameters, requireParameters: true, ("sizes", ','), ("legacy", ' '));
 
         items
             .MapGet("search", ListItemsByQueryString)

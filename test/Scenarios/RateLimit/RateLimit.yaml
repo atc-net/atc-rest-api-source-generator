@@ -138,6 +138,8 @@ paths:
     x-ratelimit-permit-limit: 200
     x-ratelimit-window-seconds: 60
     x-ratelimit-queue-limit: 20
+    # A rejected request is answered without a Retry-After header
+    x-ratelimit-emit-retry-after: false
     x-ratelimit-algorithm: token-bucket
     # Partition by caller IP
     x-ratelimit-partition: ip

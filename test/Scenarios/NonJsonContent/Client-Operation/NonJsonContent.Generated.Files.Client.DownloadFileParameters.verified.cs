@@ -11,7 +11,7 @@ namespace NonJsonContent.Generated.Files.Client;
 
 /// <summary>
 /// Parameters for operation request.
-/// Description: Download a binary file.
+/// Description: Download a binary file (the C# clients hand over the open stream).
 /// Operation: DownloadFile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

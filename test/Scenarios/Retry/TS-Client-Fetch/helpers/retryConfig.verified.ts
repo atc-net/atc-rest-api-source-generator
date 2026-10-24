@@ -63,6 +63,7 @@ export const retryPolicies = {
     backoff: 'exponential',
     useJitter: true,
     timeoutMs: 60000,
+    totalTimeoutMs: 300000,
     handle429: true,
   } satisfies RetryPolicy,
   notificationsConstant: {

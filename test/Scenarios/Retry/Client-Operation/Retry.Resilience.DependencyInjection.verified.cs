@@ -110,6 +110,8 @@ public static class ApiResilienceHttpClientBuilderExtensions
 
         if (retry)
         {
+            pipeline.AddTimeout(TimeSpan.FromSeconds(300));
+
             var maxRetryAfter = timeout;
 
             pipeline.AddRetry(new HttpRetryStrategyOptions
@@ -133,10 +135,10 @@ public static class ApiResilienceHttpClientBuilderExtensions
 
         pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
         {
-            SamplingDuration = TimeSpan.FromSeconds(30),
-            FailureRatio = 0.5,
-            MinimumThroughput = 10,
-            BreakDuration = TimeSpan.FromSeconds(30),
+            SamplingDuration = TimeSpan.FromSeconds(20),
+            FailureRatio = 0.25,
+            MinimumThroughput = 8,
+            BreakDuration = TimeSpan.FromSeconds(15),
         });
     }
 

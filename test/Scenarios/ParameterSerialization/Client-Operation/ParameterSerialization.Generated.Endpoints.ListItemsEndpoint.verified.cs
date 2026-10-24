@@ -51,6 +51,10 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         {
             requestBuilder.WithQueryParameter("tags", parameters.Tags);
         }
+        if (parameters.Sizes is not null)
+        {
+            requestBuilder.WithQueryParameter("sizes", string.Join(",", global::System.Linq.Enumerable.Select(parameters.Sizes, item => global::System.FormattableString.Invariant($"{item}"))));
+        }
         if (parameters.Q is not null)
         {
             requestBuilder.WithQueryParameter("q", parameters.Q);

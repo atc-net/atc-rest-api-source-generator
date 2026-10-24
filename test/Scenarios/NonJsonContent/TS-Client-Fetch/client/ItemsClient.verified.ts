@@ -35,6 +35,14 @@ export type UpdateItemPhotoResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+export type PatchItemResult =
+  | { status: 'noContent'; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
 export class ItemsClient {
   private readonly api: ApiClient;
 
@@ -83,5 +91,15 @@ export class ItemsClient {
       arms: ['noContent', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
       signal,
     }) as Promise<UpdateItemPhotoResult>;
+  }
+
+  /** Update an item with a JSON merge patch */
+  async patchItem(itemId: string, body: Item, signal?: AbortSignal): Promise<PatchItemResult> {
+    return this.api.request<void>('PATCH', `/items/${encodeURIComponent(itemId)}`, {
+      body,
+      contentType: 'application/merge-patch+json',
+      arms: ['noContent', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
+      signal,
+    }) as Promise<PatchItemResult>;
   }
 }

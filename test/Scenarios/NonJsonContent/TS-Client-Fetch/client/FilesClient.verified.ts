@@ -18,7 +18,7 @@ export class FilesClient {
     this.api = api;
   }
 
-  /** Download a binary file */
+  /** Download a binary file (the C# clients hand over the open stream) */
   async downloadFile(fileId: string, signal?: AbortSignal): Promise<DownloadFileResult> {
     return this.api.request<Blob>('GET', `/files/${encodeURIComponent(fileId)}`, {
       responseType: 'blob',

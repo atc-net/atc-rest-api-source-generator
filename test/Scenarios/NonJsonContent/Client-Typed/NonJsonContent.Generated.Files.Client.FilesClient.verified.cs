@@ -40,14 +40,22 @@ public sealed class FilesClient : IFilesClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async Task<DownloadedFile> DownloadFileAsync(
+    public async Task<StreamedFile> DownloadFileAsync(
         DownloadFileParameters parameters,
         CancellationToken cancellationToken = default)
     {
         var url = $"files/{Uri.EscapeDataString(parameters.FileId)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
-        return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
+        var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+            return await StreamedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

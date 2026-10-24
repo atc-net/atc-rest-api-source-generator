@@ -179,3 +179,36 @@ public sealed class UpdateItemPhotoResult : IResult, INestedHttpResult
     public static IResult ToIResult(UpdateItemPhotoResult result)
         => result.Result;
 }
+
+/// <summary>
+/// Update an item with a JSON merge patch.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class PatchItemResult : IResult, INestedHttpResult
+{
+    private readonly IResult innerResult;
+
+    private PatchItemResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 204 No Content - Updated.
+    /// </summary>
+    public static PatchItemResult NoContent()
+        => new(TypedResults.NoContent());
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts PatchItemResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(PatchItemResult result)
+        => result.Result;
+}

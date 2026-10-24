@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Non-JSON Content Test API
   version: 1.0.0
-  description: Tests non-JSON response content types
+  description: Tests non-JSON request and response content types
 
 paths:
   /reports/text:
@@ -20,7 +20,8 @@ paths:
   /files/{fileId}:
     get:
       operationId: downloadFile
-      summary: Download a binary file
+      summary: Download a binary file (the C# clients hand over the open stream)
+      x-return-stream: true
       parameters:
         - name: fileId
           in: path
@@ -129,6 +130,25 @@ paths:
         '204':
           description: Updated
 
+  /items/{itemId}:
+    patch:
+      operationId: patchItem
+      summary: Update an item with a JSON merge patch
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Item'
+      responses:
+        '204':
+          description: Updated
 
 components:
   schemas:

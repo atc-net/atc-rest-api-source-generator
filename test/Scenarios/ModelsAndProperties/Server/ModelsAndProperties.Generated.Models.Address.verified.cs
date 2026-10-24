@@ -25,4 +25,4 @@ public sealed partial record Address(
     [property: Required, ApiMaxLength(100), JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "cityName")] string CityName,
     [property: Required, JsonRequired, global::System.ComponentModel.DataAnnotations.Display(Name = "country")] Country Country,
     [property: ApiMaxLength(20), global::System.ComponentModel.DataAnnotations.Display(Name = "streetNumber")] string? StreetNumber = null,
-    [property: ApiMaxLength(100), global::System.ComponentModel.DataAnnotations.Display(Name = "state")] string? State = null);
+    [property: ApiMaxLength(100), global::System.ComponentModel.DataAnnotations.Display(Name = "state")] string? State = null) : IEquatable<Address>;

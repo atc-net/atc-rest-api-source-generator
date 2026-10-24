@@ -35,10 +35,11 @@ export class ItemsClient {
   }
 
   /** List items */
-  async listItems(query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }, cookies?: { session?: string }, signal?: AbortSignal): Promise<ListItemsResult> {
+  async listItems(query?: { tags?: string[]; sizes?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }, cookies?: { session?: string }, signal?: AbortSignal): Promise<ListItemsResult> {
     return this.api.request<Item[]>('GET', '/items', {
       query: {
         tags: query?.tags,
+        sizes: query?.sizes?.join(','),
         q: query?.q,
         legacy: query?.legacy?.join(' '),
         ids: query?.ids,

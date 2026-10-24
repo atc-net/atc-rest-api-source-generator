@@ -443,7 +443,8 @@ public static class OpenApiOperationExtensions
 
         /// <summary>
         /// Checks if the operation is a file download with the x-return-stream: true extension.
-        /// When true, the EndpointPerOperation client hands the open response stream to the caller instead of the bytes.
+        /// When true, the C# clients hand the open response stream to the caller instead of the bytes (the EndpointPerOperation
+        /// client a StreamBinaryEndpointResponse, the TypedClient a generated StreamedFile).
         /// </summary>
         /// <returns>True if the operation's download should be streamed.</returns>
         public bool IsStreamedDownloadOperation()

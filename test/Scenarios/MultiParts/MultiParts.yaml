@@ -8,6 +8,11 @@ info:
 servers:
   - url: https://api.example.com/v1
     description: Production server
+x-multipart:
+  discovery: explicit
+  parts:
+    - MultiParts_Users.yaml
+    - MultiParts_Products.yaml
 tags:
   - name: Users
     description: User management operations

@@ -22,6 +22,7 @@ public static class ListItemsParametersWire
 {
     public static IReadOnlyList<WireParameter> Parameters { get; } = [
         WireParameter.Text("query", "tags", isArray: true),
+        WireParameter.Text("query", "sizes", isArray: true),
         WireParameter.Text("query", "q"),
         WireParameter.Text("query", "legacy", isArray: true),
         WireParameter.Text("query", "ids", isArray: true),

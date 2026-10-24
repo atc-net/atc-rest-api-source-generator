@@ -19,6 +19,7 @@ namespace ParameterSerialization.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
     List<string>? Tags = null,
+    List<string>? Sizes = null,
     string? Q = null,
     List<string>? Legacy = null,
     List<string>? Ids = null,

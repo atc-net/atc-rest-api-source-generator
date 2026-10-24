@@ -24,4 +24,4 @@ public sealed record Address(
     [property: Required, ApiMaxLength(100)] string CityName,
     [property: Required] Country Country,
     [property: ApiMaxLength(20)] string? StreetNumber = null,
-    [property: ApiMaxLength(100)] string? State = null);
+    [property: ApiMaxLength(100)] string? State = null) : IEquatable<Address>;

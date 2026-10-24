@@ -90,7 +90,7 @@ internal static class FeatureLayerMap
                 "SourceGenerator:TypedClientEmptyBodyTests", "SourceGenerator:ClientResponseDisposalTests", "SourceGenerator:Xml*",
                 "Cli:TypeScriptModelOrFile*", "Cli:TypeScriptDownload*", "Cli:TypeScriptXml*", "Cli:TypeScriptMultipartPartsGateTests", "Cli:TypeScriptSuccessBodyGateTests", "Cli:TypeScriptHeadGateTests", "Cli:TypeScriptResponseHeaders*",
             ],
-            ["MediaTypeParameters", "NonJsonContent"],
+            ["MediaTypeParameters", "NonJsonContent", "ResponseRangesAndLinks"],
             ["bodyMedia", "bodyMedia31"],
             ["files.spec.ts", "files-upload.spec.ts", "documents.spec.ts", "user-xml.spec.ts", "users-import.spec.ts"]),
         new(
@@ -125,7 +125,7 @@ internal static class FeatureLayerMap
                 "SourceGenerator:OAuth*", "SourceGenerator:RoleSchemesRuntimeTests", "SourceGenerator:SecurityBearerOnlyRuntimeTests", "SourceGenerator:SecurityValidationTests", "SourceGenerator:HealthCheckSecurityCompileTests",
                 "Cli:TypeScriptSecurityGateTests",
             ],
-            ["SecurityAtcExt", "SecurityBearerOnly", "SecurityHybrid", "SecurityOpenIdConnect", "SecurityStandard"],
+            ["SecurityAtcExt", "SecurityBasicMutualTls", "SecurityBearerOnly", "SecurityHybrid", "SecurityOpenIdConnect", "SecurityStandard"],
             ["guard:authentication", "guard:authorization", "guard31:authentication", "guard31:authorization"],
             ["auth.spec.ts"]),
         new(

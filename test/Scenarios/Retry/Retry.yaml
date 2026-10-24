@@ -117,6 +117,11 @@ paths:
     x-retry-backoff: exponential
     x-retry-timeout-seconds: 60
     x-retry-circuit-breaker: true
+    x-retry-total-timeout-seconds: 300
+    x-retry-cb-failure-ratio: 0.25
+    x-retry-cb-sampling-duration-seconds: 20
+    x-retry-cb-minimum-throughput: 8
+    x-retry-cb-break-duration-seconds: 15
     post:
       operationId: processPayment
       summary: Process payment (circuit breaker enabled)

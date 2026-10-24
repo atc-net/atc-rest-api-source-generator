@@ -59,6 +59,11 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             }
         }
 
+        if (parameters.Sizes is not null && global::System.Linq.Enumerable.Any(parameters.Sizes))
+        {
+            queryParams.Add($"sizes={Uri.EscapeDataString(string.Join(",", global::System.Linq.Enumerable.Select(parameters.Sizes, item => item)))}");
+        }
+
         if (!string.IsNullOrEmpty(parameters.Q))
         {
             queryParams.Add($"q={(global::System.Text.RegularExpressions.Regex.Replace(global::System.Uri.EscapeDataString(parameters.Q!), "%(3A|2F|3F|5B|5D|40|21|24|26|27|28|29|2A|2B|2C|3B|3D)", m => global::System.Uri.UnescapeDataString(m.Value), global::System.Text.RegularExpressions.RegexOptions.None, global::System.TimeSpan.FromSeconds(1)))}");

@@ -6,32 +6,31 @@ using System;
 using System.CodeDom.Compiler;
 using Atc.Rest.Client;
 using NonJsonContent.Generated;
+using NonJsonContent.Generated.Items.Models;
 
-namespace NonJsonContent.Generated.Files.Endpoints.Interfaces;
+namespace NonJsonContent.Generated.Items.Endpoints.Interfaces;
 
 /// <summary>
 /// Interface for Client Endpoint Result.
-/// Description: Download a binary file
-/// Operation: DownloadFile.
+/// Description: Update an item with a JSON merge patch
+/// Operation: PatchItem.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public interface IDownloadFileEndpointResult : IEndpointResponse, IEndpointResult
+public interface IPatchItemEndpointResult : IEndpointResponse, IEndpointResult
 {
-    bool IsOk { get; }
-
-    bool IsNotFound { get; }
+    bool IsNoContent { get; }
 
     bool IsBadRequest { get; }
+
+    bool IsNotFound { get; }
 
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
 
-    DownloadedFile OkContent { get; }
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails NotFoundContent { get; }
-
-    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

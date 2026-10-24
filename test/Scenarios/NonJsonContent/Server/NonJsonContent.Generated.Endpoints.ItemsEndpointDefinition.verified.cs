@@ -78,6 +78,19 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .WithWireFormBinding((WireParameter.Text("form", "caption"), false, false), (WireParameter.Text("form", "photo"), false, true))
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
+
+        items
+            .MapPatch("{itemId}", PatchItem)
+            .WithName("PatchItem")
+            .WithSummary("Update an item with a JSON merge patch")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding(PatchItemParametersWire.Parameters, requireParameters: true)
+            .WithRequestBodyProblems()
+            .Accepts<Item>("application/merge-patch+json");
     }
 
     internal async Task<IResult> ListItems(
@@ -119,4 +132,13 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
     }
+
+    internal async Task<IResult> PatchItem(
+        [FromServices] IPatchItemHandler handler,
+        [AsParameters] PatchItemParameters parameters,
+        CancellationToken cancellationToken)
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
 }

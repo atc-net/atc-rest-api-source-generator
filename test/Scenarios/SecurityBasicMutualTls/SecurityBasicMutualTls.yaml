@@ -1,0 +1,109 @@
+openapi: "3.1.0"
+info:
+  title: Security Basic And Mutual TLS
+  version: 1.0.0
+  description: >
+    HTTP basic authentication mapped to a registered ASP.NET Core authentication scheme (x-authentication-scheme),
+    mutual TLS (a client certificate), and an operation open to anyone.
+servers:
+  - url: /api
+
+# Document-level security - basic authentication for every operation that declares nothing else
+security:
+  - basic_auth: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check, open to anyone
+      tags:
+        - health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /reports:
+    get:
+      operationId: listReports
+      summary: The reports (basic authentication, from the document)
+      tags:
+        - reports
+      responses:
+        '200':
+          description: The reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '401':
+          description: Not signed in
+  /devices/{deviceId}:
+    get:
+      operationId: getDeviceById
+      summary: A device (a client certificate)
+      tags:
+        - devices
+      security:
+        - client_certificate: []
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The device
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '401':
+          description: No client certificate
+        '404':
+          description: No such device
+
+components:
+  securitySchemes:
+    basic_auth:
+      type: http
+      scheme: basic
+      description: A user name and a password
+      x-authentication-scheme: BasicAuthentication
+    client_certificate:
+      type: mutualTLS
+      description: A client certificate
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+    Report:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    Device:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+        serialNumber:
+          type: string

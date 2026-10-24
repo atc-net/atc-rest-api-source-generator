@@ -86,6 +86,15 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         ("Servers & security", "sec-anonymous", "an operation open to anyone (security: [])"),
     ];
 
+    /// <summary>
+    /// Constructs the generator rejects with an error under every strategy, so no scenario can use them: the report
+    /// names the rule instead of a gap, and the rule's own tests cover them.
+    /// </summary>
+    private static readonly Dictionary<string, string> RejectedOpenApiConstructs = new(StringComparer.Ordinal)
+    {
+        ["style-label-matrix"] = RuleIdentifiers.ParameterValueNotBindable,
+    };
+
     private static JsonObject CollectOpenApiConstructs(string root)
     {
         var scenariosRoot = Path.Combine(root, "test", "Scenarios");
@@ -97,6 +106,9 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                         f.Contains($"{Path.DirectorySeparatorChar}Atc.Rest.Api.Generator{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .SelectMany(f => System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(f), "\"(?<x>x-[a-z0-9]+(?:-[a-z0-9]+)*)\"", System.Text.RegularExpressions.RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Select(m => m.Groups["x"].Value))
             .Where(x => !x.StartsWith("x-correlation", StringComparison.Ordinal) && !x.StartsWith("x-swagger", StringComparison.Ordinal))
+
+            // the parser's own note on a document (its OpenAPI version), never written in a specification
+            .Where(x => !string.Equals(x, OpenApiDocumentExtensions.SpecVersionMetadataKey, StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
@@ -129,7 +141,13 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         return new JsonObject
         {
             ["constructs"] = new JsonArray([.. OpenApiConstructs
-                .Select(c => (JsonNode)new JsonObject { ["group"] = c.Group, ["key"] = c.Key, ["label"] = c.Label })
+                .Select(c => (JsonNode)new JsonObject
+                {
+                    ["group"] = c.Group,
+                    ["key"] = c.Key,
+                    ["label"] = c.Label,
+                    ["rejected"] = RejectedOpenApiConstructs.TryGetValue(c.Key, out var rule) ? rule : null,
+                })
                 .Concat(extensions.Select(x => (JsonNode)new JsonObject { ["group"] = "Atc extensions", ["key"] = x, ["label"] = x }))]),
             ["scenarios"] = scenarios,
         };

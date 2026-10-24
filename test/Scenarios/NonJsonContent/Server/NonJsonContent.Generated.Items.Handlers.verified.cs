@@ -55,3 +55,14 @@ public interface IUpdateItemPhotoHandler
         UpdateItemPhotoParameters parameters,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Update an item with a JSON merge patch.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IPatchItemHandler
+{
+    Task<PatchItemResult> ExecuteAsync(
+        PatchItemParameters parameters,
+        CancellationToken cancellationToken = default);
+}

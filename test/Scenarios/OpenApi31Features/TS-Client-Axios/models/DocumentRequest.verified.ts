@@ -8,4 +8,10 @@ export interface DocumentRequest {
   readonly content: string;
 
   readonly metadata?: Record<string, string> | null;
+
+  /** Always "document" (generated as a string; the value is not enforced) */
+  readonly kind?: string | null;
+
+  /** Not empty (not is ignored) */
+  readonly title?: string | null;
 }

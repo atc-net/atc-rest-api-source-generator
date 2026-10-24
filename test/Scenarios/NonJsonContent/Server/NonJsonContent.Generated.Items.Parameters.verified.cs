@@ -41,3 +41,13 @@ public sealed record UpdateItemAttachmentParameters(
 public sealed record UpdateItemPhotoParameters(
     [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] string ItemId,
     [property: Required] ItemPhoto Request);
+
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update an item with a JSON merge patch.
+/// Operation: PatchItem.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record PatchItemParameters(
+    [property: FromRoute(Name = "itemId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "itemId")] string ItemId,
+    [property: Required] Item Request);

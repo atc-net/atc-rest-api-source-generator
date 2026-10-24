@@ -9,7 +9,7 @@ import type { IdList, Item, ItemFilter, Paging } from '../models';
 
 const itemsKeys = {
   all: ['items'] as const,
-  list: (query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }) => [...itemsKeys.all, 'list', query] as const,
+  list: (query?: { tags?: string[]; sizes?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }) => [...itemsKeys.all, 'list', query] as const,
   listItemsByQueryString: (rawFilter?: string) => [...itemsKeys.all, 'listItemsByQueryString', rawFilter] as const,
   listItemReports: (itemId: string, query: { limit: number }) => [...itemsKeys.all, 'listItemReports', itemId, query] as const,
 };
@@ -22,7 +22,7 @@ export { itemsKeys };
  * React Query's signal to the client, so a cancelled or unused query stops its request.
  */
 const itemsQueries = {
-  listItems: (api: ApiService, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }, cookies?: { session?: string }) => queryOptions<Item[], ApiError>({
+  listItems: (api: ApiService, query?: { tags?: string[]; sizes?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }, cookies?: { session?: string }) => queryOptions<Item[], ApiError>({
     queryKey: itemsKeys.list(query),
     queryFn: async ({ signal }) => {
       const result = await api.items.listItems(query, cookies, signal);
@@ -84,7 +84,7 @@ const itemsQueries = {
 export { itemsQueries };
 
 /** List items */
-export function useListItems(query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }, cookies?: { session?: string }, options?: Omit<UseQueryOptions<Item[], ApiError>, 'queryKey' | 'queryFn'>) {
+export function useListItems(query?: { tags?: string[]; sizes?: string[]; q?: string; legacy?: string[]; ids?: IdList; callback?: string; anything?: string; filter?: ItemFilter; paging?: Paging }, cookies?: { session?: string }, options?: Omit<UseQueryOptions<Item[], ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
     ...itemsQueries.listItems(api, query, cookies),

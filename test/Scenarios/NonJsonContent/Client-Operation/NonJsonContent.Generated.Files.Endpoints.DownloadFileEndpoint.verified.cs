@@ -9,18 +9,18 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Atc.Rest.Client;
 using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using NonJsonContent.Generated;
 using NonJsonContent.Generated.Files.Endpoints.Interfaces;
-using NonJsonContent.Generated.Files.Endpoints.Results;
 using NonJsonContent.Generated.Files.Client;
 
 namespace NonJsonContent.Generated.Files.Endpoints;
 
 /// <summary>
 /// Client Endpoint.
-/// Description: Download a binary file
+/// Description: Download a binary file (the C# clients hand over the open stream)
 /// Operation: DownloadFile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
@@ -37,7 +37,7 @@ public sealed class DownloadFileEndpoint : IDownloadFileEndpoint
         this.httpMessageFactory = httpMessageFactory;
     }
 
-    public async Task<DownloadFileEndpointResult> ExecuteAsync(
+    public async Task<StreamBinaryEndpointResponse> ExecuteAsync(
         DownloadFileParameters parameters,
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
@@ -48,7 +48,7 @@ public sealed class DownloadFileEndpoint : IDownloadFileEndpoint
         requestBuilder.WithPathParameter("fileId", parameters.FileId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
-        using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
@@ -56,6 +56,20 @@ public sealed class DownloadFileEndpoint : IDownloadFileEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DownloadFileEndpointResult(x), cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var streamed = await responseBuilder.BuildStreamBinaryResponseAsync(cancellationToken).ConfigureAwait(false);
+            if (!streamed.IsSuccess)
+            {
+                response.Dispose();
+            }
+
+            return streamed;
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 }

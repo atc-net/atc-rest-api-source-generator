@@ -14,7 +14,7 @@ namespace NonJsonContent.Generated.Files.Results;
 
 
 /// <summary>
-/// Download a binary file.
+/// Download a binary file (the C# clients hand over the open stream).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class DownloadFileResult : IResult, INestedHttpResult

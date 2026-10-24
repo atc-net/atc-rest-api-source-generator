@@ -7,20 +7,21 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net;
 using Atc.Rest.Client;
-using NonJsonContent.Generated;
-using NonJsonContent.Generated.Files.Endpoints.Interfaces;
+using SecurityBasicMutualTls.Generated;
+using SecurityBasicMutualTls.Generated.Health.Endpoints.Interfaces;
+using SecurityBasicMutualTls.Generated.Health.Models;
 
-namespace NonJsonContent.Generated.Files.Endpoints.Results;
+namespace SecurityBasicMutualTls.Generated.Health.Endpoints.Results;
 
 /// <summary>
 /// Client Endpoint result.
-/// Description: Download a binary file
-/// Operation: DownloadFile.
+/// Description: Health check, open to anyone
+/// Operation: GetHealth.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public partial class DownloadFileEndpointResult : EndpointResponse, IDownloadFileEndpointResult
+public partial class GetHealthEndpointResult : EndpointResponse, IGetHealthEndpointResult
 {
-    public DownloadFileEndpointResult(EndpointResponse response)
+    public GetHealthEndpointResult(EndpointResponse response)
         : base(response)
     {
     }
@@ -28,34 +29,22 @@ public partial class DownloadFileEndpointResult : EndpointResponse, IDownloadFil
     /// <summary>
     /// Creates a result representing HTTP OK.
     /// </summary>
-    public static DownloadFileEndpointResult Ok(DownloadedFile content)
+    public static GetHealthEndpointResult Ok(HealthStatus content)
         => Create(HttpStatusCode.OK, content);
-
-    /// <summary>
-    /// Creates a result representing HTTP NotFound.
-    /// </summary>
-    public static DownloadFileEndpointResult NotFound(ProblemDetails content)
-        => Create(HttpStatusCode.NotFound, content);
-
-    /// <summary>
-    /// Creates a result representing HTTP BadRequest.
-    /// </summary>
-    public static DownloadFileEndpointResult BadRequest(ValidationProblemDetails content)
-        => Create(HttpStatusCode.BadRequest, content);
 
     /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
-    public static DownloadFileEndpointResult InternalServerError(ProblemDetails content)
+    public static GetHealthEndpointResult InternalServerError(ProblemDetails content)
         => Create(HttpStatusCode.InternalServerError, content);
 
     /// <summary>
     /// Creates a result representing HTTP GatewayTimeout.
     /// </summary>
-    public static DownloadFileEndpointResult GatewayTimeout(ProblemDetails content)
+    public static GetHealthEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
-    private static DownloadFileEndpointResult Create(
+    private static GetHealthEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)
         => new(new EndpointResponse(
@@ -68,44 +57,16 @@ public partial class DownloadFileEndpointResult : EndpointResponse, IDownloadFil
     public bool IsOk
         => StatusCode == HttpStatusCode.OK;
 
-    public bool IsNotFound
-        => StatusCode == HttpStatusCode.NotFound;
-
-    public bool IsBadRequest
-        => StatusCode == HttpStatusCode.BadRequest;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
     public bool IsGatewayTimeout
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
-    public DownloadedFile OkContent
-        => IsOk
-            ? DownloadedFile.FromResponse(this)
-            : throw InvalidContentAccessException<DownloadedFile>(HttpStatusCode.OK, "OkContent");
-
-    public ProblemDetails NotFoundContent
-        => IsNotFound && ContentObject is ProblemDetails result
+    public HealthStatus OkContent
+        => IsOk && ContentObject is HealthStatus result
             ? result
-            : IsNotFound && ContentObject is string message
-                ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound, message)
-                : IsNotFound && ContentObject is null
-                    ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound)
-                    : IsNotFound
-                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.NotFound, Content)
-                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
-
-    public ValidationProblemDetails BadRequestContent
-        => IsBadRequest && ContentObject is ValidationProblemDetails result
-            ? result
-            : IsBadRequest && ContentObject is string message
-                ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)
-                : IsBadRequest && ContentObject is null
-                    ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest)
-                    : IsBadRequest
-                        ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, Content)
-                        : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
+            : throw InvalidContentAccessException<HealthStatus>(HttpStatusCode.OK, "OkContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

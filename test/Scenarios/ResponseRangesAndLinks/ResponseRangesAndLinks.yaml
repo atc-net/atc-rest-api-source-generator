@@ -1,0 +1,104 @@
+openapi: "3.1.0"
+info:
+  title: Response Ranges And Links
+  version: 1.0.0
+  description: >
+    Status ranges and response links. A range (2XX, 4XX, 5XX) is generated as its first status unless that status is
+    declared (ATC_API_OPR034, suppressed with x-atc-suppress on one operation); a link generates nothing
+    (ATC_API_OPR035).
+servers:
+  - url: /api
+paths:
+  /orders/{orderId}:
+    get:
+      operationId: getOrderById
+      summary: An order, with a link to its customer, and a range for any other client error and for a server error
+      tags:
+        - orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          links:
+            GetCustomer:
+              operationId: getCustomerById
+              parameters:
+                customerId: $response.body#/customerId
+        '404':
+          description: No such order
+        '4XX':
+          description: Any other client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '5XX':
+          description: A server error
+  /customers/{customerId}:
+    get:
+      operationId: getCustomerById
+      summary: A customer, answered by any success status
+      tags:
+        - customers
+      x-atc-suppress:
+        - ATC_API_OPR034
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '2XX':
+          description: The customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        default:
+          description: An error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  schemas:
+    Order:
+      type: object
+      required:
+        - id
+        - customerId
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        total:
+          type: number
+          format: double
+    Customer:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    Problem:
+      type: object
+      properties:
+        title:
+          type: string
+        detail:
+          type: string

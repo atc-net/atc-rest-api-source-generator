@@ -151,6 +151,7 @@ paths:
   /logs:
     get:
       operationId: listLogs
+      x-operation-response-cardinality: single
       summary: Not paginated, the token parameter is required
       parameters:
         - name: continuation
@@ -233,6 +234,7 @@ components:
           items: {}
     PagedResult:
       type: object
+      x-pagination: true
       properties:
         pageNumber:
           type: integer

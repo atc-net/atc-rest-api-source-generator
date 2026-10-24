@@ -9,6 +9,8 @@ paths:
   /products:
     x-cache-type: output
     x-cache-policy: products
+    # The same answer for every caller, so it is cached also for a signed-in caller
+    x-cache-shared: true
     x-cache-expiration-seconds: 60
     x-cache-vary-by-query:
       - page

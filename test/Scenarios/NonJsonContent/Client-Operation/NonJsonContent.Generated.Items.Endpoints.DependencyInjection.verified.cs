@@ -45,6 +45,7 @@ public static class EndpointsServiceCollectionExtensions
         services.AddTransient<IGetItemSheetEndpoint, GetItemSheetEndpoint>();
         services.AddTransient<IUpdateItemAttachmentEndpoint, UpdateItemAttachmentEndpoint>();
         services.AddTransient<IUpdateItemPhotoEndpoint, UpdateItemPhotoEndpoint>();
+        services.AddTransient<IPatchItemEndpoint, PatchItemEndpoint>();
 
         return services;
     }

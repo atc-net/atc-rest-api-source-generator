@@ -31,4 +31,8 @@ public interface IItemsClient
     Task UpdateItemPhotoAsync(
         UpdateItemPhotoParameters parameters,
         CancellationToken cancellationToken = default);
+
+    Task PatchItemAsync(
+        PatchItemParameters parameters,
+        CancellationToken cancellationToken = default);
 }
