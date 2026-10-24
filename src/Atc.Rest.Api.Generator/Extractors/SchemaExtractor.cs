@@ -733,10 +733,17 @@ public static class SchemaExtractor
         "global::System.Text.Json.Serialization.JsonNumberHandling",
         "global::System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString | global::System.Text.Json.Serialization.JsonNumberHandling.WriteAsString");
 
-    // type: string with an integer format: the C# type is the integer (an int or a long), the wire the string
+    // type: string with an integer format: the C# type is the integer (an int or a long), the wire the string - also
+    // the items of an array and the values of a map, which the attribute on the property applies to
     private static bool IsIntegerSentAsString(IOpenApiSchema schema)
-        => schema.Dereferenced is { IsString: true } actual &&
-           actual.Format?.ToLowerInvariant() is "int32" or "int" or "int64" or "long";
+        => schema.Dereferenced is { } actual &&
+           (IsIntegerString(actual) ||
+            (actual.Type?.HasFlag(JsonSchemaType.Array) == true && actual.Items.Dereferenced is { } items && IsIntegerString(items)) ||
+            (actual.AdditionalProperties.Dereferenced is { } values && IsIntegerString(values)));
+
+    private static bool IsIntegerString(IOpenApiSchema schema)
+        => schema.IsString &&
+           schema.Format?.ToLowerInvariant() is "int32" or "int" or "int64" or "long";
 
     private static readonly System.Text.RegularExpressions.Regex UnclosedLineBreak = new(
         @"</?br\s*/?>",

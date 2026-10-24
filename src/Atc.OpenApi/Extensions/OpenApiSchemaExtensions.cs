@@ -1230,12 +1230,13 @@ public static class OpenApiSchemaExtensions
 
         // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
         // project declares (LengthLimitAttributesExtractor)
-        // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[])
+        // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[], int, long) - a length
+        // attribute on one throws when it validates
         private static IEnumerable<string> StringAttributes(
             OpenApiSchema actualSchema)
         {
             var format = actualSchema.Format?.ToLowerInvariant();
-            var isNonStringFormat = format is "uri" or "uuid" or "date" or "date-time" or "byte";
+            var isNonStringFormat = format is "uri" or "uuid" or "guid" or "date" or "date-time" or "byte" or "int32" or "int" or "int64" or "long";
 
             if (!isNonStringFormat)
             {
