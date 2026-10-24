@@ -18,7 +18,7 @@ namespace SecurityBasicMutualTls.Generated.Health.Client;
 public static class HealthClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="HealthClient"/> as <see cref="IHealthClient"/> using IHttpClientFactory.
+    /// Adds <see cref="HealthClient"/> as <see cref="IHealthClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class HealthClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IHealthClient>(
-            static (httpClient, serviceProvider) => new HealthClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<HealthClient>(Create);
+        return builder.AddTypedClient<IHealthClient>(Create);
+
+        static HealthClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new HealthClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SecurityBasicMutualTls.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SecurityBasicMutualTls.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

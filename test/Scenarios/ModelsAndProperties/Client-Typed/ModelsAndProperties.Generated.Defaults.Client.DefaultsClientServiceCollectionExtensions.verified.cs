@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Defaults.Client;
 public static class DefaultsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DefaultsClient"/> as <see cref="IDefaultsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DefaultsClient"/> as <see cref="IDefaultsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class DefaultsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDefaultsClient>(
-            static (httpClient, serviceProvider) => new DefaultsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DefaultsClient>(Create);
+        return builder.AddTypedClient<IDefaultsClient>(Create);
+
+        static DefaultsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DefaultsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

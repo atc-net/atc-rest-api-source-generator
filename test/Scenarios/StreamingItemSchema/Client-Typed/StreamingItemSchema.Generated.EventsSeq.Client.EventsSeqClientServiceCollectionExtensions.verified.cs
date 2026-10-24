@@ -18,7 +18,7 @@ namespace StreamingItemSchema.Generated.EventsSeq.Client;
 public static class EventsSeqClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="EventsSeqClient"/> as <see cref="IEventsSeqClient"/> using IHttpClientFactory.
+    /// Adds <see cref="EventsSeqClient"/> as <see cref="IEventsSeqClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class EventsSeqClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IEventsSeqClient>(
-            static (httpClient, serviceProvider) => new EventsSeqClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<EventsSeqClient>(Create);
+        return builder.AddTypedClient<IEventsSeqClient>(Create);
+
+        static EventsSeqClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new EventsSeqClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::StreamingItemSchema.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::StreamingItemSchema.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

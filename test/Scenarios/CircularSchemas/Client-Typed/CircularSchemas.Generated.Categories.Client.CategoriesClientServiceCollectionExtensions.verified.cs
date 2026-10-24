@@ -18,7 +18,7 @@ namespace CircularSchemas.Generated.Categories.Client;
 public static class CategoriesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="CategoriesClient"/> as <see cref="ICategoriesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="CategoriesClient"/> as <see cref="ICategoriesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class CategoriesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ICategoriesClient>(
-            static (httpClient, serviceProvider) => new CategoriesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<CategoriesClient>(Create);
+        return builder.AddTypedClient<ICategoriesClient>(Create);
+
+        static CategoriesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new CategoriesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::CircularSchemas.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::CircularSchemas.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

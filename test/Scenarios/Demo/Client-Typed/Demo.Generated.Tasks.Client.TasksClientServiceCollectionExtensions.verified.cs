@@ -18,7 +18,7 @@ namespace Demo.Generated.Tasks.Client;
 public static class TasksClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="TasksClient"/> as <see cref="ITasksClient"/> using IHttpClientFactory.
+    /// Adds <see cref="TasksClient"/> as <see cref="ITasksClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class TasksClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ITasksClient>(
-            static (httpClient, serviceProvider) => new TasksClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<TasksClient>(Create);
+        return builder.AddTypedClient<ITasksClient>(Create);
+
+        static TasksClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new TasksClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Demo.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Demo.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

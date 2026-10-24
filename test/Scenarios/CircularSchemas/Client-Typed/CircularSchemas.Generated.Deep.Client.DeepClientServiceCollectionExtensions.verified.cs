@@ -18,7 +18,7 @@ namespace CircularSchemas.Generated.Deep.Client;
 public static class DeepClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DeepClient"/> as <see cref="IDeepClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DeepClient"/> as <see cref="IDeepClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class DeepClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDeepClient>(
-            static (httpClient, serviceProvider) => new DeepClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DeepClient>(Create);
+        return builder.AddTypedClient<IDeepClient>(Create);
+
+        static DeepClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DeepClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::CircularSchemas.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::CircularSchemas.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

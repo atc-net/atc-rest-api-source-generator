@@ -18,7 +18,7 @@ namespace AllOfMultiLevel.Generated.People.Client;
 public static class PeopleClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="PeopleClient"/> as <see cref="IPeopleClient"/> using IHttpClientFactory.
+    /// Adds <see cref="PeopleClient"/> as <see cref="IPeopleClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class PeopleClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IPeopleClient>(
-            static (httpClient, serviceProvider) => new PeopleClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<PeopleClient>(Create);
+        return builder.AddTypedClient<IPeopleClient>(Create);
+
+        static PeopleClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new PeopleClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::AllOfMultiLevel.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::AllOfMultiLevel.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

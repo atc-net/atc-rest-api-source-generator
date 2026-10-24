@@ -18,7 +18,7 @@ namespace HostileSpec.Generated;
 public static class HostileSpecClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="HostileSpecClient"/> as <see cref="IHostileSpecClient"/> using IHttpClientFactory.
+    /// Adds <see cref="HostileSpecClient"/> as <see cref="IHostileSpecClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class HostileSpecClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IHostileSpecClient>(
-            static (httpClient, serviceProvider) => new HostileSpecClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<HostileSpecClient>(Create);
+        return builder.AddTypedClient<IHostileSpecClient>(Create);
+
+        static HostileSpecClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new HostileSpecClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::HostileSpec.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::HostileSpec.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

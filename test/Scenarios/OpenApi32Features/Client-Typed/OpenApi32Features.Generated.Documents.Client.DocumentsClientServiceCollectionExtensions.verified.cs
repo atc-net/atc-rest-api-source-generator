@@ -18,7 +18,7 @@ namespace OpenApi32Features.Generated.Documents.Client;
 public static class DocumentsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DocumentsClient"/> as <see cref="IDocumentsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DocumentsClient"/> as <see cref="IDocumentsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class DocumentsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDocumentsClient>(
-            static (httpClient, serviceProvider) => new DocumentsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DocumentsClient>(Create);
+        return builder.AddTypedClient<IDocumentsClient>(Create);
+
+        static DocumentsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DocumentsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::OpenApi32Features.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::OpenApi32Features.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

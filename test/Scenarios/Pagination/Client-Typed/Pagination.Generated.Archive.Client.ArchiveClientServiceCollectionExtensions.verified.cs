@@ -18,7 +18,7 @@ namespace Pagination.Generated.Archive.Client;
 public static class ArchiveClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ArchiveClient"/> as <see cref="IArchiveClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ArchiveClient"/> as <see cref="IArchiveClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ArchiveClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IArchiveClient>(
-            static (httpClient, serviceProvider) => new ArchiveClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ArchiveClient>(Create);
+        return builder.AddTypedClient<IArchiveClient>(Create);
+
+        static ArchiveClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ArchiveClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

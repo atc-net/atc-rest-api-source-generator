@@ -18,7 +18,7 @@ namespace SingleTypedClient.Generated;
 public static class SingleTypedApiClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="SingleTypedApiClient"/> as <see cref="ISingleTypedApiClient"/> using IHttpClientFactory.
+    /// Adds <see cref="SingleTypedApiClient"/> as <see cref="ISingleTypedApiClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class SingleTypedApiClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ISingleTypedApiClient>(
-            static (httpClient, serviceProvider) => new SingleTypedApiClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<SingleTypedApiClient>(Create);
+        return builder.AddTypedClient<ISingleTypedApiClient>(Create);
+
+        static SingleTypedApiClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new SingleTypedApiClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SingleTypedClient.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SingleTypedClient.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

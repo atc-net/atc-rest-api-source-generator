@@ -18,7 +18,7 @@ namespace MultipleServers.Generated.Items.Client;
 public static class ItemsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ItemsClient"/> as <see cref="IItemsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ItemsClient"/> as <see cref="IItemsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ItemsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IItemsClient>(
-            static (httpClient, serviceProvider) => new ItemsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ItemsClient>(Create);
+        return builder.AddTypedClient<IItemsClient>(Create);
+
+        static ItemsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ItemsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::MultipleServers.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::MultipleServers.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

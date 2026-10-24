@@ -18,7 +18,7 @@ namespace Demo.Generated.Tests.Client;
 public static class TestsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="TestsClient"/> as <see cref="ITestsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="TestsClient"/> as <see cref="ITestsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class TestsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ITestsClient>(
-            static (httpClient, serviceProvider) => new TestsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<TestsClient>(Create);
+        return builder.AddTypedClient<ITestsClient>(Create);
+
+        static TestsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new TestsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Demo.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Demo.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

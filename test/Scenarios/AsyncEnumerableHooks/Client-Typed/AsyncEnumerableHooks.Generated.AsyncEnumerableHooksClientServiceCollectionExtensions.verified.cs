@@ -18,7 +18,7 @@ namespace AsyncEnumerableHooks.Generated;
 public static class AsyncEnumerableHooksClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="AsyncEnumerableHooksClient"/> as <see cref="IAsyncEnumerableHooksClient"/> using IHttpClientFactory.
+    /// Adds <see cref="AsyncEnumerableHooksClient"/> as <see cref="IAsyncEnumerableHooksClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class AsyncEnumerableHooksClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IAsyncEnumerableHooksClient>(
-            static (httpClient, serviceProvider) => new AsyncEnumerableHooksClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<AsyncEnumerableHooksClient>(Create);
+        return builder.AddTypedClient<IAsyncEnumerableHooksClient>(Create);
+
+        static AsyncEnumerableHooksClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new AsyncEnumerableHooksClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::AsyncEnumerableHooks.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::AsyncEnumerableHooks.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

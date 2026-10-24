@@ -18,7 +18,7 @@ namespace Pagination.Generated.Pages.Client;
 public static class PagesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="PagesClient"/> as <see cref="IPagesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="PagesClient"/> as <see cref="IPagesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class PagesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IPagesClient>(
-            static (httpClient, serviceProvider) => new PagesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<PagesClient>(Create);
+        return builder.AddTypedClient<IPagesClient>(Create);
+
+        static PagesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new PagesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

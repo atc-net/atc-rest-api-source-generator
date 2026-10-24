@@ -18,7 +18,7 @@ namespace ParameterSerialization.Generated;
 public static class ParameterSerializationClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ParameterSerializationClient"/> as <see cref="IParameterSerializationClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ParameterSerializationClient"/> as <see cref="IParameterSerializationClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ParameterSerializationClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IParameterSerializationClient>(
-            static (httpClient, serviceProvider) => new ParameterSerializationClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ParameterSerializationClient>(Create);
+        return builder.AddTypedClient<IParameterSerializationClient>(Create);
+
+        static ParameterSerializationClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ParameterSerializationClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ParameterSerialization.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ParameterSerialization.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

@@ -18,7 +18,7 @@ namespace AllOfMultiLevel.Generated.Employees.Client;
 public static class EmployeesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="EmployeesClient"/> as <see cref="IEmployeesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="EmployeesClient"/> as <see cref="IEmployeesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class EmployeesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IEmployeesClient>(
-            static (httpClient, serviceProvider) => new EmployeesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<EmployeesClient>(Create);
+        return builder.AddTypedClient<IEmployeesClient>(Create);
+
+        static EmployeesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new EmployeesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::AllOfMultiLevel.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::AllOfMultiLevel.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Enums.Client;
 public static class EnumsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="EnumsClient"/> as <see cref="IEnumsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="EnumsClient"/> as <see cref="IEnumsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class EnumsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IEnumsClient>(
-            static (httpClient, serviceProvider) => new EnumsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<EnumsClient>(Create);
+        return builder.AddTypedClient<IEnumsClient>(Create);
+
+        static EnumsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new EnumsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

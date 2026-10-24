@@ -18,7 +18,7 @@ namespace Overlays.Generated;
 public static class OverlaysClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="OverlaysClient"/> as <see cref="IOverlaysClient"/> using IHttpClientFactory.
+    /// Adds <see cref="OverlaysClient"/> as <see cref="IOverlaysClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class OverlaysClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IOverlaysClient>(
-            static (httpClient, serviceProvider) => new OverlaysClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<OverlaysClient>(Create);
+        return builder.AddTypedClient<IOverlaysClient>(Create);
+
+        static OverlaysClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new OverlaysClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Overlays.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Overlays.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

@@ -18,7 +18,7 @@ namespace CookieParameters.Generated.Tracking.Client;
 public static class TrackingClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="TrackingClient"/> as <see cref="ITrackingClient"/> using IHttpClientFactory.
+    /// Adds <see cref="TrackingClient"/> as <see cref="ITrackingClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class TrackingClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ITrackingClient>(
-            static (httpClient, serviceProvider) => new TrackingClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<TrackingClient>(Create);
+        return builder.AddTypedClient<ITrackingClient>(Create);
+
+        static TrackingClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new TrackingClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::CookieParameters.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::CookieParameters.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

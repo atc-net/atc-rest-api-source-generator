@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Cats.Client;
 public static class CatsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="CatsClient"/> as <see cref="ICatsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="CatsClient"/> as <see cref="ICatsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class CatsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ICatsClient>(
-            static (httpClient, serviceProvider) => new CatsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<CatsClient>(Create);
+        return builder.AddTypedClient<ICatsClient>(Create);
+
+        static CatsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new CatsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Animals.Client;
 public static class AnimalsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="AnimalsClient"/> as <see cref="IAnimalsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="AnimalsClient"/> as <see cref="IAnimalsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class AnimalsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IAnimalsClient>(
-            static (httpClient, serviceProvider) => new AnimalsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<AnimalsClient>(Create);
+        return builder.AddTypedClient<IAnimalsClient>(Create);
+
+        static AnimalsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new AnimalsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

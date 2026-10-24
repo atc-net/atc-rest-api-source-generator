@@ -18,7 +18,7 @@ namespace HostileNames.Generated.Things.Client;
 public static class ThingsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ThingsClient"/> as <see cref="IThingsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ThingsClient"/> as <see cref="IThingsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ThingsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IThingsClient>(
-            static (httpClient, serviceProvider) => new ThingsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ThingsClient>(Create);
+        return builder.AddTypedClient<IThingsClient>(Create);
+
+        static ThingsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ThingsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

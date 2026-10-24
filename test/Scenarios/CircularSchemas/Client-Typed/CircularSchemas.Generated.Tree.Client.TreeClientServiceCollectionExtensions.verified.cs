@@ -18,7 +18,7 @@ namespace CircularSchemas.Generated.Tree.Client;
 public static class TreeClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="TreeClient"/> as <see cref="ITreeClient"/> using IHttpClientFactory.
+    /// Adds <see cref="TreeClient"/> as <see cref="ITreeClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class TreeClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ITreeClient>(
-            static (httpClient, serviceProvider) => new TreeClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<TreeClient>(Create);
+        return builder.AddTypedClient<ITreeClient>(Create);
+
+        static TreeClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new TreeClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::CircularSchemas.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::CircularSchemas.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

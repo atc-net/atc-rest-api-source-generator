@@ -18,7 +18,7 @@ namespace CookieParameters.Generated.Session.Client;
 public static class SessionClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="SessionClient"/> as <see cref="ISessionClient"/> using IHttpClientFactory.
+    /// Adds <see cref="SessionClient"/> as <see cref="ISessionClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class SessionClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ISessionClient>(
-            static (httpClient, serviceProvider) => new SessionClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<SessionClient>(Create);
+        return builder.AddTypedClient<ISessionClient>(Create);
+
+        static SessionClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new SessionClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::CookieParameters.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::CookieParameters.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

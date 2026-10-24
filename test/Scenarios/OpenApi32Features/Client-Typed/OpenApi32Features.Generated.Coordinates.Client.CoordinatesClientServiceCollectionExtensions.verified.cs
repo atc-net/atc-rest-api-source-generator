@@ -18,7 +18,7 @@ namespace OpenApi32Features.Generated.Coordinates.Client;
 public static class CoordinatesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="CoordinatesClient"/> as <see cref="ICoordinatesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="CoordinatesClient"/> as <see cref="ICoordinatesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class CoordinatesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ICoordinatesClient>(
-            static (httpClient, serviceProvider) => new CoordinatesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<CoordinatesClient>(Create);
+        return builder.AddTypedClient<ICoordinatesClient>(Create);
+
+        static CoordinatesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new CoordinatesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::OpenApi32Features.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::OpenApi32Features.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

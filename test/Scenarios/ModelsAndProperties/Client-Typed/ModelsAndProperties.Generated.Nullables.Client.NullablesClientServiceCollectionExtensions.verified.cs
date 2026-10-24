@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Nullables.Client;
 public static class NullablesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="NullablesClient"/> as <see cref="INullablesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="NullablesClient"/> as <see cref="INullablesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class NullablesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<INullablesClient>(
-            static (httpClient, serviceProvider) => new NullablesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<NullablesClient>(Create);
+        return builder.AddTypedClient<INullablesClient>(Create);
+
+        static NullablesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new NullablesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

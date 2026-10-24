@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Dictionaries.Client;
 public static class DictionariesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DictionariesClient"/> as <see cref="IDictionariesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DictionariesClient"/> as <see cref="IDictionariesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class DictionariesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDictionariesClient>(
-            static (httpClient, serviceProvider) => new DictionariesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DictionariesClient>(Create);
+        return builder.AddTypedClient<IDictionariesClient>(Create);
+
+        static DictionariesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DictionariesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

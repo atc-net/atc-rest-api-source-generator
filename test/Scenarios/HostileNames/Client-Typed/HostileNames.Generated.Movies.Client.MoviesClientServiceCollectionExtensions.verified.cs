@@ -18,7 +18,7 @@ namespace HostileNames.Generated.Movies.Client;
 public static class MoviesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="MoviesClient"/> as <see cref="IMoviesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="MoviesClient"/> as <see cref="IMoviesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class MoviesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IMoviesClient>(
-            static (httpClient, serviceProvider) => new MoviesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<MoviesClient>(Create);
+        return builder.AddTypedClient<IMoviesClient>(Create);
+
+        static MoviesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new MoviesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

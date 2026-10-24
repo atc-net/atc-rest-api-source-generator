@@ -18,7 +18,7 @@ namespace TypedClientResultStyle.Generated;
 public static class DeviceApiClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DeviceApiClient"/> as <see cref="IDeviceApiClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DeviceApiClient"/> as <see cref="IDeviceApiClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class DeviceApiClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDeviceApiClient>(
-            static (httpClient, serviceProvider) => new DeviceApiClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DeviceApiClient>(Create);
+        return builder.AddTypedClient<IDeviceApiClient>(Create);
+
+        static DeviceApiClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DeviceApiClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::TypedClientResultStyle.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::TypedClientResultStyle.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

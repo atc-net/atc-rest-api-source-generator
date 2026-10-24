@@ -18,7 +18,7 @@ namespace Pagination.Generated.Metrics.Client;
 public static class MetricsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="MetricsClient"/> as <see cref="IMetricsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="MetricsClient"/> as <see cref="IMetricsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class MetricsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IMetricsClient>(
-            static (httpClient, serviceProvider) => new MetricsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<MetricsClient>(Create);
+        return builder.AddTypedClient<IMetricsClient>(Create);
+
+        static MetricsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new MetricsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

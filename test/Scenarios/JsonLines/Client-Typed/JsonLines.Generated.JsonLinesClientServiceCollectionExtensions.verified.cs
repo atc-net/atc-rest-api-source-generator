@@ -18,7 +18,7 @@ namespace JsonLines.Generated;
 public static class JsonLinesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="JsonLinesClient"/> as <see cref="IJsonLinesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="JsonLinesClient"/> as <see cref="IJsonLinesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class JsonLinesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IJsonLinesClient>(
-            static (httpClient, serviceProvider) => new JsonLinesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<JsonLinesClient>(Create);
+        return builder.AddTypedClient<IJsonLinesClient>(Create);
+
+        static JsonLinesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new JsonLinesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::JsonLines.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::JsonLines.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

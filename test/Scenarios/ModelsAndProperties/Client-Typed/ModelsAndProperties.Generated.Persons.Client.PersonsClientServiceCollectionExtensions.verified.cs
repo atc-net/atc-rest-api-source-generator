@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Persons.Client;
 public static class PersonsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="PersonsClient"/> as <see cref="IPersonsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="PersonsClient"/> as <see cref="IPersonsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class PersonsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IPersonsClient>(
-            static (httpClient, serviceProvider) => new PersonsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<PersonsClient>(Create);
+        return builder.AddTypedClient<IPersonsClient>(Create);
+
+        static PersonsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new PersonsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

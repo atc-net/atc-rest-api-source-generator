@@ -18,7 +18,7 @@ namespace HostileTypeScript.Generated.Files.Client;
 public static class FilesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="FilesClient"/> as <see cref="IFilesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="FilesClient"/> as <see cref="IFilesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class FilesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IFilesClient>(
-            static (httpClient, serviceProvider) => new FilesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<FilesClient>(Create);
+        return builder.AddTypedClient<IFilesClient>(Create);
+
+        static FilesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new FilesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::HostileTypeScript.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::HostileTypeScript.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

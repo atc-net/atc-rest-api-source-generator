@@ -18,7 +18,7 @@ namespace RateLimit.Generated.Reports.Client;
 public static class ReportsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ReportsClient"/> as <see cref="IReportsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ReportsClient"/> as <see cref="IReportsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ReportsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IReportsClient>(
-            static (httpClient, serviceProvider) => new ReportsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ReportsClient>(Create);
+        return builder.AddTypedClient<IReportsClient>(Create);
+
+        static ReportsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ReportsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::RateLimit.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::RateLimit.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Validations.Client;
 public static class ValidationsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ValidationsClient"/> as <see cref="IValidationsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ValidationsClient"/> as <see cref="IValidationsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ValidationsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IValidationsClient>(
-            static (httpClient, serviceProvider) => new ValidationsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ValidationsClient>(Create);
+        return builder.AddTypedClient<IValidationsClient>(Create);
+
+        static ValidationsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ValidationsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

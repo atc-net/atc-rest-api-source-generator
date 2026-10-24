@@ -18,7 +18,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Client;
 public static class ResourcesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ResourcesClient"/> as <see cref="IResourcesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ResourcesClient"/> as <see cref="IResourcesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ResourcesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IResourcesClient>(
-            static (httpClient, serviceProvider) => new ResourcesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ResourcesClient>(Create);
+        return builder.AddTypedClient<IResourcesClient>(Create);
+
+        static ResourcesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ResourcesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SecurityOpenIdConnect.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SecurityOpenIdConnect.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

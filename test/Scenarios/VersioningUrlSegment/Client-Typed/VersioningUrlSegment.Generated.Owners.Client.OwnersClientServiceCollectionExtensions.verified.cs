@@ -18,7 +18,7 @@ namespace VersioningUrlSegment.Generated.Owners.Client;
 public static class OwnersClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="OwnersClient"/> as <see cref="IOwnersClient"/> using IHttpClientFactory.
+    /// Adds <see cref="OwnersClient"/> as <see cref="IOwnersClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class OwnersClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IOwnersClient>(
-            static (httpClient, serviceProvider) => new OwnersClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<OwnersClient>(Create);
+        return builder.AddTypedClient<IOwnersClient>(Create);
+
+        static OwnersClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new OwnersClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::VersioningUrlSegment.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::VersioningUrlSegment.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

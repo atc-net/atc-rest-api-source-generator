@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Dogs.Client;
 public static class DogsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DogsClient"/> as <see cref="IDogsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DogsClient"/> as <see cref="IDogsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class DogsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDogsClient>(
-            static (httpClient, serviceProvider) => new DogsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DogsClient>(Create);
+        return builder.AddTypedClient<IDogsClient>(Create);
+
+        static DogsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DogsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

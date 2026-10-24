@@ -18,7 +18,7 @@ namespace ReadOnlyWriteOnly.Generated;
 public static class ReadOnlyWriteOnlyClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ReadOnlyWriteOnlyClient"/> as <see cref="IReadOnlyWriteOnlyClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ReadOnlyWriteOnlyClient"/> as <see cref="IReadOnlyWriteOnlyClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ReadOnlyWriteOnlyClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IReadOnlyWriteOnlyClient>(
-            static (httpClient, serviceProvider) => new ReadOnlyWriteOnlyClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ReadOnlyWriteOnlyClient>(Create);
+        return builder.AddTypedClient<IReadOnlyWriteOnlyClient>(Create);
+
+        static ReadOnlyWriteOnlyClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ReadOnlyWriteOnlyClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ReadOnlyWriteOnly.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ReadOnlyWriteOnly.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

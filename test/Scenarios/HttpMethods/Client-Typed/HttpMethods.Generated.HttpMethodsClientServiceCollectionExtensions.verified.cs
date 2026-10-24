@@ -18,7 +18,7 @@ namespace HttpMethods.Generated;
 public static class HttpMethodsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="HttpMethodsClient"/> as <see cref="IHttpMethodsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="HttpMethodsClient"/> as <see cref="IHttpMethodsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class HttpMethodsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IHttpMethodsClient>(
-            static (httpClient, serviceProvider) => new HttpMethodsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<HttpMethodsClient>(Create);
+        return builder.AddTypedClient<IHttpMethodsClient>(Create);
+
+        static HttpMethodsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new HttpMethodsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::HttpMethods.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::HttpMethods.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

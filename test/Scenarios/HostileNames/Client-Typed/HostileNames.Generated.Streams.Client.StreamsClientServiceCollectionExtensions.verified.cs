@@ -18,7 +18,7 @@ namespace HostileNames.Generated.Streams.Client;
 public static class StreamsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="StreamsClient"/> as <see cref="IStreamsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="StreamsClient"/> as <see cref="IStreamsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class StreamsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IStreamsClient>(
-            static (httpClient, serviceProvider) => new StreamsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<StreamsClient>(Create);
+        return builder.AddTypedClient<IStreamsClient>(Create);
+
+        static StreamsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new StreamsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

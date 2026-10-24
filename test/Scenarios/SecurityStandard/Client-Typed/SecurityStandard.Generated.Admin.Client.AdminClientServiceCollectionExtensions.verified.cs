@@ -18,7 +18,7 @@ namespace SecurityStandard.Generated.Admin.Client;
 public static class AdminClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="AdminClient"/> as <see cref="IAdminClient"/> using IHttpClientFactory.
+    /// Adds <see cref="AdminClient"/> as <see cref="IAdminClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class AdminClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IAdminClient>(
-            static (httpClient, serviceProvider) => new AdminClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<AdminClient>(Create);
+        return builder.AddTypedClient<IAdminClient>(Create);
+
+        static AdminClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new AdminClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SecurityStandard.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SecurityStandard.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

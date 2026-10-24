@@ -1191,7 +1191,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 NamespaceBuilder.ToFileName(clientNamespace, interfaceParameters.InterfaceTypeName),
                 interfaceContent);
 
-            // The DI extension calls AddHttpClient<TInterface, TClient>(), which lives in
+            // The DI extension calls AddHttpClient<TInterface>() and AddTypedClient, which live in
             // Microsoft.Extensions.Http. Typed-client projects are not required to reference it,
             // so only emit the extension when the consumer actually has it.
             if (generateDiExtension)
@@ -1304,7 +1304,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine($"public static class {clientTypeName}ServiceCollectionExtensions");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine($"    /// Adds <see cref=\"{clientTypeName}\"/> as <see cref=\"{interfaceTypeName}\"/> using IHttpClientFactory.");
+        sb.AppendLine($"    /// Adds <see cref=\"{clientTypeName}\"/> as <see cref=\"{interfaceTypeName}\"/> and as itself, using IHttpClientFactory.");
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    /// <param name=\"services\">The service collection.</param>");
         sb.AppendLine("    /// <param name=\"configureClient\">Optional callback to configure the underlying <see cref=\"HttpClient\"/>.</param>");
@@ -1330,10 +1330,14 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("        // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)");
         sb.AppendLine("        // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.");
-        sb.AppendLine($"        return builder.AddTypedClient<{interfaceTypeName}>(");
-        sb.AppendLine($"            static (httpClient, serviceProvider) => new {clientTypeName}(");
+        sb.AppendLine("        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.");
+        sb.AppendLine($"        builder.AddTypedClient<{clientTypeName}>(Create);");
+        sb.AppendLine($"        return builder.AddTypedClient<{interfaceTypeName}>(Create);");
+        sb.AppendLine();
+        sb.AppendLine($"        static {clientTypeName} Create(HttpClient httpClient, IServiceProvider serviceProvider)");
+        sb.AppendLine($"            => new {clientTypeName}(");
         sb.AppendLine("                httpClient,");
-        sb.AppendLine($"                serviceProvider.GetRequiredService<IOptions<{jsonOptionsType}>>().Value.SerializerOptions));");
+        sb.AppendLine($"                serviceProvider.GetRequiredService<IOptions<{jsonOptionsType}>>().Value.SerializerOptions);");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

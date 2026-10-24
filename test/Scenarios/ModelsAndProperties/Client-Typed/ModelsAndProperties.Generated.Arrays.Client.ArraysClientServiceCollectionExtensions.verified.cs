@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Arrays.Client;
 public static class ArraysClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ArraysClient"/> as <see cref="IArraysClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ArraysClient"/> as <see cref="IArraysClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ArraysClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IArraysClient>(
-            static (httpClient, serviceProvider) => new ArraysClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ArraysClient>(Create);
+        return builder.AddTypedClient<IArraysClient>(Create);
+
+        static ArraysClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ArraysClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

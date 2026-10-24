@@ -18,7 +18,7 @@ namespace Demo.Generated.Accounts.Client;
 public static class AccountsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="AccountsClient"/> as <see cref="IAccountsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="AccountsClient"/> as <see cref="IAccountsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class AccountsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IAccountsClient>(
-            static (httpClient, serviceProvider) => new AccountsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<AccountsClient>(Create);
+        return builder.AddTypedClient<IAccountsClient>(Create);
+
+        static AccountsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new AccountsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Demo.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Demo.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

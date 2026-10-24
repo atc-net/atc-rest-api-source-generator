@@ -18,7 +18,7 @@ namespace DiscriminatorImprovements.Generated.Events.Client;
 public static class EventsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="EventsClient"/> as <see cref="IEventsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="EventsClient"/> as <see cref="IEventsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class EventsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IEventsClient>(
-            static (httpClient, serviceProvider) => new EventsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<EventsClient>(Create);
+        return builder.AddTypedClient<IEventsClient>(Create);
+
+        static EventsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new EventsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::DiscriminatorImprovements.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::DiscriminatorImprovements.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

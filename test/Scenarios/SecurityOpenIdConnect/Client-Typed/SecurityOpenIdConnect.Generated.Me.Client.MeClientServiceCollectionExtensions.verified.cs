@@ -18,7 +18,7 @@ namespace SecurityOpenIdConnect.Generated.Me.Client;
 public static class MeClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="MeClient"/> as <see cref="IMeClient"/> using IHttpClientFactory.
+    /// Adds <see cref="MeClient"/> as <see cref="IMeClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class MeClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IMeClient>(
-            static (httpClient, serviceProvider) => new MeClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<MeClient>(Create);
+        return builder.AddTypedClient<IMeClient>(Create);
+
+        static MeClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new MeClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SecurityOpenIdConnect.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SecurityOpenIdConnect.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

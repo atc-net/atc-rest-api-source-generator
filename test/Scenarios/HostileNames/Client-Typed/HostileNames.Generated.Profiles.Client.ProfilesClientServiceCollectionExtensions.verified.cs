@@ -18,7 +18,7 @@ namespace HostileNames.Generated.Profiles.Client;
 public static class ProfilesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ProfilesClient"/> as <see cref="IProfilesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ProfilesClient"/> as <see cref="IProfilesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ProfilesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IProfilesClient>(
-            static (httpClient, serviceProvider) => new ProfilesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ProfilesClient>(Create);
+        return builder.AddTypedClient<IProfilesClient>(Create);
+
+        static ProfilesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ProfilesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::HostileNames.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

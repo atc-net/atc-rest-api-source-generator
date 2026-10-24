@@ -18,7 +18,7 @@ namespace ComponentsReuse.Generated;
 public static class ComponentsReuseClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ComponentsReuseClient"/> as <see cref="IComponentsReuseClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ComponentsReuseClient"/> as <see cref="IComponentsReuseClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ComponentsReuseClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IComponentsReuseClient>(
-            static (httpClient, serviceProvider) => new ComponentsReuseClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ComponentsReuseClient>(Create);
+        return builder.AddTypedClient<IComponentsReuseClient>(Create);
+
+        static ComponentsReuseClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ComponentsReuseClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ComponentsReuse.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ComponentsReuse.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

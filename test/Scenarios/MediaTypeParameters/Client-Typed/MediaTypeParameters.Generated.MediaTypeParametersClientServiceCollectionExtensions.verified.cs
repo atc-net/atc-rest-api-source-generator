@@ -18,7 +18,7 @@ namespace MediaTypeParameters.Generated;
 public static class MediaTypeParametersClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="MediaTypeParametersClient"/> as <see cref="IMediaTypeParametersClient"/> using IHttpClientFactory.
+    /// Adds <see cref="MediaTypeParametersClient"/> as <see cref="IMediaTypeParametersClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class MediaTypeParametersClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IMediaTypeParametersClient>(
-            static (httpClient, serviceProvider) => new MediaTypeParametersClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<MediaTypeParametersClient>(Create);
+        return builder.AddTypedClient<IMediaTypeParametersClient>(Create);
+
+        static MediaTypeParametersClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new MediaTypeParametersClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::MediaTypeParameters.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::MediaTypeParameters.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

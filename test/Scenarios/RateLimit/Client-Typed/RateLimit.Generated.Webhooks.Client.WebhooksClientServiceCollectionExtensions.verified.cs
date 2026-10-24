@@ -18,7 +18,7 @@ namespace RateLimit.Generated.Webhooks.Client;
 public static class WebhooksClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="WebhooksClient"/> as <see cref="IWebhooksClient"/> using IHttpClientFactory.
+    /// Adds <see cref="WebhooksClient"/> as <see cref="IWebhooksClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class WebhooksClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IWebhooksClient>(
-            static (httpClient, serviceProvider) => new WebhooksClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<WebhooksClient>(Create);
+        return builder.AddTypedClient<IWebhooksClient>(Create);
+
+        static WebhooksClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new WebhooksClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::RateLimit.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::RateLimit.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

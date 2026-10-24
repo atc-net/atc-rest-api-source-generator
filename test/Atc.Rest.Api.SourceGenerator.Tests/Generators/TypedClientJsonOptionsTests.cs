@@ -5,7 +5,8 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// generated <c>ApiClientJsonOptions</c>, which starts from the client's own defaults (camelCase, enums as their wire
 /// values), like ASP.NET Core's <c>JsonOptions</c> on the server. A caller adjusts them with the extension's callback or
 /// with <c>services.Configure&lt;ApiClientJsonOptions&gt;</c> - before or after the registration. The extension used to
-/// build every client with the fixed defaults, so a consumer whose server writes snake_case could not use it.
+/// build every client with the fixed defaults, so a consumer whose server writes snake_case could not use it. The
+/// concrete client class is registered too, built the same way, for a consumer that depends on the class.
 /// </summary>
 public sealed class TypedClientJsonOptionsTests
 {
@@ -64,14 +65,18 @@ public sealed class TypedClientJsonOptionsTests
                     services.Configure<ApiClientJsonOptions>(o => o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
                 }
 
-                var builder = how == "callback"
+                var builder = how is "callback" or "concrete"
                     ? services.AddErrorBodiesClient(
                         c => c.BaseAddress = new Uri("http://stub/"),
                         o => o.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower)
                     : services.AddErrorBodiesClient(c => c.BaseAddress = new Uri("http://stub/"));
                 builder.ConfigurePrimaryHttpMessageHandler(() => handler);
 
-                var client = services.BuildServiceProvider().GetRequiredService<IErrorBodiesClient>();
+                // The concrete client resolves too (a consumer that depends on the class), with the same options
+                var provider = services.BuildServiceProvider();
+                IErrorBodiesClient client = how == "concrete"
+                    ? provider.GetRequiredService<ErrorBodiesClient>()
+                    : provider.GetRequiredService<IErrorBodiesClient>();
                 var answer = await client.CreateThingAsync(new CreateThingParameters(new Thing("Ann", Kind.Large)));
                 return handler.Body + " -> " + answer.FirstName + "/" + answer.Kind;
             }
@@ -95,6 +100,7 @@ public sealed class TypedClientJsonOptionsTests
     [InlineData("defaults", """{"firstName":"Ann","kind":"large"} -> Ann/large""")]
     [InlineData("callback", """{"first_name":"Ann","kind":"large"} -> Ann/large""")]
     [InlineData("configure-before", """{"first_name":"Ann","kind":"large"} -> Ann/large""")]
+    [InlineData("concrete", """{"first_name":"Ann","kind":"large"} -> Ann/large""")]
     public async Task TheClientsSerializerOptions_ComeFromDi(
         string how,
         string expected)

@@ -18,7 +18,7 @@ namespace Polymorphism.Generated.Payments.Client;
 public static class PaymentsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="PaymentsClient"/> as <see cref="IPaymentsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="PaymentsClient"/> as <see cref="IPaymentsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class PaymentsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IPaymentsClient>(
-            static (httpClient, serviceProvider) => new PaymentsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<PaymentsClient>(Create);
+        return builder.AddTypedClient<IPaymentsClient>(Create);
+
+        static PaymentsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new PaymentsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Polymorphism.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Polymorphism.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

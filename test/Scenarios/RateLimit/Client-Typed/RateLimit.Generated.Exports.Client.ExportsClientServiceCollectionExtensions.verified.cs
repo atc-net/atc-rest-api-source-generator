@@ -18,7 +18,7 @@ namespace RateLimit.Generated.Exports.Client;
 public static class ExportsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ExportsClient"/> as <see cref="IExportsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ExportsClient"/> as <see cref="IExportsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ExportsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IExportsClient>(
-            static (httpClient, serviceProvider) => new ExportsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ExportsClient>(Create);
+        return builder.AddTypedClient<IExportsClient>(Create);
+
+        static ExportsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ExportsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::RateLimit.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::RateLimit.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

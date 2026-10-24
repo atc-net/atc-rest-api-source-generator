@@ -18,7 +18,7 @@ namespace SecurityBasicMutualTls.Generated.Devices.Client;
 public static class DevicesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DevicesClient"/> as <see cref="IDevicesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DevicesClient"/> as <see cref="IDevicesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class DevicesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDevicesClient>(
-            static (httpClient, serviceProvider) => new DevicesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DevicesClient>(Create);
+        return builder.AddTypedClient<IDevicesClient>(Create);
+
+        static DevicesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DevicesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SecurityBasicMutualTls.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SecurityBasicMutualTls.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

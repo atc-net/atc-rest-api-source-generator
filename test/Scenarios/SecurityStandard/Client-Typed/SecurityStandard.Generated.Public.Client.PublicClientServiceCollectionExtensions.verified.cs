@@ -18,7 +18,7 @@ namespace SecurityStandard.Generated.Public.Client;
 public static class PublicClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="PublicClient"/> as <see cref="IPublicClient"/> using IHttpClientFactory.
+    /// Adds <see cref="PublicClient"/> as <see cref="IPublicClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class PublicClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IPublicClient>(
-            static (httpClient, serviceProvider) => new PublicClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<PublicClient>(Create);
+        return builder.AddTypedClient<IPublicClient>(Create);
+
+        static PublicClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new PublicClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SecurityStandard.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SecurityStandard.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

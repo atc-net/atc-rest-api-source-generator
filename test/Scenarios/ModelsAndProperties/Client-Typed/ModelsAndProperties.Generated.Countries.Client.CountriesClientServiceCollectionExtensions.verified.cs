@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Countries.Client;
 public static class CountriesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="CountriesClient"/> as <see cref="ICountriesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="CountriesClient"/> as <see cref="ICountriesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class CountriesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<ICountriesClient>(
-            static (httpClient, serviceProvider) => new CountriesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<CountriesClient>(Create);
+        return builder.AddTypedClient<ICountriesClient>(Create);
+
+        static CountriesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new CountriesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ModelsAndProperties.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

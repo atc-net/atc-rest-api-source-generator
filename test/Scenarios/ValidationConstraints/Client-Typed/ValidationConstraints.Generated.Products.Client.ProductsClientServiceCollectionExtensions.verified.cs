@@ -18,7 +18,7 @@ namespace ValidationConstraints.Generated.Products.Client;
 public static class ProductsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="ProductsClient"/> as <see cref="IProductsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="ProductsClient"/> as <see cref="IProductsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class ProductsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IProductsClient>(
-            static (httpClient, serviceProvider) => new ProductsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<ProductsClient>(Create);
+        return builder.AddTypedClient<IProductsClient>(Create);
+
+        static ProductsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new ProductsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::ValidationConstraints.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::ValidationConstraints.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

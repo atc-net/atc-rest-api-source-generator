@@ -18,7 +18,7 @@ namespace Retry.Generated.Orders.Client;
 public static class OrdersClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="OrdersClient"/> as <see cref="IOrdersClient"/> using IHttpClientFactory.
+    /// Adds <see cref="OrdersClient"/> as <see cref="IOrdersClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class OrdersClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IOrdersClient>(
-            static (httpClient, serviceProvider) => new OrdersClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<OrdersClient>(Create);
+        return builder.AddTypedClient<IOrdersClient>(Create);
+
+        static OrdersClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new OrdersClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Retry.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Retry.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

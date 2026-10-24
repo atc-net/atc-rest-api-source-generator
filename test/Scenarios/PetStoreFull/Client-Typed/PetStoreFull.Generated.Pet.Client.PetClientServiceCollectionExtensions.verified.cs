@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Pet.Client;
 public static class PetClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="PetClient"/> as <see cref="IPetClient"/> using IHttpClientFactory.
+    /// Adds <see cref="PetClient"/> as <see cref="IPetClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class PetClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IPetClient>(
-            static (httpClient, serviceProvider) => new PetClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<PetClient>(Create);
+        return builder.AddTypedClient<IPetClient>(Create);
+
+        static PetClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new PetClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::PetStoreFull.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::PetStoreFull.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

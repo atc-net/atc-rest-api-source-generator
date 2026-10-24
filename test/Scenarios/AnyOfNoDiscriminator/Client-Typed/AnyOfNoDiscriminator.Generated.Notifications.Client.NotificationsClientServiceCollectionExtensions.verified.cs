@@ -18,7 +18,7 @@ namespace AnyOfNoDiscriminator.Generated.Notifications.Client;
 public static class NotificationsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="NotificationsClient"/> as <see cref="INotificationsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="NotificationsClient"/> as <see cref="INotificationsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class NotificationsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<INotificationsClient>(
-            static (httpClient, serviceProvider) => new NotificationsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<NotificationsClient>(Create);
+        return builder.AddTypedClient<INotificationsClient>(Create);
+
+        static NotificationsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new NotificationsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::AnyOfNoDiscriminator.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::AnyOfNoDiscriminator.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

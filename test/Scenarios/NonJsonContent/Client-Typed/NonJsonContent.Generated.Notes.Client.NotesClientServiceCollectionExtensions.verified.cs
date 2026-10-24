@@ -18,7 +18,7 @@ namespace NonJsonContent.Generated.Notes.Client;
 public static class NotesClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="NotesClient"/> as <see cref="INotesClient"/> using IHttpClientFactory.
+    /// Adds <see cref="NotesClient"/> as <see cref="INotesClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class NotesClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<INotesClient>(
-            static (httpClient, serviceProvider) => new NotesClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<NotesClient>(Create);
+        return builder.AddTypedClient<INotesClient>(Create);
+
+        static NotesClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new NotesClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::NonJsonContent.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::NonJsonContent.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

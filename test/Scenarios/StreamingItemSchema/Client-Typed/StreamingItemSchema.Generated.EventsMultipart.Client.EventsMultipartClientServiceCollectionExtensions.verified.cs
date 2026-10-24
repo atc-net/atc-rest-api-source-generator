@@ -18,7 +18,7 @@ namespace StreamingItemSchema.Generated.EventsMultipart.Client;
 public static class EventsMultipartClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="EventsMultipartClient"/> as <see cref="IEventsMultipartClient"/> using IHttpClientFactory.
+    /// Adds <see cref="EventsMultipartClient"/> as <see cref="IEventsMultipartClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class EventsMultipartClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IEventsMultipartClient>(
-            static (httpClient, serviceProvider) => new EventsMultipartClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<EventsMultipartClient>(Create);
+        return builder.AddTypedClient<IEventsMultipartClient>(Create);
+
+        static EventsMultipartClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new EventsMultipartClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::StreamingItemSchema.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::StreamingItemSchema.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

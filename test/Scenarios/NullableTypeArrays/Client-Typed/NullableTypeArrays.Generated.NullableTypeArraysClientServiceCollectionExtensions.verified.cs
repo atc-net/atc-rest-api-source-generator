@@ -18,7 +18,7 @@ namespace NullableTypeArrays.Generated;
 public static class NullableTypeArraysClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="NullableTypeArraysClient"/> as <see cref="INullableTypeArraysClient"/> using IHttpClientFactory.
+    /// Adds <see cref="NullableTypeArraysClient"/> as <see cref="INullableTypeArraysClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class NullableTypeArraysClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<INullableTypeArraysClient>(
-            static (httpClient, serviceProvider) => new NullableTypeArraysClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<NullableTypeArraysClient>(Create);
+        return builder.AddTypedClient<INullableTypeArraysClient>(Create);
+
+        static NullableTypeArraysClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new NullableTypeArraysClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::NullableTypeArrays.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::NullableTypeArrays.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

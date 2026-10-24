@@ -18,7 +18,7 @@ namespace EnumNamingConflicts.Generated;
 public static class EnumNamingConflictsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="EnumNamingConflictsClient"/> as <see cref="IEnumNamingConflictsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="EnumNamingConflictsClient"/> as <see cref="IEnumNamingConflictsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class EnumNamingConflictsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IEnumNamingConflictsClient>(
-            static (httpClient, serviceProvider) => new EnumNamingConflictsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<EnumNamingConflictsClient>(Create);
+        return builder.AddTypedClient<IEnumNamingConflictsClient>(Create);
+
+        static EnumNamingConflictsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new EnumNamingConflictsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::EnumNamingConflicts.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::EnumNamingConflicts.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

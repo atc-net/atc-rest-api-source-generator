@@ -18,7 +18,7 @@ namespace SecurityStandard.Generated.Users.Client;
 public static class UsersClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="UsersClient"/> as <see cref="IUsersClient"/> using IHttpClientFactory.
+    /// Adds <see cref="UsersClient"/> as <see cref="IUsersClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class UsersClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IUsersClient>(
-            static (httpClient, serviceProvider) => new UsersClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<UsersClient>(Create);
+        return builder.AddTypedClient<IUsersClient>(Create);
+
+        static UsersClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new UsersClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::SecurityStandard.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::SecurityStandard.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

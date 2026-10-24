@@ -18,7 +18,7 @@ namespace Pagination.Generated.Orgs.Client;
 public static class OrgsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="OrgsClient"/> as <see cref="IOrgsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="OrgsClient"/> as <see cref="IOrgsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -44,9 +44,13 @@ public static class OrgsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IOrgsClient>(
-            static (httpClient, serviceProvider) => new OrgsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<OrgsClient>(Create);
+        return builder.AddTypedClient<IOrgsClient>(Create);
+
+        static OrgsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new OrgsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Pagination.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }

@@ -19,7 +19,7 @@ namespace Deprecations.Generated;
 public static class DeprecationsClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds <see cref="DeprecationsClient"/> as <see cref="IDeprecationsClient"/> using IHttpClientFactory.
+    /// Adds <see cref="DeprecationsClient"/> as <see cref="IDeprecationsClient"/> and as itself, using IHttpClientFactory.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureClient">Optional callback to configure the underlying <see cref="HttpClient"/>.</param>
@@ -45,9 +45,13 @@ public static class DeprecationsClientServiceCollectionExtensions
 
         // An explicit factory: the client has a (HttpClient) and a (HttpClient, JsonSerializerOptions)
         // constructor, which ActivatorUtilities cannot choose between, and the options come from DI.
-        return builder.AddTypedClient<IDeprecationsClient>(
-            static (httpClient, serviceProvider) => new DeprecationsClient(
+        // The class is registered too, on the same named HttpClient, for a consumer that depends on it.
+        builder.AddTypedClient<DeprecationsClient>(Create);
+        return builder.AddTypedClient<IDeprecationsClient>(Create);
+
+        static DeprecationsClient Create(HttpClient httpClient, IServiceProvider serviceProvider)
+            => new DeprecationsClient(
                 httpClient,
-                serviceProvider.GetRequiredService<IOptions<global::Deprecations.Generated.ApiClientJsonOptions>>().Value.SerializerOptions));
+                serviceProvider.GetRequiredService<IOptions<global::Deprecations.Generated.ApiClientJsonOptions>>().Value.SerializerOptions);
     }
 }
