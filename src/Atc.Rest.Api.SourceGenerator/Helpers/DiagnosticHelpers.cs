@@ -694,21 +694,6 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
-    /// Reports ATC_API_SRV002: an operation declares its 400 as a string while the ValidationFilter is on.
-    /// </summary>
-    /// <param name="context">The source production context.</param>
-    /// <param name="operation">The operation id, or its method and path.</param>
-    public static void ReportValidationBadRequestDeclaredAsString(
-        SourceProductionContext context,
-        string operation)
-    {
-        context.ReportDiagnostic(Diagnostic.Create(
-            ValidationBadRequestDeclaredAsString,
-            Location.None,
-            operation));
-    }
-
-    /// <summary>
     /// Reports that a setting that builds on Atc.Rest.MinimalApi is enabled but the package is not referenced.
     /// </summary>
     /// <param name="context">The source production context.</param>

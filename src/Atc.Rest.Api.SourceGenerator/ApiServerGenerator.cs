@@ -226,6 +226,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
+        // A rule about the specification only a server with the ValidationFilter has
+        ReportValidationBadRequestsDeclaredAsString(context, openApiDoc, files, config, useValidationFilter);
+
         // The root namespace: marker namespace, qualifying info.title, then base file name - as for a client
         var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, files.BaseFile.Path);
 
@@ -445,14 +448,46 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             DiagnosticHelpers.ReportJwtBearerRequiresPackage(context);
         }
+    }
 
-        // The ValidationFilter writes a ValidationProblemDetails: a 400 declared as a string cannot carry its field
-        // errors (information only - the specification is valid, and a handler may answer with the string)
-        if (useValidationFilter)
+    /// <summary>
+    /// ATC_API_SRV002: the ValidationFilter writes a ValidationProblemDetails, and a 400 declared as a string cannot carry
+    /// its field errors. A rule about the specification like the validator's: on the operation's line, switched off by
+    /// <c>x-atc-suppress</c> on the operation or its path item, its severity the marker's <c>ruleSeverities</c>.
+    /// </summary>
+    private static void ReportValidationBadRequestsDeclaredAsString(
+        SourceProductionContext context,
+        OpenApiDocument openApiDoc,
+        SpecificationFiles files,
+        ServerConfig config,
+        bool useValidationFilter)
+    {
+        if (!useValidationFilter)
         {
-            foreach (var operation in ErrorResponseShapeResolver.GetOperationsWithStringBadRequest(openApiDoc))
+            return;
+        }
+
+        var found = ErrorResponseShapeResolver.GetOperationsWithStringBadRequest(openApiDoc)
+            .Select(operation => new GeneratorDiagnosticMessage(
+                RuleIdentifiers.ValidationBadRequestDeclaredAsString,
+                string.Format(System.Globalization.CultureInfo.InvariantCulture, RuleCatalog.Rules[RuleIdentifiers.ValidationBadRequestDeclaredAsString].MessageFormat, operation.Operation),
+                Generator.Models.DiagnosticSeverity.Warning,
+                files.BaseFile.Path,
+                Scope: SpecSuppressions.Operation(operation.Method, operation.Path)))
+            .ToList();
+        if (found.Count == 0)
+        {
+            return;
+        }
+
+        var reported = SpecSuppressions.Apply(openApiDoc, found);
+        SpecLocations.Apply(reported, SpecificationLoader.SourcesOf(files.BaseFile, files.PartFiles));
+        var severities = RuleSeverityOverrides.From(config.RuleSeverities, config.SuppressRules);
+        foreach (var message in reported)
+        {
+            if (severities.Apply(message) is { } shown)
             {
-                DiagnosticHelpers.ReportValidationBadRequestDeclaredAsString(context, operation);
+                context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(shown));
             }
         }
     }

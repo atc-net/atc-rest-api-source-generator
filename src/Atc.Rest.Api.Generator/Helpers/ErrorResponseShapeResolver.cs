@@ -83,8 +83,8 @@ public static class ErrorResponseShapeResolver
     /// string cannot carry.
     /// </summary>
     /// <param name="document">The specification.</param>
-    /// <returns>Each operation's id, or its method and path when it has none.</returns>
-    public static IEnumerable<string> GetOperationsWithStringBadRequest(
+    /// <returns>Each operation: its id (or its method and path when it has none), its method and its path.</returns>
+    public static IEnumerable<(string Operation, string Method, string Path)> GetOperationsWithStringBadRequest(
         OpenApiDocument document)
     {
         if (document?.Paths is null)
@@ -103,7 +103,7 @@ public static class ErrorResponseShapeResolver
                     operation.Value.Responses?.TryGetValue("400", out var badRequest) == true &&
                     Resolve(badRequest).Kind is ErrorResponseKind.JsonString or ErrorResponseKind.Text)
                 {
-                    yield return operation.Value.OperationId ?? $"{operation.Key.Method} {path.Key}";
+                    yield return (operation.Value.OperationId ?? $"{operation.Key.Method} {path.Key}", operation.Key.Method, path.Key);
                 }
             }
         }

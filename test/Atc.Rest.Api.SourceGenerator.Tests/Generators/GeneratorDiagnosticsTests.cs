@@ -310,6 +310,12 @@ public class GeneratorDiagnosticsTests
             var warning = Assert.Single(validating, d => d.Id == "ATC_API_SRV002");
             Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
             Assert.Contains("createThing", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+            // The third fix, and what each does to a published client; on the operation's line in the specification
+            Assert.Contains("remove the 400's content", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            Assert.Contains("BadRequestContent", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            Assert.EndsWith(".yaml", warning.Location.GetLineSpan().Path, StringComparison.Ordinal);
+            Assert.True(warning.Location.GetLineSpan().StartLinePosition.Line > 0, "SRV002 is on the operation's line");
         }
         else
         {
@@ -317,6 +323,46 @@ public class GeneratorDiagnosticsTests
         }
 
         Assert.DoesNotContain(notValidating, d => d.Id == "ATC_API_SRV002");
+    }
+
+    /// <summary>
+    /// SRV002 is a rule about the specification like the others: x-atc-suppress on the operation, and the marker's
+    /// ruleSeverities, switch it off there.
+    /// </summary>
+    [Theory]
+    [InlineData("      x-atc-suppress: [ATC_API_SRV002]\n", "{}")]
+    [InlineData("", """{ "ruleSeverities": { "ATC_API_SRV002": "none" } }""")]
+    public void Server_SRV002_IsSwitchedOffLikeASpecificationRule(
+        string suppress,
+        string marker)
+    {
+        var withPost = Yaml.Replace(
+            "components:",
+            $$"""
+                post:
+                  operationId: createThing
+            {{suppress}}      requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Thing'
+                  responses:
+                    '201':
+                      description: Created
+                    '400':
+                      description: Bad Request
+                      content:
+                        text/plain:
+                          schema:
+                            type: string
+            components:
+            """,
+            StringComparison.Ordinal);
+
+        var diagnostics = RunDiagnostics(new ApiServerGenerator(), [Spec(withPost), Marker(".atc-rest-api-server", marker)], Full(includeMinimalApi: true));
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == "ATC_API_SRV002");
     }
 
     [Fact]

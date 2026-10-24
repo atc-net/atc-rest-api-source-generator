@@ -89,6 +89,6 @@ ATC_API_SEC007 | Warning | Atc.Rest.Api.Generator | Operation Authentication Sch
 ATC_API_SEC008 | Warning | Atc.Rest.Api.Generator | Path Authorize Role Casing Mismatch | {0}
 ATC_API_SEC009 | Warning | Atc.Rest.Api.Generator | Path Authentication Scheme Casing Mismatch | {0}
 ATC_API_SEC010 | Warning | Atc.Rest.Api.Generator | Path Authentication Conflict | {0}
-ATC_API_SRV002 | Warning | Atc.Rest.Api.Generator | Validation 400 Declared As String | '{0}' declares its 400 as a string, but the ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json): the client reads its title as the string, and the field errors are only in the response content. Declare the 400 as ValidationProblemDetails to keep them typed.
+ATC_API_SRV002 | Warning | Atc.Rest.Api.Generator | Validation 400 Declared As String | '{0}' declares its 400 as a string, but the ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json): the client reads its title as the string, and the field errors are only in the response content. Declare the 400 as ValidationProblemDetails to keep them typed, or remove the 400's content (the 400 is then the problem). Either changes a published client's BadRequestContent from the string to the problem: check what its consumers read first.
 ATC_API_VAL001 | Error | Atc.Rest.Api.Generator | OpenAPI Core Parsing Error | {0}
 ATC_API_VAL002 | Error | Atc.Rest.Api.Generator | OpenAPI 2.0 Not Supported | {0}
