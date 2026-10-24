@@ -122,4 +122,55 @@ public class ExtensibleEnumUsageAnalyzerTests
         Assert.Contains(reported, r => r.Contains("Enum.IsDefined", StringComparison.Ordinal) && r.Contains("new DeviceStatus(text).IsKnown", StringComparison.Ordinal));
         Assert.All(diagnostics.Where(d => d.Id == Generator.RuleIdentifiers.SystemEnumOnExtensibleEnum), d => Assert.Equal("Usage.cs", d.Location.GetLineSpan().Path));
     }
+
+    [Fact]
+    public async Task APackagedClient_IsCheckedInAConsumerThatReferencesTheGeneratorPackage()
+    {
+        // Arrange - the client compiled on its own, as its package's lib/ assembly
+        var sources = ErrorResponseBodyRuntimeTests.Generate(
+            new ApiClientGenerator(),
+            ".atc-rest-api-client",
+            """{ "generationMode": "TypedClient", "validateSpecificationStrategy": "None" }""",
+            includeMinimalApi: false,
+            Yaml);
+        var references = CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi: false);
+        var client = CSharpCompilation.Create(
+            "ErrorBodies.ApiClient",
+            sources.Select(s => CSharpSyntaxTree.ParseText(s.Source, path: s.HintName, cancellationToken: TestContext.Current.CancellationToken)),
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+        using var image = new MemoryStream();
+        Assert.True(client.Emit(image, cancellationToken: TestContext.Current.CancellationToken).Success);
+
+        // The consumer: no marker file, the client by reference
+        var usings = string.Join(
+            Environment.NewLine,
+            sources
+                .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
+                .Where(ns => ns.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+                .Select(ns => $"using {ns};"));
+        var consumer = CSharpCompilation.Create(
+            "Gateway",
+            [CSharpSyntaxTree.ParseText(usings + Environment.NewLine + Usage, path: "Usage.cs", cancellationToken: TestContext.Current.CancellationToken)],
+            [.. references, MetadataReference.CreateFromImage(image.ToArray())],
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+        Assert.Empty(consumer.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        // Act - the package's generators (which generate nothing without a marker) and its analyzer
+        var run = CSharpGeneratorDriver
+            .Create(new ApiClientGenerator().AsSourceGenerator(), new ApiServerGenerator().AsSourceGenerator())
+            .RunGenerators(consumer, TestContext.Current.CancellationToken)
+            .GetRunResult();
+        var diagnostics = await new Microsoft.CodeAnalysis.Diagnostics.CompilationWithAnalyzers(
+                consumer,
+                [new ExtensibleEnumUsageAnalyzer()],
+                new Microsoft.CodeAnalysis.Diagnostics.CompilationWithAnalyzersOptions(new Microsoft.CodeAnalysis.Diagnostics.AnalyzerOptions([]), onAnalyzerException: null, concurrentAnalysis: false, logAnalyzerExecutionTime: false))
+            .GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Empty(run.GeneratedTrees);
+        Assert.Empty(run.Diagnostics);
+        Assert.Equal(4, diagnostics.Count(d => d.Id == Generator.RuleIdentifiers.SystemEnumOnExtensibleEnum));
+    }
 }
