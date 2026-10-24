@@ -11,10 +11,7 @@ public sealed class RepositoryProjectReferencesTests
     public void NoProjectReferenceLeavesTheRepository()
     {
         var root = FindRepositoryRoot();
-        var projects = Directory
-            .EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories)
-            .Where(file => !InBuildOutput(file))
-            .ToList();
+        var projects = TrackedProjects(root);
 
         var outside = projects
             .SelectMany(project => ReferencesOutside(root, project, File.ReadAllText(project))
@@ -65,6 +62,40 @@ public sealed class RepositoryProjectReferencesTests
             .Where(include => !Path
                 .GetFullPath(Path.Combine(projectDirectory, include.Replace('\\', Path.DirectorySeparatorChar)))
                 .StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    // The projects CI checks out: those git tracks (a project in an untracked or ignored folder of a working copy is
+    // none of them) - every project file outside the build output where there is no git
+    private static List<string> TrackedProjects(string root)
+    {
+        try
+        {
+            using var git = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("git", "ls-files -- *.csproj")
+            {
+                WorkingDirectory = root,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            })!;
+            var output = git.StandardOutput.ReadToEnd();
+            git.WaitForExit();
+            if (git.ExitCode == 0)
+            {
+                return output
+                    .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(file => Path.Combine(root, file.Replace('/', Path.DirectorySeparatorChar)))
+                    .ToList();
+            }
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // No git: every project file is checked
+        }
+
+        return Directory
+            .EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories)
+            .Where(file => !InBuildOutput(file))
             .ToList();
     }
 
