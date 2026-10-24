@@ -202,7 +202,9 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         }
         else
         {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]Output written to: {outputPath}[/]");
+            // A path is not wrapped at the console's width (80 columns when the output is not a terminal): on one line, as
+            // a script that reads it, or a terminal's link, needs it
+            AnsiConsole.Profile.Out.Writer.WriteLine($"Output written to: {outputPath}");
         }
     }
 
