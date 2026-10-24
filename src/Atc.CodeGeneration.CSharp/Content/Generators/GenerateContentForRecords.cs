@@ -58,7 +58,15 @@ public class GenerateContentForRecords : IContentGenerator
             if (recordParameters.Parameters is null ||
                 !recordParameters.Parameters.Any())
             {
-                sb.Append("();");
+                // No parameters, so no base constructor arguments either: the base list alone ("record X() : IY;")
+                sb.Append("()");
+                if (!string.IsNullOrEmpty(recordParameters.BaseTypeName))
+                {
+                    sb.Append(" : ");
+                    sb.Append(recordParameters.BaseTypeName);
+                }
+
+                sb.Append(';');
             }
             else
             {

@@ -682,20 +682,10 @@ public static class SchemaExtractor
             .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
-        // Build record name with inheritance if this is a polymorphic variant
-        var recordName = string.IsNullOrEmpty(baseTypeName)
-            ? schemaName
-            : $"{schemaName} : {baseTypeName}";
-
-        // Append x-implements interfaces (e.g., "Pet : IAnimal, ISerializable")
-        var implementedInterfaces = schema.GetImplementedInterfaces();
-        if (implementedInterfaces.Count > 0)
-        {
-            var interfaceList = string.Join(", ", implementedInterfaces);
-            recordName = recordName.Contains(" : ", StringComparison.Ordinal)
-                ? $"{recordName}, {interfaceList}"
-                : $"{recordName} : {interfaceList}";
-        }
+        // The base list - a polymorphic variant's base, then the x-implements interfaces - follows the parameter list
+        // ("record Pet(string Name) : IAnimal, ISerializable;"): kept out of the name, which names the type and its file
+        var recordName = schemaName;
+        var baseList = BaseList(baseTypeName, schema);
 
         var declarationModifier = declarationModifierOverride
             ?? (generatePartialModels
@@ -710,6 +700,7 @@ public static class SchemaExtractor
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
+            BaseTypeName: baseList,
             Attributes: RecordAttributes(schema));
     }
 
@@ -724,6 +715,24 @@ public static class SchemaExtractor
     /// </summary>
     private static string WellFormedDocText(string text)
         => UnclosedLineBreak.Replace(text, "<br/>");
+
+    /// <summary>
+    /// The base list a generated record declares after its parameter list: a polymorphic variant's base, then the
+    /// interfaces its schema's <c>x-implements</c> names - or null when it has neither.
+    /// </summary>
+    private static string? BaseList(
+        string? baseTypeName,
+        OpenApiSchema schema)
+    {
+        var bases = new List<string>();
+        if (!string.IsNullOrEmpty(baseTypeName))
+        {
+            bases.Add(baseTypeName!);
+        }
+
+        bases.AddRange(schema.GetImplementedInterfaces());
+        return bases.Count == 0 ? null : string.Join(", ", bases);
+    }
 
     /// <summary>
     /// The attributes of a generated record: [GeneratedCode], and [Obsolete] for a deprecated schema (generated with
@@ -989,13 +998,9 @@ public static class SchemaExtractor
             .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
-        // Append x-implements interfaces
+        // The x-implements interfaces follow the parameter list (see BaseList)
         var recordName = schemaName;
-        var implementedInterfaces = schema.GetImplementedInterfaces();
-        if (implementedInterfaces.Count > 0)
-        {
-            recordName = $"{schemaName} : {string.Join(", ", implementedInterfaces)}";
-        }
+        var baseList = BaseList(baseTypeName: null, schema);
 
         var declarationModifier = declarationModifierOverride
             ?? (generatePartialModels
@@ -1009,6 +1014,7 @@ public static class SchemaExtractor
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
+            BaseTypeName: baseList,
             Attributes: RecordAttributes(schema));
     }
 

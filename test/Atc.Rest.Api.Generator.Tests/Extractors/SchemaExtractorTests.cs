@@ -299,7 +299,8 @@ public class SchemaExtractorTests
         // Assert
         Assert.NotNull(result);
         Assert.Single(result.Parameters);
-        Assert.Contains(" : IAnimal", result.Parameters[0].Name, StringComparison.Ordinal);
+        Assert.Equal("Pet", result.Parameters[0].Name);
+        Assert.Equal("IAnimal", result.Parameters[0].BaseTypeName);
     }
 
     [Fact]
@@ -338,7 +339,8 @@ public class SchemaExtractorTests
         // Assert
         Assert.NotNull(result);
         Assert.Single(result.Parameters);
-        Assert.Contains(" : IAnimal, ISerializable", result.Parameters[0].Name, StringComparison.Ordinal);
+        Assert.Equal("Pet", result.Parameters[0].Name);
+        Assert.Equal("IAnimal, ISerializable", result.Parameters[0].BaseTypeName);
     }
 
     [Fact]
