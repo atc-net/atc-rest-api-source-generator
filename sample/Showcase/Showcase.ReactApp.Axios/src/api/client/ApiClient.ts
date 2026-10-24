@@ -4,11 +4,11 @@ import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, decodeText, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
-import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xml';
+import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';
 import type { ApiResult } from '../types/ApiResult';
 import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';
 import { defaultRetryPolicy } from '../helpers/retryConfig';
-import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';
+import type { RequestRetry, RetryPolicy } from '../helpers/retryRuntime';
 
 class UnparseableBody {
   constructor(public readonly raw: string) {}

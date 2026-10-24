@@ -2,11 +2,11 @@
 // atc-rest-api-gen 2.1.1
 import { ApiError, decodeText, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
-import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xml';
+import { isXmlMediaType, parseXml, readProblemXml, withResponse, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';
 import type { ApiResult } from '../types/ApiResult';
 import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';
 import { defaultRetryPolicy } from '../helpers/retryConfig';
-import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';
+import type { RequestRetry, RetryPolicy } from '../helpers/retryRuntime';
 
 export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;
 export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;
