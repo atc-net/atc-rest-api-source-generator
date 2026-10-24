@@ -643,6 +643,12 @@ public static partial class HttpClientExtractor
                 {
                     xmlRead = new XmlReadPlan(XmlBodyHelper.ReadMethod(contentType, alternative), ByContentType: true, XmlBodyHelper.AcceptFor([alternative], XmlBodyHelper.ErrorMediaTypes(operation), preferXml)!);
                 }
+                else if (!isAsyncEnumerable && response.Content.Keys.Any(key => ResponseBodyClassifier.Classify(key, response.Content[key]?.Schema) != ResponseBodyKind.Json))
+                {
+                    // Offered as text or XML too, which this method does not read: it asks for JSON (a server that
+                    // negotiates would else answer with the first media type it declares)
+                    xmlRead = new XmlReadPlan(ReadMethod: null, ByContentType: false, string.Join(", ", new[] { "application/json" }.Concat(XmlBodyHelper.ErrorMediaTypes(operation)).Append("application/problem+json").Distinct(StringComparer.OrdinalIgnoreCase)));
+                }
             }
         }
         else if (response?.Content is not null &&
