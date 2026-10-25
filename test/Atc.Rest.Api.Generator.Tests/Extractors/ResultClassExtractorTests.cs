@@ -1280,8 +1280,65 @@ public class ResultClassExtractorTests
         Assert.Contains("return inner.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A success body declared only under another JSON media type (<c>application/hal+json</c>, a vendor
+    /// <c>+json</c>) is written with it - <c>TypedResults.Ok</c> and the other JSON results send
+    /// <c>application/json</c> - by the factory of every success status with a body.
+    /// </summary>
+    [Theory]
+    [InlineData("200", "Ok")]
+    [InlineData("201", "Created")]
+    [InlineData("202", "Accepted")]
+    [InlineData("203", "NonAuthoritativeInformation")]
+    [InlineData("206", "PartialContent")]
+    [InlineData("207", "MultiStatus")]
+    [InlineData("208", "AlreadyReported")]
+    [InlineData("226", "IMUsed")]
+    public void Extract_ASuccessBodyUnderAnotherJsonMediaType_IsWrittenWithIt(
+        string statusCode,
+        string factory)
+    {
+        foreach (var mediaType in new[] { "application/hal+json", "application/vnd.contoso.v1+json" })
+        {
+            var resultClass = ResultClassExtractor.Extract(SuccessBodyUnder(statusCode, mediaType), "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false)![0];
+
+            var method = resultClass.Methods!.Single(m => m.Name == factory && m.Parameters is { Count: > 0 } && m.Parameters[0].TypeName == "Pet");
+            Assert.Contains($"JsonTypeInfoHttpResult.Of(response, \"{mediaType}\", {statusCode})", method.Content, StringComparison.Ordinal);
+        }
+
+        // Under application/json the JSON result keeps its default media type
+        var plain = ResultClassExtractor.Extract(SuccessBodyUnder(statusCode, "application/json"), "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false)![0];
+        Assert.DoesNotContain("+json", plain.Methods!.Single(m => m.Name == factory && m.Parameters is { Count: > 0 } && m.Parameters[0].TypeName == "Pet").Content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    private static OpenApiDocument SuccessBodyUnder(
+        string statusCode,
+        string mediaType)
+        => OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets/{petId}:
+                get:
+                  operationId: getPet
+                  parameters:
+                    - { name: petId, in: path, required: true, schema: { type: string } }
+                  responses:
+                    '{{statusCode}}':
+                      description: The pet
+                      content:
+                        '{{mediaType}}':
+                          schema: { $ref: '#/components/schemas/Pet' }
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """);
 }

@@ -51,5 +51,26 @@ public static class MediaTypeExtensions
                 : content.TryGetValue("application/json", out var json)
                     ? json
                     : content.FirstOrDefault(entry => entry.Key.IsJson).Value;
+
+        /// <summary>
+        /// Gets the media type the JSON body (<c>JsonBody</c>) is declared under (<c>application/json</c>, else the first other
+        /// JSON media type); <see langword="null"/> when there is no JSON body.
+        /// </summary>
+        public string? JsonBodyMediaType
+            => content is null
+                ? null
+                : content.ContainsKey("application/json")
+                    ? "application/json"
+                    : content.FirstOrDefault(entry => entry.Key.IsJson).Key;
+
+        /// <summary>
+        /// Gets the media type of a JSON body declared only under another JSON media type (<c>application/hal+json</c>,
+        /// a vendor <c>+json</c>), which is sent and advertised with it; <see langword="null"/> for one under
+        /// <c>application/json</c> (the default of the JSON results and of <c>Produces&lt;T&gt;</c>) or without one.
+        /// </summary>
+        public string? OtherJsonBodyMediaType
+            => content.JsonBodyMediaType is { } mediaType && !string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase)
+                ? mediaType
+                : null;
     }
 }

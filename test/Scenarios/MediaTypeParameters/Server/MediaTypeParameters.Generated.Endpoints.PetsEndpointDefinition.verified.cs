@@ -78,7 +78,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .MapGet("{id}/profile", GetPetProfile)
             .WithName("GetPetProfile")
             .WithSummary("A response declared only under another JSON media type (HAL).")
-            .Produces<Pet>()
+            .Produces<Pet>(StatusCodes.Status200OK, "application/hal+json")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

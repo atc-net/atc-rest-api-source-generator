@@ -207,7 +207,7 @@ public sealed class GetPetProfileResult : IResult, INestedHttpResult
     /// 200 OK - The pet as a HAL resource.
     /// </summary>
     public static GetPetProfileResult Ok(Pet response)
-        => new(TypedResults.Ok(response));
+        => new(JsonTypeInfoHttpResult.Of(response, "application/hal+json", 200));
 
     public static implicit operator GetPetProfileResult(Pet response)
         => Ok(response);
@@ -268,5 +268,55 @@ internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValu
     {
         httpContext.Response.Headers.Location = Location;
         return Result.ExecuteAsync(httpContext);
+    }
+}
+
+/// <summary>
+/// Creates a <see cref="JsonTypeInfoHttpResult{T}"/>, its value type inferred.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class JsonTypeInfoHttpResult
+{
+    public static JsonTypeInfoHttpResult<T> Of<T>(
+        T value,
+        string? contentType,
+        int? statusCode)
+        => new(value, contentType, statusCode);
+}
+
+/// <summary>
+/// Writes a JSON body through the <see cref="global::System.Text.Json.Serialization.Metadata.JsonTypeInfo{T}"/>
+/// the app's JSON options resolve.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class JsonTypeInfoHttpResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, IValueHttpResult<T>, IContentTypeHttpResult
+{
+    private static readonly global::System.Text.Json.JsonSerializerOptions FallbackOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
+    public JsonTypeInfoHttpResult(
+        T value,
+        string? contentType,
+        int? statusCode)
+    {
+        Value = value;
+        ContentType = contentType;
+        StatusCode = statusCode;
+    }
+
+    public T Value { get; }
+
+    object? IValueHttpResult.Value => Value;
+
+    public string? ContentType { get; }
+
+    public int? StatusCode { get; }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        var options = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+            .GetService<global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>>(httpContext.RequestServices)?.Value.SerializerOptions
+            ?? FallbackOptions;
+
+        return TypedResults.Json(Value, global::MediaTypeParameters.Generated.GeneratedJsonOptions.TypeInfo<T>(options), ContentType, StatusCode).ExecuteAsync(httpContext);
     }
 }

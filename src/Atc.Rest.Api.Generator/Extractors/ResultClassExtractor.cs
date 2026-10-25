@@ -717,11 +717,17 @@ public static class ResultClassExtractor
             contentType = "string";
         }
 
+        // A JSON body under another JSON media type (application/hal+json, a vendor +json) is written with it - the JSON
+        // results send application/json
+        var jsonMediaType = !isFileDownload && !isAsyncEnumerable && !isTextResponse && contentType is not null
+            ? responseValue.Content.OtherJsonBodyMediaType
+            : null;
+
         switch (statusCode)
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType, xmlBody, StreamingMediaTypeOf(responseValue)));
+                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType, xmlBody, StreamingMediaTypeOf(responseValue), jsonMediaType));
 
                 // A model or a file: the file factories too (the content type defaults to the first declared file type)
                 if (!isFileDownload && contentType is not null && ResponseBodyClassifier.FileAlternatives(responseValue.Content) is { Count: > 0 } fileMediaTypes)
@@ -731,10 +737,10 @@ public static class ResultClassExtractor
 
                 break;
             case "201":
-                methods.AddRange(GenerateCreatedMethods(className, description, contentType, xmlBody));
+                methods.AddRange(GenerateCreatedMethods(className, description, contentType, xmlBody, jsonMediaType));
                 break;
             case "202":
-                methods.Add(GenerateAcceptedMethod(className, description, contentType, xmlBody));
+                methods.Add(GenerateAcceptedMethod(className, description, contentType, xmlBody, jsonMediaType));
                 break;
             case "204":
                 methods.Add(GenerateNoContentMethod(className, description));
@@ -746,7 +752,7 @@ public static class ResultClassExtractor
                 if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt) &&
                     statusCodeInt >= 200)
                 {
-                    methods.Add(GenerateStatusMethod(className, description, statusCodeInt, contentType, isTextResponse, textResponseMediaType, xmlBody));
+                    methods.Add(GenerateStatusMethod(className, description, statusCodeInt, contentType, isTextResponse, textResponseMediaType, xmlBody, jsonMediaType));
                 }
 
                 break;
@@ -1098,7 +1104,8 @@ public static class ResultClassExtractor
         string? textResponseMediaType = null,
         string? fileMediaType = null,
         XmlBody? xmlBody = null,
-        string? streamingMediaType = null)
+        string? streamingMediaType = null,
+        string? jsonMediaType = null)
     {
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"200 OK - {description}");
@@ -1126,7 +1133,7 @@ public static class ResultClassExtractor
                 ? "response"
                 : parameterType == "string" ? "message" : "response";
 
-            var content = OkContentExpression(projectName, contentType!, parameterType, paramName, isAsyncEnumerable, streamingFraming, isTextResponse, textResponseMediaType, xmlBody, streamingMediaType);
+            var content = OkContentExpression(projectName, contentType!, parameterType, paramName, isAsyncEnumerable, streamingFraming, isTextResponse, textResponseMediaType, xmlBody, streamingMediaType, jsonMediaType);
             methods.Add(OkMethod(doc, className, parameterType, paramName, content));
 
             // An event stream can also be given as the events themselves: a handler that sets an event's id (what a
@@ -1211,8 +1218,14 @@ public static class ResultClassExtractor
         bool isTextResponse,
         string? textResponseMediaType,
         XmlBody? xmlBody,
-        string? streamingMediaType)
+        string? streamingMediaType,
+        string? jsonMediaType)
     {
+        // A JSON body under another JSON media type is written with it (TypedResults.Ok sends application/json)
+        var jsonResult = jsonMediaType is null
+            ? $"TypedResults.Ok({paramName})"
+            : JsonResultExpression(paramName, jsonMediaType, "200");
+
         // A stream is written by the emitted Streaming results (fully-qualified - the Results file has no Streaming
         // using): Server-Sent Events by the framework's TypedResults.ServerSentEvents through StartedStreamResult<T>,
         // JSON Lines, JSON Text Sequences, multipart/mixed and a JSON array by their own writers. Each starts the response
@@ -1224,7 +1237,7 @@ public static class ResultClassExtractor
         }
         else if (xmlBody is not null)
         {
-            content = XmlResultExpression(200, contentType!, xmlBody, paramName, $"TypedResults.Ok({paramName})");
+            content = XmlResultExpression(200, contentType!, xmlBody, paramName, jsonResult);
         }
         else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
         {
@@ -1248,7 +1261,7 @@ public static class ResultClassExtractor
         }
         else
         {
-            content = $"new(TypedResults.Ok({paramName}))";
+            content = $"new({jsonResult})";
         }
 
         return content;
@@ -1343,8 +1356,12 @@ public static class ResultClassExtractor
         string className,
         string description,
         string? contentType,
-        XmlBody? xmlBody = null)
+        XmlBody? xmlBody = null,
+        string? jsonMediaType = null)
     {
+        var jsonResult = jsonMediaType is null
+            ? "TypedResults.Created((string?)null, response)"
+            : JsonResultExpression("response", jsonMediaType, "201");
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"201 Created - {description}");
 
@@ -1373,7 +1390,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: WithLocation(xmlBody is null ? "new(TypedResults.Created((string?)null, response))" : XmlResultExpression(201, contentType!, xmlBody, "response", "TypedResults.Created((string?)null, response)")));
+                Content: WithLocation(xmlBody is null ? $"new({jsonResult})" : XmlResultExpression(201, contentType!, xmlBody, "response", jsonResult)));
             methods.Add(createdWithResponse);
 
             // Generate implicit operator for convenience
@@ -1459,8 +1476,12 @@ public static class ResultClassExtractor
         string className,
         string description,
         string? contentType,
-        XmlBody? xmlBody = null)
+        XmlBody? xmlBody = null,
+        string? jsonMediaType = null)
     {
+        var jsonResult = jsonMediaType is null
+            ? "TypedResults.Accepted((string?)null, response)"
+            : JsonResultExpression("response", jsonMediaType, "202");
         var doc = new CodeDocumentationTags($"202 Accepted - {description}");
 
         if (!string.IsNullOrEmpty(contentType))
@@ -1487,7 +1508,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: WithLocation(xmlBody is null ? "new(TypedResults.Accepted((string?)null, response))" : XmlResultExpression(202, contentType!, xmlBody, "response", "TypedResults.Accepted((string?)null, response)")));
+                Content: WithLocation(xmlBody is null ? $"new({jsonResult})" : XmlResultExpression(202, contentType!, xmlBody, "response", jsonResult)));
         }
 
         // TypedResults.Accepted() has no parameterless overload - every overload expects
@@ -1523,7 +1544,8 @@ public static class ResultClassExtractor
         string? contentType,
         bool isTextResponse,
         string? textResponseMediaType,
-        XmlBody? xmlBody = null)
+        XmlBody? xmlBody = null,
+        string? jsonMediaType = null)
     {
         var methodName = HttpStatusCodeHelper.ToEnumName(statusCode);
         var doc = new CodeDocumentationTags($"{statusCode} {methodName} - {description}");
@@ -1569,9 +1591,9 @@ public static class ResultClassExtractor
             _ when isTextResponse && textResponseMediaType is not null =>
                 Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),
             _ when !string.IsNullOrEmpty(contentType) && xmlBody is not null =>
-                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response", JsonResultExpression("response", mediaTypeLiteral: null, status))),
+                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response", JsonResultExpression("response", jsonMediaType, status))),
             _ when !string.IsNullOrEmpty(contentType) =>
-                Method(contentType, "response", $"new({JsonResultExpression("response", mediaTypeLiteral: null, status)})"),
+                Method(contentType, "response", $"new({JsonResultExpression("response", jsonMediaType, status)})"),
             _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
         };
     }

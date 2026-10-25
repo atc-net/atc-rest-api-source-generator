@@ -37,4 +37,17 @@ public sealed class MediaTypeExtensionsTests
         Assert.Null(new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal) { ["application/xml"] = xml }.JsonBody);
         Assert.Null(((IDictionary<string, IOpenApiMediaType>?)null).JsonBody);
     }
+
+    [Fact]
+    public void JsonBodyMediaType_IsTheMediaTypeTheJsonBodyIsDeclaredUnder()
+    {
+        var plain = new OpenApiMediaType();
+        var hal = new OpenApiMediaType();
+        var xml = new OpenApiMediaType();
+
+        Assert.Equal("application/json", new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal) { ["application/hal+json"] = hal, ["application/json"] = plain }.JsonBodyMediaType);
+        Assert.Equal("application/hal+json", new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal) { ["application/xml"] = xml, ["application/hal+json"] = hal }.JsonBodyMediaType);
+        Assert.Null(new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal) { ["application/xml"] = xml }.JsonBodyMediaType);
+        Assert.Null(((IDictionary<string, IOpenApiMediaType>?)null).JsonBodyMediaType);
+    }
 }

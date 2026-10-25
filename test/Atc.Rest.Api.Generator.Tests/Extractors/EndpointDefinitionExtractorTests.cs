@@ -764,6 +764,43 @@ public class EndpointDefinitionExtractorTests
     }
 
     /// <summary>
+    /// A success body declared only under another JSON media type (<c>application/hal+json</c>, a vendor
+    /// <c>+json</c>) is advertised with it - <c>Produces&lt;T&gt;()</c> alone means <c>application/json</c> - for every
+    /// success status with a body; one under <c>application/json</c> keeps the default.
+    /// </summary>
+    [Theory]
+    [InlineData("200")]
+    [InlineData("201")]
+    [InlineData("202")]
+    [InlineData("203")]
+    [InlineData("206")]
+    [InlineData("207")]
+    [InlineData("208")]
+    [InlineData("226")]
+    public void Extract_ASuccessBodyUnderAnotherJsonMediaType_IsAdvertisedWithIt(
+        string statusCode)
+    {
+        foreach (var (mediaType, expected) in new[] { ("application/hal+json", ", \"application/hal+json\")"), ("application/vnd.contoso.v1+json", ", \"application/vnd.contoso.v1+json\")"), ("application/json", null) })
+        {
+            var (_, classes) = EndpointDefinitionExtractor.Extract(SuccessBodyUnder(statusCode, mediaType), "TestApi", "Pets", registry: null, new SystemTypeConflictResolver(["Pet"]));
+            var produces = classes!
+                .SelectMany(c => c.Methods ?? [])
+                .Select(m => m.Content ?? string.Empty)
+                .SelectMany(c => c.Split('\n'))
+                .Single(line => line.Contains(".Produces<", StringComparison.Ordinal)).Trim();
+
+            if (expected is null)
+            {
+                Assert.DoesNotContain("+json", produces, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.EndsWith(expected, produces, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    /// <summary>
     /// The chained calls of one endpoint registration: from its MapX up to the next blank line.
     /// </summary>
     private static string Registration(
@@ -804,4 +841,30 @@ public class EndpointDefinitionExtractorTests
             },
             StringComparer.Ordinal);
     }
+
+    private static OpenApiDocument SuccessBodyUnder(
+        string statusCode,
+        string mediaType)
+        => OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets/{petId}:
+                get:
+                  operationId: getPet
+                  parameters:
+                    - { name: petId, in: path, required: true, schema: { type: string } }
+                  responses:
+                    '{{statusCode}}':
+                      description: The pet
+                      content:
+                        '{{mediaType}}':
+                          schema: { $ref: '#/components/schemas/Pet' }
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """);
 }

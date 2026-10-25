@@ -1587,14 +1587,20 @@ using Microsoft.AspNetCore.Builder;
         var fileMediaTypes = string.Concat(fileAlternatives.Select(m => $", \"{m}\""));
         if (openApiResponse.Content is not null && openApiResponse.Content.JsonBody is { } mediaType)
         {
+            // A JSON body under another JSON media type (application/hal+json, a vendor +json) is advertised with it
             contentType = typeOf(mediaType.Schema);
+            var jsonMediaType = $", \"{openApiResponse.Content.JsonBodyMediaType}\"";
             if (openApiResponse.Content.XmlAlternative?.AlternativeMediaTypes is { } xmlMediaTypes)
             {
-                negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
+                negotiatedMediaTypes = jsonMediaType + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
             }
             else if (fileAlternatives.Count > 0)
             {
-                negotiatedMediaTypes = ", \"application/json\"" + fileMediaTypes;
+                negotiatedMediaTypes = jsonMediaType + fileMediaTypes;
+            }
+            else if (openApiResponse.Content.OtherJsonBodyMediaType is not null)
+            {
+                negotiatedMediaTypes = jsonMediaType;
             }
         }
         else if (openApiResponse.Content.XmlOnlyBody is { } xmlBody)
