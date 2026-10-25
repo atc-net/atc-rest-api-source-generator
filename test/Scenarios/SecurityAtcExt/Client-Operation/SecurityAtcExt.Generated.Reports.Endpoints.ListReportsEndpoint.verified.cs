@@ -46,6 +46,7 @@ public sealed class ListReportsEndpoint : IListReportsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/reports");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityAtcExt.Generated.ApiRequest.Stamp(requestMessage, global::SecurityAtcExt.Generated.ApiOperations.ListReports, global::SecurityAtcExt.Generated.ApiOperationSecurities.ListReports);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -49,6 +49,7 @@ public sealed class CreateOwnerEndpoint : ICreateOwnerEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::VersioningQueryString.Generated.ApiRequest.Stamp(requestMessage, global::VersioningQueryString.Generated.ApiOperations.CreateOwner);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

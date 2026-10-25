@@ -49,6 +49,7 @@ public sealed class StreamEventsMultipartEndpoint : IStreamEventsMultipartEndpoi
         var requestBuilder = httpMessageFactory.FromTemplate("/events-multipart");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::StreamingItemSchema.Generated.ApiRequest.Stamp(requestMessage, global::StreamingItemSchema.Generated.ApiOperations.StreamEventsMultipart);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -45,7 +45,9 @@ public sealed class ComponentsReuseClient : IComponentsReuseClient
     public async Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default)
     {
         var url = "items";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::ComponentsReuse.Generated.ApiRequest.Stamp(requestMessage, global::ComponentsReuse.Generated.ApiOperations.ListItems);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -61,7 +63,9 @@ public sealed class ComponentsReuseClient : IComponentsReuseClient
         CancellationToken cancellationToken = default)
     {
         var url = $"items/{Uri.EscapeDataString(parameters.Id)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::ComponentsReuse.Generated.ApiRequest.Stamp(requestMessage, global::ComponentsReuse.Generated.ApiOperations.GetItemById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

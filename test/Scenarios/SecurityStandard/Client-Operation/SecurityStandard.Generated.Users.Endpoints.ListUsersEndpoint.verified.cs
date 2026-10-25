@@ -46,6 +46,7 @@ public sealed class ListUsersEndpoint : IListUsersEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/users");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityStandard.Generated.ApiRequest.Stamp(requestMessage, global::SecurityStandard.Generated.ApiOperations.ListUsers, global::SecurityStandard.Generated.ApiOperationSecurities.ListUsers);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

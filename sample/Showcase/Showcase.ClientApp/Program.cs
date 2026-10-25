@@ -22,9 +22,16 @@ Console.WriteLine();
 const string demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXIiLCJuYW1lIjoiRGVtbyBVc2VyIiwiaWF0IjoxNzE2MjM5MDIyfQ.demo-signature";
 #pragma warning restore S6418 // Secrets should not be hard-coded
 
-// Create HTTP client with base address and demo auth token
-using var httpClient = new HttpClient { BaseAddress = new Uri(apiBaseUrl) };
-httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", demoToken);
+// Create HTTP client with base address; the generated credentials handler sends the demo token to the operations whose
+// security asks for it
+var credentials = new Showcase.Generated.ApiCredentials
+{
+    AccessToken = _ => new ValueTask<string?>(demoToken),
+};
+using var httpClient = new HttpClient(new Showcase.Generated.ApiCredentialsHandler(credentials) { InnerHandler = new HttpClientHandler() })
+{
+    BaseAddress = new Uri(apiBaseUrl),
+};
 
 var client = new AccountsClient(httpClient);
 

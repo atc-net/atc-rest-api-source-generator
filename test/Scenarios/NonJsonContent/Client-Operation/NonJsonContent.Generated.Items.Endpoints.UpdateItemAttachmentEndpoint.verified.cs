@@ -51,6 +51,7 @@ public sealed class UpdateItemAttachmentEndpoint : IUpdateItemAttachmentEndpoint
         requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), "application/octet-stream");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Put);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.UpdateItemAttachment);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -49,6 +49,7 @@ public sealed class CreateTicketEndpoint : ICreateTicketEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::HostileSchemas.Generated.ApiRequest.Stamp(requestMessage, global::HostileSchemas.Generated.ApiOperations.CreateTicket);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

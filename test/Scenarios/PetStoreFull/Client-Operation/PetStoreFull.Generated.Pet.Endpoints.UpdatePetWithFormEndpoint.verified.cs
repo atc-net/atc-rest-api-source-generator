@@ -58,6 +58,7 @@ public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
         requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.UpdatePetWithForm, global::PetStoreFull.Generated.ApiOperationSecurities.UpdatePetWithForm);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

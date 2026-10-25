@@ -52,6 +52,7 @@ public sealed class ListTasksEndpoint : IListTasksEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.ListTasks);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

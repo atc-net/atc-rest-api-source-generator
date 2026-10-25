@@ -50,6 +50,7 @@ public sealed class GenerateReportEndpoint : IGenerateReportEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.GenerateReport);
         ApiResilienceRequest.DisableRetry(requestMessage, timeoutSeconds: 600);
         ApiResilienceRequest.BufferResponse(requestMessage);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);

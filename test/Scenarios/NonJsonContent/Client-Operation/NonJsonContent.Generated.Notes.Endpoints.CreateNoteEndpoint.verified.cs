@@ -49,6 +49,7 @@ public sealed class CreateNoteEndpoint : ICreateNoteEndpoint
         requestBuilder.WithBinaryBody(new global::System.IO.MemoryStream(global::System.Text.Encoding.UTF8.GetBytes(parameters.Request)), "text/plain; charset=utf-8");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.CreateNote);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

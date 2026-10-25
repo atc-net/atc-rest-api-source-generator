@@ -56,6 +56,7 @@ public sealed class ListTicketsEndpoint : IListTicketsEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HostileSchemas.Generated.ApiRequest.Stamp(requestMessage, global::HostileSchemas.Generated.ApiOperations.ListTickets);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

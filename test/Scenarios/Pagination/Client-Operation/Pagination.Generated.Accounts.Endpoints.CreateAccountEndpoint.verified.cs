@@ -49,6 +49,7 @@ public sealed class CreateAccountEndpoint : ICreateAccountEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::Pagination.Generated.ApiRequest.Stamp(requestMessage, global::Pagination.Generated.ApiOperations.CreateAccount);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -46,7 +46,9 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
     public async Task<List<Account>> ListAccountsAsync(CancellationToken cancellationToken = default)
     {
         var url = "accounts";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SingleTypedClient.Generated.ApiRequest.Stamp(requestMessage, global::SingleTypedClient.Generated.ApiOperations.ListAccounts);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -62,7 +64,9 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"accounts/{Uri.EscapeDataString(parameters.AccountId)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SingleTypedClient.Generated.ApiRequest.Stamp(requestMessage, global::SingleTypedClient.Generated.ApiOperations.GetAccountById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -76,7 +80,9 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "orders";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SingleTypedClient.Generated.ApiRequest.Stamp(requestMessage, global::SingleTypedClient.Generated.ApiOperations.ListOrders);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -92,7 +98,10 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         CancellationToken cancellationToken = default)
     {
         var url = "orders";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::SingleTypedClient.Generated.ApiRequest.Stamp(requestMessage, global::SingleTypedClient.Generated.ApiOperations.CreateOrder);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

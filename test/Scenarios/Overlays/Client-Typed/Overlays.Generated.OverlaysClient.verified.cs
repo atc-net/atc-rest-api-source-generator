@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -45,7 +45,9 @@ public sealed class OverlaysClient : IOverlaysClient
     public async Task<List<Device>> ListDevicesAsync(CancellationToken cancellationToken = default)
     {
         var url = "devices";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Overlays.Generated.ApiRequest.Stamp(requestMessage, global::Overlays.Generated.ApiOperations.ListDevices);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -61,7 +63,9 @@ public sealed class OverlaysClient : IOverlaysClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.DeviceId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Overlays.Generated.ApiRequest.Stamp(requestMessage, global::Overlays.Generated.ApiOperations.GetDevice);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

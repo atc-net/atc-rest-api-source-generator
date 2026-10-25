@@ -46,6 +46,7 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/items");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.ListItems);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

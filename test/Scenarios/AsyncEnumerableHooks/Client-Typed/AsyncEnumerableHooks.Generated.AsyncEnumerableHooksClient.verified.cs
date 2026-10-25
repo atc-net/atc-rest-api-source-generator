@@ -4,10 +4,10 @@
 
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -63,7 +63,9 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::AsyncEnumerableHooks.Generated.ApiRequest.Stamp(requestMessage, global::AsyncEnumerableHooks.Generated.ApiOperations.ListItems);
+        using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -94,7 +96,9 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::AsyncEnumerableHooks.Generated.ApiRequest.Stamp(requestMessage, global::AsyncEnumerableHooks.Generated.ApiOperations.ListItemPages);
+        using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -130,7 +134,9 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::AsyncEnumerableHooks.Generated.ApiRequest.Stamp(requestMessage, global::AsyncEnumerableHooks.Generated.ApiOperations.GetItemLogs);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -159,7 +165,9 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::AsyncEnumerableHooks.Generated.ApiRequest.Stamp(requestMessage, global::AsyncEnumerableHooks.Generated.ApiOperations.SearchItems);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -173,7 +181,9 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
     public async IAsyncEnumerable<Item> StreamItemEventsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var url = "api/v1/items/events";
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::AsyncEnumerableHooks.Generated.ApiRequest.Stamp(requestMessage, global::AsyncEnumerableHooks.Generated.ApiOperations.StreamItemEvents);
+        using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);

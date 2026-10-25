@@ -49,6 +49,7 @@ public sealed class CreatePetEndpoint : ICreatePetEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::MediaTypeParameters.Generated.ApiRequest.Stamp(requestMessage, global::MediaTypeParameters.Generated.ApiOperations.CreatePet);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

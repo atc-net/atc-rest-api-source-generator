@@ -48,7 +48,9 @@ public sealed class ProductsClient : IProductsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"products/{Uri.EscapeDataString(parameters.ProductCode)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.GetProduct);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -103,6 +105,7 @@ public sealed class ProductsClient : IProductsClient
         {
             requestMessage.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
         }
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.ListProducts);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -118,7 +121,9 @@ public sealed class ProductsClient : IProductsClient
     public async Task<string> GetNextProductCodeAsync(CancellationToken cancellationToken = default)
     {
         var url = "products/codes/next";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.GetNextProductCode);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -126,7 +131,9 @@ public sealed class ProductsClient : IProductsClient
     public async Task<List<string>> ListProductCodesAsync(CancellationToken cancellationToken = default)
     {
         var url = "products/codes";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.ListProductCodes);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

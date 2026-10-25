@@ -139,6 +139,23 @@ public static class OperationNamesExtractor
         return builder.ToString();
     }
 
+    /// <summary>
+    /// The member an operation has in a generated class of one member per operation: an identifier, and never the name
+    /// of the class it is in (CS0542).
+    /// </summary>
+    /// <param name="endpointName">The endpoint name.</param>
+    /// <param name="enclosingClass">The class the member is in.</param>
+    /// <returns>The member name.</returns>
+    public static string MemberName(
+        string endpointName,
+        string enclosingClass)
+    {
+        var name = CSharpLiteralHelper.ToEnumMemberName((endpointName ?? string.Empty).ToPascalCaseForDotNet());
+        return string.Equals(name, enclosingClass, StringComparison.Ordinal)
+            ? name + "Operation"
+            : name;
+    }
+
     private static bool AppendConstants(
         StringBuilder builder,
         int indent,
@@ -180,15 +197,8 @@ public static class OperationNamesExtractor
         return any;
     }
 
-    // An identifier, and never the name of the class it is in (CS0542)
     private static string ConstantName(
         string endpointName,
         bool nested)
-    {
-        var name = CSharpLiteralHelper.ToEnumMemberName(endpointName.ToPascalCaseForDotNet());
-        var enclosing = nested ? WebhooksClassName : ClassName;
-        return string.Equals(name, enclosing, StringComparison.Ordinal)
-            ? name + "Operation"
-            : name;
-    }
+        => MemberName(endpointName, nested ? WebhooksClassName : ClassName);
 }

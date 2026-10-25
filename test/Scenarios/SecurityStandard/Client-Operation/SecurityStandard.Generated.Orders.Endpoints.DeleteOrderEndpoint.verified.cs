@@ -49,6 +49,7 @@ public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
         requestBuilder.WithPathParameter("orderId", parameters.OrderId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
+        global::SecurityStandard.Generated.ApiRequest.Stamp(requestMessage, global::SecurityStandard.Generated.ApiOperations.DeleteOrder, global::SecurityStandard.Generated.ApiOperationSecurities.DeleteOrder);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

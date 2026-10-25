@@ -4,9 +4,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -48,7 +48,9 @@ public sealed class EventsSseNamedClient : IEventsSseNamedClient
     public async IAsyncEnumerable<Event> StreamEventsSseNamedAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var url = "events-sse-named";
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::StreamingItemSchema.Generated.ApiRequest.Stamp(requestMessage, global::StreamingItemSchema.Generated.ApiOperations.StreamEventsSseNamed);
+        using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);

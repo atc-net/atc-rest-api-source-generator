@@ -46,6 +46,7 @@ public sealed class GetInventoryEndpoint : IGetInventoryEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/store/inventory");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.GetInventory, global::PetStoreFull.Generated.ApiOperationSecurities.GetInventory);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -65,6 +65,7 @@ public sealed class ReposClient : IReposClient
         {
             requestMessage.Headers.Add("default", headerDefault);
         }
+        global::HostileTypeScript.Generated.ApiRequest.Stamp(requestMessage, global::HostileTypeScript.Generated.ApiOperations.ReposList);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -82,7 +83,9 @@ public sealed class ReposClient : IReposClient
         CancellationToken cancellationToken = default)
     {
         var url = $"repos/{Uri.EscapeDataString(parameters.Package)}/{Uri.EscapeDataString(parameters.Function)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::HostileTypeScript.Generated.ApiRequest.Stamp(requestMessage, global::HostileTypeScript.Generated.ApiOperations.ReposGet);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

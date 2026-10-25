@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -46,7 +46,9 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
     public async Task<List<Pet>> ListPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SchemaSummaryFields.Generated.ApiRequest.Stamp(requestMessage, global::SchemaSummaryFields.Generated.ApiOperations.ListPets);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -62,7 +64,10 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::SchemaSummaryFields.Generated.ApiRequest.Stamp(requestMessage, global::SchemaSummaryFields.Generated.ApiOperations.CreatePet);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -78,7 +83,9 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SchemaSummaryFields.Generated.ApiRequest.Stamp(requestMessage, global::SchemaSummaryFields.Generated.ApiOperations.GetPetById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

@@ -56,6 +56,7 @@ public sealed class LoginUserEndpoint : ILoginUserEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.LoginUser, global::PetStoreFull.Generated.ApiOperationSecurities.LoginUser);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

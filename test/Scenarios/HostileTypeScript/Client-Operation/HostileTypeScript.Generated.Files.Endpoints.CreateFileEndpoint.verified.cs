@@ -50,6 +50,7 @@ public sealed class CreateFileEndpoint : ICreateFileEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::HostileTypeScript.Generated.ApiRequest.Stamp(requestMessage, global::HostileTypeScript.Generated.ApiOperations.CreateFile);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

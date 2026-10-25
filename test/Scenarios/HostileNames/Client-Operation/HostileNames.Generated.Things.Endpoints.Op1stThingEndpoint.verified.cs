@@ -46,6 +46,7 @@ public sealed class Op1stThingEndpoint : IOp1stThingEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/things");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HostileNames.Generated.ApiRequest.Stamp(requestMessage, global::HostileNames.Generated.ApiOperations.Op1stThing);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

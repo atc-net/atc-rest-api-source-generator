@@ -57,6 +57,7 @@ public sealed class GetItemLogsEndpoint : IGetItemLogsEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::AsyncEnumerableHooks.Generated.ApiRequest.Stamp(requestMessage, global::AsyncEnumerableHooks.Generated.ApiOperations.GetItemLogs);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

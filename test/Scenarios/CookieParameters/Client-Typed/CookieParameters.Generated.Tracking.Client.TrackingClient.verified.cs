@@ -63,6 +63,7 @@ public sealed class TrackingClient : ITrackingClient
         {
             requestMessage.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
         }
+        global::CookieParameters.Generated.ApiRequest.Stamp(requestMessage, global::CookieParameters.Generated.ApiOperations.TrackEvent);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

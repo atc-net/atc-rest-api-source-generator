@@ -64,6 +64,7 @@ public sealed class ListPaginatedAccountsEndpoint : IListPaginatedAccountsEndpoi
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.ListPaginatedAccounts);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

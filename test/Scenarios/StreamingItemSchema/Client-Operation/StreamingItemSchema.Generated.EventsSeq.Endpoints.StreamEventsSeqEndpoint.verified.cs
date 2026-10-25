@@ -49,6 +49,7 @@ public sealed class StreamEventsSeqEndpoint : IStreamEventsSeqEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/events-seq");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::StreamingItemSchema.Generated.ApiRequest.Stamp(requestMessage, global::StreamingItemSchema.Generated.ApiOperations.StreamEventsSeq);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

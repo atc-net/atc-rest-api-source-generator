@@ -46,6 +46,7 @@ public sealed class LinkResourceEndpoint : ILinkResourceEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/resources");
 
         using var requestMessage = requestBuilder.Build(new HttpMethod("LINK"));
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.LinkResource);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

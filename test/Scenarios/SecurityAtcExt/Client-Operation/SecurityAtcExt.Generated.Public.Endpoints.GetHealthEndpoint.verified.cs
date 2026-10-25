@@ -46,6 +46,7 @@ public sealed class GetHealthEndpoint : IGetHealthEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/public/health");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityAtcExt.Generated.ApiRequest.Stamp(requestMessage, global::SecurityAtcExt.Generated.ApiOperations.GetHealth, global::SecurityAtcExt.Generated.ApiOperationSecurities.GetHealth);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

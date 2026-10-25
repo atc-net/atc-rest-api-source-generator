@@ -322,6 +322,11 @@ public class ApiClientGenerator : IIncrementalGenerator
         if (OperationNamesExtractor.Extract(openApiDoc, projectName, config.IncludeDeprecated, includeWebhooks: false) is { } operationNames)
         {
             generatedContext.AddGeneratedSource($"{projectName}.Generated.ApiOperations.g.cs", operationNames);
+
+            // Each request names its operation and the credentials it accepts; the handler that sends them
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.{ApiRequestExtractor.ClassName}.g.cs",
+                ApiRequestExtractor.Generate(openApiDoc, projectName, config.IncludeDeprecated, packages.HasHttpClientFactory));
         }
 
         // The attributes a pattern (on a value or on the items of an array) and a format: uri are written with

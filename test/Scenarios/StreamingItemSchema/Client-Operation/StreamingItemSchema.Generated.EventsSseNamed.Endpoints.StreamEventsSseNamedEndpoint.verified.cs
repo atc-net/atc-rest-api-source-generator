@@ -50,6 +50,7 @@ public sealed class StreamEventsSseNamedEndpoint : IStreamEventsSseNamedEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/events-sse-named");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::StreamingItemSchema.Generated.ApiRequest.Stamp(requestMessage, global::StreamingItemSchema.Generated.ApiOperations.StreamEventsSseNamed);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

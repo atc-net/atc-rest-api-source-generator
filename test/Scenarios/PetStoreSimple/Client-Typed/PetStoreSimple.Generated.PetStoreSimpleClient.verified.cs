@@ -4,10 +4,10 @@
 
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -60,7 +60,9 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::PetStoreSimple.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreSimple.Generated.ApiOperations.ListPets);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -74,7 +76,9 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
     public async Task CreatePetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        using var response = await httpClient.PostAsync(url, null, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        global::PetStoreSimple.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreSimple.Generated.ApiOperations.CreatePets);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -83,7 +87,9 @@ public sealed class PetStoreSimpleClient : IPetStoreSimpleClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(parameters.PetId)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::PetStoreSimple.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreSimple.Generated.ApiOperations.ShowPetById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

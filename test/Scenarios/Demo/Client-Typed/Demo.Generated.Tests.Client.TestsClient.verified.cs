@@ -2,10 +2,10 @@
 #nullable enable
 #pragma warning disable CS1591
 
-using System.Net.Http;
 using System.Threading.Tasks;
 using System;
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -47,7 +47,10 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-model";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.CreateTestItemWithModel);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -63,7 +66,10 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-location-header";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.CreateTestItemWithLocationHeader);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return response.Headers.Location!;
     }
@@ -73,7 +79,10 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-location-body";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.CreateTestItemWithLocationInBody);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -89,7 +98,10 @@ public sealed class TestsClient : ITestsClient
         CancellationToken cancellationToken = default)
     {
         var url = "tests/create/create-empty";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.CreateTestItemEmpty);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

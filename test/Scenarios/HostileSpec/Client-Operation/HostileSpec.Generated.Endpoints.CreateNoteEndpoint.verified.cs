@@ -50,6 +50,7 @@ public sealed class CreateNoteEndpoint : ICreateNoteEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::HostileSpec.Generated.ApiRequest.Stamp(requestMessage, global::HostileSpec.Generated.ApiOperations.CreateNote, global::HostileSpec.Generated.ApiOperationSecurities.CreateNote);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -49,6 +49,7 @@ public sealed class StreamEventsArrayEndpoint : IStreamEventsArrayEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/events-array");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::StreamingItemSchema.Generated.ApiRequest.Stamp(requestMessage, global::StreamingItemSchema.Generated.ApiOperations.StreamEventsArray);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

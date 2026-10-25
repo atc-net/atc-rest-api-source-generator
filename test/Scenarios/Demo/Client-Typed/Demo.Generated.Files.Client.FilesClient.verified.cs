@@ -49,7 +49,9 @@ public sealed class FilesClient : IFilesClient
         CancellationToken cancellationToken = default)
     {
         var url = $"files/{Uri.EscapeDataString(parameters.Id)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.GetFileById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
@@ -86,7 +88,10 @@ public sealed class FilesClient : IFilesClient
             }
         }
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = content;
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.UploadFormDataFile);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -112,7 +117,10 @@ public sealed class FilesClient : IFilesClient
             }
         }
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = content;
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.UploadFormDataFiles);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -125,7 +133,10 @@ public sealed class FilesClient : IFilesClient
         using var content = new StreamContent(parameters.File!.OpenReadStream());
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = content;
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.UploadSingleFileAsFormData);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -150,7 +161,10 @@ public sealed class FilesClient : IFilesClient
             content.Add(streamContent, "files", fileItem.FileName);
         }
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = content;
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.UploadMultiFilesAsFormData);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

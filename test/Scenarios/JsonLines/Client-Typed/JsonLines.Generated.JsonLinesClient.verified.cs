@@ -47,7 +47,9 @@ public sealed class JsonLinesClient : IJsonLinesClient
     public async IAsyncEnumerable<Reading> ListReadingsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var url = "readings/export";
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ListReadings);
+        using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -64,7 +66,9 @@ public sealed class JsonLinesClient : IJsonLinesClient
     public async IAsyncEnumerable<Reading> ListReadingSequenceAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var url = "readings/export-seq";
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ListReadingSequence);
+        using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -83,7 +87,10 @@ public sealed class JsonLinesClient : IJsonLinesClient
         CancellationToken cancellationToken = default)
     {
         var url = "readings/import";
-        using var response = await httpClient.PostAsync(url, StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/jsonl"), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/jsonl");
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ImportReadings);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -99,7 +106,10 @@ public sealed class JsonLinesClient : IJsonLinesClient
         CancellationToken cancellationToken = default)
     {
         var url = "readings/import-seq";
-        using var response = await httpClient.PostAsync(url, StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/json-seq"), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/json-seq");
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ImportReadingSequence);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -115,7 +125,10 @@ public sealed class JsonLinesClient : IJsonLinesClient
         CancellationToken cancellationToken = default)
     {
         var url = "readings/import-either";
-        using var response = await httpClient.PostAsync(url, StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/jsonl"), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/jsonl");
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ImportReadingsAnyFormat);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -131,7 +144,10 @@ public sealed class JsonLinesClient : IJsonLinesClient
         CancellationToken cancellationToken = default)
     {
         var url = "readings/import-optional";
-        using var response = await httpClient.PutAsync(url, (parameters.Request is null ? null : StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/x-ndjson")), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
+        requestMessage.Content = (parameters.Request is null ? null : StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/x-ndjson"));
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.UpdateReadings);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -151,6 +167,7 @@ public sealed class JsonLinesClient : IJsonLinesClient
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = content;
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.SearchReadings);
         using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
@@ -172,6 +189,7 @@ public sealed class JsonLinesClient : IJsonLinesClient
         var url = "readings/normalize";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = StreamedRequestContent.Create(parameters.Request, jsonSerializerOptions, "application/jsonl");
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.NormalizeReadings);
         using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 

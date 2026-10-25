@@ -49,6 +49,7 @@ public sealed class NotificationsClient : INotificationsClient
         var url = "notifications";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.SendNotification);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.NotificationsConstant);
         ApiResilienceRequest.BufferResponse(requestMessage);
 

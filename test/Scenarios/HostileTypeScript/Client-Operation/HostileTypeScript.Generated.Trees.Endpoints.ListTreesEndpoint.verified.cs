@@ -46,6 +46,7 @@ public sealed class ListTreesEndpoint : IListTreesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/trees");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HostileTypeScript.Generated.ApiRequest.Stamp(requestMessage, global::HostileTypeScript.Generated.ApiOperations.ListTrees);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

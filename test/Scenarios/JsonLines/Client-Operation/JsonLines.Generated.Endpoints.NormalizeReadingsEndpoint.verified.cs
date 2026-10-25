@@ -51,6 +51,7 @@ public sealed class NormalizeReadingsEndpoint : INormalizeReadingsEndpoint
         requestBuilder.WithStreamedBody(parameters.Request, "application/jsonl");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.NormalizeReadings);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

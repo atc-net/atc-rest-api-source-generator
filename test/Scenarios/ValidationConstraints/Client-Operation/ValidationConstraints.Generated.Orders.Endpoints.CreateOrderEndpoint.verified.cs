@@ -49,6 +49,7 @@ public sealed class CreateOrderEndpoint : ICreateOrderEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.CreateOrder);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -48,6 +48,7 @@ public sealed class ListItemsByQueryStringEndpoint : IListItemsByQueryStringEndp
         var requestBuilder = httpMessageFactory.FromTemplate("/items/search" + (parameters.RawFilter is { Length: > 0 } queryString ? "?" + queryString : string.Empty));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::ParameterSerialization.Generated.ApiRequest.Stamp(requestMessage, global::ParameterSerialization.Generated.ApiOperations.ListItemsByQueryString);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

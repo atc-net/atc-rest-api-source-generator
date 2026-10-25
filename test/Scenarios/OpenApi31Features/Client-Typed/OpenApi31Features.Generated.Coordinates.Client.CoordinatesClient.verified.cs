@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -46,7 +46,9 @@ public sealed class CoordinatesClient : ICoordinatesClient
     public async Task<Coordinate> GetCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "coordinates";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::OpenApi31Features.Generated.ApiRequest.Stamp(requestMessage, global::OpenApi31Features.Generated.ApiOperations.GetCoordinates);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -60,7 +62,9 @@ public sealed class CoordinatesClient : ICoordinatesClient
     public async Task<List<Coordinate>> ListCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "coordinates/list";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::OpenApi31Features.Generated.ApiRequest.Stamp(requestMessage, global::OpenApi31Features.Generated.ApiOperations.ListCoordinates);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

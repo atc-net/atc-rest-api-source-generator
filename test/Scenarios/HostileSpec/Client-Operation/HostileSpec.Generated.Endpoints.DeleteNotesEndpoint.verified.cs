@@ -46,6 +46,7 @@ public sealed class DeleteNotesEndpoint : IDeleteNotesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/notes");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
+        global::HostileSpec.Generated.ApiRequest.Stamp(requestMessage, global::HostileSpec.Generated.ApiOperations.DeleteNotes, global::HostileSpec.Generated.ApiOperationSecurities.DeleteNotes);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

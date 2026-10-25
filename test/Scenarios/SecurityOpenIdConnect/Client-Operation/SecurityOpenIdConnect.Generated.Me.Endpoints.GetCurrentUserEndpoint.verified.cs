@@ -46,6 +46,7 @@ public sealed class GetCurrentUserEndpoint : IGetCurrentUserEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/me");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityOpenIdConnect.Generated.ApiRequest.Stamp(requestMessage, global::SecurityOpenIdConnect.Generated.ApiOperations.GetCurrentUser, global::SecurityOpenIdConnect.Generated.ApiOperationSecurities.GetCurrentUser);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -46,6 +46,7 @@ public sealed class ListProductCodesEndpoint : IListProductCodesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/products/codes");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.ListProductCodes);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

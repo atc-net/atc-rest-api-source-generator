@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -46,7 +46,9 @@ public sealed class UsersClient : IUsersClient
     public async Task<List<User>> ListUsersAsync(CancellationToken cancellationToken = default)
     {
         var url = "users";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SecurityStandard.Generated.ApiRequest.Stamp(requestMessage, global::SecurityStandard.Generated.ApiOperations.ListUsers, global::SecurityStandard.Generated.ApiOperationSecurities.ListUsers);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -62,7 +64,9 @@ public sealed class UsersClient : IUsersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"users/{parameters.UserId}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SecurityStandard.Generated.ApiRequest.Stamp(requestMessage, global::SecurityStandard.Generated.ApiOperations.GetUserById, global::SecurityStandard.Generated.ApiOperationSecurities.GetUserById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

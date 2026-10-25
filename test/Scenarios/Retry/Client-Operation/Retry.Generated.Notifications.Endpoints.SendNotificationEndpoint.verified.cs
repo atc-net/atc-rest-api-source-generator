@@ -50,6 +50,7 @@ public sealed class SendNotificationEndpoint : ISendNotificationEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.SendNotification);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.NotificationsConstant);
         ApiResilienceRequest.BufferResponse(requestMessage);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);

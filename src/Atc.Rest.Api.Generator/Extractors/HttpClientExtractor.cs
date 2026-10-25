@@ -320,7 +320,7 @@ public static partial class HttpClientExtractor
             : NamespaceBuilder.ForClient(projectName, effectiveNamespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, effectiveNamespaceSegment);
 
-        var methods = ExtractMethods(openApiDoc, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, resultStyle, preferXml);
+        var methods = ExtractMethods(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, resultStyle, preferXml);
 
         // Return null if no methods were extracted for this segment
         if (methods.Count == 0)
@@ -437,6 +437,7 @@ public static partial class HttpClientExtractor
     /// </summary>
     private static List<MethodParameters> ExtractMethods(
         OpenApiDocument openApiDoc,
+        string projectName,
         string? pathSegment,
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
@@ -487,7 +488,7 @@ public static partial class HttpClientExtractor
                         .ToUpperInvariant();
 
                     var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
-                    var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, registry, systemTypeResolver, currentPathSegment, inlineSchemas, useServersBasePath, resultStyle, preferXml);
+                    var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, projectName, registry, systemTypeResolver, currentPathSegment, inlineSchemas, useServersBasePath, resultStyle, preferXml);
 
                     if (methodParams is not null)
                     {
@@ -652,6 +653,7 @@ public static partial class HttpClientExtractor
         OpenApiOperation? operation,
         IList<IOpenApiParameter>? pathLevelParameters,
         OpenApiDocument openApiDoc,
+        string projectName,
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         string pathSegment,
@@ -686,7 +688,7 @@ public static partial class HttpClientExtractor
 
         // Generate method body content
         var hasReturnType = returnType != nameof(Task);
-        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle, xmlRead, isTextResponse);
+        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, projectName, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle, xmlRead, isTextResponse);
 
         // For async enumerable methods, return IAsyncEnumerable<T> directly.
         // Under Result style the operation instead returns Task<StreamingEndpointResponse<T>>, which

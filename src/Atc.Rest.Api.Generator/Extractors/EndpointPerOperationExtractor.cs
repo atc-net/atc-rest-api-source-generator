@@ -741,6 +741,7 @@ public static class EndpointPerOperationExtractor
         var isStreamedResponse = (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint;
         var resilienceStatements = new[]
             {
+                ApiRequestExtractor.BuildStampStatement(operation, path, httpMethod, openApiDoc, projectName, "requestMessage"),
                 ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, "requestMessage"),
                 isStreamedResponse ? null : ResilienceRequestHelper.BuildBufferStatement(openApiDoc, "requestMessage"),
             }
@@ -771,7 +772,7 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine("using Atc.Rest.Client.Builder;");
         headerBuilder.AppendLine("using Microsoft.Extensions.Http;");
         headerBuilder.AppendLine($"using {projectName}.Generated;");
-        if (resilienceStamp is not null)
+        if (resilienceStatements.Exists(st => st is not null && st.Contains("ApiResilienceRequest.", StringComparison.Ordinal)))
         {
             headerBuilder.AppendLine($"using {projectName}.Generated.Resilience;");
         }

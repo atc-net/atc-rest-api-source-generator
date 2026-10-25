@@ -3,9 +3,9 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -44,7 +44,9 @@ public sealed class MeClient : IMeClient
     public async Task<UserProfile> GetCurrentUserAsync(CancellationToken cancellationToken = default)
     {
         var url = "me";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SecurityOpenIdConnect.Generated.ApiRequest.Stamp(requestMessage, global::SecurityOpenIdConnect.Generated.ApiOperations.GetCurrentUser, global::SecurityOpenIdConnect.Generated.ApiOperationSecurities.GetCurrentUser);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -58,7 +60,9 @@ public sealed class MeClient : IMeClient
     public async Task<UserProfile> GetCurrentUserProfileAsync(CancellationToken cancellationToken = default)
     {
         var url = "me/profile";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::SecurityOpenIdConnect.Generated.ApiRequest.Stamp(requestMessage, global::SecurityOpenIdConnect.Generated.ApiOperations.GetCurrentUserProfile, global::SecurityOpenIdConnect.Generated.ApiOperationSecurities.GetCurrentUserProfile);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

@@ -52,6 +52,7 @@ public sealed class ListPetsEndpoint : IListPetsEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::PetStoreSimple.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreSimple.Generated.ApiOperations.ListPets);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

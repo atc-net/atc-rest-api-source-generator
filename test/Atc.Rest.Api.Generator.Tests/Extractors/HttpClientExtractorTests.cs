@@ -651,7 +651,8 @@ public class HttpClientExtractorTests
         Assert.NotNull(clientClass);
         var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
-        Assert.Contains("PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);", method.Content, StringComparison.Ordinal);
+        Assert.Contains("httpClient.SendAsync(requestMessage, cancellationToken)", method.Content, StringComparison.Ordinal);
         Assert.Contains("JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Gadget>())", method.Content, StringComparison.Ordinal);
     }
 
@@ -1082,7 +1083,8 @@ public class HttpClientExtractorTests
         Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"role\", role.ToWireValue()));", content, StringComparison.Ordinal);
         Assert.Contains("foreach (var item in scopes)", content, StringComparison.Ordinal);
         Assert.Contains("using var content = new FormUrlEncodedContent(fields);", content, StringComparison.Ordinal);
-        Assert.Contains("httpClient.PostAsync(url, content, cancellationToken)", content, StringComparison.Ordinal);
+        Assert.Contains("requestMessage.Content = content;", content, StringComparison.Ordinal);
+        Assert.Contains("httpClient.SendAsync(requestMessage, cancellationToken)", content, StringComparison.Ordinal);
     }
 
     [Theory]

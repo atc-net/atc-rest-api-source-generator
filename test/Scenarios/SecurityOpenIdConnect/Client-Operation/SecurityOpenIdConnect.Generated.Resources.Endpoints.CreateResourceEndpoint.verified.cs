@@ -49,6 +49,7 @@ public sealed class CreateResourceEndpoint : ICreateResourceEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::SecurityOpenIdConnect.Generated.ApiRequest.Stamp(requestMessage, global::SecurityOpenIdConnect.Generated.ApiOperations.CreateResource, global::SecurityOpenIdConnect.Generated.ApiOperationSecurities.CreateResource);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

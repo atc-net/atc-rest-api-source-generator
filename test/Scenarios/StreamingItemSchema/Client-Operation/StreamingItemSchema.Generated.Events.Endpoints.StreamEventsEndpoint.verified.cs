@@ -49,6 +49,7 @@ public sealed class StreamEventsEndpoint : IStreamEventsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/events");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::StreamingItemSchema.Generated.ApiRequest.Stamp(requestMessage, global::StreamingItemSchema.Generated.ApiOperations.StreamEvents);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

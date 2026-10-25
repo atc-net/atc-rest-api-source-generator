@@ -49,6 +49,7 @@ public sealed class GetOwnerByIdEndpoint : IGetOwnerByIdEndpoint
         requestBuilder.WithPathParameter("ownerId", parameters.OwnerId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::VersioningUrlSegment.Generated.ApiRequest.Stamp(requestMessage, global::VersioningUrlSegment.Generated.ApiOperations.GetOwnerById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

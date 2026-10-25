@@ -45,6 +45,7 @@ public sealed class ExportCsvEndpoint : IExportCsvEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/exports/csv");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.ExportCsv);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

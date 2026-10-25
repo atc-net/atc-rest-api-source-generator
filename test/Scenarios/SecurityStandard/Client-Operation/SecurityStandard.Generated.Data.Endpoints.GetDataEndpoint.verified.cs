@@ -46,6 +46,7 @@ public sealed class GetDataEndpoint : IGetDataEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/data");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityStandard.Generated.ApiRequest.Stamp(requestMessage, global::SecurityStandard.Generated.ApiOperations.GetData, global::SecurityStandard.Generated.ApiOperationSecurities.GetData);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

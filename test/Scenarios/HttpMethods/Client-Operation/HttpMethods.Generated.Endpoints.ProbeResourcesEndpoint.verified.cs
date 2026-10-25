@@ -46,6 +46,7 @@ public sealed class ProbeResourcesEndpoint : IProbeResourcesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/resources");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Head);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.ProbeResources);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

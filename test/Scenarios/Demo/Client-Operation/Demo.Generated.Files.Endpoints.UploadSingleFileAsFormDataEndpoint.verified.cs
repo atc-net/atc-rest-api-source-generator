@@ -50,6 +50,7 @@ public sealed class UploadSingleFileAsFormDataEndpoint : IUploadSingleFileAsForm
         requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), "application/octet-stream");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.UploadSingleFileAsFormData);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

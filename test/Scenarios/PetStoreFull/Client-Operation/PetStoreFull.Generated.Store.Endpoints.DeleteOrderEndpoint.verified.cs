@@ -49,6 +49,7 @@ public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
         requestBuilder.WithPathParameter("orderId", ((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.DeleteOrder, global::PetStoreFull.Generated.ApiOperationSecurities.DeleteOrder);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -133,6 +133,7 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         {
             requestMessage.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
         }
+        global::ParameterSerialization.Generated.ApiRequest.Stamp(requestMessage, global::ParameterSerialization.Generated.ApiOperations.ListItems);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -156,7 +157,9 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             url += (url.Contains('?') ? "&" : "?") + parameters.RawFilter;
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::ParameterSerialization.Generated.ApiRequest.Stamp(requestMessage, global::ParameterSerialization.Generated.ApiOperations.ListItemsByQueryString);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -185,6 +188,7 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         {
             requestMessage.Headers.Add("x-region", headerRegion);
         }
+        global::ParameterSerialization.Generated.ApiRequest.Stamp(requestMessage, global::ParameterSerialization.Generated.ApiOperations.ListItemReports);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

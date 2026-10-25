@@ -53,6 +53,7 @@ public sealed class GetItemByIdEndpoint : IGetItemByIdEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HeaderParameters.Generated.ApiRequest.Stamp(requestMessage, global::HeaderParameters.Generated.ApiOperations.GetItemById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -46,7 +46,9 @@ public sealed class HealthClient : IHealthClient
     {
         var url = "health";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.GetHealth);
         ApiResilienceRequest.BufferResponse(requestMessage);
+
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

@@ -42,9 +42,8 @@ Console.WriteLine();
 var builder = Host.CreateApplicationBuilder(args);
 
 // Holds whichever bearer token is currently active (refresh token first, then the
-// issued access token). The handler below reads it on every outgoing request.
+// issued access token). The generated credentials handler reads it on every outgoing request.
 builder.Services.AddSingleton<BearerTokenProvider>();
-builder.Services.AddTransient<BearerTokenHandler>();
 
 // Registering ThirdPartyApiClient as a typed client lets IHttpClientFactory own
 // the HttpClient lifetime and hand a correctly configured instance to the
@@ -56,7 +55,12 @@ builder.Services
         client.BaseAddress = new Uri(baseAddress);
         client.Timeout = TimeSpan.FromSeconds(100);
     })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+    .AddApiCredentials((services, credentials) =>
+    {
+        // AddApiCredentials() is generated: the token goes to the operations whose security asks for it
+        var tokenProvider = services.GetRequiredService<BearerTokenProvider>();
+        credentials.AccessToken = _ => new ValueTask<string?>(tokenProvider.Token);
+    });
 
 using var host = builder.Build();
 

@@ -57,6 +57,7 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         requestBuilder.WithHeaderParameter("x-correlation-id", parameters.CorrelationId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HeaderParameters.Generated.ApiRequest.Stamp(requestMessage, global::HeaderParameters.Generated.ApiOperations.ListItems);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

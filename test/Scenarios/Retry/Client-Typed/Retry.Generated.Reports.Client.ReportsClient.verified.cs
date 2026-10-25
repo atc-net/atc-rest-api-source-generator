@@ -49,6 +49,7 @@ public sealed class ReportsClient : IReportsClient
         var url = "reports/generate";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.GenerateReport);
         ApiResilienceRequest.DisableRetry(requestMessage, timeoutSeconds: 600);
         ApiResilienceRequest.BufferResponse(requestMessage);
 

@@ -46,6 +46,7 @@ public sealed class ListResourcesEndpoint : IListResourcesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/resources");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityOpenIdConnect.Generated.ApiRequest.Stamp(requestMessage, global::SecurityOpenIdConnect.Generated.ApiOperations.ListResources, global::SecurityOpenIdConnect.Generated.ApiOperationSecurities.ListResources);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

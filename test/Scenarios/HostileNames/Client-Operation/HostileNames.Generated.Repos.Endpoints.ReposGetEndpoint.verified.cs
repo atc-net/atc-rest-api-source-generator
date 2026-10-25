@@ -46,6 +46,7 @@ public sealed class ReposGetEndpoint : IReposGetEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/repos");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HostileNames.Generated.ApiRequest.Stamp(requestMessage, global::HostileNames.Generated.ApiOperations.ReposGet);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

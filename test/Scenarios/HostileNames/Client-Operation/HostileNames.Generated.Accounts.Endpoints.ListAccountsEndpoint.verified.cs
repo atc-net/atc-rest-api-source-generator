@@ -47,6 +47,7 @@ public sealed class ListAccountsEndpoint : IListAccountsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/2010-04-01/accounts");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HostileNames.Generated.ApiRequest.Stamp(requestMessage, global::HostileNames.Generated.ApiOperations.ListAccounts);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

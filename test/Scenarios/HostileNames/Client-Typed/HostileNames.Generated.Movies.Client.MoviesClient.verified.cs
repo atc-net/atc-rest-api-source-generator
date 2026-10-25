@@ -65,6 +65,7 @@ public sealed class MoviesClient : IMoviesClient
         {
             requestMessage.Headers.Add("Id", headerIdHeader);
         }
+        global::HostileNames.Generated.ApiRequest.Stamp(requestMessage, global::HostileNames.Generated.ApiOperations.GetMovie);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

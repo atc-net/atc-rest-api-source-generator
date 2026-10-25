@@ -61,6 +61,7 @@ public sealed class CreateProfileEndpoint : ICreateProfileEndpoint
         requestBuilder.WithUrlEncodedForm(fields);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::HostileNames.Generated.ApiRequest.Stamp(requestMessage, global::HostileNames.Generated.ApiOperations.CreateProfile);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

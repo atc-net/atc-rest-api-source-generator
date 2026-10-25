@@ -46,6 +46,7 @@ public sealed class ListProfilesEndpoint : IListProfilesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/profiles");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::NullableTypeArrays.Generated.ApiRequest.Stamp(requestMessage, global::NullableTypeArrays.Generated.ApiOperations.ListProfiles);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

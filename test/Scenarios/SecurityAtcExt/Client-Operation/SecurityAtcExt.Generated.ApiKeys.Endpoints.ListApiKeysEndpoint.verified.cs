@@ -46,6 +46,7 @@ public sealed class ListApiKeysEndpoint : IListApiKeysEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/api-keys");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityAtcExt.Generated.ApiRequest.Stamp(requestMessage, global::SecurityAtcExt.Generated.ApiOperations.ListApiKeys, global::SecurityAtcExt.Generated.ApiOperationSecurities.ListApiKeys);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

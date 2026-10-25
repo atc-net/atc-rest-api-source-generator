@@ -3,9 +3,9 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -43,7 +43,9 @@ public sealed class ExportsClient : IExportsClient
     public async Task<string> ExportCsvAsync(CancellationToken cancellationToken = default)
     {
         var url = "exports/csv";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.ExportCsv);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
     }

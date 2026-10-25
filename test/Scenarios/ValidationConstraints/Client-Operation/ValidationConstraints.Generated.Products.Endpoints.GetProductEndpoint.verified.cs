@@ -49,6 +49,7 @@ public sealed class GetProductEndpoint : IGetProductEndpoint
         requestBuilder.WithPathParameter("productCode", parameters.ProductCode);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.GetProduct);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -53,6 +53,7 @@ public sealed class ListAccountPagesEndpoint : IListAccountPagesEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Pagination.Generated.ApiRequest.Stamp(requestMessage, global::Pagination.Generated.ApiOperations.ListAccountPages);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

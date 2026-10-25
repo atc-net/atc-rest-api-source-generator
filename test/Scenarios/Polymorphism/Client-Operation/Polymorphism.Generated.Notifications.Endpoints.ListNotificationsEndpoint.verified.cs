@@ -46,6 +46,7 @@ public sealed class ListNotificationsEndpoint : IListNotificationsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/notifications");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Polymorphism.Generated.ApiRequest.Stamp(requestMessage, global::Polymorphism.Generated.ApiOperations.ListNotifications);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

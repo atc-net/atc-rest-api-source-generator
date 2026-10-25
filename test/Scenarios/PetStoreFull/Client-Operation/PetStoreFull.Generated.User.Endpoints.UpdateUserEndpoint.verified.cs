@@ -50,6 +50,7 @@ public sealed class UpdateUserEndpoint : IUpdateUserEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Put);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.UpdateUser, global::PetStoreFull.Generated.ApiOperationSecurities.UpdateUser);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

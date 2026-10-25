@@ -159,9 +159,9 @@ public class HttpClientExtractorResultStyleTests
         Assert.Contains("BuildJsonResponseAsync<Device>", method.Content, StringComparison.Ordinal);
 
         // The GetFromJsonAsync shortcut never materializes an HttpResponseMessage, so Result style
-        // must fall back to GetAsync - otherwise there is nothing to build the envelope from.
+        // must send the (stamped) request - otherwise there is nothing to build the envelope from.
         Assert.DoesNotContain("GetFromJsonAsync", method.Content, StringComparison.Ordinal);
-        Assert.Contains("httpClient.GetAsync(url, cancellationToken)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("httpClient.SendAsync(requestMessage, cancellationToken)", method.Content, StringComparison.Ordinal);
     }
 
     [Fact]

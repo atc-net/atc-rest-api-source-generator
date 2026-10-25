@@ -12,6 +12,7 @@ public static partial class HttpClientExtractor
         OpenApiOperation operation,
         IList<IOpenApiParameter>? pathLevelParameters,
         OpenApiDocument openApiDoc,
+        string projectName,
         string returnType,
         bool hasParameters,
         bool isAsyncEnumerable,
@@ -55,6 +56,7 @@ public static partial class HttpClientExtractor
             var statements = new[]
                 {
                     BuildHeaderAndCookieStatements(headerParams, cookieParams, requestVariable, openApiDoc, parametersClassName, propertyNames),
+                    ApiRequestExtractor.BuildStampStatement(operation, path, httpMethod, openApiDoc, projectName, requestVariable),
                     ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, requestVariable),
                     streamed ? null : ResilienceRequestHelper.BuildBufferStatement(openApiDoc, requestVariable),
                 }

@@ -48,6 +48,7 @@ public sealed class ListReadingSequenceEndpoint : IListReadingSequenceEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/readings/export-seq");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ListReadingSequence);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -45,7 +45,9 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
     public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         var url = "resources";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.ListResources);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -64,6 +66,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Query, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.QueryResources);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -81,6 +84,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         var url = "resources";
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Head, url);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.ProbeResources);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -91,6 +95,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         var url = "resources";
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Options, url);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.DescribeResources);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -101,6 +106,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         var url = "resources";
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Trace, url);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.TraceResources);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -118,6 +124,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
         var url = "resources";
 
         using var requestMessage = new HttpRequestMessage(new HttpMethod("LINK"), url);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.LinkResource);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

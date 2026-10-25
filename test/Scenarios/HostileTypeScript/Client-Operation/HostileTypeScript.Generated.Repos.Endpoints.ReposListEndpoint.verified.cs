@@ -56,6 +56,7 @@ public sealed class ReposListEndpoint : IReposListEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HostileTypeScript.Generated.ApiRequest.Stamp(requestMessage, global::HostileTypeScript.Generated.ApiOperations.ReposList);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

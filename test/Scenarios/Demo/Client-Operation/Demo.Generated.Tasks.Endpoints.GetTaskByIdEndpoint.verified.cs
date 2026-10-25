@@ -49,6 +49,7 @@ public sealed class GetTaskByIdEndpoint : IGetTaskByIdEndpoint
         requestBuilder.WithPathParameter("taskId", parameters.TaskId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.GetTaskById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

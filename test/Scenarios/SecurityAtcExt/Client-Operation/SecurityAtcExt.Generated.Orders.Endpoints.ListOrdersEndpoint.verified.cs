@@ -46,6 +46,7 @@ public sealed class ListOrdersEndpoint : IListOrdersEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/orders");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityAtcExt.Generated.ApiRequest.Stamp(requestMessage, global::SecurityAtcExt.Generated.ApiOperations.ListOrders, global::SecurityAtcExt.Generated.ApiOperationSecurities.ListOrders);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

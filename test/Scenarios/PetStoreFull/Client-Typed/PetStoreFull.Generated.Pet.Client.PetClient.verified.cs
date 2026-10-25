@@ -54,6 +54,7 @@ public sealed class PetClient : IPetClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.UpdatePet, global::PetStoreFull.Generated.ApiOperationSecurities.UpdatePet);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -78,6 +79,7 @@ public sealed class PetClient : IPetClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.AddPet, global::PetStoreFull.Generated.ApiOperationSecurities.AddPet);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -109,6 +111,7 @@ public sealed class PetClient : IPetClient
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.FindPetsByStatus, global::PetStoreFull.Generated.ApiOperationSecurities.FindPetsByStatus);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -143,6 +146,7 @@ public sealed class PetClient : IPetClient
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.FindPetsByTags, global::PetStoreFull.Generated.ApiOperationSecurities.FindPetsByTags);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -166,6 +170,7 @@ public sealed class PetClient : IPetClient
         var url = $"pet/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.PetId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.GetPetById, global::PetStoreFull.Generated.ApiOperationSecurities.GetPetById);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -206,6 +211,7 @@ public sealed class PetClient : IPetClient
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.UpdatePetWithForm, global::PetStoreFull.Generated.ApiOperationSecurities.UpdatePetWithForm);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -232,6 +238,7 @@ public sealed class PetClient : IPetClient
         {
             requestMessage.Headers.Add("api_key", headerApiKey);
         }
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.DeletePet, global::PetStoreFull.Generated.ApiOperationSecurities.DeletePet);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -258,7 +265,10 @@ public sealed class PetClient : IPetClient
         using var content = new StreamContent(parameters.File!.OpenReadStream());
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = content;
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.UploadFile, global::PetStoreFull.Generated.ApiOperationSecurities.UploadFile);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

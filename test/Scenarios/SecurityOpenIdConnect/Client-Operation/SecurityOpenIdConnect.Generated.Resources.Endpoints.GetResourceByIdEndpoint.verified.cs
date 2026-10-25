@@ -49,6 +49,7 @@ public sealed class GetResourceByIdEndpoint : IGetResourceByIdEndpoint
         requestBuilder.WithPathParameter("resourceId", parameters.ResourceId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityOpenIdConnect.Generated.ApiRequest.Stamp(requestMessage, global::SecurityOpenIdConnect.Generated.ApiOperations.GetResourceById, global::SecurityOpenIdConnect.Generated.ApiOperationSecurities.GetResourceById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

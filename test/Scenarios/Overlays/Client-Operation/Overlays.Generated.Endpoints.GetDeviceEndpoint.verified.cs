@@ -49,6 +49,7 @@ public sealed class GetDeviceEndpoint : IGetDeviceEndpoint
         requestBuilder.WithPathParameter("deviceId", ((global::System.IFormattable?)parameters.DeviceId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Overlays.Generated.ApiRequest.Stamp(requestMessage, global::Overlays.Generated.ApiOperations.GetDevice);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

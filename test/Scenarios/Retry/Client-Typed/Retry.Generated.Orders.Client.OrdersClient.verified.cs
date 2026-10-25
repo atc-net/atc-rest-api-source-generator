@@ -47,6 +47,7 @@ public sealed class OrdersClient : IOrdersClient
     {
         var url = "orders";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.ListOrders);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
         ApiResilienceRequest.BufferResponse(requestMessage);
 
@@ -68,6 +69,7 @@ public sealed class OrdersClient : IOrdersClient
         var url = "orders";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.CreateOrder);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.OrdersFast);
         ApiResilienceRequest.BufferResponse(requestMessage);
 
@@ -88,6 +90,7 @@ public sealed class OrdersClient : IOrdersClient
     {
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.GetOrderById);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
         ApiResilienceRequest.BufferResponse(requestMessage);
 
@@ -108,6 +111,7 @@ public sealed class OrdersClient : IOrdersClient
     {
         var url = $"orders/{parameters.OrderId}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.DeleteOrder);
         ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersDelete);
         ApiResilienceRequest.BufferResponse(requestMessage);
 

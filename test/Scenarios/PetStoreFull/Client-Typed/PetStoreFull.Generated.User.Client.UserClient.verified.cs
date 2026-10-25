@@ -52,6 +52,7 @@ public sealed class UserClient : IUserClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.CreateUser, global::PetStoreFull.Generated.ApiOperationSecurities.CreateUser);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -76,6 +77,7 @@ public sealed class UserClient : IUserClient
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.CreateUsersWithListInput, global::PetStoreFull.Generated.ApiOperationSecurities.CreateUsersWithListInput);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -114,7 +116,9 @@ public sealed class UserClient : IUserClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.LoginUser, global::PetStoreFull.Generated.ApiOperationSecurities.LoginUser);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -122,7 +126,9 @@ public sealed class UserClient : IUserClient
     public async Task LogoutUserAsync(CancellationToken cancellationToken = default)
     {
         var url = "user/logout";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.LogoutUser, global::PetStoreFull.Generated.ApiOperationSecurities.LogoutUser);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -133,6 +139,7 @@ public sealed class UserClient : IUserClient
         var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.GetUserByName, global::PetStoreFull.Generated.ApiOperationSecurities.GetUserByName);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -154,7 +161,10 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
-        using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.UpdateUser, global::PetStoreFull.Generated.ApiOperationSecurities.UpdateUser);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -163,7 +173,9 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = $"user/{Uri.EscapeDataString(parameters.Username)}";
-        using var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.DeleteUser, global::PetStoreFull.Generated.ApiOperationSecurities.DeleteUser);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

@@ -46,6 +46,7 @@ public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/pets");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::PetStoreSimple.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreSimple.Generated.ApiOperations.CreatePets);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -53,6 +53,7 @@ public sealed class SearchItemsEndpoint : ISearchItemsEndpoint
         requestBuilder.WithQueryParameter("createdBefore", ((global::System.IFormattable?)parameters.CreatedBefore)?.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", global::System.Globalization.CultureInfo.InvariantCulture));
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::AsyncEnumerableHooks.Generated.ApiRequest.Stamp(requestMessage, global::AsyncEnumerableHooks.Generated.ApiOperations.SearchItems);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

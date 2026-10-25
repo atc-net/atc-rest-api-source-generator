@@ -46,6 +46,7 @@ public sealed class TraceResourcesEndpoint : ITraceResourcesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/resources");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Trace);
+        global::HttpMethods.Generated.ApiRequest.Stamp(requestMessage, global::HttpMethods.Generated.ApiOperations.TraceResources);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

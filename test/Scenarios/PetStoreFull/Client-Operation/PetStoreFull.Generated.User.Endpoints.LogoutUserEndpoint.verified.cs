@@ -46,6 +46,7 @@ public sealed class LogoutUserEndpoint : ILogoutUserEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/user/logout");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.LogoutUser, global::PetStoreFull.Generated.ApiOperationSecurities.LogoutUser);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

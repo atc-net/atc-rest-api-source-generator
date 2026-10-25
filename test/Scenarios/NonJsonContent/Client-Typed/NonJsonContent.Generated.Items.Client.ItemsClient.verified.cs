@@ -47,7 +47,9 @@ public sealed class ItemsClient : IItemsClient
     public async Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default)
     {
         var url = "items";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.ListItems);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -65,6 +67,7 @@ public sealed class ItemsClient : IItemsClient
         var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}/sheet";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/pdf, application/problem+json");
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.GetItemSheet);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))
@@ -95,7 +98,10 @@ public sealed class ItemsClient : IItemsClient
         using var content = new StreamContent(parameters.File!.OpenReadStream());
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-        using var response = await httpClient.PutAsync(url, content, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
+        requestMessage.Content = content;
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.UpdateItemAttachment);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -125,6 +131,7 @@ public sealed class ItemsClient : IItemsClient
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Patch, url);
         requestMessage.Content = content;
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.UpdateItemPhoto);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
@@ -138,6 +145,7 @@ public sealed class ItemsClient : IItemsClient
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Patch, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request, new System.Net.Http.Headers.MediaTypeHeaderValue("application/merge-patch+json"));
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.PatchItem);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

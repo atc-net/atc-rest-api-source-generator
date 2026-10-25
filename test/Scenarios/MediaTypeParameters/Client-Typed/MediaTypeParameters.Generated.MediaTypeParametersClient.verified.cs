@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -45,7 +45,9 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
     public async Task<List<Pet>> ListPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::MediaTypeParameters.Generated.ApiRequest.Stamp(requestMessage, global::MediaTypeParameters.Generated.ApiOperations.ListPets);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -61,7 +63,10 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::MediaTypeParameters.Generated.ApiRequest.Stamp(requestMessage, global::MediaTypeParameters.Generated.ApiOperations.CreatePet);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -77,7 +82,9 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::MediaTypeParameters.Generated.ApiRequest.Stamp(requestMessage, global::MediaTypeParameters.Generated.ApiOperations.GetPet);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -93,7 +100,9 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}/photo";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::MediaTypeParameters.Generated.ApiRequest.Stamp(requestMessage, global::MediaTypeParameters.Generated.ApiOperations.GetPhoto);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
@@ -103,7 +112,9 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"pets/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.Id)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}/profile";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::MediaTypeParameters.Generated.ApiRequest.Stamp(requestMessage, global::MediaTypeParameters.Generated.ApiOperations.GetPetProfile);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

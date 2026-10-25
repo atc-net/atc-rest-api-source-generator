@@ -57,6 +57,7 @@ public sealed class SearchReadingsEndpoint : ISearchReadingsEndpoint
         requestBuilder.WithUrlEncodedForm(fields);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.SearchReadings);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

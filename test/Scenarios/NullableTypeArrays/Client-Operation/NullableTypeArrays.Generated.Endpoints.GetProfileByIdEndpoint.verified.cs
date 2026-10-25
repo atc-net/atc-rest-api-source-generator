@@ -49,6 +49,7 @@ public sealed class GetProfileByIdEndpoint : IGetProfileByIdEndpoint
         requestBuilder.WithPathParameter("id", parameters.Id);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::NullableTypeArrays.Generated.ApiRequest.Stamp(requestMessage, global::NullableTypeArrays.Generated.ApiOperations.GetProfileById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

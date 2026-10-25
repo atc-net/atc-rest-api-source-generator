@@ -57,6 +57,7 @@ public sealed class OrgsClient : IOrgsClient
         {
             requestMessage.Headers.Add("x-tenant", headerTenant);
         }
+        global::Pagination.Generated.ApiRequest.Stamp(requestMessage, global::Pagination.Generated.ApiOperations.ListOrgDevices);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

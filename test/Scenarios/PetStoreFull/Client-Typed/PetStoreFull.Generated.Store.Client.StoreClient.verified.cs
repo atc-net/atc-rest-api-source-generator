@@ -45,7 +45,9 @@ public sealed class StoreClient : IStoreClient
     public async Task<object> GetInventoryAsync(CancellationToken cancellationToken = default)
     {
         var url = "store/inventory";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.GetInventory, global::PetStoreFull.Generated.ApiOperationSecurities.GetInventory);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -61,7 +63,10 @@ public sealed class StoreClient : IStoreClient
         CancellationToken cancellationToken = default)
     {
         var url = "store/order";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.PlaceOrder, global::PetStoreFull.Generated.ApiOperationSecurities.PlaceOrder);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -79,6 +84,7 @@ public sealed class StoreClient : IStoreClient
         var url = $"store/order/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.GetOrderById, global::PetStoreFull.Generated.ApiOperationSecurities.GetOrderById);
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
@@ -100,7 +106,9 @@ public sealed class StoreClient : IStoreClient
         CancellationToken cancellationToken = default)
     {
         var url = $"store/order/{Uri.EscapeDataString(((global::System.IFormattable?)parameters.OrderId)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}";
-        using var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.DeleteOrder, global::PetStoreFull.Generated.ApiOperationSecurities.DeleteOrder);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -45,7 +45,9 @@ public sealed class OwnersClient : IOwnersClient
     public async Task<List<Owner>> ListOwnersAsync(CancellationToken cancellationToken = default)
     {
         var url = "owners";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::VersioningUrlSegment.Generated.ApiRequest.Stamp(requestMessage, global::VersioningUrlSegment.Generated.ApiOperations.ListOwners);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -61,7 +63,10 @@ public sealed class OwnersClient : IOwnersClient
         CancellationToken cancellationToken = default)
     {
         var url = "owners";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::VersioningUrlSegment.Generated.ApiRequest.Stamp(requestMessage, global::VersioningUrlSegment.Generated.ApiOperations.CreateOwner);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -77,7 +82,9 @@ public sealed class OwnersClient : IOwnersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"owners/{parameters.OwnerId}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::VersioningUrlSegment.Generated.ApiRequest.Stamp(requestMessage, global::VersioningUrlSegment.Generated.ApiOperations.GetOwnerById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

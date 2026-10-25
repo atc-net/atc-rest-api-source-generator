@@ -49,6 +49,7 @@ public sealed class GetPetByIdEndpoint : IGetPetByIdEndpoint
         requestBuilder.WithPathParameter("petId", parameters.PetId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::VersioningQueryString.Generated.ApiRequest.Stamp(requestMessage, global::VersioningQueryString.Generated.ApiOperations.GetPetById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

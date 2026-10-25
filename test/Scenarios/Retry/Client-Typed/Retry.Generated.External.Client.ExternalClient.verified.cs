@@ -49,6 +49,7 @@ public sealed class ExternalClient : IExternalClient
         var url = "external/payment";
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
         requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Retry.Generated.ApiRequest.Stamp(requestMessage, global::Retry.Generated.ApiOperations.ProcessPayment);
         ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.ExternalService);
         ApiResilienceRequest.BufferResponse(requestMessage);
 

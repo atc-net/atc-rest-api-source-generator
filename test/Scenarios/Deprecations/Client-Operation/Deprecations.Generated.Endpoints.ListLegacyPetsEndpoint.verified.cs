@@ -48,6 +48,7 @@ public sealed class ListLegacyPetsEndpoint : IListLegacyPetsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/pets/legacy");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Deprecations.Generated.ApiRequest.Stamp(requestMessage, global::Deprecations.Generated.ApiOperations.ListLegacyPets);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

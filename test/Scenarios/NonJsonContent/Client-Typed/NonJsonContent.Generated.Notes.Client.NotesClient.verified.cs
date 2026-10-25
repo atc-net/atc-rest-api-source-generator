@@ -45,7 +45,10 @@ public sealed class NotesClient : INotesClient
         CancellationToken cancellationToken = default)
     {
         var url = "notes";
-        using var response = await httpClient.PostAsync(url, new StringContent(parameters.Request, global::System.Text.Encoding.UTF8, "text/plain"), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = new StringContent(parameters.Request, global::System.Text.Encoding.UTF8, "text/plain");
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.CreateNote);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

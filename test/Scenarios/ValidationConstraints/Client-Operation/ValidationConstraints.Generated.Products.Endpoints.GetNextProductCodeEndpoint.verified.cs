@@ -46,6 +46,7 @@ public sealed class GetNextProductCodeEndpoint : IGetNextProductCodeEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/products/codes/next");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::ValidationConstraints.Generated.ApiRequest.Stamp(requestMessage, global::ValidationConstraints.Generated.ApiOperations.GetNextProductCode);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

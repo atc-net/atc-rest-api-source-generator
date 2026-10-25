@@ -50,6 +50,7 @@ public sealed class UpdatePetEndpoint : IUpdatePetEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Put);
+        global::VersioningQueryString.Generated.ApiRequest.Stamp(requestMessage, global::VersioningQueryString.Generated.ApiOperations.UpdatePet);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

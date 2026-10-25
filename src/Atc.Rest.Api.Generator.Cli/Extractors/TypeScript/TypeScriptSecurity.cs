@@ -16,28 +16,7 @@ public static class TypeScriptSecurity
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns><see langword="true"/> when the specification declares security.</returns>
     public static bool DeclaresSecurity(OpenApiDocument openApiDoc)
-    {
-        ArgumentNullException.ThrowIfNull(openApiDoc);
-
-        if (openApiDoc.HasSecuritySchemes() || openApiDoc.Security is not null)
-        {
-            return true;
-        }
-
-        foreach (var pathItem in openApiDoc.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
-        {
-            foreach (var operation in pathItem.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
-            {
-                if (operation.Security is not null ||
-                    operation.ExtractUnifiedSecurityConfiguration(pathItem, openApiDoc).Source != SecuritySource.None)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
+        => OperationSecurityHelper.DeclaresSecurity(openApiDoc);
 
     /// <summary>
     /// The <c>security</c> request option of an operation: <c>[]</c> for an anonymous operation (<c>security: []</c>,
@@ -56,50 +35,9 @@ public static class TypeScriptSecurity
         string path,
         OpenApiDocument openApiDoc,
         bool declaresSecurity)
-    {
-        ArgumentNullException.ThrowIfNull(operation);
-        ArgumentNullException.ThrowIfNull(openApiDoc);
-
-        if (!declaresSecurity ||
-            openApiDoc.Paths is null ||
-            !openApiDoc.Paths.TryGetValue(path, out var pathItem))
-        {
-            return null;
-        }
-
-        var unified = operation.ExtractUnifiedSecurityConfiguration(pathItem, openApiDoc);
-        if (unified.AllowAnonymous || !unified.AuthenticationRequired)
-        {
-            return "[]";
-        }
-
-        // The requirements as declared: alternatives (OR) of schemes (AND). The client sends what it has for each scheme.
-        var requirements = operation.Security ?? openApiDoc.Security;
-        if (requirements is null)
-        {
-            // Authentication required by the ATC extensions alone: a bearer token
-            return "[{ type: 'bearer' }]";
-        }
-
-        var schemes = new List<string>();
-        foreach (var requirement in requirements)
-        {
-            foreach (var (reference, _) in requirement)
-            {
-                var name = reference.Reference?.Id ?? reference.Name ?? string.Empty;
-                var scheme = openApiDoc.Components?.SecuritySchemes is { } declared && declared.TryGetValue(name, out var found)
-                    ? found
-                    : null;
-                var literal = SchemeLiteral(name, scheme);
-                if (literal is not null && !schemes.Contains(literal, StringComparer.Ordinal))
-                {
-                    schemes.Add(literal);
-                }
-            }
-        }
-
-        return "[" + string.Join(", ", schemes) + "]";
-    }
+        => OperationSecurityHelper.Resolve(operation, path, openApiDoc, declaresSecurity) is { } schemes
+            ? "[" + string.Join(", ", schemes.Select(SchemeLiteral)) + "]"
+            : null;
 
     /// <summary>
     /// Emits the <c>SecurityScheme</c> type of the ApiClient.
@@ -191,34 +129,10 @@ public static class TypeScriptSecurity
         sb.AppendLine();
     }
 
-    private static string? SchemeLiteral(
-        string name,
-        IOpenApiSecurityScheme? scheme)
-    {
-        if (scheme is null)
-        {
-            return null;
-        }
-
-        switch (scheme.Type)
-        {
-            case Microsoft.OpenApi.SecuritySchemeType.Http when string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase):
-            case Microsoft.OpenApi.SecuritySchemeType.OAuth2:
-            case Microsoft.OpenApi.SecuritySchemeType.OpenIdConnect:
-                return "{ type: 'bearer' }";
-            case Microsoft.OpenApi.SecuritySchemeType.ApiKey when !string.IsNullOrEmpty(scheme.Name):
-                var location = scheme.In switch
-                {
-                    ParameterLocation.Query => "query",
-                    ParameterLocation.Cookie => "cookie",
-                    _ => "header",
-                };
-                return "{ type: 'apiKey', scheme: '" + Js(name) + "', in: '" + location + "', name: '" + Js(scheme.Name) + "' }";
-            default:
-                // http basic (and other http schemes): the client has no credentials for it
-                return null;
-        }
-    }
+    private static string SchemeLiteral(OperationSecurityScheme scheme)
+        => scheme.IsBearer
+            ? "{ type: 'bearer' }"
+            : "{ type: 'apiKey', scheme: '" + Js(scheme.Name) + "', in: '" + scheme.In + "', name: '" + Js(scheme.ParameterName!) + "' }";
 
     private static string Js(string value)
         => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\\'", StringComparison.Ordinal);

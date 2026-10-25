@@ -49,6 +49,7 @@ public sealed class GetDeviceByIdEndpoint : IGetDeviceByIdEndpoint
         requestBuilder.WithPathParameter("deviceId", parameters.DeviceId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityBasicMutualTls.Generated.ApiRequest.Stamp(requestMessage, global::SecurityBasicMutualTls.Generated.ApiOperations.GetDeviceById, global::SecurityBasicMutualTls.Generated.ApiOperationSecurities.GetDeviceById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

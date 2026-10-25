@@ -62,6 +62,7 @@ public sealed class GetSessionEndpoint : IGetSessionEndpoint
 
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::CookieParameters.Generated.ApiRequest.Stamp(requestMessage, global::CookieParameters.Generated.ApiOperations.GetSession);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

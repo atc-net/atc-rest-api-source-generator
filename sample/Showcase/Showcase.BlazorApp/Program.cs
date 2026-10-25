@@ -18,14 +18,13 @@ const string demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vL
 
 // Register HttpClient factory with named client for the API
 // Resilience is configured via generated AddApiResilience() extension: the specification's document-level policy
-// (x-retry-policy: standard) is the default, and each operation runs its own
+// (x-retry-policy: standard) is the default, and each operation runs its own.
+// AddApiCredentials() is generated too: the token goes only to the operations whose security asks for it, and it is
+// read per request (inside the retries), so a renewed token is used by the next call.
 builder.Services
-    .AddHttpClient("Showcase-ApiClient", client =>
-    {
-        client.BaseAddress = new Uri(apiBaseAddress);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", demoToken);
-    })
-    .AddApiResilience();
+    .AddHttpClient("Showcase-ApiClient", client => client.BaseAddress = new Uri(apiBaseAddress))
+    .AddApiResilience()
+    .AddApiCredentials(credentials => credentials.AccessToken = _ => new ValueTask<string?>(demoToken));
 
 // Register all generated endpoints (includes IHttpMessageFactory registration)
 builder.Services.AddShowcaseEndpoints();

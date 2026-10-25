@@ -3,9 +3,9 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -44,7 +44,9 @@ public sealed class DeepClient : IDeepClient
     public async Task<Level1> GetDeepChainAsync(CancellationToken cancellationToken = default)
     {
         var url = "deep";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::CircularSchemas.Generated.ApiRequest.Stamp(requestMessage, global::CircularSchemas.Generated.ApiOperations.GetDeepChain);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

@@ -49,6 +49,7 @@ public sealed class ShowPetByIdEndpoint : IShowPetByIdEndpoint
         requestBuilder.WithPathParameter("petId", parameters.PetId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::PetStoreSimple.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreSimple.Generated.ApiOperations.ShowPetById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

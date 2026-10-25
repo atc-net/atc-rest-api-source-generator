@@ -49,6 +49,7 @@ public sealed class DeleteAccountByIdEndpoint : IDeleteAccountByIdEndpoint
         requestBuilder.WithPathParameter("accountId", parameters.AccountId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.DeleteAccountById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

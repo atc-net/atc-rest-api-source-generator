@@ -49,6 +49,7 @@ public sealed class CreatePaymentEndpoint : ICreatePaymentEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::Polymorphism.Generated.ApiRequest.Stamp(requestMessage, global::Polymorphism.Generated.ApiOperations.CreatePayment);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

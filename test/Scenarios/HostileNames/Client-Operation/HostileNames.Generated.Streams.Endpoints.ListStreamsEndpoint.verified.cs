@@ -48,6 +48,7 @@ public sealed class ListStreamsEndpoint : IListStreamsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/streams");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::HostileNames.Generated.ApiRequest.Stamp(requestMessage, global::HostileNames.Generated.ApiOperations.ListStreams);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -61,6 +61,7 @@ public sealed class UpdatePetPhotoEndpoint : IUpdatePetPhotoEndpoint
 
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Put);
+        global::Deprecations.Generated.ApiRequest.Stamp(requestMessage, global::Deprecations.Generated.ApiOperations.UpdatePetPhoto);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

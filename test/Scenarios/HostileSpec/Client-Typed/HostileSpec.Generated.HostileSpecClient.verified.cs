@@ -4,10 +4,10 @@
 
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -81,7 +81,9 @@ public sealed class HostileSpecClient : IHostileSpecClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::HostileSpec.Generated.ApiRequest.Stamp(requestMessage, global::HostileSpec.Generated.ApiOperations.ListNotes, global::HostileSpec.Generated.ApiOperationSecurities.ListNotes);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -95,7 +97,9 @@ public sealed class HostileSpecClient : IHostileSpecClient
     public async Task DeleteNotesAsync(CancellationToken cancellationToken = default)
     {
         var url = "notes";
-        using var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
+        global::HostileSpec.Generated.ApiRequest.Stamp(requestMessage, global::HostileSpec.Generated.ApiOperations.DeleteNotes, global::HostileSpec.Generated.ApiOperationSecurities.DeleteNotes);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -104,7 +108,10 @@ public sealed class HostileSpecClient : IHostileSpecClient
         CancellationToken cancellationToken = default)
     {
         var url = "notes";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::HostileSpec.Generated.ApiRequest.Stamp(requestMessage, global::HostileSpec.Generated.ApiOperations.CreateNote, global::HostileSpec.Generated.ApiOperationSecurities.CreateNote);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)

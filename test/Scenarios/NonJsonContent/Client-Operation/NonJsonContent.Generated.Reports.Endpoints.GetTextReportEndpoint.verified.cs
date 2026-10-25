@@ -45,6 +45,7 @@ public sealed class GetTextReportEndpoint : IGetTextReportEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/reports/text");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.GetTextReport);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

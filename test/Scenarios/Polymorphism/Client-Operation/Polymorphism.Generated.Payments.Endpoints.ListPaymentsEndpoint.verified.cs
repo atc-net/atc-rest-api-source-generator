@@ -46,6 +46,7 @@ public sealed class ListPaymentsEndpoint : IListPaymentsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/payments");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Polymorphism.Generated.ApiRequest.Stamp(requestMessage, global::Polymorphism.Generated.ApiOperations.ListPayments);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

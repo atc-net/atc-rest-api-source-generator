@@ -3,10 +3,10 @@
 #pragma warning disable CS1591
 
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -47,7 +47,9 @@ public sealed class DeviceApiClient : IDeviceApiClient
     public async Task<EndpointResponse<List<Device>>> ListDevicesAsync(CancellationToken cancellationToken = default)
     {
         var url = "devices";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::TypedClientResultStyle.Generated.ApiRequest.Stamp(requestMessage, global::TypedClientResultStyle.Generated.ApiOperations.ListDevices);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         return await BuildJsonResponseAsync<List<Device>>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -56,7 +58,10 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = "devices";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::TypedClientResultStyle.Generated.ApiRequest.Stamp(requestMessage, global::TypedClientResultStyle.Generated.ApiOperations.CreateDevice);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -65,7 +70,9 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::TypedClientResultStyle.Generated.ApiRequest.Stamp(requestMessage, global::TypedClientResultStyle.Generated.ApiOperations.GetDeviceById);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -74,7 +81,10 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
-        using var response = await httpClient.PutAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::TypedClientResultStyle.Generated.ApiRequest.Stamp(requestMessage, global::TypedClientResultStyle.Generated.ApiOperations.UpdateDevice);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         return await BuildJsonResponseAsync<Device>(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -83,7 +93,9 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}";
-        using var response = await httpClient.DeleteAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
+        global::TypedClientResultStyle.Generated.ApiRequest.Stamp(requestMessage, global::TypedClientResultStyle.Generated.ApiOperations.DeleteDevice);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         return await BuildEmptyResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -92,7 +104,9 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}/firmware";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::TypedClientResultStyle.Generated.ApiRequest.Stamp(requestMessage, global::TypedClientResultStyle.Generated.ApiOperations.DownloadFirmware);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         return await BuildBinaryResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -101,7 +115,9 @@ public sealed class DeviceApiClient : IDeviceApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"devices/{Uri.EscapeDataString(parameters.DeviceId)}/log";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::TypedClientResultStyle.Generated.ApiRequest.Stamp(requestMessage, global::TypedClientResultStyle.Generated.ApiOperations.GetDeviceLog);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         return await BuildTextResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

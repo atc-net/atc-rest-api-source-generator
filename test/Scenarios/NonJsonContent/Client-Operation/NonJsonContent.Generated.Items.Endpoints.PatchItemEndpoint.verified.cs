@@ -50,6 +50,7 @@ public sealed class PatchItemEndpoint : IPatchItemEndpoint
         requestBuilder.WithBody(parameters.Request, "application/merge-patch+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Patch);
+        global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.PatchItem);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

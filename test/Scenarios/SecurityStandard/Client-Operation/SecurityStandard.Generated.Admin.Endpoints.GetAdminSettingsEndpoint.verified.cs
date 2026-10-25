@@ -46,6 +46,7 @@ public sealed class GetAdminSettingsEndpoint : IGetAdminSettingsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/admin/settings");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::SecurityStandard.Generated.ApiRequest.Stamp(requestMessage, global::SecurityStandard.Generated.ApiOperations.GetAdminSettings, global::SecurityStandard.Generated.ApiOperationSecurities.GetAdminSettings);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

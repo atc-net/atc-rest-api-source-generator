@@ -53,6 +53,7 @@ public sealed class DeletePetEndpoint : IDeletePetEndpoint
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.DeletePet, global::PetStoreFull.Generated.ApiOperationSecurities.DeletePet);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

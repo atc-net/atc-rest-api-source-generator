@@ -68,7 +68,9 @@ public sealed class DeprecationsClient : IDeprecationsClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Deprecations.Generated.ApiRequest.Stamp(requestMessage, global::Deprecations.Generated.ApiOperations.ListPets);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -84,7 +86,10 @@ public sealed class DeprecationsClient : IDeprecationsClient
         CancellationToken cancellationToken = default)
     {
         var url = "pets";
-        using var response = await httpClient.PostAsync(url, jsonSerializerOptions.ToJsonContent(parameters.Request), cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request);
+        global::Deprecations.Generated.ApiRequest.Stamp(requestMessage, global::Deprecations.Generated.ApiOperations.CreatePet);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
@@ -92,7 +97,9 @@ public sealed class DeprecationsClient : IDeprecationsClient
     public async Task<List<LegacyPet>> ListLegacyPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "pets/legacy";
-        using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::Deprecations.Generated.ApiRequest.Stamp(requestMessage, global::Deprecations.Generated.ApiOperations.ListLegacyPets);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (json.Length == 0)
@@ -127,7 +134,10 @@ public sealed class DeprecationsClient : IDeprecationsClient
             content.Add(new StringContent(caption), "caption");
         }
 
-        using var response = await httpClient.PutAsync(url, content, cancellationToken).ConfigureAwait(false);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Put, url);
+        requestMessage.Content = content;
+        global::Deprecations.Generated.ApiRequest.Stamp(requestMessage, global::Deprecations.Generated.ApiOperations.UpdatePetPhoto);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 

@@ -49,6 +49,7 @@ public sealed class UpdateAdminSettingsEndpoint : IUpdateAdminSettingsEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Put);
+        global::SecurityAtcExt.Generated.ApiRequest.Stamp(requestMessage, global::SecurityAtcExt.Generated.ApiOperations.UpdateAdminSettings, global::SecurityAtcExt.Generated.ApiOperationSecurities.UpdateAdminSettings);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

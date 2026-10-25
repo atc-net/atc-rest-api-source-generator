@@ -49,6 +49,7 @@ public sealed class GetPaymentByIdEndpoint : IGetPaymentByIdEndpoint
         requestBuilder.WithPathParameter("paymentId", parameters.PaymentId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Polymorphism.Generated.ApiRequest.Stamp(requestMessage, global::Polymorphism.Generated.ApiOperations.GetPaymentById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

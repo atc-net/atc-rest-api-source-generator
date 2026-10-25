@@ -50,6 +50,7 @@ public sealed class GetFileByIdEndpoint : IGetFileByIdEndpoint
         requestBuilder.WithPathParameter("id", parameters.Id);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Demo.Generated.ApiRequest.Stamp(requestMessage, global::Demo.Generated.ApiOperations.GetFileById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -46,6 +46,7 @@ public sealed class ListOwnersEndpoint : IListOwnersEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/owners");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::VersioningUrlSegment.Generated.ApiRequest.Stamp(requestMessage, global::VersioningUrlSegment.Generated.ApiOperations.ListOwners);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

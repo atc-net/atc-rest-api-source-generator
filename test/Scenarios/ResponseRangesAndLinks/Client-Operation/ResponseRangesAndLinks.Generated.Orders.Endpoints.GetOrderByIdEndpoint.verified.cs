@@ -50,6 +50,7 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
         requestBuilder.WithPathParameter("orderId", parameters.OrderId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::ResponseRangesAndLinks.Generated.ApiRequest.Stamp(requestMessage, global::ResponseRangesAndLinks.Generated.ApiOperations.GetOrderById);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

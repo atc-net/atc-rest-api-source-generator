@@ -46,6 +46,7 @@ public sealed class ListShapesEndpoint : IListShapesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/shapes");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::Polymorphism.Generated.ApiRequest.Stamp(requestMessage, global::Polymorphism.Generated.ApiOperations.ListShapes);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

@@ -49,6 +49,7 @@ public sealed class ImportReadingsAnyFormatEndpoint : IImportReadingsAnyFormatEn
         requestBuilder.WithStreamedBody(parameters.Request, "application/jsonl");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ImportReadingsAnyFormat);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

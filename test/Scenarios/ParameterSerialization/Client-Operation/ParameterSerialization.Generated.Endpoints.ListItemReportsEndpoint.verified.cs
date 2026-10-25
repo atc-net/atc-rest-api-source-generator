@@ -51,6 +51,7 @@ public sealed class ListItemReportsEndpoint : IListItemReportsEndpoint
         requestBuilder.WithHeaderParameter("x-region", parameters.Region);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::ParameterSerialization.Generated.ApiRequest.Stamp(requestMessage, global::ParameterSerialization.Generated.ApiOperations.ListItemReports);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

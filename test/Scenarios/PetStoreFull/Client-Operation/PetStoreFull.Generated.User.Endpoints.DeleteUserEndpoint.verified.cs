@@ -49,6 +49,7 @@ public sealed class DeleteUserEndpoint : IDeleteUserEndpoint
         requestBuilder.WithPathParameter("username", parameters.Username);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
+        global::PetStoreFull.Generated.ApiRequest.Stamp(requestMessage, global::PetStoreFull.Generated.ApiOperations.DeleteUser, global::PetStoreFull.Generated.ApiOperationSecurities.DeleteUser);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

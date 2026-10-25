@@ -49,6 +49,7 @@ public sealed class DeleteResourceEndpoint : IDeleteResourceEndpoint
         requestBuilder.WithPathParameter("resourceId", parameters.ResourceId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Delete);
+        global::SecurityOpenIdConnect.Generated.ApiRequest.Stamp(requestMessage, global::SecurityOpenIdConnect.Generated.ApiOperations.DeleteResource, global::SecurityOpenIdConnect.Generated.ApiOperationSecurities.DeleteResource);
         using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

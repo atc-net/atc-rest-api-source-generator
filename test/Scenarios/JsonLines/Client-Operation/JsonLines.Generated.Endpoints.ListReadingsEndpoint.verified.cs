@@ -48,6 +48,7 @@ public sealed class ListReadingsEndpoint : IListReadingsEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/readings/export");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        global::JsonLines.Generated.ApiRequest.Stamp(requestMessage, global::JsonLines.Generated.ApiOperations.ListReadings);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
