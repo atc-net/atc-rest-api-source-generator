@@ -273,8 +273,9 @@ public static partial class HttpClientExtractor
            operation.GetModelOrFileMediaTypes().Count == 0;
 
     /// <summary>
-    /// Determines if a type name is a pagination base type.
-    /// Supports common naming conventions: PaginationResult, PaginatedResult, PagedResult.
+    /// The typed client class of a segment (or of the whole document): its serializer field, constructors, one method
+    /// per operation, the helper methods and the usings the methods need - or <see langword="null"/> when the segment
+    /// has no operation.
     /// </summary>
     private static ClassParameters? ExtractInternal(
         OpenApiDocument openApiDoc,
@@ -319,6 +320,45 @@ public static partial class HttpClientExtractor
             : NamespaceBuilder.ForClient(projectName, effectiveNamespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, effectiveNamespaceSegment);
 
+        var methods = ExtractMethods(openApiDoc, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, resultStyle, preferXml);
+
+        // Return null if no methods were extracted for this segment
+        if (methods.Count == 0)
+        {
+            return null;
+        }
+
+        var contentForAnalysis = BuildContentForAnalysis(methods);
+        AddHelperMethods(methods, openApiDoc, projectName, resultStyle);
+
+        return new ClassParameters(
+            HeaderContent: BuildHeaderContent(contentForAnalysis, projectName, pathSegment, modelsNamespace, hasSegmentModels, hasSharedModels, resultStyle),
+            Namespace: namespaceValue,
+            DocumentationTags: null,
+            Attributes:
+            [
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            ],
+            DeclarationModifier: DeclarationModifiers.PublicSealedClass,
+            ClassTypeName: className,
+            GenericTypeName: null,
+            InheritedClassTypeName: null,
+            InheritedGenericClassTypeName: null,
+            InheritedInterfaceTypeName: HttpClientInterfaceExtractor.BuildInterfaceName(className),
+            Constructors: BuildConstructors(className),
+            Properties: null,
+            Methods: methods,
+            GenerateToStringMethod: false,
+            AdditionalFieldDeclarations: BuildJsonSerializerOptionsField(openApiDoc, projectName));
+    }
+
+    /// <summary>
+    /// The client's default serializer options, as a static field (from <see cref="DefaultJsonSerializerOptionsInitializers"/>).
+    /// </summary>
+    private static List<string> BuildJsonSerializerOptionsField(
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
         var additionalFieldDeclarations = new List<string>
         {
             "private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions",
@@ -327,6 +367,16 @@ public static partial class HttpClientExtractor
         additionalFieldDeclarations.AddRange(DefaultJsonSerializerOptionsInitializers(openApiDoc, projectName).Select(member => "    " + member));
         additionalFieldDeclarations.Add("};");
 
+        return additionalFieldDeclarations;
+    }
+
+    /// <summary>
+    /// The client's constructors: from an <c>HttpClient</c> (with the default serializer options), and from an
+    /// <c>HttpClient</c> and the caller's <c>JsonSerializerOptions</c>.
+    /// </summary>
+    private static List<ConstructorParameters> BuildConstructors(
+        string className)
+    {
         var constructor1Params = new List<ConstructorParameterBaseParameters>
         {
             new(
@@ -379,9 +429,26 @@ public static partial class HttpClientExtractor
             InheritedClassTypeName: null,
             Parameters: constructor2Params);
 
+        return [constructor1, constructor2];
+    }
+
+    /// <summary>
+    /// One method per operation of the segment (every operation without one), deprecated ones only when asked for.
+    /// </summary>
+    private static List<MethodParameters> ExtractMethods(
+        OpenApiDocument openApiDoc,
+        string? pathSegment,
+        TypeConflictRegistry? registry,
+        SystemTypeConflictResolver systemTypeResolver,
+        bool includeDeprecated,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
+        bool useServersBasePath,
+        TypedClientResultStyleType resultStyle,
+        bool preferXml)
+    {
         var methods = new List<MethodParameters>();
 
-        foreach (var path in openApiDoc.Paths)
+        foreach (var path in openApiDoc.Paths!)
         {
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
@@ -430,13 +497,15 @@ public static partial class HttpClientExtractor
             }
         }
 
-        // Return null if no methods were extracted for this segment
-        if (methods.Count == 0)
-        {
-            return null;
-        }
+        return methods;
+    }
 
-        // Build content preview to analyze for required usings
+    /// <summary>
+    /// The text of the methods' signatures and bodies, which the usings are chosen from.
+    /// </summary>
+    private static string BuildContentForAnalysis(
+        List<MethodParameters> methods)
+    {
         var contentPreview = new StringBuilder();
         foreach (var method in methods)
         {
@@ -462,8 +531,19 @@ public static partial class HttpClientExtractor
         contentPreview.AppendLine("JsonSerializerOptions");
         contentPreview.AppendLine("JsonStringEnumConverter");
 
-        var contentForAnalysis = contentPreview.ToString();
+        return contentPreview.ToString();
+    }
 
+    /// <summary>
+    /// The helper methods the operation methods call: EnsureSuccessAsync, and with the Result style the envelope
+    /// builders (the binary one only with a file download, the streamed-file one only with a streamed download).
+    /// </summary>
+    private static void AddHelperMethods(
+        List<MethodParameters> methods,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        TypedClientResultStyleType resultStyle)
+    {
         // Add the EnsureSuccessAsync helper method that reads error body before throwing
         methods.Add(CreateEnsureSuccessMethod($"global::{NamespaceBuilder.BuildBase(projectName)}.{ApiExceptionExtractor.ClassNameFor(openApiDoc.Components?.Schemas?.Keys)}"));
 
@@ -482,7 +562,21 @@ public static partial class HttpClientExtractor
                 methods.Add(CreateBuildStreamedFileResponseMethod());
             }
         }
+    }
 
+    /// <summary>
+    /// The client file's header: the usings its methods need, the models' namespaces, and the helpers' namespaces
+    /// (streaming, resilience) when a method uses them.
+    /// </summary>
+    private static string BuildHeaderContent(
+        string contentForAnalysis,
+        string projectName,
+        string? pathSegment,
+        string modelsNamespace,
+        bool? hasSegmentModels,
+        bool? hasSharedModels,
+        TypedClientResultStyleType resultStyle)
+    {
         // Build header content with only required usings
         var usings = UsingStatementHelper.GetRequiredUsings(
             contentForAnalysis,
@@ -549,25 +643,7 @@ public static partial class HttpClientExtractor
         UsingStatementHelper.AppendUsings(headerBuilder, usings);
         headerBuilder.AppendLine();
 
-        return new ClassParameters(
-            HeaderContent: headerBuilder.ToString(),
-            Namespace: namespaceValue,
-            DocumentationTags: null,
-            Attributes:
-            [
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            ],
-            DeclarationModifier: DeclarationModifiers.PublicSealedClass,
-            ClassTypeName: className,
-            GenericTypeName: null,
-            InheritedClassTypeName: null,
-            InheritedGenericClassTypeName: null,
-            InheritedInterfaceTypeName: HttpClientInterfaceExtractor.BuildInterfaceName(className),
-            Constructors: [constructor1, constructor2],
-            Properties: null,
-            Methods: methods,
-            GenerateToStringMethod: false,
-            AdditionalFieldDeclarations: additionalFieldDeclarations);
+        return headerBuilder.ToString();
     }
 
     private static MethodParameters? ExtractMethod(
@@ -595,15 +671,64 @@ public static partial class HttpClientExtractor
         var methodName = operationId.ToPascalCaseForDotNet() + "Async";
         var parametersClassName = $"{operationId.ToPascalCaseForDotNet()}Parameters";
 
-        // Determine return type - check both 200 and 201 responses
-        var returnType = nameof(Task);
-        string? streamingItemType = null;
-        XmlReadPlan? xmlRead = null;
-        var hasLocationHeader = false;
-        var isTextResponse = false;
+        var response = SuccessResponseOf(operation);
+        var (returnType, streamingItemType, xmlRead, hasLocationHeader, isTextResponse) = ResolveReturnType(operation, response, openApiDoc, registry, operationId, pathSegment, inlineSchemas, isAsyncEnumerable, resultStyle, preferXml);
 
-        // The success response: 200, else 201, else the operation's other 2xx (202, 203, 206, ... - an operation
-        // declares one, ATC_API_OPR018).
+        // Check if operation has parameters or request body (including path-level parameters)
+        var hasQueryRouteParams = operation.Parameters is { Count: > 0 } || pathLevelParameters is { Count: > 0 };
+        var hasRequestBody = operation.RequestBody is { Content: not null };
+        var hasParameters = hasQueryRouteParams || hasRequestBody;
+
+        // A method that returns IAsyncEnumerable<T> (a stream with an item type): its cancellation token gets
+        // [EnumeratorCancellation]. Under Result style the method returns Task<StreamingEndpointResponse<T>> instead.
+        var returnsAsyncEnumerable = isAsyncEnumerable && streamingItemType is not null && resultStyle != TypedClientResultStyleType.Result;
+        var parameters = BuildMethodParameters(hasParameters, parametersClassName, enumeratorCancellation: returnsAsyncEnumerable);
+
+        // Generate method body content
+        var hasReturnType = returnType != nameof(Task);
+        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle, xmlRead, isTextResponse);
+
+        // For async enumerable methods, return IAsyncEnumerable<T> directly.
+        // Under Result style the operation instead returns Task<StreamingEndpointResponse<T>>, which
+        // resolves the status envelope once the response headers arrive and exposes the lazily
+        // consumed IAsyncEnumerable<T> as its content - matching EndpointPerOperation mode.
+        if (returnsAsyncEnumerable)
+        {
+            return new MethodParameters(
+                DocumentationTags: null,
+                Attributes: ObsoleteAttributeHelper.For(operation.Deprecated),
+                DeclarationModifier: DeclarationModifiers.PublicAsync,
+                ReturnGenericTypeName: "IAsyncEnumerable",
+                ReturnTypeName: streamingItemType,
+                Name: methodName,
+                Parameters: parameters,
+                AlwaysBreakDownParameters: false,
+                UseExpressionBody: false,
+                Content: methodContent);
+        }
+
+        var (returnGenericTypeName, returnTypeName) = TaskReturnTypeOf(returnType, streamingItemType, isAsyncEnumerable, resultStyle, systemTypeResolver);
+
+        return new MethodParameters(
+            DocumentationTags: null,
+            Attributes: ObsoleteAttributeHelper.For(operation.Deprecated),
+            DeclarationModifier: DeclarationModifiers.PublicAsync,
+            ReturnGenericTypeName: returnGenericTypeName,
+            ReturnTypeName: returnTypeName,
+            Name: methodName,
+            Parameters: parameters,
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: false,
+            Content: methodContent);
+    }
+
+    /// <summary>
+    /// The success response of an operation: 200, else 201, else the operation's other 2xx (202, 203, 206, ... - an
+    /// operation declares one, ATC_API_OPR018) - or <see langword="null"/> without one.
+    /// </summary>
+    private static IOpenApiResponse? SuccessResponseOf(
+        OpenApiOperation operation)
+    {
         IOpenApiResponse? response = null;
         if (operation.Responses is not null)
         {
@@ -620,6 +745,31 @@ public static partial class HttpClientExtractor
                 response = operation.Responses[successStatus];
             }
         }
+
+        return response;
+    }
+
+    /// <summary>
+    /// What an operation's method returns and how it reads it: the return type (Task without a body), the item type
+    /// of a stream, the XML read (and request) plan, whether the answer is the Location header, and whether it is text.
+    /// </summary>
+    private static (string ReturnType, string? StreamingItemType, XmlReadPlan? XmlRead, bool HasLocationHeader, bool IsTextResponse) ResolveReturnType(
+        OpenApiOperation operation,
+        IOpenApiResponse? response,
+        OpenApiDocument openApiDoc,
+        TypeConflictRegistry? registry,
+        string operationId,
+        string pathSegment,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
+        bool isAsyncEnumerable,
+        TypedClientResultStyleType resultStyle,
+        bool preferXml)
+    {
+        var returnType = nameof(Task);
+        string? streamingItemType = null;
+        XmlReadPlan? xmlRead = null;
+        var hasLocationHeader = false;
+        var isTextResponse = false;
 
         // Check for JSON content first
         if (response?.Content is not null && response.Content.JsonBody is { } mediaType1)
@@ -732,12 +882,18 @@ public static partial class HttpClientExtractor
             };
         }
 
-        // Check if operation has parameters or request body (including path-level parameters)
-        var hasQueryRouteParams = operation.Parameters is { Count: > 0 } || pathLevelParameters is { Count: > 0 };
-        var hasRequestBody = operation.RequestBody is { Content: not null };
-        var hasParameters = hasQueryRouteParams || hasRequestBody;
+        return (returnType, streamingItemType, xmlRead, hasLocationHeader, isTextResponse);
+    }
 
-        // Build method parameters
+    /// <summary>
+    /// The method's parameters: the operation's parameters object (when it has parameters or a body), and the
+    /// cancellation token - with [EnumeratorCancellation] for a method that returns IAsyncEnumerable.
+    /// </summary>
+    private static List<ParameterBaseParameters> BuildMethodParameters(
+        bool hasParameters,
+        string parametersClassName,
+        bool enumeratorCancellation)
+    {
         var parameters = new List<ParameterBaseParameters>();
 
         // If operation has parameters, use a parameters object
@@ -754,14 +910,7 @@ public static partial class HttpClientExtractor
                 DefaultValue: null));
         }
 
-        // Add [EnumeratorCancellation] attribute only for methods that actually return IAsyncEnumerable<T>
-        // (requires both the x-return-async-enumerable extension AND a streaming item type from an array response).
-        // Under Result style the method returns Task<StreamingEndpointResponse<T>> instead, so the attribute
-        // would be invalid there.
-        var willReturnAsyncEnumerable = isAsyncEnumerable &&
-                                        streamingItemType is not null &&
-                                        resultStyle != TypedClientResultStyleType.Result;
-        var cancellationTokenAttrs = willReturnAsyncEnumerable
+        var cancellationTokenAttrs = enumeratorCancellation
             ? new List<AttributeParameters> { new("EnumeratorCancellation", null) }
             : null;
 
@@ -775,29 +924,20 @@ public static partial class HttpClientExtractor
             Name: "cancellationToken",
             DefaultValue: "default"));
 
-        // Generate method body content
-        var hasReturnType = returnType != nameof(Task);
-        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle, xmlRead, isTextResponse);
+        return parameters;
+    }
 
-        // For async enumerable methods, return IAsyncEnumerable<T> directly.
-        // Under Result style the operation instead returns Task<StreamingEndpointResponse<T>>, which
-        // resolves the status envelope once the response headers arrive and exposes the lazily
-        // consumed IAsyncEnumerable<T> as its content - matching EndpointPerOperation mode.
-        if (isAsyncEnumerable && streamingItemType is not null && resultStyle != TypedClientResultStyleType.Result)
-        {
-            return new MethodParameters(
-                DocumentationTags: null,
-                Attributes: ObsoleteAttributeHelper.For(operation.Deprecated),
-                DeclarationModifier: DeclarationModifiers.PublicAsync,
-                ReturnGenericTypeName: "IAsyncEnumerable",
-                ReturnTypeName: streamingItemType,
-                Name: methodName,
-                Parameters: parameters,
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: false,
-                Content: methodContent);
-        }
-
+    /// <summary>
+    /// The return type of a method that returns a Task: with the Result style a Task of its envelope, else a Task of
+    /// the return type (a plain Task without a body).
+    /// </summary>
+    private static (string? ReturnGenericTypeName, string ReturnTypeName) TaskReturnTypeOf(
+        string returnType,
+        string? streamingItemType,
+        bool isAsyncEnumerable,
+        TypedClientResultStyleType resultStyle,
+        SystemTypeConflictResolver systemTypeResolver)
+    {
         var taskTypeName = systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task));
 
         string? returnGenericTypeName = null;
@@ -824,16 +964,6 @@ public static partial class HttpClientExtractor
             returnTypeName = returnType;
         }
 
-        return new MethodParameters(
-            DocumentationTags: null,
-            Attributes: ObsoleteAttributeHelper.For(operation.Deprecated),
-            DeclarationModifier: DeclarationModifiers.PublicAsync,
-            ReturnGenericTypeName: returnGenericTypeName,
-            ReturnTypeName: returnTypeName,
-            Name: methodName,
-            Parameters: parameters,
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: false,
-            Content: methodContent);
+        return (returnGenericTypeName, returnTypeName);
     }
 }
