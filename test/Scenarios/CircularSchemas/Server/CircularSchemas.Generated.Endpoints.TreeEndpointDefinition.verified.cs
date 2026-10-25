@@ -32,7 +32,7 @@ public sealed class TreeEndpointDefinition : IEndpointDefinition
 
         tree
             .MapGet("/", GetTree)
-            .WithName("GetTree")
+            .WithName(global::CircularSchemas.Generated.ApiOperations.GetTree)
             .WithSummary("Get tree structure")
             .Produces<TreeNode>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

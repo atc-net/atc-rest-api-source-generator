@@ -33,7 +33,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
 
         notifications
             .MapPost("/", SendNotification)
-            .WithName("SendNotification")
+            .WithName(global::Retry.Generated.ApiOperations.SendNotification)
             .WithSummary("Send notification (constant backoff)")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()

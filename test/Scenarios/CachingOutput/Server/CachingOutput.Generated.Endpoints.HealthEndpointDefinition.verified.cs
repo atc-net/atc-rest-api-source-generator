@@ -35,7 +35,7 @@ public sealed class HealthEndpointDefinition : IEndpointDefinition
 
         health
             .MapGet("/", GetHealth)
-            .WithName("GetHealth")
+            .WithName(global::CachingOutput.Generated.ApiOperations.GetHealth)
             .WithSummary("Health check (no caching)")
             .Produces<HealthStatus>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

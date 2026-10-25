@@ -33,7 +33,7 @@ public sealed class ArraysEndpointDefinition : IEndpointDefinition
 
         arrays
             .MapGet("/", GetArrayTypes)
-            .WithName("GetArrayTypes")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetArrayTypes)
             .WithSummary("Get array types model")
             .Produces<ArrayTypes>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

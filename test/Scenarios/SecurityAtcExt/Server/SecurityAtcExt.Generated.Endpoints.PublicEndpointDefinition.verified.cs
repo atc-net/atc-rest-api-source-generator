@@ -32,7 +32,7 @@ public sealed class PublicEndpointDefinition : IEndpointDefinition
 
         @public
             .MapGet("health", GetHealth)
-            .WithName("GetHealth")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.GetHealth)
             .WithSummary("Health check (public)")
             .Produces<HealthStatus>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

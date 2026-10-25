@@ -1048,7 +1048,7 @@ using Microsoft.AspNetCore.Builder;
         builder.AppendLine();
         builder.Append($"    .{EndpointMapHelper.BuildSingleLineMapCall(httpMethod, relativePath, methodName)}");
         builder.AppendLine();
-        builder.Append($"    .WithName(\"{methodName}\")");
+        builder.Append($"    .WithName({OperationNamesExtractor.ConstantReference(projectName, methodName)})");
 
         // Add summary if present
         if (!string.IsNullOrEmpty(operation.Summary))

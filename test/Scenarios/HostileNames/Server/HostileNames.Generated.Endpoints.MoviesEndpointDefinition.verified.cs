@@ -33,7 +33,7 @@ public sealed class MoviesEndpointDefinition : IEndpointDefinition
 
         movies
             .MapGet("movies/{id}", GetMovie)
-            .WithName("GetMovie")
+            .WithName(global::HostileNames.Generated.ApiOperations.GetMovie)
             .WithSummary("Reads one movie under a numeric path segment (as TMDB does), with the same parameter name in three locations.")
             .Produces<movie>()
             .ProducesProblem(StatusCodes.Status404NotFound)

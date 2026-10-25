@@ -33,7 +33,7 @@ public sealed class HealthEndpointDefinition : IEndpointDefinition
 
         health
             .MapGet("/", GetHealth)
-            .WithName("GetHealth")
+            .WithName(global::SecurityBasicMutualTls.Generated.ApiOperations.GetHealth)
             .WithSummary("Health check, open to anyone")
             .Produces<HealthStatus>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

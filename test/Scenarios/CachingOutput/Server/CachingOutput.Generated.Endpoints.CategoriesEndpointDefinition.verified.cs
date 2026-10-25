@@ -37,7 +37,7 @@ public sealed class CategoriesEndpointDefinition : IEndpointDefinition
 
         categories
             .MapGet("/", ListCategories)
-            .WithName("ListCategories")
+            .WithName(global::CachingOutput.Generated.ApiOperations.ListCategories)
             .WithSummary("List categories with vary-by-header")
             .Produces<List<Category>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

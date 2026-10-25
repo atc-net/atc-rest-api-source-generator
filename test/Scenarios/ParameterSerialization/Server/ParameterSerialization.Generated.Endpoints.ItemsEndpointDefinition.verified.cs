@@ -34,7 +34,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("/", ListItems)
-            .WithName("ListItems")
+            .WithName(global::ParameterSerialization.Generated.ApiOperations.ListItems)
             .WithSummary("List items")
             .Produces<List<Item>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("search", ListItemsByQueryString)
-            .WithName("ListItemsByQueryString")
+            .WithName(global::ParameterSerialization.Generated.ApiOperations.ListItemsByQueryString)
             .WithSummary("Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have)")
             .Produces<List<Item>>()
             .ProducesValidationProblem()
@@ -54,7 +54,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("{itemId}/reports", ListItemReports)
-            .WithName("ListItemReports")
+            .WithName(global::ParameterSerialization.Generated.ApiOperations.ListItemReports)
             .WithSummary("The path item's path, header and query parameters, one of them redeclared by the operation")
             .Produces<List<string>>()
             .ProducesValidationProblem()

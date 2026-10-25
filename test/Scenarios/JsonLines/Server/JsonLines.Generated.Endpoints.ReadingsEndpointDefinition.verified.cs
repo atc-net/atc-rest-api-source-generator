@@ -33,7 +33,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapGet("export", ListReadings)
-            .WithName("ListReadings")
+            .WithName(global::JsonLines.Generated.ApiOperations.ListReadings)
             .WithSummary("Export readings as NDJSON")
             .Produces<Reading>(StatusCodes.Status200OK, "application/x-ndjson")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -41,7 +41,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapGet("export-seq", ListReadingSequence)
-            .WithName("ListReadingSequence")
+            .WithName(global::JsonLines.Generated.ApiOperations.ListReadingSequence)
             .WithSummary("Export readings as a JSON text sequence")
             .Produces<Reading>(StatusCodes.Status200OK, "application/json-seq")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -49,7 +49,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapPost("import", ImportReadings)
-            .WithName("ImportReadings")
+            .WithName(global::JsonLines.Generated.ApiOperations.ImportReadings)
             .WithSummary("Import readings sent as JSON Lines")
             .Produces<ImportSummary>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
@@ -60,7 +60,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapPost("import-seq", ImportReadingSequence)
-            .WithName("ImportReadingSequence")
+            .WithName(global::JsonLines.Generated.ApiOperations.ImportReadingSequence)
             .WithSummary("Import between 1 and 1000 readings sent as a JSON text sequence")
             .Produces<ImportSummary>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
@@ -71,7 +71,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapPost("import-either", ImportReadingsAnyFormat)
-            .WithName("ImportReadingsAnyFormat")
+            .WithName(global::JsonLines.Generated.ApiOperations.ImportReadingsAnyFormat)
             .WithSummary("Import readings sent as JSON Lines or as a JSON array")
             .Produces<ImportSummary>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
@@ -82,7 +82,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapPut("import-optional", UpdateReadings)
-            .WithName("UpdateReadings")
+            .WithName(global::JsonLines.Generated.ApiOperations.UpdateReadings)
             .WithSummary("Replace the readings with the ones sent (none clears them)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
@@ -93,7 +93,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapPost("search", SearchReadings)
-            .WithName("SearchReadings")
+            .WithName(global::JsonLines.Generated.ApiOperations.SearchReadings)
             .WithSummary("The readings of one device - a form in, NDJSON out")
             .Produces<Reading>(StatusCodes.Status200OK, "application/x-ndjson")
             .ProducesValidationProblem()
@@ -105,7 +105,7 @@ public sealed class ReadingsEndpointDefinition : IEndpointDefinition
 
         readings
             .MapPost("normalize", NormalizeReadings)
-            .WithName("NormalizeReadings")
+            .WithName(global::JsonLines.Generated.ApiOperations.NormalizeReadings)
             .WithSummary("Normalize readings - a stream in, a stream out")
             .Produces<Reading>(StatusCodes.Status200OK, "application/jsonl")
             .ProducesValidationProblem()

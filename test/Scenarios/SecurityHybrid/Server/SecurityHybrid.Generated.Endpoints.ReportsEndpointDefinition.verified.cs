@@ -35,7 +35,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
 
         reports
             .MapGet("/", ListReports)
-            .WithName("ListReports")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.ListReports)
             .WithSummary("List reports")
             .Produces<List<ListReportsResponseItem>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)

@@ -56,7 +56,7 @@ public static class WebhookEndpointExtensions
                         cancellationToken);
                 })
             .WithSummary("Readings pushed by a device gateway, as JSON Lines")
-            .WithName("onReadingsArrived")
+            .WithName(global::JsonLines.Generated.ApiOperations.Webhooks.OnReadingsArrived)
             .WithRequestBodyProblems()
             .Accepts<Reading>("application/jsonl", "application/x-ndjson", "application/x-jsonlines")
             .Produces(StatusCodes.Status200OK);

@@ -34,7 +34,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapGet("{productCode}", GetProduct)
-            .WithName("GetProduct")
+            .WithName(global::ValidationConstraints.Generated.ApiOperations.GetProduct)
             .Produces<Product>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -44,7 +44,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapGet("/", ListProducts)
-            .WithName("ListProducts")
+            .WithName(global::ValidationConstraints.Generated.ApiOperations.ListProducts)
             .Produces<List<Product>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -53,14 +53,14 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapGet("codes/next", GetNextProductCode)
-            .WithName("GetNextProductCode")
+            .WithName(global::ValidationConstraints.Generated.ApiOperations.GetNextProductCode)
             .Produces<string>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         products
             .MapGet("codes", ListProductCodes)
-            .WithName("ListProductCodes")
+            .WithName(global::ValidationConstraints.Generated.ApiOperations.ListProductCodes)
             .Produces<List<string>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);

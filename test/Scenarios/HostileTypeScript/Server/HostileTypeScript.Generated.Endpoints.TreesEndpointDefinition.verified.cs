@@ -33,7 +33,7 @@ public sealed class TreesEndpointDefinition : IEndpointDefinition
 
         trees
             .MapGet("/", ListTrees)
-            .WithName("ListTrees")
+            .WithName(global::HostileTypeScript.Generated.ApiOperations.ListTrees)
             .WithSummary("Lists trees - a cycle through an array alias.")
             .Produces<List<Node>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

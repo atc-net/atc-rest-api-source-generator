@@ -33,7 +33,7 @@ public sealed class EventsEndpointDefinition : IEndpointDefinition
 
         events
             .MapGet("/", StreamEvents)
-            .WithName("StreamEvents")
+            .WithName(global::StreamingItemSchema.Generated.ApiOperations.StreamEvents)
             .WithSummary("Stream events")
             .Produces<Event>(StatusCodes.Status200OK, "application/jsonl")
             .ProducesProblem(StatusCodes.Status500InternalServerError)

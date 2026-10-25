@@ -85,6 +85,30 @@ var app = builder.Build();
 // Enable CORS
 app.UseCors();
 
+// ============================================
+// AUDIT - operations singled out by name
+// ============================================
+// The generated ApiOperations constants hold each endpoint's name, so renaming an operation in the specification
+// breaks the build here instead of silently ending its audit.
+var audited = new HashSet<string>(StringComparer.Ordinal)
+{
+    Showcase.Generated.ApiOperations.DeleteAccountById,
+    Showcase.Generated.ApiOperations.DeleteTaskById,
+    Showcase.Generated.ApiOperations.DeleteUserById,
+    Showcase.Generated.ApiOperations.DeleteSubscription,
+};
+
+app.Use(async (context, next) =>
+{
+    await next(context);
+
+    if (context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName is { } operation &&
+        audited.Contains(operation))
+    {
+        app.Logger.LogInformation("Audit: {Operation} answered {StatusCode}", operation, context.Response.StatusCode);
+    }
+});
+
 // Map SignalR hub for real-time notifications
 app.MapHub<NotificationHub>(NotificationsHubContract.Url);
 

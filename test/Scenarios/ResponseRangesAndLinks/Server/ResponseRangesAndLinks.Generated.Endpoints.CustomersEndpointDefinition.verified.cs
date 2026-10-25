@@ -34,7 +34,7 @@ public sealed class CustomersEndpointDefinition : IEndpointDefinition
 
         customers
             .MapGet("{customerId}", GetCustomerById)
-            .WithName("GetCustomerById")
+            .WithName(global::ResponseRangesAndLinks.Generated.ApiOperations.GetCustomerById)
             .WithSummary("A customer, answered by any success status")
             .Produces<Customer>()
             .Produces<Problem>(StatusCodes.Status500InternalServerError, contentType: "application/json")

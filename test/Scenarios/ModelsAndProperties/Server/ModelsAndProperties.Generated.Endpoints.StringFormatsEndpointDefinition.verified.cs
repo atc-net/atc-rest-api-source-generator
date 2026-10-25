@@ -33,7 +33,7 @@ public sealed class StringFormatsEndpointDefinition : IEndpointDefinition
 
         stringformats
             .MapGet("/", GetStringFormats)
-            .WithName("GetStringFormats")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetStringFormats)
             .WithSummary("Get string format types")
             .Produces<ModelsAndProperties.Generated.StringFormats.Models.StringFormats>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

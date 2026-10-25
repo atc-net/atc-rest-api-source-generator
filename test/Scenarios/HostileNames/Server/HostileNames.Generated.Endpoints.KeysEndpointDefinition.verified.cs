@@ -33,7 +33,7 @@ public sealed class KeysEndpointDefinition : IEndpointDefinition
 
         keys
             .MapGet("/", ListApiKeys)
-            .WithName("ListApiKeys")
+            .WithName(global::HostileNames.Generated.ApiOperations.ListApiKeys)
             .WithSummary("Lists API keys - an acronym-cased schema name and a dotted one.")
             .Produces<Company_Api_KeyPage>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

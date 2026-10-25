@@ -33,7 +33,7 @@ public sealed class CategoriesEndpointDefinition : IEndpointDefinition
 
         categories
             .MapGet("/", ListCategories)
-            .WithName("ListCategories")
+            .WithName(global::CircularSchemas.Generated.ApiOperations.ListCategories)
             .WithSummary("List categories with mutual references")
             .Produces<List<Category>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

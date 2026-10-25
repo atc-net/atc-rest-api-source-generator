@@ -33,7 +33,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
 
         reports
             .MapPost("generate", GenerateReport)
-            .WithName("GenerateReport")
+            .WithName(global::Retry.Generated.ApiOperations.GenerateReport)
             .WithSummary("Generate report (no retry, long timeout)")
             .Produces<ReportJob>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()

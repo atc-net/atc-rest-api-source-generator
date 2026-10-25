@@ -34,7 +34,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}", GetOrderById)
-            .WithName("GetOrderById")
+            .WithName(global::ResponseRangesAndLinks.Generated.ApiOperations.GetOrderById)
             .WithSummary("An order, with a link to its customer, and a range for any other client error and for a server error")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)

@@ -34,7 +34,7 @@ public sealed class OrgsEndpointDefinition : IEndpointDefinition
 
         orgs
             .MapGet("{orgId}/devices", ListOrgDevices)
-            .WithName("ListOrgDevices")
+            .WithName(global::Pagination.Generated.ApiOperations.ListOrgDevices)
             .WithSummary("Devices of an org, token in a header")
             .Produces<DevicePage>()
             .Produces<Problem>(StatusCodes.Status500InternalServerError, contentType: "application/json")

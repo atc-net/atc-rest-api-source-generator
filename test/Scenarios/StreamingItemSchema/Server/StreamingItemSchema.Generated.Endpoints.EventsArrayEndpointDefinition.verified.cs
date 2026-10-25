@@ -34,7 +34,7 @@ public sealed class EventsArrayEndpointDefinition : IEndpointDefinition
 
         eventsarray
             .MapGet("/", StreamEventsArray)
-            .WithName("StreamEventsArray")
+            .WithName(global::StreamingItemSchema.Generated.ApiOperations.StreamEventsArray)
             .WithSummary("Stream events as the elements of a JSON array")
             .Produces<List<Event>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

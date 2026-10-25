@@ -34,7 +34,7 @@ public sealed class LogsEndpointDefinition : IEndpointDefinition
 
         logs
             .MapGet("/", ListLogs)
-            .WithName("ListLogs")
+            .WithName(global::Pagination.Generated.ApiOperations.ListLogs)
             .WithSummary("Not paginated, the token parameter is required")
             .Produces<LogPage>()
             .ProducesValidationProblem()

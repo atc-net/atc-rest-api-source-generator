@@ -32,7 +32,7 @@ public sealed class SettingsEndpointDefinition : IEndpointDefinition
 
         settings
             .MapGet("/", GetSettings)
-            .WithName("GetSettings")
+            .WithName(global::EnumNamingConflicts.Generated.ApiOperations.GetSettings)
             .WithSummary("Get settings with various enum types")
             .Produces<Settings>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -34,7 +34,7 @@ public sealed class DataEndpointDefinition : IEndpointDefinition
 
         data
             .MapGet("/", GetData)
-            .WithName("GetData")
+            .WithName(global::SecurityStandard.Generated.ApiOperations.GetData)
             .WithSummary("Get data")
             .Produces<GetDataResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)

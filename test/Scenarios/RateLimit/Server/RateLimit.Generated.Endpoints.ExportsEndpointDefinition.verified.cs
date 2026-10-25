@@ -35,7 +35,7 @@ public sealed class ExportsEndpointDefinition : IEndpointDefinition
 
         exports
             .MapPost("/", CreateExport)
-            .WithName("CreateExport")
+            .WithName(global::RateLimit.Generated.ApiOperations.CreateExport)
             .WithSummary("Create export (concurrency limited)")
             .Produces<ExportJob>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()

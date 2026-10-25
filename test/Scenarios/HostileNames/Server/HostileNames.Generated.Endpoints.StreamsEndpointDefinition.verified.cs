@@ -36,7 +36,7 @@ public sealed class StreamsEndpointDefinition : IEndpointDefinition
 
         streams
             .MapGet("/", ListStreams)
-            .WithName("ListStreams")
+            .WithName(global::HostileNames.Generated.ApiOperations.ListStreams)
             .WithSummary("Lists schemas whose names are types the generated code uses, a namespace segment and a keyword.")
             .Produces<List<HostileNames.Generated.Streams.Models.Stream>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -44,7 +44,7 @@ public sealed class StreamsEndpointDefinition : IEndpointDefinition
 
         streams
             .MapPost("/", CreateStream)
-            .WithName("CreateStream")
+            .WithName(global::HostileNames.Generated.ApiOperations.CreateStream)
             .Produces<HostileNames.Generated.Streams.Models.Results>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

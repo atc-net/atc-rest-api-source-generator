@@ -34,7 +34,7 @@ public sealed class PeopleEndpointDefinition : IEndpointDefinition
 
         people
             .MapGet("/", ListPeople)
-            .WithName("ListPeople")
+            .WithName(global::AllOfMultiLevel.Generated.ApiOperations.ListPeople)
             .WithSummary("List people")
             .Produces<List<Person>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class PeopleEndpointDefinition : IEndpointDefinition
 
         people
             .MapPost("/", CreatePerson)
-            .WithName("CreatePerson")
+            .WithName(global::AllOfMultiLevel.Generated.ApiOperations.CreatePerson)
             .WithSummary("Create a person")
             .Produces<Person>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

@@ -33,7 +33,7 @@ public sealed class PrimitivesEndpointDefinition : IEndpointDefinition
 
         primitives
             .MapGet("/", GetPrimitiveTypes)
-            .WithName("GetPrimitiveTypes")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetPrimitiveTypes)
             .WithSummary("Get primitive types model")
             .Produces<PrimitiveTypes>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

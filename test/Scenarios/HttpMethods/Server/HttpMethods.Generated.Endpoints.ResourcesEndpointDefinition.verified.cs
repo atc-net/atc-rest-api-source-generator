@@ -35,7 +35,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapGet("/", ListResources)
-            .WithName("ListResources")
+            .WithName(global::HttpMethods.Generated.ApiOperations.ListResources)
             .WithSummary("List resources")
             .Produces<List<Resource>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -43,7 +43,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapMethods("/", new[] { "QUERY" }, QueryResources)
-            .WithName("QueryResources")
+            .WithName(global::HttpMethods.Generated.ApiOperations.QueryResources)
             .WithSummary("Query resources with a body")
             .Produces<List<Resource>>()
             .ProducesValidationProblem()
@@ -54,7 +54,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapMethods("/", new[] { "HEAD" }, ProbeResources)
-            .WithName("ProbeResources")
+            .WithName(global::HttpMethods.Generated.ApiOperations.ProbeResources)
             .WithSummary("Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body)")
             .Produces(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -62,7 +62,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapMethods("/", new[] { "OPTIONS" }, DescribeResources)
-            .WithName("DescribeResources")
+            .WithName(global::HttpMethods.Generated.ApiOperations.DescribeResources)
             .WithSummary("What the collection allows")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -70,7 +70,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapMethods("/", new[] { "TRACE" }, TraceResources)
-            .WithName("TraceResources")
+            .WithName(global::HttpMethods.Generated.ApiOperations.TraceResources)
             .WithSummary("The request as the server received it")
             .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "message/http")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -78,7 +78,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapMethods("/", new[] { "LINK" }, LinkResource)
-            .WithName("LinkResource")
+            .WithName(global::HttpMethods.Generated.ApiOperations.LinkResource)
             .WithSummary("Link a resource (custom verb)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

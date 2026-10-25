@@ -36,7 +36,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
         files
             .MapGet("{id}", GetFileById)
-            .WithName("GetFileById")
+            .WithName(global::Demo.Generated.ApiOperations.GetFileById)
             .WithSummary("Get File By Id")
             .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -47,7 +47,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
         files
             .MapPost("form-data/singleObject", UploadFormDataFile)
-            .WithName("UploadFormDataFile")
+            .WithName(global::Demo.Generated.ApiOperations.UploadFormDataFile)
             .WithSummary("Upload a file as FormData")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()
@@ -59,7 +59,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
         files
             .MapPost("form-data/singleObjectMultiFile", UploadFormDataFiles)
-            .WithName("UploadFormDataFiles")
+            .WithName(global::Demo.Generated.ApiOperations.UploadFormDataFiles)
             .WithSummary("Upload files as FormData")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()
@@ -71,7 +71,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
         files
             .MapPost("form-data/singleFile", UploadSingleFileAsFormData)
-            .WithName("UploadSingleFileAsFormData")
+            .WithName(global::Demo.Generated.ApiOperations.UploadSingleFileAsFormData)
             .WithSummary("Upload a file as OctetStream")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()
@@ -82,7 +82,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
         files
             .MapPost("form-data/multiFile", UploadMultiFilesAsFormData)
-            .WithName("UploadMultiFilesAsFormData")
+            .WithName(global::Demo.Generated.ApiOperations.UploadMultiFilesAsFormData)
             .WithSummary("Upload multi files as form data")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()

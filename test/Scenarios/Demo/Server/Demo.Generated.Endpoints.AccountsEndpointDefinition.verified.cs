@@ -34,7 +34,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapGet("/", ListAccounts)
-            .WithName("ListAccounts")
+            .WithName(global::Demo.Generated.ApiOperations.ListAccounts)
             .WithSummary("List all accounts")
             .Produces<List<Account>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapPost("/", CreateAccount)
-            .WithName("CreateAccount")
+            .WithName(global::Demo.Generated.ApiOperations.CreateAccount)
             .WithSummary("Create account")
             .Produces<Account>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status409Conflict)
@@ -56,7 +56,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapGet("{accountId}", GetAccountById)
-            .WithName("GetAccountById")
+            .WithName(global::Demo.Generated.ApiOperations.GetAccountById)
             .WithSummary("Get a specific account")
             .Produces<Account>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -67,7 +67,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapDelete("{accountId}", DeleteAccountById)
-            .WithName("DeleteAccountById")
+            .WithName(global::Demo.Generated.ApiOperations.DeleteAccountById)
             .WithSummary("Delete a specific account")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -78,7 +78,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapPut("{accountId}", UpdateAccountById)
-            .WithName("UpdateAccountById")
+            .WithName(global::Demo.Generated.ApiOperations.UpdateAccountById)
             .WithSummary("Update a specific account")
             .Produces<Account>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -91,7 +91,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapGet("paginated", ListPaginatedAccounts)
-            .WithName("ListPaginatedAccounts")
+            .WithName(global::Demo.Generated.ApiOperations.ListPaginatedAccounts)
             .WithSummary("List all accounts paginated")
             .Produces<PaginatedResult<Account>>()
             .ProducesValidationProblem()
@@ -101,7 +101,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapGet("async-enumerable", ListAsyncEnumerableAccounts)
-            .WithName("ListAsyncEnumerableAccounts")
+            .WithName(global::Demo.Generated.ApiOperations.ListAsyncEnumerableAccounts)
             .WithSummary("List all accounts async-enumerable")
             .Produces<List<Account>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

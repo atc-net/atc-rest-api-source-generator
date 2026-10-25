@@ -33,7 +33,7 @@ public sealed class EventsSseEndpointDefinition : IEndpointDefinition
 
         eventssse
             .MapGet("/", StreamEventsSse)
-            .WithName("StreamEventsSse")
+            .WithName(global::StreamingItemSchema.Generated.ApiOperations.StreamEventsSse)
             .WithSummary("Stream events as server-sent events")
             .Produces<Event>(StatusCodes.Status200OK, "text/event-stream")
             .ProducesProblem(StatusCodes.Status500InternalServerError)

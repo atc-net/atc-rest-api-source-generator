@@ -37,7 +37,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapPut("/", UpdatePet)
-            .WithName("UpdatePet")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.UpdatePet)
             .WithSummary("Update an existing pet.")
             .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -55,7 +55,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapPost("/", AddPet)
-            .WithName("AddPet")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.AddPet)
             .WithSummary("Add a new pet to the store.")
             .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -72,7 +72,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapGet("findByStatus", FindPetsByStatus)
-            .WithName("FindPetsByStatus")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.FindPetsByStatus)
             .WithSummary("Finds Pets by status.")
             .Produces<List<PetStoreFull.Generated.Pet.Models.Pet>>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -87,7 +87,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapGet("findByTags", FindPetsByTags)
-            .WithName("FindPetsByTags")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.FindPetsByTags)
             .WithSummary("Finds Pets by tags.")
             .Produces<List<PetStoreFull.Generated.Pet.Models.Pet>>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -102,7 +102,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapGet("{petId}", GetPetById)
-            .WithName("GetPetById")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.GetPetById)
             .WithSummary("Find pet by ID.")
             .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -118,7 +118,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapPost("{petId}", UpdatePetWithForm)
-            .WithName("UpdatePetWithForm")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.UpdatePetWithForm)
             .WithSummary("Updates a pet in the store with form data.")
             .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -133,7 +133,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapDelete("{petId}", DeletePet)
-            .WithName("DeletePet")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.DeletePet)
             .WithSummary("Deletes a pet.")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()
@@ -149,7 +149,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
 
         pet
             .MapPost("{petId}/uploadImage", UploadFile)
-            .WithName("UploadFile")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.UploadFile)
             .WithSummary("Uploads an image.")
             .Produces<ApiResponse>()
             .ProducesValidationProblem()

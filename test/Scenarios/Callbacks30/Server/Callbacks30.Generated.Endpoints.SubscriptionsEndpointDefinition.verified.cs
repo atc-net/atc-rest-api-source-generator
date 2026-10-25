@@ -33,7 +33,7 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
 
         subscriptions
             .MapPost("/", CreateSubscription)
-            .WithName("CreateSubscription")
+            .WithName(global::Callbacks30.Generated.ApiOperations.CreateSubscription)
             .WithSummary("Create a webhook subscription")
             .Produces<Subscription>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
 
         subscriptions
             .MapDelete("{subscriptionId}", DeleteSubscription)
-            .WithName("DeleteSubscription")
+            .WithName(global::Callbacks30.Generated.ApiOperations.DeleteSubscription)
             .WithSummary("Delete a subscription")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)

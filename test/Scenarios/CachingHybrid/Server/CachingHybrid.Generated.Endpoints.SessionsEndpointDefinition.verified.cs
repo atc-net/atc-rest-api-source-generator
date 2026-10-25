@@ -33,7 +33,7 @@ public sealed class SessionsEndpointDefinition : IEndpointDefinition
 
         sessions
             .MapGet("/", ListSessions)
-            .WithName("ListSessions")
+            .WithName(global::CachingHybrid.Generated.ApiOperations.ListSessions)
             .WithSummary("List sessions with distributed cache")
             .Produces<List<Session>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

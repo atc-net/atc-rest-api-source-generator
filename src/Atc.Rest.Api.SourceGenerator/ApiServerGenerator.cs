@@ -798,6 +798,17 @@ public class ApiServerGenerator : IIncrementalGenerator
             generatedContext.AddGeneratedSource(hintName, content);
         }
 
+        // The name of each operation's endpoint, as constants (what .WithName(...) uses)
+        var operationNames = OperationNamesExtractor.Extract(
+            openApiDoc,
+            projectName,
+            config.IncludeDeprecated,
+            includeWebhooks: config.GenerateWebhooks);
+        if (operationNames is not null)
+        {
+            generatedContext.AddGeneratedSource($"{projectName}.ApiOperations.g.cs", operationNames);
+        }
+
         // Generate Output Caching policies and DI extensions (only if output caching is configured)
         if (openApiDoc.HasOutputCaching())
         {

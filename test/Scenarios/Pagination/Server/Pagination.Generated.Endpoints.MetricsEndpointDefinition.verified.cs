@@ -34,7 +34,7 @@ public sealed class MetricsEndpointDefinition : IEndpointDefinition
 
         metrics
             .MapGet("/", ListMetrics)
-            .WithName("ListMetrics")
+            .WithName(global::Pagination.Generated.ApiOperations.ListMetrics)
             .WithSummary("Not paginated, the cursor is an integer")
             .Produces<MetricPage>()
             .ProducesValidationProblem()

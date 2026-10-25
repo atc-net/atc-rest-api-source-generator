@@ -35,7 +35,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("/", ListOrders)
-            .WithName("ListOrders")
+            .WithName(global::RateLimit.Generated.ApiOperations.ListOrders)
             .WithSummary("List orders (orders-standard policy)")
             .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
@@ -45,7 +45,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapPost("/", CreateOrder)
-            .WithName("CreateOrder")
+            .WithName(global::RateLimit.Generated.ApiOperations.CreateOrder)
             .WithSummary("Create order (orders-standard policy)")
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -58,7 +58,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}", GetOrderById)
-            .WithName("GetOrderById")
+            .WithName(global::RateLimit.Generated.ApiOperations.GetOrderById)
             .WithSummary("Get order (inherits orders-standard)")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -71,7 +71,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapDelete("{orderId}", DeleteOrder)
-            .WithName("DeleteOrder")
+            .WithName(global::RateLimit.Generated.ApiOperations.DeleteOrder)
             .WithSummary("Delete order (strict policy override)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)

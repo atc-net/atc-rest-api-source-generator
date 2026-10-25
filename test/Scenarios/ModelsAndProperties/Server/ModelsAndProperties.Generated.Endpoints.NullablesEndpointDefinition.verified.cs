@@ -33,7 +33,7 @@ public sealed class NullablesEndpointDefinition : IEndpointDefinition
 
         nullables
             .MapGet("/", GetNullables)
-            .WithName("GetNullables")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetNullables)
             .WithSummary("Get nullable types model")
             .Produces<NullableTypes>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

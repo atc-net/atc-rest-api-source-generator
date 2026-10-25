@@ -34,7 +34,7 @@ public sealed class EventsEndpointDefinition : IEndpointDefinition
 
         events
             .MapGet("/", ListEvents)
-            .WithName("ListEvents")
+            .WithName(global::Pagination.Generated.ApiOperations.ListEvents)
             .WithSummary("Events, a hyphenated query token")
             .Produces<EventPage>()
             .ProducesValidationProblem()

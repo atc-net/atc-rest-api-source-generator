@@ -33,7 +33,7 @@ public sealed class DictionariesEndpointDefinition : IEndpointDefinition
 
         dictionaries
             .MapGet("/", GetDictionaryTypes)
-            .WithName("GetDictionaryTypes")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetDictionaryTypes)
             .WithSummary("Get dictionary types model")
             .Produces<DictionaryTypes>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

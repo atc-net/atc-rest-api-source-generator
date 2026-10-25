@@ -35,7 +35,7 @@ public sealed class DevicesEndpointDefinition : IEndpointDefinition
 
         devices
             .MapGet("{deviceId}", GetDeviceById)
-            .WithName("GetDeviceById")
+            .WithName(global::SecurityBasicMutualTls.Generated.ApiOperations.GetDeviceById)
             .WithSummary("A device (a client certificate)")
             .Produces<Device>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)

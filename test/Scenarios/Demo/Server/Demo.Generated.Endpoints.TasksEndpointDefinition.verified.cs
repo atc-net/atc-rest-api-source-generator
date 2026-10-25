@@ -34,7 +34,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
 
         tasks
             .MapGet("/", ListTasks)
-            .WithName("ListTasks")
+            .WithName(global::Demo.Generated.ApiOperations.ListTasks)
             .WithSummary("List all tasks")
             .Produces<List<Demo.Generated.Tasks.Models.Task>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
 
         tasks
             .MapPost("/", CreateTask)
-            .WithName("CreateTask")
+            .WithName(global::Demo.Generated.ApiOperations.CreateTask)
             .WithSummary("Create task")
             .Produces<Demo.Generated.Tasks.Models.Task>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status409Conflict)
@@ -56,7 +56,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
 
         tasks
             .MapGet("{taskId}", GetTaskById)
-            .WithName("GetTaskById")
+            .WithName(global::Demo.Generated.ApiOperations.GetTaskById)
             .WithSummary("Get a specific task")
             .Produces<Demo.Generated.Tasks.Models.Task>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -67,7 +67,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
 
         tasks
             .MapDelete("{taskId}", DeleteTaskById)
-            .WithName("DeleteTaskById")
+            .WithName(global::Demo.Generated.ApiOperations.DeleteTaskById)
             .WithSummary("Delete a specific task")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -78,7 +78,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
 
         tasks
             .MapPut("{taskId}", UpdateTaskById)
-            .WithName("UpdateTaskById")
+            .WithName(global::Demo.Generated.ApiOperations.UpdateTaskById)
             .WithSummary("Update a specific task")
             .Produces<Demo.Generated.Tasks.Models.Task>()
             .ProducesProblem(StatusCodes.Status404NotFound)

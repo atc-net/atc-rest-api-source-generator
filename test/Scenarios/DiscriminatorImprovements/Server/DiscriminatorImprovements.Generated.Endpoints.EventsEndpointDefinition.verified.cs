@@ -33,7 +33,7 @@ public sealed class EventsEndpointDefinition : IEndpointDefinition
 
         events
             .MapGet("/", ListEvents)
-            .WithName("ListEvents")
+            .WithName(global::DiscriminatorImprovements.Generated.ApiOperations.ListEvents)
             .WithSummary("List events")
             .Produces<List<Event>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

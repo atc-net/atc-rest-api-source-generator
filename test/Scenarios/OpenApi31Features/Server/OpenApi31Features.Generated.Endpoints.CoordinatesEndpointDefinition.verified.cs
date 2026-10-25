@@ -34,7 +34,7 @@ public sealed class CoordinatesEndpointDefinition : IEndpointDefinition
 
         coordinates
             .MapGet("/", GetCoordinates)
-            .WithName("GetCoordinates")
+            .WithName(global::OpenApi31Features.Generated.ApiOperations.GetCoordinates)
             .WithSummary("Get coordinates")
             .Produces<Coordinate>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class CoordinatesEndpointDefinition : IEndpointDefinition
 
         coordinates
             .MapGet("list", ListCoordinates)
-            .WithName("ListCoordinates")
+            .WithName(global::OpenApi31Features.Generated.ApiOperations.ListCoordinates)
             .WithSummary("List all coordinates")
             .Produces<List<Coordinate>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

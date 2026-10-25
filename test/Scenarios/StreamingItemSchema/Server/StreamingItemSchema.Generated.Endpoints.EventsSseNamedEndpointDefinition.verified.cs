@@ -34,7 +34,7 @@ public sealed class EventsSseNamedEndpointDefinition : IEndpointDefinition
 
         eventsssenamed
             .MapGet("/", StreamEventsSseNamed)
-            .WithName("StreamEventsSseNamed")
+            .WithName(global::StreamingItemSchema.Generated.ApiOperations.StreamEventsSseNamed)
             .WithSummary("Stream events as named server-sent events, with typed errors and headers")
             .Produces<Event>(StatusCodes.Status200OK, "text/event-stream")
             .Produces<StreamError>(StatusCodes.Status404NotFound, contentType: "application/json")

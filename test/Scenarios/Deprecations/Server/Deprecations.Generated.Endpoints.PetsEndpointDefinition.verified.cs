@@ -36,7 +36,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("/", ListPets)
-            .WithName("ListPets")
+            .WithName(global::Deprecations.Generated.ApiOperations.ListPets)
             .Produces<List<Pet>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -45,7 +45,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapPost("/", CreatePet)
-            .WithName("CreatePet")
+            .WithName(global::Deprecations.Generated.ApiOperations.CreatePet)
             .Produces(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -55,14 +55,14 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("legacy", ListLegacyPets)
-            .WithName("ListLegacyPets")
+            .WithName(global::Deprecations.Generated.ApiOperations.ListLegacyPets)
             .Produces<List<LegacyPet>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         pets
             .MapPut("{petId}/photo", UpdatePetPhoto)
-            .WithName("UpdatePetPhoto")
+            .WithName(global::Deprecations.Generated.ApiOperations.UpdatePetPhoto)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)

@@ -34,7 +34,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("/", ListPets)
-            .WithName("ListPets")
+            .WithName(global::SchemaSummaryFields.Generated.ApiOperations.ListPets)
             .WithSummary("List all pets")
             .Produces<List<Pet>>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapPost("/", CreatePet)
-            .WithName("CreatePet")
+            .WithName(global::SchemaSummaryFields.Generated.ApiOperations.CreatePet)
             .WithSummary("Create a pet")
             .Produces<Pet>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -54,7 +54,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("{petId}", GetPetById)
-            .WithName("GetPetById")
+            .WithName(global::SchemaSummaryFields.Generated.ApiOperations.GetPetById)
             .WithSummary("Get a pet by ID")
             .Produces<Pet>()
             .ProducesProblem(StatusCodes.Status404NotFound)

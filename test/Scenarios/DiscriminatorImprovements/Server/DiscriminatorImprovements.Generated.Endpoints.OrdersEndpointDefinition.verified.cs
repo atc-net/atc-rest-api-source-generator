@@ -33,7 +33,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapPost("/", CreateOrder)
-            .WithName("CreateOrder")
+            .WithName(global::DiscriminatorImprovements.Generated.ApiOperations.CreateOrder)
             .WithSummary("Create an order")
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}", GetOrderById)
-            .WithName("GetOrderById")
+            .WithName(global::DiscriminatorImprovements.Generated.ApiOperations.GetOrderById)
             .WithSummary("Get an order")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)

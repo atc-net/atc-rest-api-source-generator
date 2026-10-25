@@ -33,7 +33,7 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
 
         shapes
             .MapGet("/", ListShapes)
-            .WithName("ListShapes")
+            .WithName(global::Polymorphism.Generated.ApiOperations.ListShapes)
             .WithSummary("List all shapes")
             .Produces<List<Shape>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

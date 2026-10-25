@@ -32,7 +32,7 @@ public sealed class DeepEndpointDefinition : IEndpointDefinition
 
         deep
             .MapGet("/", GetDeepChain)
-            .WithName("GetDeepChain")
+            .WithName(global::CircularSchemas.Generated.ApiOperations.GetDeepChain)
             .WithSummary("Get deeply nested structure")
             .Produces<Level1>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

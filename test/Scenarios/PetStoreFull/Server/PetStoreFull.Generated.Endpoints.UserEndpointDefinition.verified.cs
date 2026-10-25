@@ -35,7 +35,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
 
         user
             .MapPost("/", CreateUser)
-            .WithName("CreateUser")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.CreateUser)
             .WithSummary("Create user.")
             .Produces<PetStoreFull.Generated.User.Models.User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -45,7 +45,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
 
         user
             .MapPost("createWithList", CreateUsersWithListInput)
-            .WithName("CreateUsersWithListInput")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.CreateUsersWithListInput)
             .WithSummary("Creates list of users with given input array.")
             .Produces<PetStoreFull.Generated.User.Models.User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -55,7 +55,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
 
         user
             .MapGet("login", LoginUser)
-            .WithName("LoginUser")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.LoginUser)
             .WithSummary("Logs user into the system.")
             .Produces<string>()
             .ProducesValidationProblem()
@@ -64,14 +64,14 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
 
         user
             .MapGet("logout", LogoutUser)
-            .WithName("LogoutUser")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.LogoutUser)
             .WithSummary("Logs out current logged in user session.")
             .Produces(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         user
             .MapGet("{username}", GetUserByName)
-            .WithName("GetUserByName")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.GetUserByName)
             .WithSummary("Get user by user name.")
             .Produces<PetStoreFull.Generated.User.Models.User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -81,7 +81,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
 
         user
             .MapPut("{username}", UpdateUser)
-            .WithName("UpdateUser")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.UpdateUser)
             .WithSummary("Update user resource.")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()
@@ -93,7 +93,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
 
         user
             .MapDelete("{username}", DeleteUser)
-            .WithName("DeleteUser")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.DeleteUser)
             .WithSummary("Delete user resource.")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()

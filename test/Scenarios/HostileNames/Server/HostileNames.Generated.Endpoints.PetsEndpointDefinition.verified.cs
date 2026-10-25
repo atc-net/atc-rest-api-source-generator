@@ -35,7 +35,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("/", ListPets)
-            .WithName("ListPets")
+            .WithName(global::HostileNames.Generated.ApiOperations.ListPets)
             .WithSummary("Lists pets - the schema is named in lowercase.")
             .Produces<List<pet>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapPost("/", CreatePet)
-            .WithName("CreatePet")
+            .WithName(global::HostileNames.Generated.ApiOperations.CreatePet)
             .WithSummary("Creates a pet from a snake_case-named model.")
             .Produces<pet>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

@@ -34,7 +34,7 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
 
         notes
             .MapGet("/", ListNotes)
-            .WithName("ListNotes")
+            .WithName(global::HostileSpec.Generated.ApiOperations.ListNotes)
             .WithSummary("List notes from C:\\temp\\notes \"fast\" */ export const injected = 1; /*")
             .Produces<List<Note>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
 
         notes
             .MapDelete("/", DeleteNotes)
-            .WithName("DeleteNotes")
+            .WithName(global::HostileSpec.Generated.ApiOperations.DeleteNotes)
             .WithSummary("Delete all notes")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -57,7 +57,7 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
 
         notes
             .MapPost("/", CreateNote)
-            .WithName("CreateNote")
+            .WithName(global::HostileSpec.Generated.ApiOperations.CreateNote)
             .WithSummary("Create a note\non two lines")
             .Produces<Note>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

@@ -34,7 +34,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("/", ListPets)
-            .WithName("ListPets")
+            .WithName(global::PetStoreSimple.Generated.ApiOperations.ListPets)
             .WithSummary("List all pets")
             .Produces<List<Pet>>()
             .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")
@@ -43,14 +43,14 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapPost("/", CreatePets)
-            .WithName("CreatePets")
+            .WithName(global::PetStoreSimple.Generated.ApiOperations.CreatePets)
             .WithSummary("Create a pet")
             .Produces(StatusCodes.Status201Created)
             .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json");
 
         pets
             .MapGet("{petId}", ShowPetById)
-            .WithName("ShowPetById")
+            .WithName(global::PetStoreSimple.Generated.ApiOperations.ShowPetById)
             .WithSummary("Info for a specific pet")
             .Produces<Pet>()
             .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")

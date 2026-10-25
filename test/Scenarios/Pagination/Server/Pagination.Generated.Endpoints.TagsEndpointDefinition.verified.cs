@@ -33,7 +33,7 @@ public sealed class TagsEndpointDefinition : IEndpointDefinition
 
         tags
             .MapGet("/", ListTags)
-            .WithName("ListTags")
+            .WithName(global::Pagination.Generated.ApiOperations.ListTags)
             .WithSummary("Tags, primitive items")
             .Produces<PaginatedResult<string>>()
             .ProducesValidationProblem()

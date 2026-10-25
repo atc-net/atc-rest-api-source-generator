@@ -35,7 +35,7 @@ public sealed class WhoamiEndpointDefinition : IEndpointDefinition
 
         whoami
             .MapGet("/", GetCurrentUser)
-            .WithName("GetCurrentUser")
+            .WithName(global::SecurityBearerOnly.Generated.ApiOperations.GetCurrentUser)
             .WithSummary("Get the signed-in user")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)

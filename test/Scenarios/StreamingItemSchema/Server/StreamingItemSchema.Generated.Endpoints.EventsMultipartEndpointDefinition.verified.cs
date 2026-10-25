@@ -33,7 +33,7 @@ public sealed class EventsMultipartEndpointDefinition : IEndpointDefinition
 
         eventsmultipart
             .MapGet("/", StreamEventsMultipart)
-            .WithName("StreamEventsMultipart")
+            .WithName(global::StreamingItemSchema.Generated.ApiOperations.StreamEventsMultipart)
             .WithSummary("Stream events as multipart/mixed")
             .Produces<Event>(StatusCodes.Status200OK, "multipart/mixed")
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -33,7 +33,7 @@ public sealed class EventsSeqEndpointDefinition : IEndpointDefinition
 
         eventsseq
             .MapGet("/", StreamEventsSeq)
-            .WithName("StreamEventsSeq")
+            .WithName(global::StreamingItemSchema.Generated.ApiOperations.StreamEventsSeq)
             .WithSummary("Stream events as a JSON text sequence")
             .Produces<Event>(StatusCodes.Status200OK, "application/json-seq")
             .ProducesProblem(StatusCodes.Status500InternalServerError)

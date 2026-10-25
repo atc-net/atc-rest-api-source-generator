@@ -33,7 +33,7 @@ public sealed class DefaultsEndpointDefinition : IEndpointDefinition
 
         defaults
             .MapGet("/", GetDefaults)
-            .WithName("GetDefaults")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetDefaults)
             .WithSummary("Get default values model")
             .Produces<DefaultValues>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

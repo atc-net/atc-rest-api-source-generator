@@ -33,7 +33,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
 
         tests
             .MapPost("create-model", CreateTestItemWithModel)
-            .WithName("CreateTestItemWithModel")
+            .WithName(global::Demo.Generated.ApiOperations.CreateTestItemWithModel)
             .WithSummary("Create and return the created model")
             .Produces<TestItem>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
 
         tests
             .MapPost("create-location-header", CreateTestItemWithLocationHeader)
-            .WithName("CreateTestItemWithLocationHeader")
+            .WithName(global::Demo.Generated.ApiOperations.CreateTestItemWithLocationHeader)
             .WithSummary("Create and return location header")
             .Produces(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -55,7 +55,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
 
         tests
             .MapPost("create-location-body", CreateTestItemWithLocationInBody)
-            .WithName("CreateTestItemWithLocationInBody")
+            .WithName(global::Demo.Generated.ApiOperations.CreateTestItemWithLocationInBody)
             .WithSummary("Create and return location in body")
             .Produces<Uri>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -66,7 +66,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
 
         tests
             .MapPost("create-empty", CreateTestItemEmpty)
-            .WithName("CreateTestItemEmpty")
+            .WithName(global::Demo.Generated.ApiOperations.CreateTestItemEmpty)
             .WithSummary("Create with empty response")
             .Produces(StatusCodes.Status201Created)
             .ProducesValidationProblem()

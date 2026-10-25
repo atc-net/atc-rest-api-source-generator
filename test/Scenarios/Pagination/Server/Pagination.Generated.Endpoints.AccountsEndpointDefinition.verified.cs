@@ -33,7 +33,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapGet("/", ListAccounts)
-            .WithName("ListAccounts")
+            .WithName(global::Pagination.Generated.ApiOperations.ListAccounts)
             .WithSummary("Accounts, items through an array alias")
             .Produces<PaginatedResult<Account>>()
             .ProducesValidationProblem()
@@ -43,7 +43,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapPost("/", CreateAccount)
-            .WithName("CreateAccount")
+            .WithName(global::Pagination.Generated.ApiOperations.CreateAccount)
             .WithSummary("Create an account (revalidates the infinite list)")
             .Produces<Account>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

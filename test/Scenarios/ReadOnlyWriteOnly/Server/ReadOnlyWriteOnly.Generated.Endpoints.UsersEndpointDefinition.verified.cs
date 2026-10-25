@@ -33,7 +33,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapPost("/", CreateUser)
-            .WithName("CreateUser")
+            .WithName(global::ReadOnlyWriteOnly.Generated.ApiOperations.CreateUser)
             .WithSummary("Create a new user")
             .Produces<User>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapGet("{userId}", GetUserById)
-            .WithName("GetUserById")
+            .WithName(global::ReadOnlyWriteOnly.Generated.ApiOperations.GetUserById)
             .WithSummary("Get user by ID")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)

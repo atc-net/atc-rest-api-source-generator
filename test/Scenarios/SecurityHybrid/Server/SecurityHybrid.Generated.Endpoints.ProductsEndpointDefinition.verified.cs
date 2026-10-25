@@ -36,7 +36,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapGet("/", ListProducts)
-            .WithName("ListProducts")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.ListProducts)
             .WithSummary("List products")
             .Produces<List<Product>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -48,7 +48,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapGet("{productId}", GetProductById)
-            .WithName("GetProductById")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.GetProductById)
             .WithSummary("Get product by ID")
             .Produces<Product>()
             .ProducesProblem(StatusCodes.Status404NotFound)

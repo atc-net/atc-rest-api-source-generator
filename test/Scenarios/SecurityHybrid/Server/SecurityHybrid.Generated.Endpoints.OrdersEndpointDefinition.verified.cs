@@ -35,7 +35,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("/", ListOrders)
-            .WithName("ListOrders")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.ListOrders)
             .WithSummary("List all orders")
             .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -49,7 +49,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapPost("/", CreateOrder)
-            .WithName("CreateOrder")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.CreateOrder)
             .WithSummary("Create a new order")
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -66,7 +66,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}", GetOrderById)
-            .WithName("GetOrderById")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.GetOrderById)
             .WithSummary("Get order by ID")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -83,7 +83,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapDelete("{orderId}", DeleteOrder)
-            .WithName("DeleteOrder")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.DeleteOrder)
             .WithSummary("Delete an order")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -100,7 +100,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}/tracking", GetOrderTracking)
-            .WithName("GetOrderTracking")
+            .WithName(global::SecurityHybrid.Generated.ApiOperations.GetOrderTracking)
             .WithSummary("Get order tracking")
             .Produces<GetOrderTrackingResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound)

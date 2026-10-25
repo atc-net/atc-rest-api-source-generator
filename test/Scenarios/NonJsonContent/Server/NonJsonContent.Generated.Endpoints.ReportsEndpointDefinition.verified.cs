@@ -31,7 +31,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
 
         reports
             .MapGet("text", GetTextReport)
-            .WithName("GetTextReport")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.GetTextReport)
             .WithSummary("Get a plain text report")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/plain")
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -35,7 +35,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("/", ListItems)
-            .WithName("ListItems")
+            .WithName(global::AsyncEnumerableHooks.Generated.ApiOperations.ListItems)
             .WithSummary("Stream all items (async-enumerable)")
             .Produces<List<Item>>()
             .ProducesValidationProblem()
@@ -45,7 +45,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("pages", ListItemPages)
-            .WithName("ListItemPages")
+            .WithName(global::AsyncEnumerableHooks.Generated.ApiOperations.ListItemPages)
             .WithSummary("Stream paginated items (async-enumerable with PaginationResult)")
             .Produces<ListItemPagesResponse>()
             .ProducesValidationProblem()
@@ -55,7 +55,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("{itemId}/logs", GetItemLogs)
-            .WithName("GetItemLogs")
+            .WithName(global::AsyncEnumerableHooks.Generated.ApiOperations.GetItemLogs)
             .WithSummary("Get logs for an item with filters (path + query, no streaming)")
             .Produces<List<ItemLog>>()
             .ProducesValidationProblem()
@@ -66,7 +66,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("search", SearchItems)
-            .WithName("SearchItems")
+            .WithName(global::AsyncEnumerableHooks.Generated.ApiOperations.SearchItems)
             .WithSummary("Search items by date-time range (date-time query params)")
             .Produces<List<Item>>()
             .ProducesValidationProblem()
@@ -76,7 +76,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("events", StreamItemEvents)
-            .WithName("StreamItemEvents")
+            .WithName(global::AsyncEnumerableHooks.Generated.ApiOperations.StreamItemEvents)
             .WithSummary("Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2)")
             .Produces<Item>(StatusCodes.Status200OK, "text/event-stream")
             .ProducesProblem(StatusCodes.Status500InternalServerError)

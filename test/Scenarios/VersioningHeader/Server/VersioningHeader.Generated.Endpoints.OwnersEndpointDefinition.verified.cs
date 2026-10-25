@@ -34,7 +34,7 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
 
         owners
             .MapGet("/", ListOwners)
-            .WithName("ListOwners")
+            .WithName(global::VersioningHeader.Generated.ApiOperations.ListOwners)
             .WithSummary("List all owners")
             .Produces<List<Owner>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
 
         owners
             .MapPost("/", CreateOwner)
-            .WithName("CreateOwner")
+            .WithName(global::VersioningHeader.Generated.ApiOperations.CreateOwner)
             .WithSummary("Create a new owner")
             .Produces<Owner>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -53,7 +53,7 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
 
         owners
             .MapGet("{ownerId}", GetOwnerById)
-            .WithName("GetOwnerById")
+            .WithName(global::VersioningHeader.Generated.ApiOperations.GetOwnerById)
             .WithSummary("Get an owner by ID")
             .Produces<Owner>()
             .ProducesProblem(StatusCodes.Status404NotFound)

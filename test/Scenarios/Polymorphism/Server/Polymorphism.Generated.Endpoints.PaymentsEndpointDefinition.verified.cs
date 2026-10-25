@@ -34,7 +34,7 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
 
         payments
             .MapGet("/", ListPayments)
-            .WithName("ListPayments")
+            .WithName(global::Polymorphism.Generated.ApiOperations.ListPayments)
             .WithSummary("List all payments")
             .Produces<List<PaymentMethod>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
 
         payments
             .MapPost("/", CreatePayment)
-            .WithName("CreatePayment")
+            .WithName(global::Polymorphism.Generated.ApiOperations.CreatePayment)
             .WithSummary("Create a payment")
             .Produces<PaymentMethod>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -53,7 +53,7 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
 
         payments
             .MapGet("{paymentId}", GetPaymentById)
-            .WithName("GetPaymentById")
+            .WithName(global::Polymorphism.Generated.ApiOperations.GetPaymentById)
             .WithSummary("Get a specific payment")
             .Produces<PaymentMethod>()
             .ProducesProblem(StatusCodes.Status404NotFound)

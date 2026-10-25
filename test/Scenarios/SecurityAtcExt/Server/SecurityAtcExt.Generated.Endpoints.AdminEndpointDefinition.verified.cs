@@ -34,7 +34,7 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
 
         admin
             .MapGet("/", GetAdminSettings)
-            .WithName("GetAdminSettings")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.GetAdminSettings)
             .WithSummary("Get admin settings (Bearer + admin role)")
             .Produces<AdminSettings>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -47,7 +47,7 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
 
         admin
             .MapPut("/", UpdateAdminSettings)
-            .WithName("UpdateAdminSettings")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.UpdateAdminSettings)
             .WithSummary("Update admin settings")
             .Produces<AdminSettings>()
             .ProducesValidationProblem()

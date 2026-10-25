@@ -34,7 +34,7 @@ public sealed class CatsEndpointDefinition : IEndpointDefinition
 
         cats
             .MapGet("/", ListCats)
-            .WithName("ListCats")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.ListCats)
             .WithSummary("List cats")
             .Produces<List<Cat>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

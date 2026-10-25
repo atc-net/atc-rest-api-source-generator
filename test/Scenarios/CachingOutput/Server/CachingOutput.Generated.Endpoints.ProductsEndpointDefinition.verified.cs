@@ -37,7 +37,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapGet("/", ListProducts)
-            .WithName("ListProducts")
+            .WithName(global::CachingOutput.Generated.ApiOperations.ListProducts)
             .WithSummary("List products with output caching")
             .Produces<List<Product>>()
             .ProducesValidationProblem()
@@ -48,7 +48,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapPost("/", CreateProduct)
-            .WithName("CreateProduct")
+            .WithName(global::CachingOutput.Generated.ApiOperations.CreateProduct)
             .WithSummary("Create product (no caching)")
             .Produces<Product>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -59,7 +59,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapGet("{productId}", GetProductById)
-            .WithName("GetProductById")
+            .WithName(global::CachingOutput.Generated.ApiOperations.GetProductById)
             .WithSummary("Get product by ID with output caching")
             .Produces<Product>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -71,7 +71,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
 
         products
             .MapDelete("{productId}", DeleteProduct)
-            .WithName("DeleteProduct")
+            .WithName(global::CachingOutput.Generated.ApiOperations.DeleteProduct)
             .WithSummary("Delete product (no caching)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)

@@ -36,7 +36,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapGet("/", ListUsers)
-            .WithName("ListUsers")
+            .WithName(global::SecurityStandard.Generated.ApiOperations.ListUsers)
             .WithSummary("List all users")
             .Produces<List<User>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -48,7 +48,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapGet("{userId}", GetUserById)
-            .WithName("GetUserById")
+            .WithName(global::SecurityStandard.Generated.ApiOperations.GetUserById)
             .WithSummary("Get user by ID")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)

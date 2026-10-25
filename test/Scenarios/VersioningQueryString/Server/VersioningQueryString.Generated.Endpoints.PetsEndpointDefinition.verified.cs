@@ -34,7 +34,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("/", ListPets)
-            .WithName("ListPets")
+            .WithName(global::VersioningQueryString.Generated.ApiOperations.ListPets)
             .WithSummary("List all pets")
             .Produces<List<Pet>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapPost("/", CreatePet)
-            .WithName("CreatePet")
+            .WithName(global::VersioningQueryString.Generated.ApiOperations.CreatePet)
             .WithSummary("Create a new pet")
             .Produces<Pet>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -55,7 +55,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("{petId}", GetPetById)
-            .WithName("GetPetById")
+            .WithName(global::VersioningQueryString.Generated.ApiOperations.GetPetById)
             .WithSummary("Get a pet by ID")
             .Produces<Pet>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -66,7 +66,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapPut("{petId}", UpdatePet)
-            .WithName("UpdatePet")
+            .WithName(global::VersioningQueryString.Generated.ApiOperations.UpdatePet)
             .WithSummary("Update a pet")
             .Produces<Pet>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -79,7 +79,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapDelete("{petId}", DeletePet)
-            .WithName("DeletePet")
+            .WithName(global::VersioningQueryString.Generated.ApiOperations.DeletePet)
             .WithSummary("Delete a pet")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)

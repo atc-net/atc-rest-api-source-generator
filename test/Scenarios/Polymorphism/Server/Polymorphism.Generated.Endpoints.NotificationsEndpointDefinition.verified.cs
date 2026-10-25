@@ -34,7 +34,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
 
         notifications
             .MapPost("/", SendNotification)
-            .WithName("SendNotification")
+            .WithName(global::Polymorphism.Generated.ApiOperations.SendNotification)
             .WithSummary("Send a notification")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
@@ -45,7 +45,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
 
         notifications
             .MapGet("/", ListNotifications)
-            .WithName("ListNotifications")
+            .WithName(global::Polymorphism.Generated.ApiOperations.ListNotifications)
             .WithSummary("List all notifications")
             .Produces<List<Notification>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

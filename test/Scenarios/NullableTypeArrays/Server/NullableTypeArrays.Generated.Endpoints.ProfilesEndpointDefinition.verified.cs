@@ -34,7 +34,7 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
 
         profiles
             .MapGet("/", ListProfiles)
-            .WithName("ListProfiles")
+            .WithName(global::NullableTypeArrays.Generated.ApiOperations.ListProfiles)
             .WithSummary("List profiles")
             .Produces<List<Profile>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
 
         profiles
             .MapPost("/", CreateProfile)
-            .WithName("CreateProfile")
+            .WithName(global::NullableTypeArrays.Generated.ApiOperations.CreateProfile)
             .WithSummary("Create a profile")
             .Produces<Profile>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -53,7 +53,7 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
 
         profiles
             .MapGet("{id}", GetProfileById)
-            .WithName("GetProfileById")
+            .WithName(global::NullableTypeArrays.Generated.ApiOperations.GetProfileById)
             .WithSummary("Get a profile")
             .Produces<Profile>()
             .ProducesProblem(StatusCodes.Status404NotFound)

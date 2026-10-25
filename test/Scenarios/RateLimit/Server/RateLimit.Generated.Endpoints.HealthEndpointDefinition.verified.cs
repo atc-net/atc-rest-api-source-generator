@@ -34,7 +34,7 @@ public sealed class HealthEndpointDefinition : IEndpointDefinition
 
         health
             .MapGet("/", GetHealth)
-            .WithName("GetHealth")
+            .WithName(global::RateLimit.Generated.ApiOperations.GetHealth)
             .WithSummary("Health check (global rate limit)")
             .Produces<HealthStatus>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)

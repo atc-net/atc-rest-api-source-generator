@@ -34,7 +34,7 @@ public sealed class AddressesEndpointDefinition : IEndpointDefinition
 
         addresses
             .MapGet("/", ListAddresses)
-            .WithName("ListAddresses")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.ListAddresses)
             .WithSummary("List addresses")
             .Produces<List<Address>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class AddressesEndpointDefinition : IEndpointDefinition
 
         addresses
             .MapPost("/", CreateAddress)
-            .WithName("CreateAddress")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.CreateAddress)
             .WithSummary("Create address")
             .Produces<Address>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

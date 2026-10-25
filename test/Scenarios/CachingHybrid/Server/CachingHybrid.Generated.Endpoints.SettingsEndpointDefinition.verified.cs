@@ -32,7 +32,7 @@ public sealed class SettingsEndpointDefinition : IEndpointDefinition
 
         settings
             .MapGet("/", GetSettings)
-            .WithName("GetSettings")
+            .WithName(global::CachingHybrid.Generated.ApiOperations.GetSettings)
             .WithSummary("Get settings with in-memory cache only")
             .Produces<CachingHybrid.Generated.Settings.Models.Settings>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

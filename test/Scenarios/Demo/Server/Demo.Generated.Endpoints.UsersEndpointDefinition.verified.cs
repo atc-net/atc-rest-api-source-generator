@@ -34,7 +34,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapGet("/", ListUsers)
-            .WithName("ListUsers")
+            .WithName(global::Demo.Generated.ApiOperations.ListUsers)
             .WithSummary("List all users")
             .Produces<List<User>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapPost("/", CreateUser)
-            .WithName("CreateUser")
+            .WithName(global::Demo.Generated.ApiOperations.CreateUser)
             .WithSummary("Create user")
             .Produces<User>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -56,7 +56,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapGet("{userId}", GetUserById)
-            .WithName("GetUserById")
+            .WithName(global::Demo.Generated.ApiOperations.GetUserById)
             .WithSummary("Get a specific user")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -67,7 +67,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapPut("{userId}", UpdateUserById)
-            .WithName("UpdateUserById")
+            .WithName(global::Demo.Generated.ApiOperations.UpdateUserById)
             .WithSummary("Update a specific user")
             .Produces<User>()
             .ProducesValidationProblem()
@@ -81,7 +81,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapDelete("{userId}", DeleteUserById)
-            .WithName("DeleteUserById")
+            .WithName(global::Demo.Generated.ApiOperations.DeleteUserById)
             .WithSummary("Delete a specific user")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)

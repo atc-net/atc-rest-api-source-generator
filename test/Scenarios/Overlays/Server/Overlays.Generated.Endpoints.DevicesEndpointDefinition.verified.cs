@@ -34,7 +34,7 @@ public sealed class DevicesEndpointDefinition : IEndpointDefinition
 
         devices
             .MapGet("/", ListDevices)
-            .WithName("ListDevices")
+            .WithName(global::Overlays.Generated.ApiOperations.ListDevices)
             .WithSummary("List devices")
             .Produces<List<Device>>()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
@@ -43,7 +43,7 @@ public sealed class DevicesEndpointDefinition : IEndpointDefinition
 
         devices
             .MapGet("{deviceId}", GetDevice)
-            .WithName("GetDevice")
+            .WithName(global::Overlays.Generated.ApiOperations.GetDevice)
             .WithSummary("Get a device")
             .Produces<Device>()
             .ProducesProblem(StatusCodes.Status404NotFound)

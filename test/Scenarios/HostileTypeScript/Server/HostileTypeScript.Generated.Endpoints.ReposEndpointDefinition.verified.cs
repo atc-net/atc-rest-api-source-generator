@@ -34,7 +34,7 @@ public sealed class ReposEndpointDefinition : IEndpointDefinition
 
         repos
             .MapGet("/", ReposList)
-            .WithName("ReposList")
+            .WithName(global::HostileTypeScript.Generated.ApiOperations.ReposList)
             .WithSummary("Lists repositories - the operationId has a slash (as GitHub's does); the text matches **/*.yaml, which closes a JSDoc comment.")
             .Produces<List<Response>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class ReposEndpointDefinition : IEndpointDefinition
 
         repos
             .MapGet("{package}/{function}", ReposGet)
-            .WithName("ReposGet")
+            .WithName(global::HostileTypeScript.Generated.ApiOperations.ReposGet)
             .WithSummary("Reads one repository - path parameters named like keywords.")
             .Produces<Response>()
             .Produces<ApiError>(StatusCodes.Status404NotFound, contentType: "application/json")

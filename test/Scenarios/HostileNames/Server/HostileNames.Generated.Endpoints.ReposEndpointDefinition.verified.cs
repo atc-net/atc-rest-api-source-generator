@@ -32,7 +32,7 @@ public sealed class ReposEndpointDefinition : IEndpointDefinition
 
         repos
             .MapGet("/", ReposGet)
-            .WithName("ReposGet")
+            .WithName(global::HostileNames.Generated.ApiOperations.ReposGet)
             .WithSummary("An operationId with a slash (as GitHub's has).")
             .Produces<movie>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

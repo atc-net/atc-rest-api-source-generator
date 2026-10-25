@@ -34,7 +34,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("/", ListOrders)
-            .WithName("ListOrders")
+            .WithName(global::OverlaysMultiPart.Generated.ApiOperations.ListOrders)
             .WithSummary("List orders")
             .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}", GetOrder)
-            .WithName("GetOrder")
+            .WithName(global::OverlaysMultiPart.Generated.ApiOperations.GetOrder)
             .WithSummary("Get an order")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)

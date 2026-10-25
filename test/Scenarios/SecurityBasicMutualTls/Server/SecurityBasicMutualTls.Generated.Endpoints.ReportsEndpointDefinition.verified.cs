@@ -35,7 +35,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
 
         reports
             .MapGet("/", ListReports)
-            .WithName("ListReports")
+            .WithName(global::SecurityBasicMutualTls.Generated.ApiOperations.ListReports)
             .WithSummary("The reports (basic authentication, from the document)")
             .Produces<List<Report>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)

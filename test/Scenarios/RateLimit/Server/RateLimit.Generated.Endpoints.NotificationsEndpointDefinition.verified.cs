@@ -35,7 +35,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
 
         notifications
             .MapPost("/", SendNotification)
-            .WithName("SendNotification")
+            .WithName(global::RateLimit.Generated.ApiOperations.SendNotification)
             .WithSummary("Send notification (token bucket with queue)")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()

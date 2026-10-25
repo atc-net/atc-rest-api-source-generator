@@ -34,7 +34,7 @@ public sealed class WebhooksEndpointDefinition : IEndpointDefinition
 
         webhooks
             .MapPost("/", ReceiveWebhook)
-            .WithName("ReceiveWebhook")
+            .WithName(global::RateLimit.Generated.ApiOperations.ReceiveWebhook)
             .WithSummary("Receive webhook (rate limiting disabled)")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()

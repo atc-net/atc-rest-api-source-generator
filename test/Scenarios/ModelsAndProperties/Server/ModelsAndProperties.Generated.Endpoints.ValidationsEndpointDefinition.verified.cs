@@ -33,7 +33,7 @@ public sealed class ValidationsEndpointDefinition : IEndpointDefinition
 
         validations
             .MapGet("/", GetValidations)
-            .WithName("GetValidations")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetValidations)
             .WithSummary("Get validation constraints model")
             .Produces<ValidationConstraints>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

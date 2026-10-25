@@ -35,7 +35,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("/", ListPets)
-            .WithName("ListPets")
+            .WithName(global::MediaTypeParameters.Generated.ApiOperations.ListPets)
             .WithSummary("A JSON response declared with a charset parameter.")
             .Produces<List<Pet>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapPost("/", CreatePet)
-            .WithName("CreatePet")
+            .WithName(global::MediaTypeParameters.Generated.ApiOperations.CreatePet)
             .WithSummary("A JSON request body declared in another case, and a response declared under a wildcard.")
             .Produces<Pet>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -54,7 +54,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("{id}", GetPet)
-            .WithName("GetPet")
+            .WithName(global::MediaTypeParameters.Generated.ApiOperations.GetPet)
             .WithSummary("A response declared under application/* (springdoc's default).")
             .Produces<Pet>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -65,7 +65,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("{id}/photo", GetPhoto)
-            .WithName("GetPhoto")
+            .WithName(global::MediaTypeParameters.Generated.ApiOperations.GetPhoto)
             .WithSummary("A wildcard with a binary schema stays a file.")
             .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "*/*")
             .ProducesValidationProblem()
@@ -76,7 +76,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
 
         pets
             .MapGet("{id}/profile", GetPetProfile)
-            .WithName("GetPetProfile")
+            .WithName(global::MediaTypeParameters.Generated.ApiOperations.GetPetProfile)
             .WithSummary("A response declared only under another JSON media type (HAL).")
             .Produces<Pet>(StatusCodes.Status200OK, "application/hal+json")
             .ProducesValidationProblem()

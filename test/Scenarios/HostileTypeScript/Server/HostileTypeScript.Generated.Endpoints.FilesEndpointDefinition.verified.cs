@@ -34,7 +34,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
         files
             .MapPost("/", CreateFile)
-            .WithName("CreateFile")
+            .WithName(global::HostileTypeScript.Generated.ApiOperations.CreateFile)
             .WithSummary("Creates a file - the model is named like the browser's File.")
             .Produces<ApiResult>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

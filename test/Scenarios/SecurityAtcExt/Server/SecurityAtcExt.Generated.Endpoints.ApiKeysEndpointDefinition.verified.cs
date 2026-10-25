@@ -34,7 +34,7 @@ public sealed class ApiKeysEndpointDefinition : IEndpointDefinition
 
         apikeys
             .MapGet("/", ListApiKeys)
-            .WithName("ListApiKeys")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.ListApiKeys)
             .WithSummary("List API keys (Bearer OR ApiKey scheme)")
             .Produces<List<ApiKey>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)

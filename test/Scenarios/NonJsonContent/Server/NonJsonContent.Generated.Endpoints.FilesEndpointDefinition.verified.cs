@@ -33,7 +33,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
         files
             .MapGet("{fileId}", DownloadFile)
-            .WithName("DownloadFile")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.DownloadFile)
             .WithSummary("Download a binary file (the C# clients hand over the open stream)")
             .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)

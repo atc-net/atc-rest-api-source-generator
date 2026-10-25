@@ -34,7 +34,7 @@ public sealed class MeEndpointDefinition : IEndpointDefinition
 
         me
             .MapGet("/", GetCurrentUser)
-            .WithName("GetCurrentUser")
+            .WithName(global::SecurityOpenIdConnect.Generated.ApiOperations.GetCurrentUser)
             .WithSummary("Get current user profile")
             .Produces<UserProfile>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -48,7 +48,7 @@ public sealed class MeEndpointDefinition : IEndpointDefinition
 
         me
             .MapGet("profile", GetCurrentUserProfile)
-            .WithName("GetCurrentUserProfile")
+            .WithName(global::SecurityOpenIdConnect.Generated.ApiOperations.GetCurrentUserProfile)
             .WithSummary("Get detailed user profile")
             .Produces<UserProfile>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)

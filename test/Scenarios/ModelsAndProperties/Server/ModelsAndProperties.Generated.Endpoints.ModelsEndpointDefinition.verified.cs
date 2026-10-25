@@ -35,7 +35,7 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
 
         models
             .MapGet("/", ListModels)
-            .WithName("ListModels")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.ListModels)
             .WithSummary("List all models")
             .Produces<List<ComprehensiveModel>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -43,7 +43,7 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
 
         models
             .MapPost("/", CreateModel)
-            .WithName("CreateModel")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.CreateModel)
             .WithSummary("Create a new model")
             .Produces<ComprehensiveModel>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -54,7 +54,7 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
 
         models
             .MapGet("{modelId}", GetModelById)
-            .WithName("GetModelById")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetModelById)
             .WithSummary("Get a specific model")
             .Produces<ComprehensiveModel>()
             .ProducesProblem(StatusCodes.Status404NotFound)

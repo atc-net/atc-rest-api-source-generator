@@ -34,7 +34,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("/", ListItems)
-            .WithName("ListItems")
+            .WithName(global::MultipleServers.Generated.ApiOperations.ListItems)
             .WithSummary("List items")
             .Produces<List<Item>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("{itemId}", GetItemById)
-            .WithName("GetItemById")
+            .WithName(global::MultipleServers.Generated.ApiOperations.GetItemById)
             .WithSummary("Get item by ID")
             .Produces<Item>()
             .ProducesProblem(StatusCodes.Status404NotFound)

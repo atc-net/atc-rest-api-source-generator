@@ -33,7 +33,7 @@ public sealed class ExternalEndpointDefinition : IEndpointDefinition
 
         external
             .MapPost("payment", ProcessPayment)
-            .WithName("ProcessPayment")
+            .WithName(global::Retry.Generated.ApiOperations.ProcessPayment)
             .WithSummary("Process payment (circuit breaker enabled)")
             .Produces<PaymentResult>()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)

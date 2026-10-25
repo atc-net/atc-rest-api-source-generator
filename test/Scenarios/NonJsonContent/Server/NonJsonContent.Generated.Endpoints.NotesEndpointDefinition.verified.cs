@@ -32,7 +32,7 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
 
         notes
             .MapPost("/", CreateNote)
-            .WithName("CreateNote")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.CreateNote)
             .WithSummary("Create a note from plain text")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()

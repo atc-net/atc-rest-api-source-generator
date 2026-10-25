@@ -33,7 +33,7 @@ public sealed class ArchiveEndpointDefinition : IEndpointDefinition
 
         archive
             .MapGet("/", ListArchivedAccounts)
-            .WithName("ListArchivedAccounts")
+            .WithName(global::Pagination.Generated.ApiOperations.ListArchivedAccounts)
             .WithSummary("Archived accounts, nullable items array")
             .Produces<PaginatedResult<Account>>()
             .ProducesValidationProblem()

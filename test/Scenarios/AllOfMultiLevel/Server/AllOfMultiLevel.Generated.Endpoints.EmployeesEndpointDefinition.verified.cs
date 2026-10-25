@@ -34,7 +34,7 @@ public sealed class EmployeesEndpointDefinition : IEndpointDefinition
 
         employees
             .MapGet("/", ListEmployees)
-            .WithName("ListEmployees")
+            .WithName(global::AllOfMultiLevel.Generated.ApiOperations.ListEmployees)
             .WithSummary("List employees")
             .Produces<List<Employee>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

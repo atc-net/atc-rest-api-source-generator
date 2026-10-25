@@ -34,7 +34,7 @@ public sealed class TicketsEndpointDefinition : IEndpointDefinition
 
         tickets
             .MapGet("/", ListTickets)
-            .WithName("ListTickets")
+            .WithName(global::HostileSchemas.Generated.ApiOperations.ListTickets)
             .WithSummary("Lists tickets - every hostile schema in one model.")
             .Produces<List<Ticket>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class TicketsEndpointDefinition : IEndpointDefinition
 
         tickets
             .MapPost("/", CreateTicket)
-            .WithName("CreateTicket")
+            .WithName(global::HostileSchemas.Generated.ApiOperations.CreateTicket)
             .Produces<Ticket>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

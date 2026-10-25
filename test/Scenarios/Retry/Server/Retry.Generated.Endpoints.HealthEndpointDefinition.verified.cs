@@ -32,7 +32,7 @@ public sealed class HealthEndpointDefinition : IEndpointDefinition
 
         health
             .MapGet("/", GetHealth)
-            .WithName("GetHealth")
+            .WithName(global::Retry.Generated.ApiOperations.GetHealth)
             .WithSummary("Health check (global retry policy)")
             .Produces<HealthStatus>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

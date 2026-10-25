@@ -51,7 +51,7 @@ public static class WebhookEndpointExtensions
                         cancellationToken);
                 })
             .WithSummary("A new pet was added")
-            .WithName("onNewPet")
+            .WithName(global::OpenApi32Features.Generated.ApiOperations.Webhooks.OnNewPet)
             .WithRequestBodyProblems()
             .Accepts<Pet>("application/json")
             .Produces(StatusCodes.Status200OK)
@@ -71,7 +71,7 @@ public static class WebhookEndpointExtensions
                         cancellationToken);
                 })
             .WithSummary("A pet was updated")
-            .WithName("onPetUpdated")
+            .WithName(global::OpenApi32Features.Generated.ApiOperations.Webhooks.OnPetUpdated)
             .WithRequestBodyProblems()
             .Accepts<Pet>("application/json")
             .Produces(StatusCodes.Status200OK);

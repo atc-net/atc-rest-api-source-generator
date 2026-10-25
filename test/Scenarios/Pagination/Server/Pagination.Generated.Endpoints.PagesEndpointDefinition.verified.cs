@@ -34,7 +34,7 @@ public sealed class PagesEndpointDefinition : IEndpointDefinition
 
         pages
             .MapGet("/", ListAccountPages)
-            .WithName("ListAccountPages")
+            .WithName(global::Pagination.Generated.ApiOperations.ListAccountPages)
             .WithSummary("A named page model over the generic base")
             .Produces<AccountPage>()
             .ProducesValidationProblem()

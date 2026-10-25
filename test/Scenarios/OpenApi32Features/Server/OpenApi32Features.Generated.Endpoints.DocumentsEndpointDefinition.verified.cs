@@ -34,7 +34,7 @@ public sealed class DocumentsEndpointDefinition : IEndpointDefinition
 
         documents
             .MapPost("/", CreateDocument)
-            .WithName("CreateDocument")
+            .WithName(global::OpenApi32Features.Generated.ApiOperations.CreateDocument)
             .WithSummary("Create a document with base64 content")
             .Produces<DocumentResponse>(StatusCodes.Status201Created)
             .Produces<Error>(StatusCodes.Status400BadRequest, contentType: "application/json")

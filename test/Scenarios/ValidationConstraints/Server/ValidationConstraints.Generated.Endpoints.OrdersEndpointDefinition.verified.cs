@@ -33,7 +33,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapPost("/", CreateOrder)
-            .WithName("CreateOrder")
+            .WithName(global::ValidationConstraints.Generated.ApiOperations.CreateOrder)
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -43,7 +43,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapPost("form", CreateOrderFromForm)
-            .WithName("CreateOrderFromForm")
+            .WithName(global::ValidationConstraints.Generated.ApiOperations.CreateOrderFromForm)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -34,7 +34,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("/", ListOrders)
-            .WithName("ListOrders")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.ListOrders)
             .WithSummary("List orders (requires auth)")
             .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -44,7 +44,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapPost("/", CreateOrder)
-            .WithName("CreateOrder")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.CreateOrder)
             .WithSummary("Create order (requires auth)")
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -57,7 +57,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}", GetOrderById)
-            .WithName("GetOrderById")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.GetOrderById)
             .WithSummary("Get order (manager role inherited)")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -71,7 +71,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapDelete("{orderId}", DeleteOrder)
-            .WithName("DeleteOrder")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.DeleteOrder)
             .WithSummary("Delete order (override to admin only)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -85,7 +85,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}/tracking", GetOrderTracking)
-            .WithName("GetOrderTracking")
+            .WithName(global::SecurityAtcExt.Generated.ApiOperations.GetOrderTracking)
             .WithSummary("Get tracking (public override)")
             .Produces<TrackingInfo>()
             .ProducesProblem(StatusCodes.Status404NotFound)

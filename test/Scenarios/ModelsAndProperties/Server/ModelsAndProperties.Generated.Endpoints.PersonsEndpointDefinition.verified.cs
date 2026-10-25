@@ -35,7 +35,7 @@ public sealed class PersonsEndpointDefinition : IEndpointDefinition
 
         persons
             .MapGet("/", ListPersons)
-            .WithName("ListPersons")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.ListPersons)
             .WithSummary("List persons")
             .Produces<List<Person>>()
             .ProducesValidationProblem()

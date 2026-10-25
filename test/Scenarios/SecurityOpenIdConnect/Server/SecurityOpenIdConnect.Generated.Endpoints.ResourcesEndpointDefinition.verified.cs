@@ -36,7 +36,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapGet("/", ListResources)
-            .WithName("ListResources")
+            .WithName(global::SecurityOpenIdConnect.Generated.ApiOperations.ListResources)
             .WithSummary("List user resources")
             .Produces<List<Resource>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -50,7 +50,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapPost("/", CreateResource)
-            .WithName("CreateResource")
+            .WithName(global::SecurityOpenIdConnect.Generated.ApiOperations.CreateResource)
             .WithSummary("Create a new resource")
             .Produces<Resource>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -67,7 +67,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapGet("{resourceId}", GetResourceById)
-            .WithName("GetResourceById")
+            .WithName(global::SecurityOpenIdConnect.Generated.ApiOperations.GetResourceById)
             .WithSummary("Get resource by ID")
             .Produces<Resource>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -84,7 +84,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
 
         resources
             .MapDelete("{resourceId}", DeleteResource)
-            .WithName("DeleteResource")
+            .WithName(global::SecurityOpenIdConnect.Generated.ApiOperations.DeleteResource)
             .WithSummary("Delete a resource")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)

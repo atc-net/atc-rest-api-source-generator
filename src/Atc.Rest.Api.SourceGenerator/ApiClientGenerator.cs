@@ -318,6 +318,12 @@ public class ApiClientGenerator : IIncrementalGenerator
                 LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName)));
         }
 
+        // The name of each operation, as the server names its endpoint
+        if (OperationNamesExtractor.Extract(openApiDoc, projectName, config.IncludeDeprecated, includeWebhooks: false) is { } operationNames)
+        {
+            generatedContext.AddGeneratedSource($"{projectName}.Generated.ApiOperations.g.cs", operationNames);
+        }
+
         // The attributes a pattern (on a value or on the items of an array) and a format: uri are written with
         if (LengthLimitAttributesExtractor.NeededValueAttributes(openApiDoc) is { Count: > 0 } valueAttributes)
         {

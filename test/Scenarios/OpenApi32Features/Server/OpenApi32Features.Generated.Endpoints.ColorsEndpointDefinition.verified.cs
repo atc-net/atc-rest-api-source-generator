@@ -33,7 +33,7 @@ public sealed class ColorsEndpointDefinition : IEndpointDefinition
 
         colors
             .MapGet("/", GetColors)
-            .WithName("GetColors")
+            .WithName(global::OpenApi32Features.Generated.ApiOperations.GetColors)
             .WithSummary("Get RGB colors")
             .Produces<RgbColor>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -34,7 +34,7 @@ public sealed class ProfilesEndpointDefinition : IEndpointDefinition
 
         profiles
             .MapPost("/", CreateProfile)
-            .WithName("CreateProfile")
+            .WithName(global::HostileNames.Generated.ApiOperations.CreateProfile)
             .WithSummary("Creates a profile from a URL-encoded form whose model is snake_case-named.")
             .Produces<user_profile>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

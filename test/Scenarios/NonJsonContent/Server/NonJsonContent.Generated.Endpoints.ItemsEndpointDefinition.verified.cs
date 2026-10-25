@@ -35,7 +35,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("/", ListItems)
-            .WithName("ListItems")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.ListItems)
             .WithSummary("List items as JSON")
             .Produces<List<Item>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -43,7 +43,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("{itemId}/sheet", GetItemSheet)
-            .WithName("GetItemSheet")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.GetItemSheet)
             .WithSummary("Get an item as JSON, or its PDF sheet")
             .Produces<Item>(StatusCodes.Status200OK, "application/json", "application/pdf")
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -54,7 +54,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapPut("{itemId}/attachment", UpdateItemAttachment)
-            .WithName("UpdateItemAttachment")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.UpdateItemAttachment)
             .WithSummary("Replace an item's attachment with a raw file")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
@@ -67,7 +67,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapPatch("{itemId}/photo", UpdateItemPhoto)
-            .WithName("UpdateItemPhoto")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.UpdateItemPhoto)
             .WithSummary("Update an item's photo and its caption")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
@@ -80,7 +80,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapPatch("{itemId}", PatchItem)
-            .WithName("PatchItem")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.PatchItem)
             .WithSummary("Update an item with a JSON merge patch")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()

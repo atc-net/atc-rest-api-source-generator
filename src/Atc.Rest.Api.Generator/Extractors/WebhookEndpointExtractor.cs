@@ -40,7 +40,7 @@ public static class WebhookEndpointExtractor
 
         // Generate method content
         var webhookBasePath = config.WebhookBasePath ?? "/webhooks";
-        var methodContent = GenerateMethodContent(openApiDoc, config.IncludeDeprecated, webhookBasePath, useValidationFilter);
+        var methodContent = GenerateMethodContent(openApiDoc, projectName, config.IncludeDeprecated, webhookBasePath, useValidationFilter);
         if (string.IsNullOrEmpty(methodContent))
         {
             return null;
@@ -146,6 +146,7 @@ public static class WebhookEndpointExtractor
 
     private static string GenerateMethodContent(
         OpenApiDocument openApiDoc,
+        string projectName,
         bool includeDeprecated,
         string webhookBasePath,
         bool useValidationFilter)
@@ -167,7 +168,7 @@ public static class WebhookEndpointExtractor
                 continue;
             }
 
-            GenerateWebhookEndpoint(builder, openApiDoc, webhookName, httpMethod, operation, isFirst, useValidationFilter);
+            GenerateWebhookEndpoint(builder, openApiDoc, projectName, webhookName, httpMethod, operation, isFirst, useValidationFilter);
             isFirst = false;
         }
 
@@ -180,6 +181,7 @@ public static class WebhookEndpointExtractor
     private static void GenerateWebhookEndpoint(
         StringBuilder builder,
         OpenApiDocument openApiDoc,
+        string projectName,
         string webhookName,
         string httpMethod,
         OpenApiOperation operation,
@@ -187,7 +189,7 @@ public static class WebhookEndpointExtractor
         bool useValidationFilter)
     {
         // Get operation ID or generate from webhook name
-        var operationId = operation.OperationId ?? $"On{webhookName.EnsureFirstCharacterToUpper()}";
+        var operationId = OperationNamesExtractor.WebhookEndpointName(operation, webhookName);
         var handlerName = operationId.EnsureFirstCharacterToUpper();
         var handlerInterfaceName = $"I{handlerName}WebhookHandler";
 
@@ -292,7 +294,7 @@ public static class WebhookEndpointExtractor
             builder.AppendLine(4, $".WithSummary({CSharpLiteralHelper.ToStringLiteral(operation.Summary!.Trim())})");
         }
 
-        builder.AppendLine(4, $".WithName(\"{operationId}\")");
+        builder.AppendLine(4, $".WithName({OperationNamesExtractor.WebhookConstantReference(projectName, operationId)})");
 
         // The payload is validated as an operation's body is: its constraints, keyed by its wire names
         if (useValidationFilter && hasParameters)

@@ -34,7 +34,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("/", ListItems)
-            .WithName("ListItems")
+            .WithName(global::ComponentsReuse.Generated.ApiOperations.ListItems)
             .WithSummary("List items")
             .Produces<List<Item>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
 
         items
             .MapGet("{id}", GetItemById)
-            .WithName("GetItemById")
+            .WithName(global::ComponentsReuse.Generated.ApiOperations.GetItemById)
             .WithSummary("Get item by ID")
             .Produces<Item>()
             .ProducesProblem(StatusCodes.Status404NotFound)

@@ -31,7 +31,7 @@ public sealed class ExportsEndpointDefinition : IEndpointDefinition
 
         exports
             .MapGet("csv", ExportCsv)
-            .WithName("ExportCsv")
+            .WithName(global::NonJsonContent.Generated.ApiOperations.ExportCsv)
             .WithSummary("Export data as CSV")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/csv")
             .ProducesProblem(StatusCodes.Status500InternalServerError)

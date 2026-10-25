@@ -34,7 +34,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
 
         accounts
             .MapGet("accounts", ListAccounts)
-            .WithName("ListAccounts")
+            .WithName(global::HostileNames.Generated.ApiOperations.ListAccounts)
             .WithSummary("Lists the accounts under a date-versioned path (as Twilio does).")
             .Produces<List<account_summary>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

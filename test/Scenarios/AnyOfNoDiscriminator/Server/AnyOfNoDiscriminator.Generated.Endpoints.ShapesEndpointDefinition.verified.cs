@@ -34,7 +34,7 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
 
         shapes
             .MapGet("/", ListShapes)
-            .WithName("ListShapes")
+            .WithName(global::AnyOfNoDiscriminator.Generated.ApiOperations.ListShapes)
             .WithSummary("List all shapes")
             .Produces<List<Shape>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
 
         shapes
             .MapPost("/", CreateShape)
-            .WithName("CreateShape")
+            .WithName(global::AnyOfNoDiscriminator.Generated.ApiOperations.CreateShape)
             .WithSummary("Create a shape")
             .Produces<Shape>(StatusCodes.Status201Created)
             .ProducesValidationProblem()

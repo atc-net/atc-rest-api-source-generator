@@ -35,7 +35,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
 
         reports
             .MapGet("/", ListReports)
-            .WithName("ListReports")
+            .WithName(global::RateLimit.Generated.ApiOperations.ListReports)
             .WithSummary("List reports (sliding window)")
             .Produces<List<Report>>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)

@@ -34,7 +34,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
 
         store
             .MapGet("inventory", GetInventory)
-            .WithName("GetInventory")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.GetInventory)
             .WithSummary("Returns pet inventories by status.")
             .Produces<object>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -45,7 +45,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
 
         store
             .MapPost("order", PlaceOrder)
-            .WithName("PlaceOrder")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.PlaceOrder)
             .WithSummary("Place an order for a pet.")
             .Produces<Order>()
             .ProducesValidationProblem()
@@ -56,7 +56,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
 
         store
             .MapGet("order/{orderId}", GetOrderById)
-            .WithName("GetOrderById")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.GetOrderById)
             .WithSummary("Find purchase order by ID.")
             .Produces<Order>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
@@ -66,7 +66,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
 
         store
             .MapDelete("order/{orderId}", DeleteOrder)
-            .WithName("DeleteOrder")
+            .WithName(global::PetStoreFull.Generated.ApiOperations.DeleteOrder)
             .WithSummary("Delete purchase order by identifier.")
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()

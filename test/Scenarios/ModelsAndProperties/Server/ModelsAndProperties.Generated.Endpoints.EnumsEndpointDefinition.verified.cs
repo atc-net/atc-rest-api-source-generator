@@ -33,7 +33,7 @@ public sealed class EnumsEndpointDefinition : IEndpointDefinition
 
         enums
             .MapGet("/", GetEnumTypes)
-            .WithName("GetEnumTypes")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.GetEnumTypes)
             .WithSummary("Get enum types model")
             .Produces<EnumTypes>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -33,7 +33,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
 
         reports
             .MapGet("/", ListReports)
-            .WithName("ListReports")
+            .WithName(global::Pagination.Generated.ApiOperations.ListReports)
             .WithSummary("A page whose items are under content, not results")
             .Produces<PagedResult<Account>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

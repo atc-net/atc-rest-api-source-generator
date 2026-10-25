@@ -32,7 +32,7 @@ public sealed class TrackingEndpointDefinition : IEndpointDefinition
 
         tracking
             .MapPost("{eventId}", TrackEvent)
-            .WithName("TrackEvent")
+            .WithName(global::CookieParameters.Generated.ApiOperations.TrackEvent)
             .WithSummary("Track an event with user context")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()

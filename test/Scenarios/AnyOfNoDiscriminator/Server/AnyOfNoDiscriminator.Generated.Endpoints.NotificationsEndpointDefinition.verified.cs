@@ -33,7 +33,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
 
         notifications
             .MapGet("/", ListNotifications)
-            .WithName("ListNotifications")
+            .WithName(global::AnyOfNoDiscriminator.Generated.ApiOperations.ListNotifications)
             .WithSummary("List notifications of mixed types")
             .Produces<List<Notification>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

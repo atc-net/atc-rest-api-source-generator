@@ -34,7 +34,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapGet("/", ListUsers)
-            .WithName("ListUsers")
+            .WithName(global::CachingHybrid.Generated.ApiOperations.ListUsers)
             .WithSummary("List users with HybridCache")
             .Produces<List<User>>()
             .ProducesValidationProblem()
@@ -44,7 +44,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapPost("/", CreateUser)
-            .WithName("CreateUser")
+            .WithName(global::CachingHybrid.Generated.ApiOperations.CreateUser)
             .WithSummary("Create user (no caching)")
             .Produces<User>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -55,7 +55,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapGet("{userId}", GetUserById)
-            .WithName("GetUserById")
+            .WithName(global::CachingHybrid.Generated.ApiOperations.GetUserById)
             .WithSummary("Get user by ID with HybridCache and sliding expiration")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -66,7 +66,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapPut("{userId}", UpdateUser)
-            .WithName("UpdateUser")
+            .WithName(global::CachingHybrid.Generated.ApiOperations.UpdateUser)
             .WithSummary("Update user (no caching)")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -79,7 +79,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
 
         users
             .MapDelete("{userId}", DeleteUser)
-            .WithName("DeleteUser")
+            .WithName(global::CachingHybrid.Generated.ApiOperations.DeleteUser)
             .WithSummary("Delete user (no caching)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)

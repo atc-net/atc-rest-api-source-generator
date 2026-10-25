@@ -34,7 +34,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("/", ListOrders)
-            .WithName("ListOrders")
+            .WithName(global::Retry.Generated.ApiOperations.ListOrders)
             .WithSummary("List orders (fast retry policy)")
             .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -42,7 +42,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapPost("/", CreateOrder)
-            .WithName("CreateOrder")
+            .WithName(global::Retry.Generated.ApiOperations.CreateOrder)
             .WithSummary("Create order (retry disabled for non-idempotent)")
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -53,7 +53,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapGet("{orderId}", GetOrderById)
-            .WithName("GetOrderById")
+            .WithName(global::Retry.Generated.ApiOperations.GetOrderById)
             .WithSummary("Get order (inherits orders-fast)")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -64,7 +64,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
 
         orders
             .MapDelete("{orderId}", DeleteOrder)
-            .WithName("DeleteOrder")
+            .WithName(global::Retry.Generated.ApiOperations.DeleteOrder)
             .WithSummary("Delete order (idempotent - can retry)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)

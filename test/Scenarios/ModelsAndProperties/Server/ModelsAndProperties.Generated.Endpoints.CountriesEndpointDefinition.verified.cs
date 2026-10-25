@@ -33,7 +33,7 @@ public sealed class CountriesEndpointDefinition : IEndpointDefinition
 
         countries
             .MapGet("/", ListCountries)
-            .WithName("ListCountries")
+            .WithName(global::ModelsAndProperties.Generated.ApiOperations.ListCountries)
             .WithSummary("List countries")
             .Produces<List<Country>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

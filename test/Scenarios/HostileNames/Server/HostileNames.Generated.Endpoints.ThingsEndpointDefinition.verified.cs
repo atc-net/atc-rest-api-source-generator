@@ -32,7 +32,7 @@ public sealed class ThingsEndpointDefinition : IEndpointDefinition
 
         things
             .MapGet("/", Op1stThing)
-            .WithName("Op1stThing")
+            .WithName(global::HostileNames.Generated.ApiOperations.Op1stThing)
             .WithSummary("An operationId that starts with a digit.")
             .Produces<movie>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
