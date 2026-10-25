@@ -184,7 +184,7 @@ public static class WebhookParameterExtractor
         }
         else
         {
-            sb.AppendLine(4, $"public {propertyType}? Payload {{ get; init; }}");
+            sb.AppendLine(4, $"public {propertyType} Payload {{ get; init; }}");
         }
 
         sb.Append('}');
