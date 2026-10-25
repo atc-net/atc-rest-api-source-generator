@@ -112,13 +112,9 @@ public class ScenarioTests
         var mismatches = new List<string>();
         foreach (var type in types)
         {
-            try
+            if (await MismatchOfAsync(type, baseDir, isTypeScript) is { } mismatch)
             {
-                await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                mismatches.Add($"{Path.Combine(type.SubFolder ?? string.Empty, SafeFileName(type.TypeName))}: {ex.Message.Split('\n')[0]}");
+                mismatches.Add(mismatch);
             }
         }
 
@@ -169,6 +165,50 @@ public class ScenarioTests
             .Replace(">", "]", StringComparison.Ordinal)
             .Replace(" : ", "-", StringComparison.Ordinal)
             .Replace(":", "-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Verifies one generated file and returns why it does not match its snapshot, or <see langword="null"/>. A
+    /// snapshot file another process holds for a moment (an indexer, a virus scanner) is read once more; what is
+    /// reported names the exception, so a file that could not be read is not taken for a content difference.
+    /// </summary>
+    private async Task<string?> MismatchOfAsync(
+        GeneratedType type,
+        string baseDir,
+        bool isTypeScript)
+    {
+        var file = Path.Combine(type.SubFolder ?? string.Empty, SafeFileName(type.TypeName));
+        try
+        {
+            await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
+            return null;
+        }
+        catch (IOException)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return MismatchReason(file, ex);
+        }
+
+        try
+        {
+            await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
+            return null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return MismatchReason(file, ex);
+        }
+    }
+
+    // A content difference: Verify's first line (the whole diff is in the .received file); anything else: all of it
+    private static string MismatchReason(
+        string file,
+        Exception exception)
+        => exception.GetType().Name.StartsWith("Verify", StringComparison.Ordinal)
+            ? $"{file}: {exception.Message.Split('\n')[0]}"
+            : $"{file}: {exception.GetType().Name}: {exception.Message}";
 
     /// <summary>
     /// Verifies a generated type against its verified snapshot file using Verify.
