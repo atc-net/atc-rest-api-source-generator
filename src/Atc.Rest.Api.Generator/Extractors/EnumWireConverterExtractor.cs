@@ -56,9 +56,10 @@ public static class EnumWireConverterExtractor
             var converter = e.IsInteger
                 ? $"new JsonNumberEnumConverter<{e.FullName}>()"
                 : $"new JsonStringEnumConverter<{e.FullName}>(namingPolicy: null, allowIntegerValues: false)";
+            var empty = e.EmptyMember is null ? string.Empty : $", empty: {e.FullName}.{e.EmptyMember}";
             var created = e.IsInteger
                 ? $"{converter}.CreateConverter(typeToConvert, options)"
-                : $"new {ReadingClassName}<{e.FullName}>((JsonConverter<{e.FullName}>){converter}.CreateConverter(typeToConvert, options)!, options, readMemberNames: {(readMemberNames ? "true" : "false")})";
+                : $"new {ReadingClassName}<{e.FullName}>((JsonConverter<{e.FullName}>){converter}.CreateConverter(typeToConvert, options)!, options, readMemberNames: {(readMemberNames ? "true" : "false")}{empty})";
             createConverter
                 .AppendLine($"        if (typeToConvert == typeof({e.FullName}))")
                 .AppendLine("        {")
@@ -123,7 +124,8 @@ public static class EnumWireConverterExtractor
              /// Reads a string enum by the value in the specification - as written, or in another casing only one value
              /// has (<c>OUTOFSTOCK</c> for <c>outOfStock</c>; <c>ACTIVE</c> names neither of <c>active</c> and
              /// <c>Active</c>) - and with <c>readEnumMemberNames</c> by its member name too, so a client or server that
-             /// writes member names keeps working. Writes the value.
+             /// writes member names keeps working. Writes the value; the empty string too, which no
+             /// <c>[JsonStringEnumMemberName]</c> can name.
              /// </summary>
              /// <typeparam name="T">The enum.</typeparam>
              [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
@@ -131,6 +133,7 @@ public static class EnumWireConverterExtractor
                  where T : struct, Enum
              {
                  private readonly JsonConverter<T> wire;
+                 private readonly T? empty;
                  private readonly System.Collections.Generic.Dictionary<string, T> exact = new(StringComparer.Ordinal);
                  private readonly System.Collections.Generic.Dictionary<string, T?> ignoringCase = new(StringComparer.OrdinalIgnoreCase);
 
@@ -140,19 +143,22 @@ public static class EnumWireConverterExtractor
                  /// <param name="wire">The converter of the values in the specification.</param>
                  /// <param name="options">The options the values are written with.</param>
                  /// <param name="readMemberNames">Whether a value is read by its member name too.</param>
+                 /// <param name="empty">The member whose value is the empty string, if there is one.</param>
                  public {{ReadingClassName}}(
                      JsonConverter<T> wire,
                      JsonSerializerOptions options,
-                     bool readMemberNames)
+                     bool readMemberNames,
+                     T? empty = null)
                  {
                      this.wire = wire ?? throw new ArgumentNullException(nameof(wire));
+                     this.empty = empty;
 
                      var names = Enum.GetNames<T>();
                      var values = Enum.GetValues<T>();
                      var texts = new System.Collections.Generic.List<(string Text, T Value)>();
                      for (var i = 0; i < values.Length; i++)
                      {
-                         texts.Add((ValueOf(values[i], options), values[i]));
+                         texts.Add((IsEmpty(values[i]) ? string.Empty : ValueOf(values[i], options), values[i]));
                      }
 
                      if (readMemberNames)
@@ -189,7 +195,15 @@ public static class EnumWireConverterExtractor
                      Utf8JsonWriter writer,
                      T value,
                      JsonSerializerOptions options)
-                     => wire.Write(writer, value, options);
+                 {
+                     if (IsEmpty(value))
+                     {
+                         writer.WriteStringValue(string.Empty);
+                         return;
+                     }
+
+                     wire.Write(writer, value, options);
+                 }
 
                  /// <inheritdoc />
                  public override T ReadAsPropertyName(
@@ -203,7 +217,18 @@ public static class EnumWireConverterExtractor
                      Utf8JsonWriter writer,
                      T value,
                      JsonSerializerOptions options)
-                     => wire.WriteAsPropertyName(writer, value, options);
+                 {
+                     if (IsEmpty(value))
+                     {
+                         writer.WritePropertyName(string.Empty);
+                         return;
+                     }
+
+                     wire.WriteAsPropertyName(writer, value, options);
+                 }
+
+                 private bool IsEmpty(T value)
+                     => empty is { } member && System.Collections.Generic.EqualityComparer<T>.Default.Equals(member, value);
 
                  private T Find(string text)
                      => exact.TryGetValue(text, out var value)

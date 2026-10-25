@@ -5,9 +5,12 @@ namespace Atc.Rest.Api.Generator.Models;
 /// </summary>
 /// <param name="FullName">The enum's fully qualified name, with <c>global::</c>.</param>
 /// <param name="IsInteger">Whether it is an integer on the wire (its converter is <c>JsonNumberEnumConverter&lt;T&gt;</c>).</param>
+/// <param name="EmptyMember">The member whose value is the empty string, if the specification lists it: System.Text.Json
+/// takes no empty <c>[JsonStringEnumMemberName]</c>, so the generated converter writes and reads it itself.</param>
 public sealed record GeneratedEnumDeclaration(
     string FullName,
-    bool IsInteger)
+    bool IsInteger,
+    string? EmptyMember = null)
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
 
@@ -43,6 +46,16 @@ public sealed record GeneratedEnumDeclaration(
             .Select(m => m.Groups["name"].Value)
             .Select(name => new GeneratedEnumDeclaration(
                 $"global::{namespaceName}.{name}",
-                content.IndexOf($"JsonNumberEnumConverter<{name}>", StringComparison.Ordinal) >= 0))];
+                content.IndexOf($"JsonNumberEnumConverter<{name}>", StringComparison.Ordinal) >= 0,
+                EmptyMemberOf(content, name)))];
     }
+
+    // The enum's ToWireValue switch names the member of the empty string: `Mark.Empty => "",`
+    private static string? EmptyMemberOf(
+        string content,
+        string name)
+        => content.IndexOf(" => \"\",", StringComparison.Ordinal) >= 0 &&
+           Regex.Match(content, $@"^\s*{name}\.(?<member>\w+) => """",", RegexOptions.Multiline | RegexOptions.ExplicitCapture, RegexTimeout) is { Success: true } match
+            ? match.Groups["member"].Value
+            : null;
 }
