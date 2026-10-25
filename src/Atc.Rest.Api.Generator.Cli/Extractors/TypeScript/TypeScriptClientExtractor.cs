@@ -32,6 +32,7 @@ public static class TypeScriptClientExtractor
         var results = new List<(string ClassName, string Content)>();
         var segments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
         writableSchemas ??= new HashSet<string>(StringComparer.Ordinal);
+        var emit = new TypeScriptEmitContext(openApiDoc, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, preferXml);
 
         foreach (var segment in segments)
         {
@@ -42,7 +43,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, preferXml);
+            var content = GenerateClientClass(className, operations, headerContent, enumNames, emit);
             results.Add((className, content));
         }
 
@@ -52,18 +53,16 @@ public static class TypeScriptClientExtractor
     private static string GenerateClientClass(
         string className,
         List<(string Path, string Method, OpenApiOperation Operation)> operations,
-        OpenApiDocument openApiDoc,
         string? headerContent,
         HashSet<string>? enumNames,
-        TypeScriptNamingStrategy namingStrategy,
-        bool convertDates,
-        TypeScriptHttpClient httpClient,
-        HashSet<string> writableSchemas,
-        bool brandedIds,
-        bool zodRuntimeValidate,
-        TypeScriptWireNames wireNames,
-        bool preferXml)
+        TypeScriptEmitContext emit)
     {
+        var openApiDoc = emit.OpenApiDoc;
+        var namingStrategy = emit.NamingStrategy;
+        var convertDates = emit.ConvertDates;
+        var httpClient = emit.HttpClient;
+        var writableSchemas = emit.WritableSchemas;
+        var brandedIds = emit.BrandedIds;
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
         var brandImports = new SortedSet<string>(StringComparer.Ordinal);
@@ -230,7 +229,7 @@ public static class TypeScriptClientExtractor
 
         // Pre-scan response schemas for runtime Zod validation. The schema imports
         // need to land in the file header before any method body references them.
-        if (zodRuntimeValidate)
+        if (emit.ZodRuntimeValidate)
         {
             foreach (var (_, _, operation) in operations)
             {
@@ -296,8 +295,8 @@ public static class TypeScriptClientExtractor
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpArms.TryGetValue(operation, out var armsOption);
             perOpHeaderReaders.TryGetValue(operation, out var headerReadersOption);
-            var securityOption = TypeScriptSecurity.BuildOption(operation, path, openApiDoc, declaresSecurity);
-            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions, preferXml, securityOption, headerReadersOption);
+            var answer = new TypeScriptOperationAnswer(resultTypeName, armsOption, headerReadersOption, TypeScriptSecurity.BuildOption(operation, path, openApiDoc, declaresSecurity));
+            AppendMethod(bodySb, path, method, operation, emit, answer, xmlFunctions);
         }
 
         bodySb.AppendLine("}");
@@ -531,20 +530,41 @@ public static class TypeScriptClientExtractor
         string path,
         string httpMethod,
         OpenApiOperation operation,
-        OpenApiDocument openApiDoc,
-        TypeScriptNamingStrategy namingStrategy,
-        bool convertDates,
-        string? perOpResultTypeName,
-        string? armsOption,
-        HashSet<string> writableSchemas,
-        bool brandedIds,
-        bool zodRuntimeValidate,
-        TypeScriptWireNames wireNames,
-        ISet<string>? xmlFunctions = null,
-        bool preferXml = false,
-        string? securityOption = null,
-        IReadOnlyList<string>? headerReadersOption = null)
+        TypeScriptEmitContext emit,
+        TypeScriptOperationAnswer answer,
+        ISet<string>? xmlFunctions)
     {
+        var model = BuildOperationModel(path, httpMethod, operation, emit, answer, xmlFunctions);
+
+        // Emit a /** ... */ block when the spec has anything worth saying
+        // about this operation — summary, description, or deprecated marker. The same
+        // block applies to the Page companion below (it shares the operation).
+        AppendOperationJsDoc(sb, operation);
+
+        if (operation.IsStreamingResponse())
+        {
+            AppendStreamingMethod(sb, model, StreamFramingArgOf(operation), emit);
+        }
+        else
+        {
+            AppendStandardMethod(sb, model, emit);
+        }
+    }
+
+    /// <summary>
+    /// The operation as its request method is written: its parameters by location, its body, its answer and the
+    /// options of its request. A stream has no Zod schema, XML option, model-or-file Accept, raw upload media types or
+    /// form encoding (its method writes none of them).
+    /// </summary>
+    private static TypeScriptOperationModel BuildOperationModel(
+        string path,
+        string httpMethod,
+        OpenApiOperation operation,
+        TypeScriptEmitContext emit,
+        TypeScriptOperationAnswer answer,
+        ISet<string>? xmlFunctions)
+    {
+        var openApiDoc = emit.OpenApiDoc;
         var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
         var isFileUpload = operation.HasFileUpload();
@@ -571,55 +591,32 @@ public static class TypeScriptClientExtractor
 
         // How to rename the body's, the response's and the error bodies' keys between the wire and the models
         // (a form's fields are written under their wire names already).
-        var wireOption = wireNames.OperationOption(operation, isStreaming, isFileUpload || OpenApiOperationExtensions.IsFormContentType(bodyContentType), isFileDownload || isTextDownload);
+        var wireOption = emit.WireNames.OperationOption(operation, isStreaming, isFileUpload || OpenApiOperationExtensions.IsFormContentType(bodyContentType), isFileDownload || isTextDownload);
 
-        // Emit a /** ... */ block when the spec has anything worth saying
-        // about this operation — summary, description, or deprecated marker. The same
-        // block applies to the Page companion below (it shares the operation).
-        AppendOperationJsDoc(sb, operation);
-
-        if (isStreaming)
+        ZodResponseSchemaSpec? zodSpec = null;
+        string? xmlOption = null;
+        string? modelOrFileAccept = null;
+        List<string>? rawUploadMediaTypes = null;
+        IOpenApiMediaType? bodyMediaType = null;
+        if (!isStreaming)
         {
-            // Map the wire framing to the requestStream framing argument. SSE maps to sse;
-            // JSON Lines maps to json-lines and JSON Text Sequence maps to json-seq (both resolve
-            // to the runtime brace-scan default path, but threading the arg keeps the call site
-            // explicit); multipart/mixed maps to multipart (its own runtime parse branch).
-            // JsonArray omits the arg to keep its call site unchanged (the default is json-array).
-            var streamFramingArg = operation.GetStreamingFraming() switch
-            {
-                // x-sse-item-events: the named events that are items too, after the framing
-                StreamingFraming.ServerSentEvents => operation.GetServerSentEventItemNames() is { Count: > 0 } itemEvents
-                    ? $"'sse', [{string.Join(", ", itemEvents.Select(TypeScriptLiteralHelper.ToStringLiteral))}]"
-                    : "'sse'",
-                StreamingFraming.JsonLines => "'json-lines'",
-                StreamingFraming.JsonSequence => "'json-seq'",
-                StreamingFraming.MultipartMixed => "'multipart'",
-                _ => null,
-            };
-
-            var streamBodyType = !isFileUpload && bodySchema is not null ? BodyTypeOf(bodySchema, writableSchemas, bodyContentType) : null;
-            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, bodyContentType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption, securityOption, bodyOptional: operation.GetStreamedRequestBody() is { IsRequired: false });
-        }
-        else
-        {
-            // Compute the Zod schema spec for this op's response (if any). Threaded
-            // through so AppendStandardMethod can splice `parseSchema: <expr>` into
-            // the request options bag.
-            var zodSpec = zodRuntimeValidate
+            // The Zod schema spec for this op's response (if any): AppendStandardMethod splices
+            // `parseSchema: <expr>` into the request options bag.
+            zodSpec = emit.ZodRuntimeValidate
                 ? TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation)
                 : null;
 
             // A model or a file: read by the answer's Content-Type, asking for the model's and the file's media types
-            var modelOrFileAccept = operation.GetModelOrFileMediaTypes() is { Count: > 0 } fileMediaTypes
-                ? XmlBodyHelper.AcceptFor(XmlBodyHelper.FindXmlOnlyBody(operation.Responses?["200"]?.Content) is { } xmlOnly ? [xmlOnly] : [], XmlBodyHelper.ErrorMediaTypes(operation), preferXml, fileMediaTypes)
+            modelOrFileAccept = operation.GetModelOrFileMediaTypes() is { Count: > 0 } fileMediaTypes
+                ? XmlBodyHelper.AcceptFor(XmlBodyHelper.FindXmlOnlyBody(operation.Responses?["200"]?.Content) is { } xmlOnly ? [xmlOnly] : [], XmlBodyHelper.ErrorMediaTypes(operation), emit.PreferXml, fileMediaTypes)
                 : null;
 
             // A raw file upload: the media types the request body declares
-            var rawUploadMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList();
+            rawUploadMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList();
 
             // A multipart form: its encoding (an object field is an application/json part, or an XML or a URL-encoded
             // part as the encoding names, see FormBodyHelper.PartOf) - an XML part is written by helpers/xml.ts
-            var bodyMediaType = operation.RequestBody?.Content is { } bodyContent && bodyContent.TryGetValue(bodyContentType, out var declaredBody) ? declaredBody : null;
+            bodyMediaType = operation.RequestBody?.Content is { } bodyContent && bodyContent.TryGetValue(bodyContentType, out var declaredBody) ? declaredBody : null;
             if (bodyContentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) &&
                 bodySchema?.Properties is { } formProperties)
             {
@@ -633,36 +630,56 @@ public static class TypeScriptClientExtractor
                 }
             }
 
-            var operationModel = new TypeScriptOperationModel(
-                MethodName: methodName,
-                Path: path,
-                HttpMethod: httpMethod,
-                PathParams: pathParams,
-                QueryParams: queryParams,
-                HeaderParams: headerParams,
-                CookieParams: cookieParams,
-                QuerystringParams: querystringParams,
-                BodySchema: bodySchema,
-                BodyContentType: bodyContentType,
-                IsFileUpload: isFileUpload,
-                IsFileDownload: isFileDownload,
-                IsTextDownload: isTextDownload,
-                ReturnType: returnType,
-                PerOpResultTypeName: perOpResultTypeName,
-                ZodSpec: zodSpec,
-                RetryOption: retryOption,
-                ArmsOption: armsOption,
-                WireOption: wireOption,
-                XmlOption: BuildXmlOption(operation, xmlFunctions, preferXml),
-                ModelOrFileAccept: modelOrFileAccept,
-                RawUploadMediaTypes: rawUploadMediaTypes,
-                SecurityOption: securityOption,
-                BodyMediaType: bodyMediaType,
-                HeaderReadersOption: headerReadersOption,
-                BodyOptional: operation.GetStreamedRequestBody() is { IsRequired: false });
-            AppendStandardMethod(sb, operationModel, new TypeScriptEmitContext(namingStrategy, convertDates, writableSchemas, brandedIds, wireNames));
+            xmlOption = BuildXmlOption(operation, xmlFunctions, emit.PreferXml);
         }
+
+        return new TypeScriptOperationModel(
+            MethodName: methodName,
+            Path: path,
+            HttpMethod: httpMethod,
+            PathParams: pathParams,
+            QueryParams: queryParams,
+            HeaderParams: headerParams,
+            CookieParams: cookieParams,
+            QuerystringParams: querystringParams,
+            BodySchema: bodySchema,
+            BodyContentType: bodyContentType,
+            IsFileUpload: isFileUpload,
+            IsFileDownload: isFileDownload,
+            IsTextDownload: isTextDownload,
+            ReturnType: returnType,
+            PerOpResultTypeName: answer.ResultTypeName,
+            ZodSpec: zodSpec,
+            RetryOption: retryOption,
+            ArmsOption: answer.ArmsOption,
+            WireOption: wireOption,
+            XmlOption: xmlOption,
+            ModelOrFileAccept: modelOrFileAccept,
+            RawUploadMediaTypes: rawUploadMediaTypes,
+            SecurityOption: answer.SecurityOption,
+            BodyMediaType: bodyMediaType,
+            HeaderReadersOption: answer.HeaderReadersOption,
+            BodyOptional: operation.GetStreamedRequestBody() is { IsRequired: false });
     }
+
+    /// <summary>
+    /// The framing argument of a stream's requestStream call. SSE maps to sse; JSON Lines maps to json-lines and JSON
+    /// Text Sequence maps to json-seq (both resolve to the runtime brace-scan default path, but threading the arg keeps
+    /// the call site explicit); multipart/mixed maps to multipart (its own runtime parse branch). JsonArray omits the
+    /// arg to keep its call site unchanged (the default is json-array).
+    /// </summary>
+    private static string? StreamFramingArgOf(OpenApiOperation operation)
+        => operation.GetStreamingFraming() switch
+        {
+            // x-sse-item-events: the named events that are items too, after the framing
+            StreamingFraming.ServerSentEvents => operation.GetServerSentEventItemNames() is { Count: > 0 } itemEvents
+                ? $"'sse', [{string.Join(", ", itemEvents.Select(TypeScriptLiteralHelper.ToStringLiteral))}]"
+                : "'sse'",
+            StreamingFraming.JsonLines => "'json-lines'",
+            StreamingFraming.JsonSequence => "'json-seq'",
+            StreamingFraming.MultipartMixed => "'multipart'",
+            _ => null,
+        };
 
     /// <summary>
     /// Emits a 2-space-indented JSDoc block above a client method when the OpenAPI
@@ -777,15 +794,12 @@ public static class TypeScriptClientExtractor
         var securityOption = operation.SecurityOption;
         var bodyMediaType = operation.BodyMediaType;
         var headerReadersOption = operation.HeaderReadersOption;
-        var bodyOptional = operation.BodyOptional;
         var namingStrategy = emit.NamingStrategy;
         var convertDates = emit.ConvertDates;
-        var writableSchemas = emit.WritableSchemas;
-        var brandedIds = emit.BrandedIds;
         var wireNames = emit.WireNames;
 
         // Build parameter list
-        var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path, bodyOptional);
+        var (paramList, signalName) = BuildParameterList(operation, emit);
 
         // perOpResultTypeName is supplied for every non-streaming op when called from
         // GenerateClientClass. The generic ApiResult fallback is a safety net for any unit
@@ -954,23 +968,30 @@ public static class TypeScriptClientExtractor
 
     private static void AppendStreamingMethod(
         StringBuilder sb,
-        string methodName,
-        string path,
-        string httpMethod,
-        List<OpenApiParameter> pathParams,
-        List<OpenApiParameter> queryParams,
-        List<OpenApiParameter> headerParams,
-        string itemType,
-        string? bodyType,
-        string bodyContentType,
-        TypeScriptNamingStrategy namingStrategy,
-        bool convertDates,
-        bool brandedIds,
-        string? streamFramingArg = null,
-        string? wireOption = null,
-        string? securityOption = null,
-        bool bodyOptional = false)
+        TypeScriptOperationModel operation,
+        string? streamFramingArg,
+        TypeScriptEmitContext emit)
     {
+        var methodName = operation.MethodName;
+        var path = operation.Path;
+        var httpMethod = operation.HttpMethod;
+        var pathParams = operation.PathParams;
+        var queryParams = operation.QueryParams;
+        var headerParams = operation.HeaderParams;
+        var itemType = operation.ReturnType;
+        var bodyContentType = operation.BodyContentType;
+        var wireOption = operation.WireOption;
+        var securityOption = operation.SecurityOption;
+        var bodyOptional = operation.BodyOptional;
+        var namingStrategy = emit.NamingStrategy;
+        var convertDates = emit.ConvertDates;
+        var brandedIds = emit.BrandedIds;
+
+        // A streamed search (POST or QUERY) sends its criteria as the body (not a file upload)
+        var bodyType = !operation.IsFileUpload && operation.BodySchema is not null
+            ? BodyTypeOf(operation.BodySchema, emit.WritableSchemas, bodyContentType)
+            : null;
+
         // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
 
@@ -1075,21 +1096,22 @@ public static class TypeScriptClientExtractor
     }
 
     private static (string ParameterList, string SignalName) BuildParameterList(
-        List<OpenApiParameter> pathParams,
-        List<OpenApiParameter> queryParams,
-        List<OpenApiParameter> headerParams,
-        List<OpenApiParameter> cookieParams,
-        List<OpenApiParameter> querystringParams,
-        IOpenApiSchema? bodySchema,
-        string bodyContentType,
-        bool isFileUpload,
-        TypeScriptNamingStrategy namingStrategy,
-        bool convertDates,
-        HashSet<string> writableSchemas,
-        bool brandedIds,
-        string path,
-        bool bodyOptional = false)
+        TypeScriptOperationModel operation,
+        TypeScriptEmitContext emit)
     {
+        var pathParams = operation.PathParams;
+        var queryParams = operation.QueryParams;
+        var headerParams = operation.HeaderParams;
+        var cookieParams = operation.CookieParams;
+        var querystringParams = operation.QuerystringParams;
+        var bodySchema = operation.BodySchema;
+        var bodyContentType = operation.BodyContentType;
+        var path = operation.Path;
+        var bodyOptional = operation.BodyOptional;
+        var namingStrategy = emit.NamingStrategy;
+        var convertDates = emit.ConvertDates;
+        var brandedIds = emit.BrandedIds;
+
         var parts = new List<string>();
 
         // Path parameters (required)
@@ -1103,14 +1125,14 @@ public static class TypeScriptClientExtractor
         // Request body
         if (bodySchema is not null)
         {
-            if (isFileUpload)
+            if (operation.IsFileUpload)
             {
                 AppendFileUploadParams(parts, bodySchema, bodyContentType, namingStrategy);
             }
             else
             {
                 // An optional stream of records may be left out: no body
-                parts.Add((bodyOptional ? "body?: " : "body: ") + BodyTypeOf(bodySchema, writableSchemas, bodyContentType));
+                parts.Add((bodyOptional ? "body?: " : "body: ") + BodyTypeOf(bodySchema, emit.WritableSchemas, bodyContentType));
             }
         }
 

@@ -216,20 +216,16 @@ public static class TypeScriptReactQueryHookExtractor
         sb.Append(headerContent);
 
         // Write imports (narrowed to what the body references)
-        AppendImports(
-            sb,
-            importTypes,
-            enumNames,
-            needsUseQuery,
-            needsUseSuspenseQuery,
-            needsUseMutation,
-            needsUseQueryClient,
-            needsReactHooks,
-            needsApiError,
-            needsUseInfiniteQuery,
-            hookInfos.Any(h => !h.IsStreaming && h.IsQuery),
-            brandImports,
-            bodyText);
+        var hookImports = new HookImports(
+            UseQuery: needsUseQuery,
+            UseSuspenseQuery: needsUseSuspenseQuery,
+            UseMutation: needsUseMutation,
+            UseQueryClient: needsUseQueryClient,
+            ReactHooks: needsReactHooks,
+            ApiError: needsApiError,
+            UseInfiniteQuery: needsUseInfiniteQuery,
+            QueryOptions: hookInfos.Any(h => !h.IsStreaming && h.IsQuery));
+        AppendImports(sb, importTypes, enumNames, hookImports, brandImports, bodyText);
 
         sb.Append(bodyText);
 
@@ -240,17 +236,19 @@ public static class TypeScriptReactQueryHookExtractor
         StringBuilder sb,
         HashSet<string> importTypes,
         HashSet<string>? enumNames,
-        bool needsUseQuery,
-        bool needsUseSuspenseQuery,
-        bool needsUseMutation,
-        bool needsUseQueryClient,
-        bool needsReactHooks,
-        bool needsApiError,
-        bool needsUseInfiniteQuery,
-        bool needsQueryOptions,
+        HookImports hookImports,
         SortedSet<string> brandImports,
         string bodyText)
     {
+        var needsUseQuery = hookImports.UseQuery;
+        var needsUseSuspenseQuery = hookImports.UseSuspenseQuery;
+        var needsUseMutation = hookImports.UseMutation;
+        var needsUseQueryClient = hookImports.UseQueryClient;
+        var needsReactHooks = hookImports.ReactHooks;
+        var needsApiError = hookImports.ApiError;
+        var needsUseInfiniteQuery = hookImports.UseInfiniteQuery;
+        var needsQueryOptions = hookImports.QueryOptions;
+
         // React primitive hooks (only required by stream hooks)
         if (needsReactHooks)
         {
@@ -790,4 +788,25 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }
+
+    /// <summary>
+    /// What a hooks file imports from React and TanStack Query, and whether it needs ApiError.
+    /// </summary>
+    /// <param name="UseQuery">The useQuery hooks (and their options type).</param>
+    /// <param name="UseSuspenseQuery">The useSuspenseQuery hooks (and their options type).</param>
+    /// <param name="UseMutation">The useMutation hooks (and their options type).</param>
+    /// <param name="UseQueryClient">useQueryClient (a mutation invalidates the reads).</param>
+    /// <param name="ReactHooks">The React hooks a stream hook is written with.</param>
+    /// <param name="ApiError">ApiError (the result unwrap of a query or a mutation).</param>
+    /// <param name="UseInfiniteQuery">The useInfiniteQuery hooks of the paginated reads.</param>
+    /// <param name="QueryOptions">The queryOptions factory of the reads.</param>
+    private readonly record struct HookImports(
+        bool UseQuery,
+        bool UseSuspenseQuery,
+        bool UseMutation,
+        bool UseQueryClient,
+        bool ReactHooks,
+        bool ApiError,
+        bool UseInfiniteQuery,
+        bool QueryOptions);
 }
