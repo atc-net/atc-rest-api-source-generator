@@ -19,7 +19,9 @@ internal static class AotAnalyzerHarness
     private const string InterceptorsNamespaces =
         "Microsoft.AspNetCore.Http.Generated;Microsoft.Extensions.Configuration.Binder.SourceGeneration";
 
-    private static readonly Lazy<(ImmutableArray<ISourceGenerator> Generators, ImmutableArray<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer> Analyzers)> Tools = new(
+    // The generators' types, loaded once - each compilation creates its own instances, so tests that run in parallel
+    // share no generator - and the analyzers, which are built to be shared
+    private static readonly Lazy<(ImmutableArray<Type> GeneratorTypes, ImmutableArray<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer> Analyzers)> Tools = new(
         LoadTools,
         LazyThreadSafetyMode.ExecutionAndPublication);
 
@@ -60,7 +62,9 @@ internal static class AotAnalyzerHarness
         bool includeMinimalApi)
     {
         var withGenerated = WithAspNetCoreGenerators(generatedSources, includeMinimalApi);
-        Assert.Contains(withGenerated.SyntaxTrees, t => t.ToString().Contains("InterceptsLocation", StringComparison.Ordinal));
+        Assert.True(
+            withGenerated.SyntaxTrees.Any(t => t.ToString().Contains("InterceptsLocation", StringComparison.Ordinal)),
+            "RDG intercepted no Map* call. The generated files: " + string.Join(", ", withGenerated.SyntaxTrees.Select(t => Path.GetFileName(t.FilePath)).Where(f => f.Length > 0)));
 
         using var ms = new MemoryStream();
         var emitResult = withGenerated.Emit(ms, cancellationToken: TestContext.Current.CancellationToken);
@@ -85,9 +89,15 @@ internal static class AotAnalyzerHarness
         compilation = compilation.RemoveAllSyntaxTrees().AddSyntaxTrees(
             compilation.SyntaxTrees.Select(t => t.WithRootAndOptions(t.GetRoot(TestContext.Current.CancellationToken), parseOptions)));
 
-        CSharpGeneratorDriver
-            .Create(Tools.Value.Generators, parseOptions: parseOptions, optionsProvider: new AotOptionsProvider())
-            .RunGeneratorsAndUpdateCompilation(compilation, out var withGenerated, out _, TestContext.Current.CancellationToken);
+        // A generator that throws adds nothing (the driver reports CS8785 and goes on), which a test would only see as
+        // missing code: it runs once more, and a second exception fails with what was thrown
+        var (withGenerated, failures) = RunGenerators(compilation, parseOptions);
+        if (failures.Count > 0)
+        {
+            (withGenerated, failures) = RunGenerators(compilation, parseOptions);
+        }
+
+        Assert.True(failures.Count == 0, "An ASP.NET Core generator threw (twice):\n" + string.Join("\n", failures));
 
         // RDG's request delegates, for working through a binding difference or an error in them: ATC_RDG_DUMP=<file>
         // (the last compilation built wins)
@@ -99,7 +109,29 @@ internal static class AotAnalyzerHarness
         return withGenerated;
     }
 
-    private static (ImmutableArray<ISourceGenerator> Generators, ImmutableArray<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer> Analyzers) LoadTools()
+    private static (Compilation WithGenerated, List<string> Failures) RunGenerators(
+        Compilation compilation,
+        CSharpParseOptions parseOptions)
+    {
+        var generators = Tools.Value.GeneratorTypes
+            .Select(t => ((IIncrementalGenerator)Activator.CreateInstance(t)!).AsSourceGenerator())
+            .ToList();
+
+        var driver = CSharpGeneratorDriver
+            .Create(generators, parseOptions: parseOptions, optionsProvider: new AotOptionsProvider())
+            .RunGeneratorsAndUpdateCompilation(compilation, out var withGenerated, out _, TestContext.Current.CancellationToken);
+
+        var failures = driver
+            .GetRunResult()
+            .Results
+            .Where(r => r.Exception is not null)
+            .Select(r => r.Generator.GetGeneratorType().Name + ": " + r.Exception)
+            .ToList();
+
+        return (withGenerated, failures);
+    }
+
+    private static (ImmutableArray<Type> GeneratorTypes, ImmutableArray<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer> Analyzers) LoadTools()
     {
         var aspNetCoreAnalyzers = AspNetCoreAnalyzersDirectory();
         var generatorAssemblies = new[]
@@ -109,12 +141,11 @@ internal static class AotAnalyzerHarness
         }.Select(Assembly.LoadFrom).ToList();
         var trimAnalyzer = Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory, "ILLinkAnalyzer", "ILLink.RoslynAnalyzer.dll"));
 
-        var generators = generatorAssemblies
+        var generatorTypes = generatorAssemblies
             .SelectMany(a => a.GetTypes())
             .Where(t => !t.IsAbstract &&
                         typeof(IIncrementalGenerator).IsAssignableFrom(t) &&
-                        t.GetCustomAttributes<GeneratorAttribute>().Any())
-            .Select(t => ((IIncrementalGenerator)Activator.CreateInstance(t)!).AsSourceGenerator());
+                        t.GetCustomAttributes<GeneratorAttribute>().Any());
 
         // The analyzer, and the generators' suppressors (RDG marks the Map* calls it intercepts)
         var analyzers = generatorAssemblies
@@ -126,7 +157,7 @@ internal static class AotAnalyzerHarness
                             .Any(a => a.Languages.Contains(LanguageNames.CSharp)))
             .Select(t => (Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer)Activator.CreateInstance(t)!);
 
-        return ([.. generators], [.. analyzers]);
+        return ([.. generatorTypes], [.. analyzers]);
     }
 
     // packs/Microsoft.AspNetCore.App.Ref/<the running framework's version>/analyzers/dotnet/cs of this dotnet
