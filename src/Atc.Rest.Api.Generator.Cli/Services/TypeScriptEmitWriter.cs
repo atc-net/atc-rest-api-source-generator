@@ -42,7 +42,7 @@ public static class TypeScriptEmitWriter
                     Directory.CreateDirectory(directory);
                 }
 
-                WriteIfChanged(filePath, file.Content);
+                CodeGeneration.TypeScript.Helpers.FileHelper.WriteTextFile(filePath, file.Content);
                 written.Add(filePath);
                 continue;
             }
@@ -65,20 +65,6 @@ public static class TypeScriptEmitWriter
         }
 
         return kept;
-    }
-
-    // UTF-8 without BOM, leaving a file that already holds exactly that content untouched (a watcher or bundler does
-    // not see it change)
-    private static void WriteIfChanged(
-        string filePath,
-        string content)
-    {
-        var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-        if (!File.Exists(filePath) ||
-            !string.Equals(File.ReadAllText(filePath, encoding), content, StringComparison.Ordinal))
-        {
-            File.WriteAllText(filePath, content, encoding);
-        }
     }
 
     // The TypeScript files with the generated header that this run did not write, in the folders it wrote to (never a

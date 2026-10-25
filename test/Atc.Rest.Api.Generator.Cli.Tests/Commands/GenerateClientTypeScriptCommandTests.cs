@@ -121,6 +121,67 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task GenerateClientTypeScript_EveryFile_HasLfLineEndingsOnly()
+    {
+        // Arrange - the header lines were written with \n and the body with the platform's line ending: a mix in
+        // every file on Windows
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Showcase");
+        var outputPath = Path.Combine(tempOutputDir, "ShowcaseTsLineEndings");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --hooks ReactQuery --no-strict --scaffold";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var withCarriageReturn = Directory
+            .EnumerateFiles(outputPath, "*", SearchOption.AllDirectories)
+            .Where(f => File.ReadAllText(f).Contains('\r', StringComparison.Ordinal))
+            .Select(f => Path.GetRelativePath(outputPath, f))
+            .ToList();
+        Assert.Empty(withCarriageReturn);
+    }
+
+    [Fact]
+    public async Task GenerateClientTypeScript_ACrlfCheckoutOfTheSameOutput_IsNotRewritten()
+    {
+        // Arrange - git with core.autocrlf=true checks the generated files out with CRLF
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Showcase");
+        var outputPath = Path.Combine(tempOutputDir, "ShowcaseTsCrlfCheckout");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --hooks ReactQuery --no-strict";
+        var (firstSuccess, _) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(firstSuccess, "First run should succeed");
+
+        var past = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var files = Directory.EnumerateFiles(outputPath, "*.ts", SearchOption.AllDirectories).ToList();
+        foreach (var file in files)
+        {
+            await File.WriteAllTextAsync(file, (await File.ReadAllTextAsync(file, TestContext.Current.CancellationToken)).ReplaceLineEndings("\r\n"), TestContext.Current.CancellationToken);
+            File.SetLastWriteTimeUtc(file, past);
+        }
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var rewritten = files
+            .Where(f => File.GetLastWriteTimeUtc(f) != past)
+            .Select(f => Path.GetRelativePath(outputPath, f))
+            .ToList();
+        Assert.Empty(rewritten);
+    }
+
+    [Fact]
     public async Task GenerateClientTypeScript_SecondTime_OverwritesFiles()
     {
         // Arrange

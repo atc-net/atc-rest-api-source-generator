@@ -43,6 +43,20 @@ public sealed class TypeScriptEmitWriterTests : IDisposable
     }
 
     [Fact]
+    public void Write_AScaffoldFile_IsWrittenWithLfLineEndings()
+    {
+        // Arrange
+        var plan = new TypeScriptEmitPlan();
+        plan.AddScaffold("package.json", "{\r\n  \"name\": \"generated\"\n}\r\n");
+
+        // Act
+        TypeScriptEmitWriter.Write(plan, output, removeStale: false);
+
+        // Assert
+        Assert.Equal("{\n  \"name\": \"generated\"\n}\n", File.ReadAllText(Path.Combine(output, "package.json")));
+    }
+
+    [Fact]
     public void Write_AScaffoldFileThatExists_IsNotRewritten()
     {
         // Arrange
