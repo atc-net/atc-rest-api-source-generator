@@ -134,6 +134,22 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     /// <summary>
+    /// The part of the specification one typed client is generated for: the path segment it holds the operations of,
+    /// the namespace segment (empty: Single granularity), which models the segment has and the client's explicit name.
+    /// </summary>
+    /// <param name="PathSegment">The path segment whose operations the client has (empty: all).</param>
+    /// <param name="NamespaceSegment">The segment of the client's namespace and type name (empty: none).</param>
+    /// <param name="HasSegmentModels">Whether the segment has models of its own.</param>
+    /// <param name="HasSharedModels">Whether there are shared models.</param>
+    /// <param name="ClientName">The client's type name as the author states it, or <see langword="null"/>.</param>
+    private sealed record TypedClientSegment(
+        string PathSegment,
+        string? NamespaceSegment,
+        bool HasSegmentModels,
+        bool HasSharedModels,
+        string? ClientName);
+
+    /// <summary>
     /// Generates the API client from the project's specification (its parts merged).
     /// </summary>
     private static void GenerateApiClient(
@@ -593,7 +609,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             var hasSegmentModelsTyped = segmentSchemas.Count > 0;
             var hasSharedModelsTyped = sharedSchemas.Count > 0;
-            GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
+            var segment = new TypedClientSegment(pathSegment, effectiveSegment, hasSegmentModelsTyped, hasSharedModelsTyped, ClientName: null);
+            GenerateTypedClient(generatedContext, openApiDoc, projectName, segment, registry, systemTypeResolver, config, packages.HasHttpClientFactory);
             return null;
         }
     }
@@ -1001,26 +1018,13 @@ public class ApiClientGenerator : IIncrementalGenerator
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
         }
 
-        GenerateTypedClient(
-            generatedContext,
-            openApiDoc,
-            projectName,
-            pathSegment: NoSegment,
-            namespaceSegment: NoSegment,
-            registry,
-            systemTypeResolver,
-            config.IncludeDeprecated,
-            hasSegmentModels: allSchemas.Count > 0,
-            hasSharedModels: false,
-            config.UseServersBasePath,
-            config.ValidateSpecificationStrategy,
-            config.ClientSuffix,
-            config.ClientName,
-            generateDiExtension,
-            config.TypedClientResultStyle,
-            config.StrictRequiredProperties,
-            config.PreferXml,
-            config.ExtensibleEnums);
+        var segment = new TypedClientSegment(
+            PathSegment: NoSegment,
+            NamespaceSegment: NoSegment,
+            HasSegmentModels: allSchemas.Count > 0,
+            HasSharedModels: false,
+            config.ClientName);
+        GenerateTypedClient(generatedContext, openApiDoc, projectName, segment, registry, systemTypeResolver, config, generateDiExtension);
 
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
@@ -1113,23 +1117,26 @@ public class ApiClientGenerator : IIncrementalGenerator
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
-        string pathSegment,
-        string? namespaceSegment,
+        TypedClientSegment segment,
         TypeConflictRegistry registry,
         SystemTypeConflictResolver systemTypeResolver,
-        bool includeDeprecated,
-        bool hasSegmentModels,
-        bool hasSharedModels,
-        bool useServersBasePath,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
-        string? clientSuffix = null,
-        string? clientName = null,
-        bool generateDiExtension = false,
-        TypedClientResultStyleType typedClientResultStyle = TypedClientResultStyleType.Throw,
-        bool strictRequiredProperties = false,
-        bool preferXml = false,
-        bool extensibleEnums = false)
+        ClientConfig config,
+        bool generateDiExtension)
     {
+        var pathSegment = segment.PathSegment;
+        var namespaceSegment = segment.NamespaceSegment;
+        var hasSegmentModels = segment.HasSegmentModels;
+        var hasSharedModels = segment.HasSharedModels;
+        var clientName = segment.ClientName;
+        var includeDeprecated = config.IncludeDeprecated;
+        var useServersBasePath = config.UseServersBasePath;
+        var validateStrategy = config.ValidateSpecificationStrategy;
+        var clientSuffix = config.ClientSuffix;
+        var typedClientResultStyle = config.TypedClientResultStyle;
+        var strictRequiredProperties = config.StrictRequiredProperties;
+        var preferXml = config.PreferXml;
+        var extensibleEnums = config.ExtensibleEnums;
+
         // An empty namespace segment means Single granularity: the client and its parameter
         // records are flattened into "{projectName}.Generated" rather than the per-area
         // "{projectName}.Generated.Client". Models keep their own ".Models" suffix either way.
