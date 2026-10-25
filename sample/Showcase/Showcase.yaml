@@ -201,6 +201,7 @@ paths:
     delete:
       summary: Delete a specific account
       operationId: deleteAccountById
+      x-audit: true
       tags:
         - accounts
       parameters:
@@ -348,6 +349,7 @@ paths:
     delete:
       summary: Delete a specific task
       operationId: deleteTaskById
+      x-audit: true
       tags:
         - tasks
       parameters:
@@ -635,6 +637,7 @@ paths:
     delete:
       summary: Delete a specific user
       operationId: deleteUserById
+      x-audit: true
       tags:
         - users
       # Admin-only operation
@@ -1041,6 +1044,7 @@ paths:
     delete:
       summary: Cancel a subscription
       operationId: deleteSubscription
+      x-audit: true
       tags:
         - notifications
       responses:

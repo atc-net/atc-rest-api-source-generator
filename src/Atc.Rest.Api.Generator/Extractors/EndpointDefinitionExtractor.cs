@@ -1057,6 +1057,13 @@ using Microsoft.AspNetCore.Builder;
             builder.Append($"    .WithSummary({CSharpLiteralHelper.ToStringLiteral(operation.Summary!.Trim())})");
         }
 
+        // The operation's own x- extensions, for a middleware or a filter to read
+        foreach (var call in OperationExtensionMetadataExtractor.MetadataCalls(operation, projectName))
+        {
+            builder.AppendLine();
+            builder.Append($"    {call}");
+        }
+
         // Add Produces metadata based on responses (includes auto-apply for common errors)
         GenerateProducesMetadata(builder, openApiDoc, operation, operationId, pathItem!, httpMethod, projectName, segment, systemTypeResolver, registry);
 

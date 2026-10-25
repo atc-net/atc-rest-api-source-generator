@@ -86,26 +86,23 @@ var app = builder.Build();
 app.UseCors();
 
 // ============================================
-// AUDIT - operations singled out by name
+// AUDIT - what the specification marks
 // ============================================
-// The generated ApiOperations constants hold each endpoint's name, so renaming an operation in the specification
-// breaks the build here instead of silently ending its audit.
-var audited = new HashSet<string>(StringComparer.Ordinal)
-{
-    Showcase.Generated.ApiOperations.DeleteAccountById,
-    Showcase.Generated.ApiOperations.DeleteTaskById,
-    Showcase.Generated.ApiOperations.DeleteUserById,
-    Showcase.Generated.ApiOperations.DeleteSubscription,
-};
-
+// An operation's own x- extensions reach its endpoint as ApiOperationExtension metadata: the specification marks the
+// operations to audit with x-audit: true. ApiOperations names an operation in code, so renaming it in the
+// specification breaks the build here instead of silently changing what is logged.
 app.Use(async (context, next) =>
 {
     await next(context);
 
-    if (context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName is { } operation &&
-        audited.Contains(operation))
+    var endpoint = context.GetEndpoint();
+    if (Showcase.Generated.ApiOperationExtension.Find(endpoint, "x-audit") == "true" &&
+        endpoint?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName is { } operation)
     {
-        app.Logger.LogInformation("Audit: {Operation} answered {StatusCode}", operation, context.Response.StatusCode);
+        var level = operation == Showcase.Generated.ApiOperations.DeleteAccountById
+            ? LogLevel.Warning
+            : LogLevel.Information;
+        app.Logger.Log(level, "Audit: {Operation} answered {StatusCode}", operation, context.Response.StatusCode);
     }
 });
 

@@ -296,6 +296,12 @@ public static class WebhookEndpointExtractor
 
         builder.AppendLine(4, $".WithName({OperationNamesExtractor.WebhookConstantReference(projectName, operationId)})");
 
+        // The operation's own x- extensions, for a middleware or a filter to read
+        foreach (var call in OperationExtensionMetadataExtractor.MetadataCalls(operation, projectName))
+        {
+            builder.AppendLine(4, call);
+        }
+
         // The payload is validated as an operation's body is: its constraints, keyed by its wire names
         if (useValidationFilter && hasParameters)
         {

@@ -809,6 +809,14 @@ public class ApiServerGenerator : IIncrementalGenerator
             generatedContext.AddGeneratedSource($"{projectName}.ApiOperations.g.cs", operationNames);
         }
 
+        // The type an operation's own x- extensions go on its endpoint with
+        if (OperationExtensionMetadataExtractor.IsNeeded(openApiDoc, config.IncludeDeprecated))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{OperationExtensionMetadataExtractor.ClassName}.g.cs",
+                OperationExtensionMetadataExtractor.Generate(projectName));
+        }
+
         // Generate Output Caching policies and DI extensions (only if output caching is configured)
         if (openApiDoc.HasOutputCaching())
         {
