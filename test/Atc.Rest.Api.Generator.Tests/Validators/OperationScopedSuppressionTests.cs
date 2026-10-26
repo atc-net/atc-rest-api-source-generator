@@ -88,7 +88,10 @@ public class OperationScopedSuppressionTests
         ValidateSpecificationStrategy strategy)
     {
         var suppress = $"      x-atc-suppress: [{string.Join(", ", Rules)}]\n";
+
+        // The edits match "\n": the raw string has the line endings of the checkout (CRLF on Windows)
         var yaml = Yaml
+            .ReplaceLineEndings("\n")
             .Replace("      operationId: getThing\n", "      operationId: getThing\n" + suppress, StringComparison.Ordinal)
             .Replace("      operationId: probeThing\n", "      operationId: probeThing\n" + suppress, StringComparison.Ordinal)
             .Replace("  /others:\n    get:\n", "  /others:\n    get:\n" + suppress, StringComparison.Ordinal);
@@ -102,7 +105,7 @@ public class OperationScopedSuppressionTests
     [Fact]
     public void XAtcSuppressOnThePathItem_SwitchesARuleOffForItsOperations()
     {
-        var yaml = Yaml.Replace(
+        var yaml = Yaml.ReplaceLineEndings("\n").Replace(
             "  /things/{id}:\n",
             $"  /things/{{id}}:\n    x-atc-suppress: [{RuleIdentifiers.ResponseStatusRange}]\n",
             StringComparison.Ordinal);

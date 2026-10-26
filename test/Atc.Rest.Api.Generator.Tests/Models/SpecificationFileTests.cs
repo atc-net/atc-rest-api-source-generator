@@ -117,9 +117,11 @@ public class SpecificationFileTests
     {
         var document = OpenApiDocumentHelper.ParseYaml(BaseYaml);
 
-        var file = SpecificationFile.FromDocument(@"C:\specs\Shop.yaml", BaseYaml, document);
+        var path = Path.Combine(Path.GetTempPath(), "specs", "Shop.yaml");
 
-        Assert.Equal(@"C:\specs\Shop.yaml", file.FilePath);
+        var file = SpecificationFile.FromDocument(path, BaseYaml, document);
+
+        Assert.Equal(path, file.FilePath);
         Assert.Equal("Shop.yaml", file.FileName);
         Assert.Equal(BaseYaml, file.Content);
         Assert.Same(document, file.Document);
@@ -146,9 +148,11 @@ public class SpecificationFileTests
     [Fact]
     public void Empty_FilePath_HasNoContentAndNoDocument()
     {
-        var file = SpecificationFile.Empty(@"C:\specs\Missing.yaml");
+        var path = Path.Combine(Path.GetTempPath(), "specs", "Missing.yaml");
 
-        Assert.Equal(@"C:\specs\Missing.yaml", file.FilePath);
+        var file = SpecificationFile.Empty(path);
+
+        Assert.Equal(path, file.FilePath);
         Assert.Equal("Missing.yaml", file.FileName);
         Assert.Equal(string.Empty, file.Content);
         Assert.Null(file.Document);
