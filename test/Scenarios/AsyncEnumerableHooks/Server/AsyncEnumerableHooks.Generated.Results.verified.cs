@@ -19,7 +19,7 @@ namespace AsyncEnumerableHooks.Generated.Results;
 /// Stream all items (async-enumerable).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult, INestedHttpResult
+public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -31,6 +31,24 @@ public sealed class ListItemsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - OK.
@@ -52,7 +70,7 @@ public sealed class ListItemsResult : IResult, INestedHttpResult
 /// Stream paginated items (async-enumerable with PaginationResult).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemPagesResult : IResult, INestedHttpResult
+public sealed class ListItemPagesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -64,6 +82,24 @@ public sealed class ListItemPagesResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - OK.
@@ -85,7 +121,7 @@ public sealed class ListItemPagesResult : IResult, INestedHttpResult
 /// Get logs for an item with filters (path + query, no streaming).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetItemLogsResult : IResult, INestedHttpResult
+public sealed class GetItemLogsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -97,6 +133,24 @@ public sealed class GetItemLogsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - OK.
@@ -124,7 +178,7 @@ public sealed class GetItemLogsResult : IResult, INestedHttpResult
 /// Search items by date-time range (date-time query params).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class SearchItemsResult : IResult, INestedHttpResult
+public sealed class SearchItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -136,6 +190,24 @@ public sealed class SearchItemsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - OK.
@@ -163,7 +235,7 @@ public sealed class SearchItemsResult : IResult, INestedHttpResult
 /// Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamItemEventsResult : IResult, INestedHttpResult
+public sealed class StreamItemEventsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -175,6 +247,24 @@ public sealed class StreamItemEventsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - OK.

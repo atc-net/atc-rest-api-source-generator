@@ -18,7 +18,7 @@ namespace SchemaSummaryFields.Generated.Results;
 /// List all pets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult, INestedHttpResult
+public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -30,6 +30,24 @@ public sealed class ListPetsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - Successful pet list response.
@@ -63,7 +81,7 @@ public sealed class ListPetsResult : IResult, INestedHttpResult
 /// Create a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult, INestedHttpResult
+public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -75,6 +93,24 @@ public sealed class CreatePetResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 201 Created - Pet created.
@@ -114,7 +150,7 @@ public sealed class CreatePetResult : IResult, INestedHttpResult
 /// Get a pet by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetByIdResult : IResult, INestedHttpResult
+public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -126,6 +162,24 @@ public sealed class GetPetByIdResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - Pet found.

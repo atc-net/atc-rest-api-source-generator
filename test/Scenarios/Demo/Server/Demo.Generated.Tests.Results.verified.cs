@@ -17,7 +17,7 @@ namespace Demo.Generated.Tests.Results;
 /// Create and return the created model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult
+public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -29,6 +29,24 @@ public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 201 Created - Item created successfully.
@@ -68,7 +86,7 @@ public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult
 /// Create and return location header.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHttpResult
+public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -80,6 +98,24 @@ public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHtt
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 201 Created - Item created successfully.
@@ -114,7 +150,7 @@ public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHtt
 /// Create and return location in body.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHttpResult
+public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -126,6 +162,24 @@ public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHtt
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 201 Created - Item created successfully.
@@ -165,7 +219,7 @@ public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHtt
 /// Create with empty response.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemEmptyResult : IResult, INestedHttpResult
+public sealed class CreateTestItemEmptyResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -177,6 +231,24 @@ public sealed class CreateTestItemEmptyResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 201 Created - Item created successfully.

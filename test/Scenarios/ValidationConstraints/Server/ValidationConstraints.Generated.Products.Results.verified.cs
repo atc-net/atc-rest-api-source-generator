@@ -18,7 +18,7 @@ namespace ValidationConstraints.Generated.Products.Results;
 /// Result for operation: getProduct.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetProductResult : IResult, INestedHttpResult
+public sealed class GetProductResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -30,6 +30,24 @@ public sealed class GetProductResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - The product.
@@ -54,7 +72,7 @@ public sealed class GetProductResult : IResult, INestedHttpResult
 /// Result for operation: listProducts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProductsResult : IResult, INestedHttpResult
+public sealed class ListProductsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -66,6 +84,24 @@ public sealed class ListProductsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - The products.
@@ -93,7 +129,7 @@ public sealed class ListProductsResult : IResult, INestedHttpResult
 /// Result for operation: getNextProductCode.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetNextProductCodeResult : IResult, INestedHttpResult
+public sealed class GetNextProductCodeResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -105,6 +141,24 @@ public sealed class GetNextProductCodeResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - The next free product code.
@@ -129,7 +183,7 @@ public sealed class GetNextProductCodeResult : IResult, INestedHttpResult
 /// Result for operation: listProductCodes.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProductCodesResult : IResult, INestedHttpResult
+public sealed class ListProductCodesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -141,6 +195,24 @@ public sealed class ListProductCodesResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - The product codes in use.

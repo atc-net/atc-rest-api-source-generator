@@ -89,8 +89,10 @@ public class ResultClassExtractorTests
         // Assert - one test helper unwraps any operation's result through INestedHttpResult.Result, no reflection
         Assert.NotNull(resultClasses);
         var resultClass = Assert.Single(resultClasses);
-        Assert.Equal("IResult, INestedHttpResult", resultClass.InheritedInterfaceTypeName);
+        Assert.Equal("IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult", resultClass.InheritedInterfaceTypeName);
         Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "Result", TypeName: "IResult" });
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "StatusCode", TypeName: "int" });
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "Problem" });
     }
 
     [Fact]

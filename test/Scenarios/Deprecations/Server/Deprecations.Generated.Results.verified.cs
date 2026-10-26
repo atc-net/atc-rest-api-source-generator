@@ -19,7 +19,7 @@ namespace Deprecations.Generated.Results;
 /// Result for operation: listPets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult, INestedHttpResult
+public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -31,6 +31,24 @@ public sealed class ListPetsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - OK.
@@ -58,7 +76,7 @@ public sealed class ListPetsResult : IResult, INestedHttpResult
 /// Result for operation: createPet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult, INestedHttpResult
+public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -70,6 +88,24 @@ public sealed class CreatePetResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 201 Created - Created.
@@ -91,7 +127,7 @@ public sealed class CreatePetResult : IResult, INestedHttpResult
 /// Result for operation: listLegacyPets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListLegacyPetsResult : IResult, INestedHttpResult
+public sealed class ListLegacyPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -103,6 +139,24 @@ public sealed class ListLegacyPetsResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 OK - OK.
@@ -130,7 +184,7 @@ public sealed class ListLegacyPetsResult : IResult, INestedHttpResult
 /// Result for operation: updatePetPhoto.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetPhotoResult : IResult, INestedHttpResult
+public sealed class UpdatePetPhotoResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -142,6 +196,24 @@ public sealed class UpdatePetPhotoResult : IResult, INestedHttpResult
 
     public IResult Result
         => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 204 No Content - Uploaded.

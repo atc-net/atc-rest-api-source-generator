@@ -13,7 +13,7 @@ namespace OpenApi32Features.Generated.Webhooks.Results;
 /// Result type for the petUpdated webhook handler.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class OnPetUpdatedWebhookResult : IResult, INestedHttpResult
+public sealed class OnPetUpdatedWebhookResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
 {
     private readonly IResult innerResult;
 
@@ -26,6 +26,21 @@ public sealed class OnPetUpdatedWebhookResult : IResult, INestedHttpResult
     /// The result this one writes (a test reads its status and value through <c>INestedHttpResult</c>).
     /// </summary>
     public IResult Result => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes - null for a result without a body.
+    /// </summary>
+    public object? Value => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with, else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
     /// 200 - Webhook acknowledged

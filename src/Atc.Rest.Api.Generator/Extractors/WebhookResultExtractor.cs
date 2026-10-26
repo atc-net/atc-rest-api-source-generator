@@ -78,7 +78,7 @@ public static class WebhookResultExtractor
         sb.AppendLine($"/// Result type for the {webhookName} webhook handler.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        sb.AppendLine($"public sealed class {className} : IResult, INestedHttpResult");
+        sb.AppendLine($"public sealed class {className} : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult");
         sb.AppendLine("{");
         sb.AppendLine(4, "private readonly IResult innerResult;");
         sb.AppendLine();
@@ -91,6 +91,21 @@ public static class WebhookResultExtractor
         sb.AppendLine(4, "/// The result this one writes (a test reads its status and value through <c>INestedHttpResult</c>).");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, "public IResult Result => innerResult;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The status code the result answers with (a test asserts it without casting).");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public int? StatusCode => (innerResult as IStatusCodeHttpResult)?.StatusCode;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The value the result writes - null for a result without a body.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public object? Value => (innerResult as IValueHttpResult)?.Value;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The problem the result answers with, else null.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;");
 
         // Generate factory methods based on responses defined in the webhook
         if (operation.Responses is not null)
