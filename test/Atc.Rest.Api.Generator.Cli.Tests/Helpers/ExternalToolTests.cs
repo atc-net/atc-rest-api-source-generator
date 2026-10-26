@@ -59,17 +59,27 @@ public sealed class ExternalToolTests
     [Fact]
     public void Run_AToolThatWritesMuchToStandardError_IsNotBlocked()
     {
-        // Far more than a pipe holds (64 KB): a reader that waits for standard output first would never get there
-        var result = ExternalTool.Run(
-            Shell,
-            OperatingSystem.IsWindows()
-                ? "/c \"for /L %i in (1,1,6000) do @echo an error line that is long enough to fill a pipe quickly %i 1>&2\""
-                : "-c \"i=0; while [ $i -lt 6000 ]; do echo 'an error line that is long enough to fill a pipe quickly' $i 1>&2; i=$((i+1)); done\"",
-            Path.GetTempPath(),
-            TimeSpan.FromSeconds(60));
+        // Far more than a pipe holds (64 KB): a reader that waits for standard output first would never get there. The
+        // lines are written by one command, not by a loop of 6000 - on a busy Windows runner such a loop in cmd alone
+        // took longer than the time the test allows
+        var file = Path.Combine(Path.GetTempPath(), $"atc-external-tool-{Guid.NewGuid():N}.txt");
+        File.WriteAllLines(file, Enumerable.Range(1, 6000).Select(i => $"an error line that is long enough to fill a pipe quickly {i}"));
+        try
+        {
+            var result = ExternalTool.Run(
+                Shell,
+                OperatingSystem.IsWindows() ? $"/c \"type \"{file}\" 1>&2\"" : $"-c \"cat '{file}' 1>&2\"",
+                Path.GetTempPath(),
+                TimeSpan.FromSeconds(60));
 
-        Assert.False(result.TimedOut);
-        Assert.Equal(0, result.ExitCode);
-        Assert.Equal(6000, result.Error.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+            var lines = result.Error.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+            Assert.False(result.TimedOut, $"timed out after {lines} line(s)");
+            Assert.Equal(0, result.ExitCode);
+            Assert.Equal(6000, lines);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
     }
 }
