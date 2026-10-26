@@ -13,7 +13,6 @@ using Atc.Rest.Client;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
 
-
 namespace Deprecations.Generated.Models;
 
 /// <summary>

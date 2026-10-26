@@ -11,7 +11,6 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-
 namespace PetStoreFull.Generated.Pet.Models;
 
 /// <summary>

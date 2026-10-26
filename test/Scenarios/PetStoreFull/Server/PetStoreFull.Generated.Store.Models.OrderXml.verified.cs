@@ -12,7 +12,6 @@ using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-
 namespace PetStoreFull.Generated.Store.Models;
 
 /// <summary>

@@ -11,7 +11,6 @@ using System;
 using System.CodeDom.Compiler;
 using System.ComponentModel.DataAnnotations;
 
-
 namespace PetStoreFull.Generated.Store.Models;
 
 /// <summary>
