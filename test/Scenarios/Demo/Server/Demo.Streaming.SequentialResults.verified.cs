@@ -31,35 +31,75 @@ public static class SequentialStreamWriter
 
     /// <summary>
     /// The items, with the response started at the first: the status and headers go out with the first item,
-    /// or - when it takes longer than <see cref="FirstItemWait"/> - before it.
+    /// or - when it takes longer than <see cref="FirstItemWait"/> - before it. A client that leaves before the
+    /// first item ends the reading with the cancellation; the handler's items are disposed once the item they
+    /// were working on is done (an iterator cannot be disposed before).
     /// </summary>
     public static async IAsyncEnumerable<T> StartAtFirstItem<T>(
         IAsyncEnumerable<T> items,
         HttpResponse response,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await using var enumerator = items.GetAsyncEnumerator(cancellationToken);
+        var enumerator = items.GetAsyncEnumerator(cancellationToken);
         var first = enumerator.MoveNextAsync().AsTask();
-        bool hasFirst;
         try
         {
-            hasFirst = await first.WaitAsync(FirstItemWait, cancellationToken);
-        }
-        catch (TimeoutException)
-        {
-            await response.Body.FlushAsync(cancellationToken);
-            hasFirst = await first;
-        }
+            bool hasFirst;
+            try
+            {
+                hasFirst = await first.WaitAsync(FirstItemWait, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                await response.Body.FlushAsync(cancellationToken);
+                hasFirst = await first.WaitAsync(cancellationToken);
+            }
 
-        if (!hasFirst)
-        {
-            yield break;
-        }
+            if (!hasFirst)
+            {
+                yield break;
+            }
 
-        yield return enumerator.Current;
-        while (await enumerator.MoveNextAsync())
-        {
             yield return enumerator.Current;
+            while (await enumerator.MoveNextAsync())
+            {
+                yield return enumerator.Current;
+            }
+        }
+        finally
+        {
+            if (first.IsCompleted)
+            {
+                await enumerator.DisposeAsync();
+            }
+            else
+            {
+                _ = DisposeWhenDoneAsync(enumerator, first);
+            }
+        }
+    }
+
+    // The first item is still pending when the client left: dispose the items when it is done
+    private static async Task DisposeWhenDoneAsync<T>(
+        IAsyncEnumerator<T> enumerator,
+        Task<bool> pending)
+    {
+        try
+        {
+            await pending.ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // The item of a request that has gone - nothing to answer it to
+        }
+
+        try
+        {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // As above
         }
     }
 
