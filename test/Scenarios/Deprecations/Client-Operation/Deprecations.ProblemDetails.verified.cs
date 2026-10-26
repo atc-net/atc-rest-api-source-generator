@@ -4,6 +4,7 @@
 #pragma warning disable CS0618
 
 using System;
+using System.Linq;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -33,6 +34,21 @@ public record ProblemDetails(
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extensions { get; init; }
+
+    /// <summary>
+    /// The problem's text for people: <see cref="Detail"/>, else a <see cref="Title"/> that says more than the status
+    /// (a title that is only the status's reason phrase - what a problem made from the status alone has - does not);
+    /// a validation problem's field messages come first. Null when the problem only names its status: word that
+    /// yourself, in your own language (<c>result.Problem?.ToDisplayText() ?? Texts.ForStatus(result.StatusCode)</c>).
+    /// </summary>
+    /// <returns>The text, or <see langword="null"/>.</returns>
+    public virtual string? ToDisplayText()
+        => !string.IsNullOrWhiteSpace(Detail)
+            ? Detail!.Trim()
+            : !string.IsNullOrWhiteSpace(Title) &&
+              !(Status is { } status && string.Equals(Title!.Trim(), ProblemDetailsFactory.ReasonPhrase(status), System.StringComparison.OrdinalIgnoreCase))
+                ? Title!.Trim()
+                : null;
 }
 
 /// <summary>
@@ -53,4 +69,29 @@ public record ValidationProblemDetails(
     string? Detail = null,
     string? Instance = null,
     Dictionary<string, string[]>? Errors = null)
-    : ProblemDetails(Type, Title, Status, Detail, Instance);
+    : ProblemDetails(Type, Title, Status, Detail, Instance)
+{
+    /// <summary>
+    /// The field messages, one per line and each once, in the order of the fields; without any, the problem's
+    /// <see cref="ProblemDetails.Detail"/> or a title that says more than the status.
+    /// </summary>
+    /// <returns>The text, or <see langword="null"/>.</returns>
+    public override string? ToDisplayText()
+    {
+        var messages = new List<string>();
+        foreach (var field in Errors ?? new Dictionary<string, string[]>())
+        {
+            foreach (var message in field.Value ?? System.Array.Empty<string>())
+            {
+                if (!string.IsNullOrWhiteSpace(message) && !messages.Contains(message.Trim()))
+                {
+                    messages.Add(message.Trim());
+                }
+            }
+        }
+
+        return messages.Count > 0
+            ? string.Join(System.Environment.NewLine, messages)
+            : base.ToDisplayText();
+    }
+}

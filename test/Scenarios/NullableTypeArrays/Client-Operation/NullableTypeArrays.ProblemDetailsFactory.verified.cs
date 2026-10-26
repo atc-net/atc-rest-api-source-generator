@@ -19,6 +19,14 @@ namespace NullableTypeArrays.Generated;
 public static class ProblemDetailsFactory
 {
     /// <summary>
+    /// The reason phrase of a status (RFC 9110): the title of a problem made from the status alone.
+    /// </summary>
+    /// <param name="status">The status.</param>
+    /// <returns>The reason phrase (<c>Service Unavailable</c>).</returns>
+    public static string ReasonPhrase(int status)
+        => GetTitle((HttpStatusCode)status);
+
+    /// <summary>
     /// Creates a ProblemDetails instance from a status code and optional message.
     /// </summary>
     public static ProblemDetails Create(HttpStatusCode statusCode, string? message = null)

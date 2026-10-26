@@ -42,16 +42,11 @@ public sealed partial class GatewayService
         {
             // ContentObject is the registered error type (ValidationProblemDetails for 400, ProblemDetails for the
             // others the client knows about), or the raw content for a status the spec does not list (501, 504)
-            // A validation problem carries its messages in Errors (a ValidationException the handler throws: a message
-            // without a field name is under the "" key) and has no Detail
-            case Showcase.Generated.ValidationProblemDetails validationProblem:
-                message = validationProblem.Detail
-                    ?? (validationProblem.Errors is { Count: > 0 } errors ? string.Join("; ", errors.SelectMany(e => e.Value)) : null)
-                    ?? validationProblem.Title
-                    ?? message;
-                break;
-            case Showcase.Generated.ProblemDetails problemDetails:
-                message = problemDetails.Detail ?? problemDetails.Title ?? message;
+            // ToDisplayText() is generated: a validation problem's field messages, else the detail, else a title that says
+            // more than the status. A problem that only names its status gives null - this page shows its title; an app
+            // for people words the status itself, in its own language
+            case Showcase.Generated.ProblemDetails problem:
+                message = problem.ToDisplayText() ?? problem.Title ?? message;
                 break;
             case string jsonString when !string.IsNullOrEmpty(jsonString):
                 // Try to deserialize raw JSON string to ProblemDetails
