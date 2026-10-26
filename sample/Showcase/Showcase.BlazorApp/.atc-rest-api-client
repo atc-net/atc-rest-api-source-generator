@@ -4,5 +4,6 @@
     "includeDeprecated": false,
     "generationMode": "EndpointPerOperation",
     "strictRequiredProperties": true,
-    "preferXml": true
+    "preferXml": true,
+    "transportFailure": "result"
 }

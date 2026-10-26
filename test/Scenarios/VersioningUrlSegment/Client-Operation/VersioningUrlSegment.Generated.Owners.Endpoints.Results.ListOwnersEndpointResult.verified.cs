@@ -21,9 +21,38 @@ namespace VersioningUrlSegment.Generated.Owners.Endpoints.Results;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public partial class ListOwnersEndpointResult : EndpointResponse, IListOwnersEndpointResult
 {
+    private Exception? transportException;
+
     public ListOwnersEndpointResult(EndpointResponse response)
         : base(response)
     {
+    }
+
+    /// <summary>
+    /// Whether the request got no answer from the server (the connection failed, a timeout the caller did not ask
+    /// for, a resilience pipeline that rejected it): the result is then a 503 whose problem says so.
+    /// </summary>
+    public bool IsTransportFailure => transportException is not null;
+
+    /// <summary>
+    /// The exception of a request that got no answer, else null.
+    /// </summary>
+    public Exception? TransportException => transportException;
+
+    /// <summary>
+    /// Creates the result of a request that got no answer from the server: a 503 whose problem says the server could
+    /// not be reached, with the exception.
+    /// </summary>
+    public static ListOwnersEndpointResult TransportFailure(Exception exception)
+    {
+        if (exception is null)
+        {
+            throw new ArgumentNullException(nameof(exception));
+        }
+
+        var result = Create(HttpStatusCode.ServiceUnavailable, ProblemDetailsFactory.Create(HttpStatusCode.ServiceUnavailable, "The server could not be reached: " + exception.Message));
+        result.transportException = exception;
+        return result;
     }
 
     /// <summary>

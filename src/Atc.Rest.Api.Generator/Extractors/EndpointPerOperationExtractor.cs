@@ -47,6 +47,7 @@ public static class EndpointPerOperationExtractor
     /// <param name="namespaceSegment">The segment used for namespaces and file names. When null, <paramref name="pathSegment"/> is used. Pass an explicitly resolved value (possibly empty) to omit the segment from namespaces.</param>
     /// <param name="preferXml">Whether a body offered as JSON and XML is sent and read as XML.</param>
     /// <param name="extensibleEnums">Whether the client's string enums are extensible (a response header keeps a value the specification does not list).</param>
+    /// <param name="transportFailureAsResult">Whether a request that got no answer is answered with a result (<c>"transportFailure": "result"</c>).</param>
     /// <returns>A tuple containing the operation files and a dictionary of inline schemas.</returns>
     public static (List<OperationFiles> Files, Dictionary<string, InlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
@@ -62,7 +63,8 @@ public static class EndpointPerOperationExtractor
         bool useServersBasePath = true,
         string? namespaceSegment = null,
         bool preferXml = false,
-        bool extensibleEnums = true)
+        bool extensibleEnums = true,
+        bool transportFailureAsResult = false)
     {
         var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
@@ -135,7 +137,8 @@ public static class EndpointPerOperationExtractor
                     inlineSchemas,
                     useServersBasePath,
                     preferXml,
-                    extensibleEnums);
+                    extensibleEnums,
+                    transportFailureAsResult);
 
                 if (files is not null)
                 {
@@ -241,7 +244,8 @@ public static class EndpointPerOperationExtractor
         Dictionary<string, InlineSchemaInfo>? inlineSchemas = null,
         bool useServersBasePath = true,
         bool preferXml = false,
-        bool extensibleEnums = true)
+        bool extensibleEnums = true,
+        bool transportFailureAsResult = false)
     {
         var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var operationName = operationId.ToPascalCaseForDotNet();
@@ -361,7 +365,8 @@ public static class EndpointPerOperationExtractor
             hasSegmentModels,
             hasSharedModels,
             useServersBasePath,
-            preferXml);
+            preferXml,
+            transportFailureAsResult);
 
         // A binary endpoint has no result interface/class (it returns StreamBinaryEndpointResponse). A streamed one
         // has: the items are the response's Content, so its success responses carry no content of their own.
@@ -818,7 +823,8 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels,
         bool useServersBasePath = true,
-        bool preferXml = false)
+        bool preferXml = false,
+        bool transportFailureAsResult = false)
     {
         var namespaceValue = NamespaceBuilder.ForEndpoints(projectName, pathSegment);
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
@@ -949,7 +955,8 @@ public static class EndpointPerOperationExtractor
             streamingItemType,
             resilienceStamp,
             useServersBasePath,
-            preferXml);
+            preferXml,
+            transportFailureAsResult);
 
         // Determine return type: StreamBinaryEndpointResponse for binary, the result class otherwise (for a streamed
         // operation it derives from StreamingEndpointResponse<T>)
@@ -1061,7 +1068,8 @@ public static class EndpointPerOperationExtractor
         string? streamingItemType,
         string? resilienceStamp,
         bool useServersBasePath = true,
-        bool preferXml = false)
+        bool preferXml = false,
+        bool transportFailureAsResult = false)
     {
         var sb = new StringBuilder();
         sb.AppendLine("var client = factory.CreateClient(httpClientName);");
@@ -1101,13 +1109,34 @@ public static class EndpointPerOperationExtractor
         // For streaming, don't use 'using' - StreamingEndpointResponse manages the response lifecycle.
         // A streamed download (x-return-stream) hands the open content stream to the caller, so the response is not
         // disposed here either (StreamBinaryEndpointResponse disposes the stream).
-        if ((isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint)
+        var isStreamed = (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint;
+        var send = isStreamed
+            ? "await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false)"
+            : "await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false)";
+
+        // "transportFailure": "result": a request that got no answer is the operation's result (a download keeps
+        // throwing - it has no result to carry it)
+        if (transportFailureAsResult && !isBinaryEndpoint)
         {
-            sb.AppendLine("var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);");
+            sb.AppendLine("HttpResponseMessage sent;");
+            sb.AppendLine("try");
+            sb.AppendLine("{");
+            sb.AppendLine(4, $"sent = {send};");
+            sb.AppendLine("}");
+            sb.AppendLine("catch (Exception exception) when (ApiTransportFailure.IsTransportFailure(exception, cancellationToken))");
+            sb.AppendLine("{");
+            sb.AppendLine(4, $"return {operationName}EndpointResult.TransportFailure(exception);");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine(isStreamed ? "var response = sent;" : "using var response = sent;");
+        }
+        else if (isStreamed)
+        {
+            sb.AppendLine($"var response = {send};");
         }
         else
         {
-            sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);");
+            sb.AppendLine($"using var response = {send};");
         }
 
         sb.AppendLine();
@@ -1866,6 +1895,8 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine($"public partial class {operationName}EndpointResult : {baseType}, I{operationName}EndpointResult");
         sb.AppendLine("{");
+        sb.AppendLine(4, "private Exception? transportException;");
+        sb.AppendLine();
         if (isEventStream)
         {
             // What the last event said (the endpoint reads through the tracker); a result made in a test has none
@@ -1887,12 +1918,48 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(4, "/// </summary>");
             sb.AppendLine(4, "public TimeSpan? Retry => events?.Retry;");
             sb.AppendLine();
+            AppendTransportFailureMembers(sb, operationName);
             return;
         }
 
         sb.AppendLine(4, $"public {operationName}EndpointResult({baseType} response)");
         sb.AppendLine(8, ": base(response)");
         sb.AppendLine(4, "{");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+        AppendTransportFailureMembers(sb, operationName);
+    }
+
+    // A request that got no answer: a 503 with a problem that says so, and the exception
+    private static void AppendTransportFailureMembers(
+        StringBuilder sb,
+        string operationName)
+    {
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// Whether the request got no answer from the server (the connection failed, a timeout the caller did not ask");
+        sb.AppendLine(4, "/// for, a resilience pipeline that rejected it): the result is then a 503 whose problem says so.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public bool IsTransportFailure => transportException is not null;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The exception of a request that got no answer, else null.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public Exception? TransportException => transportException;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// Creates the result of a request that got no answer from the server: a 503 whose problem says the server could");
+        sb.AppendLine(4, "/// not be reached, with the exception.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, $"public static {operationName}EndpointResult TransportFailure(Exception exception)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "if (exception is null)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "throw new ArgumentNullException(nameof(exception));");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "var result = Create(HttpStatusCode.ServiceUnavailable, ProblemDetailsFactory.Create(HttpStatusCode.ServiceUnavailable, \"The server could not be reached: \" + exception.Message));");
+        sb.AppendLine(8, "result.transportException = exception;");
+        sb.AppendLine(8, "return result;");
         sb.AppendLine(4, "}");
         sb.AppendLine();
     }

@@ -622,7 +622,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 ? ErrorResponseFormatType.Custom
                 : config.ErrorResponseFormat;
 
-            var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
+            var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums, config.TransportFailure == TransportFailureType.Result);
             return hasEndpoints ? effectiveSegment : null;
         }
         else
@@ -1388,7 +1388,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
         bool strictRequiredProperties = false,
         bool preferXml = false,
-        bool extensibleEnums = false)
+        bool extensibleEnums = false,
+        bool transportFailureAsResult = false)
     {
         var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
@@ -1410,7 +1411,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             useServersBasePath: useServersBasePath,
             namespaceSegment: namespaceSegment,
             preferXml: preferXml,
-            extensibleEnums: extensibleEnums);
+            extensibleEnums: extensibleEnums,
+            transportFailureAsResult: transportFailureAsResult);
 
         // Generate inline model types if any were discovered
         if (inlineSchemas.Count > 0)

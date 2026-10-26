@@ -45,6 +45,16 @@ public class ClientConfig : BaseConfig
     public TypedClientResultStyleType TypedClientResultStyle { get; set; } = TypedClientResultStyleType.Throw;
 
     /// <summary>
+    /// How an EndpointPerOperation operation answers a request that got no answer from the server (the connection
+    /// failed, a timeout the caller did not ask for, a resilience pipeline that rejected it). Default: Throw - the
+    /// exception is thrown. Result: the operation's result is returned instead, with IsTransportFailure, a 503 with a
+    /// problem that says the server could not be reached, and the exception in TransportException; the caller's own
+    /// cancellation still throws. Only applies to EndpointPerOperation generation mode.
+    /// </summary>
+    [JsonConverter(typeof(TransportFailureTypeConverter))]
+    public TransportFailureType TransportFailure { get; set; } = TransportFailureType.Throw;
+
+    /// <summary>
     /// The HTTP client name to use in IHttpClientFactory. Default: "{ProjectName}-ApiClient".
     /// </summary>
     public string? HttpClientName { get; set; }

@@ -22,6 +22,8 @@ namespace StreamingItemSchema.Generated.EventsSse.Endpoints.Results;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public partial class StreamEventsSseEndpointResult : StreamingEndpointResponse<Event>, IStreamEventsSseEndpointResult
 {
+    private Exception? transportException;
+
     private readonly ServerSentEventTracker? events;
 
     public StreamEventsSseEndpointResult(StreamingEndpointResponse<Event> response, ServerSentEventTracker? events = null)
@@ -39,6 +41,33 @@ public partial class StreamEventsSseEndpointResult : StreamingEndpointResponse<E
     /// The time the server last asked a client to wait before it reconnects (<c>retry:</c>), or null.
     /// </summary>
     public TimeSpan? Retry => events?.Retry;
+
+    /// <summary>
+    /// Whether the request got no answer from the server (the connection failed, a timeout the caller did not ask
+    /// for, a resilience pipeline that rejected it): the result is then a 503 whose problem says so.
+    /// </summary>
+    public bool IsTransportFailure => transportException is not null;
+
+    /// <summary>
+    /// The exception of a request that got no answer, else null.
+    /// </summary>
+    public Exception? TransportException => transportException;
+
+    /// <summary>
+    /// Creates the result of a request that got no answer from the server: a 503 whose problem says the server could
+    /// not be reached, with the exception.
+    /// </summary>
+    public static StreamEventsSseEndpointResult TransportFailure(Exception exception)
+    {
+        if (exception is null)
+        {
+            throw new ArgumentNullException(nameof(exception));
+        }
+
+        var result = Create(HttpStatusCode.ServiceUnavailable, ProblemDetailsFactory.Create(HttpStatusCode.ServiceUnavailable, "The server could not be reached: " + exception.Message));
+        result.transportException = exception;
+        return result;
+    }
 
     /// <summary>
     /// Creates a result representing HTTP OK.

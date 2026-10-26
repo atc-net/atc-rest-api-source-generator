@@ -34,6 +34,12 @@ public sealed partial class GatewayService
             return (false, (int)result.StatusCode, "Not Found - Invalid code", null);
         }
 
+        // "transportFailure": "result" in the client marker: an API that cannot be reached is a result, not an exception
+        if (result.IsTransportFailure)
+        {
+            return (false, (int)result.StatusCode, "The API cannot be reached", null);
+        }
+
         // For other status codes (400, 429, 500, 501, 504), read the error message
         var statusCode = (int)result.StatusCode;
         var message = $"Error: {result.StatusCode}";

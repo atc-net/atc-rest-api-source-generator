@@ -3,6 +3,9 @@
 #pragma warning disable CS1591
 
 using System;
+using System.IO;
+using System.Net.Http;
+using System.Threading;
 using System.CodeDom.Compiler;
 
 namespace HeaderParameters.Generated;
@@ -25,4 +28,51 @@ public interface IEndpointResult
     /// The problem when it is a ValidationProblemDetails (the field errors of a refused request), else null.
     /// </summary>
     ValidationProblemDetails? ValidationProblem { get; }
+
+    /// <summary>
+    /// Whether the request got no answer from the server - with <c>"transportFailure": "result"</c> in the client
+    /// marker, a failed connection, a timeout the caller did not ask for or a resilience rejection is this result (a
+    /// 503 whose problem says so) instead of an exception.
+    /// </summary>
+    bool IsTransportFailure { get; }
+
+    /// <summary>
+    /// The exception of a request that got no answer, else null.
+    /// </summary>
+    global::System.Exception? TransportException { get; }
+}
+
+/// <summary>
+/// Tells a request that got no answer from the server from the caller's own cancellation.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class ApiTransportFailure
+{
+    /// <summary>
+    /// Whether the exception says the request got no answer: the connection failed (an HttpRequestException, an
+    /// IOException), it timed out without the caller cancelling it, or a resilience pipeline rejected it (Polly's
+    /// ExecutionRejectedException: an open circuit, a timeout, a rate limiter).
+    /// </summary>
+    /// <param name="exception">The exception.</param>
+    /// <param name="cancellationToken">The caller's token.</param>
+    /// <returns>True for a request that got no answer; false for the caller's cancellation.</returns>
+    public static bool IsTransportFailure(
+        global::System.Exception exception,
+        global::System.Threading.CancellationToken cancellationToken)
+        => !cancellationToken.IsCancellationRequested &&
+           (exception is global::System.Net.Http.HttpRequestException or global::System.IO.IOException or global::System.TimeoutException or global::System.OperationCanceledException || IsRejected(exception));
+
+    // Polly's ExecutionRejectedException by name: the client references no resilience package of its own
+    private static bool IsRejected(global::System.Exception exception)
+    {
+        for (var type = exception.GetType(); type is not null; type = type.BaseType)
+        {
+            if (type.FullName == "Polly.ExecutionRejectedException")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
