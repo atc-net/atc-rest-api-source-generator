@@ -5,7 +5,9 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// (<c>ServerSentEventTracker</c>, behind a result's <c>EventName</c> and <c>Retry</c>), and
 /// <c>ServerSentEventResume.ReadAsync</c>, which an operation that declares <c>Last-Event-ID</c> reads its items across
 /// reconnects with (<c>ReadResumingAsync</c>): it sends the last id read, waits the server's <c>retry:</c> after the
-/// stream ends and backs off while the server is away, until the server answers 204 or a 4xx.
+/// stream ends and backs off while the server is away (on the policy's <c>TimeProvider</c>), until the server answers
+/// 204 or a 4xx. An event whose data cannot be read ends its connection, not the reading: the next connection continues
+/// after it.
 /// </summary>
 public static class ServerSentEventResumeExtractor
 {
@@ -63,6 +65,11 @@ public static class ServerSentEventResumeExtractor
                  /// The time the server last asked a client to wait before it reconnects (<c>retry:</c>), or null.
                  /// </summary>
                  TimeSpan? Retry { get; }
+
+                 /// <summary>
+                 /// The response headers of the connection.
+                 /// </summary>
+                 IReadOnlyDictionary<string, IEnumerable<string>> Headers { get; }
              }
 
              /// <summary>
@@ -153,13 +160,20 @@ public static class ServerSentEventResumeExtractor
                  public int? MaxConsecutiveFailures { get; set; }
 
                  /// <summary>
-                 /// Called when a connection is answered with the stream.
+                 /// The clock the waits run on; a test passes its own to skip them.
                  /// </summary>
-                 public Action? OnConnected { get; set; }
+                 public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
 
                  /// <summary>
-                 /// Called when a connection ends: with the exception of a broken connection, or the status of an error answer;
-                 /// both null when the server ended the stream.
+                 /// Called when a connection is answered with the stream, with its result - its <see cref="IServerSentEventResult.Headers"/>,
+                 /// or the operation's result type it can be cast to.
+                 /// </summary>
+                 public Action<IServerSentEventResult>? OnConnected { get; set; }
+
+                 /// <summary>
+                 /// Called when a connection ends: with the exception of a broken connection (or of an event that could not be read),
+                 /// or the status of an answer that is not the stream (a 204 or a 4xx is the last one); both null when the server
+                 /// ended the stream or the caller stopped reading. Every <see cref="OnConnected"/> is followed by one.
                  /// </summary>
                  public Action<Exception?, HttpStatusCode?>? OnDisconnected { get; set; }
              }
@@ -173,7 +187,8 @@ public static class ServerSentEventResumeExtractor
                  /// <summary>
                  /// Yields the items of every connection: each call sends the id of the last event read; after the stream ends
                  /// the server's <c>retry:</c> is waited, after a failure (a broken connection, a 5xx, a 408 or a 429) the
-                 /// policy's waits. A 204 or another 4xx ends the reading - the server says there is nothing to resume.
+                 /// policy's waits. A 204 or another 4xx ends the reading - the server says there is nothing to resume. An event
+                 /// whose data cannot be read ends its connection; the next one sends its id, so it is not read again.
                  /// </summary>
                  /// <typeparam name="T">The item.</typeparam>
                  /// <typeparam name="TResult">The operation's result.</typeparam>
@@ -215,22 +230,26 @@ public static class ServerSentEventResumeExtractor
 
                          if (result is not null)
                          {
+                             var connected = false;
                              try
                              {
                                  var status = (int)result.StatusCode;
                                  if (status == 204 || (status is >= 400 and < 500 && status != 408 && status != 429))
                                  {
+                                     policy.OnDisconnected?.Invoke(null, result.StatusCode);
                                      yield break;
                                  }
 
                                  if (result.IsSuccess && result.Content is { } items)
                                  {
-                                     policy.OnConnected?.Invoke();
+                                     connected = true;
+                                     policy.OnConnected?.Invoke(result);
                                      var enumerator = items.GetAsyncEnumerator(cancellationToken);
                                      try
                                      {
                                          while (true)
                                          {
+                                             cancellationToken.ThrowIfCancellationRequested();
                                              bool hasItem;
                                              try
                                              {
@@ -258,8 +277,9 @@ public static class ServerSentEventResumeExtractor
                                          await enumerator.DisposeAsync().ConfigureAwait(false);
                                      }
 
+                                     // The id of the last event, also one that could not be read - the next connection continues after it
+                                     lastEventId = result.LastEventId ?? lastEventId;
                                      retry = result.Retry ?? retry;
-                                     policy.OnDisconnected?.Invoke(error, null);
                                  }
                                  else
                                  {
@@ -268,6 +288,12 @@ public static class ServerSentEventResumeExtractor
                              }
                              finally
                              {
+                                 // Also when the caller stops reading (leaves the loop or cancels it)
+                                 if (connected)
+                                 {
+                                     policy.OnDisconnected?.Invoke(error, null);
+                                 }
+
                                  result.Dispose();
                              }
                          }
@@ -291,16 +317,16 @@ public static class ServerSentEventResumeExtractor
                              }
                          }
 
-                         await Task.Delay(DelayOf(policy, ended ? 0 : failures, retry), cancellationToken).ConfigureAwait(false);
+                         await Task.Delay(DelayOf(policy, ended ? 0 : failures, retry), policy.TimeProvider ?? TimeProvider.System, cancellationToken).ConfigureAwait(false);
                      }
                  }
 
-                 // A connection that broke or timed out - not the caller's cancellation
+                 // A connection that broke or timed out, or an event whose data could not be read - not the caller's cancellation
                  private static bool IsBrokenConnection(
                      Exception exception,
                      CancellationToken cancellationToken)
                      => !cancellationToken.IsCancellationRequested &&
-                        exception is HttpRequestException or IOException or OperationCanceledException;
+                        exception is HttpRequestException or IOException or OperationCanceledException or InvalidDataException or System.Text.Json.JsonException;
 
                  // After a stream that ended: the server's retry, else the first wait. After failures: the policy's wait for the
                  // count, the last one repeated - never shorter than the server's retry
