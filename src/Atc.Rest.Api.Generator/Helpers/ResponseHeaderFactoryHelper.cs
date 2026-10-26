@@ -869,7 +869,7 @@ public static class ResponseHeaderFactoryHelper
         HashSet<string> taken)
     {
         var pascal = headerName.ToPascalCaseForDotNet().WithIdentifierStart("Header");
-        var name = char.ToLowerInvariant(pascal[0]) + pascal.Substring(1);
+        var name = IdentifierCasingHelper.ToLower(pascal[0]) + pascal.Substring(1);
         if (CSharpKeywords.IsKeyword(name) || taken.Contains(name))
         {
             name += "Header";

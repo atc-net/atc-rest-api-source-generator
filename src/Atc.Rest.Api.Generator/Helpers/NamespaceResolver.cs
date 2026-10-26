@@ -141,7 +141,7 @@ public static class NamespaceResolver
 
         if (CSharpKeywords.IsKeyword(segment))
         {
-            return char.ToUpperInvariant(segment[0]) + segment.Substring(1);
+            return IdentifierCasingHelper.ToUpper(segment[0]) + segment.Substring(1);
         }
 
         var sb = new StringBuilder(segment.Length + 1);
@@ -154,7 +154,7 @@ public static class NamespaceResolver
                 continue;
             }
 
-            sb.Append(startOfWord ? char.ToUpperInvariant(c) : c);
+            sb.Append(startOfWord ? IdentifierCasingHelper.ToUpper(c) : c);
             startOfWord = false;
         }
 

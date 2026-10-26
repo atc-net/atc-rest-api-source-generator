@@ -40,7 +40,7 @@ public static class OperationNamesExtractor
     public static string WebhookEndpointName(
         OpenApiOperation operation,
         string webhookName)
-        => operation?.OperationId ?? $"On{(webhookName ?? string.Empty).EnsureFirstCharacterToUpper()}";
+        => operation?.OperationId ?? $"On{IdentifierCasingHelper.ToUpperFirst(webhookName ?? string.Empty)}";
 
     /// <summary>
     /// The constant that holds an operation's endpoint name: <c>global::{project}.Generated.ApiOperations.{Name}</c>.

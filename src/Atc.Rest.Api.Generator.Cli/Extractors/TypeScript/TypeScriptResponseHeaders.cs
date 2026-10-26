@@ -30,7 +30,7 @@ internal static class TypeScriptResponseHeaders
             return null;
         }
 
-        var typeName = operationTypeName + char.ToUpperInvariant(discriminator[0]) + discriminator[1..] + "Headers";
+        var typeName = operationTypeName + TypeScriptCasingHelper.ToUpper(discriminator[0]) + discriminator[1..] + "Headers";
         var declaration = new StringBuilder();
         declaration.Append("/** The headers the '").Append(discriminator).AppendLine("' result reads: undefined when one is absent or is not a value of its type. */");
         declaration.Append("export interface ").Append(typeName).AppendLine(" {");

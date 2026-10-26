@@ -75,8 +75,8 @@ public static class WebhookHandlerExtractor
         }
 
         // Get operation ID or generate from webhook name
-        var operationId = operation.OperationId ?? $"On{webhookName.EnsureFirstCharacterToUpper()}";
-        var handlerName = operationId.EnsureFirstCharacterToUpper();
+        var operationId = operation.OperationId ?? $"On{IdentifierCasingHelper.ToUpperFirst(webhookName)}";
+        var handlerName = IdentifierCasingHelper.ToUpperFirst(operationId);
         var interfaceName = $"I{handlerName}WebhookHandler";
 
         // Determine return type based on responses

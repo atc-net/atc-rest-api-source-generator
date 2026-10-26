@@ -208,10 +208,7 @@ public static class CSharpLiteralHelper
                 sb.Append('_');
             }
 
-            // Upper-casing follows the platform's Unicode data (ICU on Linux), which can map a letter to one this
-            // runtime does not know as a letter yet: keep the letter as written then
-            var upper = capitalizeNext ? char.ToUpperInvariant(c) : c;
-            sb.Append(char.IsLetter(upper) || !char.IsLetter(c) ? upper : c);
+            sb.Append(capitalizeNext ? IdentifierCasingHelper.ToUpper(c) : c);
             capitalizeNext = false;
             pendingSeparator = false;
             previousWasDigit = char.IsDigit(c);

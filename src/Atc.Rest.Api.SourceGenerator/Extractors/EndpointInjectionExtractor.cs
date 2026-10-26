@@ -209,11 +209,6 @@ internal static class EndpointInjectionExtractor
             return value;
         }
 
-        if (value.Length == 1)
-        {
-            return value.ToLowerInvariant();
-        }
-
-        return char.ToLowerInvariant(value[0]) + value.Substring(1);
+        return Atc.CodeGeneration.CSharp.Helpers.IdentifierCasingHelper.ToLowerFirst(value);
     }
 }

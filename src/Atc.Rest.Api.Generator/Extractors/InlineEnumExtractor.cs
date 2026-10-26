@@ -93,7 +93,7 @@ public static class InlineEnumExtractor
         string propertyName,
         ISet<string>? componentTypeNames = null)
     {
-        var name = $"{parentSchemaName}{propertyName.EnsureFirstCharacterToUpper()}";
+        var name = $"{parentSchemaName}{IdentifierCasingHelper.ToUpperFirst(propertyName)}";
         if (componentTypeNames is null || !componentTypeNames.Contains(name))
         {
             return name;

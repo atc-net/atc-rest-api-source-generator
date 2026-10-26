@@ -363,7 +363,7 @@ public static class SignalRHubExtractor
         foreach (var argument in member.Arguments)
         {
             var pascal = argument.Name.ToPascalCaseForDotNet().WithIdentifierStart("Argument");
-            var name = taken.Claim(char.ToLowerInvariant(pascal[0]) + pascal.Substring(1));
+            var name = taken.Claim(IdentifierCasingHelper.ToLower(pascal[0]) + pascal.Substring(1));
             parameters.Add((CSharpType(argument.Payload, models), CSharpIdentifierHelper.EscapeIfKeyword(name)));
         }
 

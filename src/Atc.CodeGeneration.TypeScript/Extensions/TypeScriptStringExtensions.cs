@@ -46,7 +46,7 @@ public static class TypeScriptStringExtensions
                 return pascalCase;
             }
 
-            return char.ToLowerInvariant(pascalCase[0]) + pascalCase.Substring(1);
+            return TypeScriptCasingHelper.ToLower(pascalCase[0]) + pascalCase.Substring(1);
         }
 
         /// <summary>
@@ -71,10 +71,10 @@ public static class TypeScriptStringExtensions
                     continue;
                 }
 
-                result.Append(char.ToUpperInvariant(word[0]));
+                result.Append(TypeScriptCasingHelper.ToUpper(word[0]));
                 if (word.Length > 1)
                 {
-                    result.Append(word.Substring(1).ToLowerInvariant());
+                    result.Append(TypeScriptCasingHelper.ToLower(word.Substring(1)));
                 }
             }
 

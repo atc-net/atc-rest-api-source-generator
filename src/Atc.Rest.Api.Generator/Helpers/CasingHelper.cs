@@ -250,7 +250,7 @@ public static class CasingHelper
         // If it's PascalCase, just lowercase the first character
         if (IsPascalCase(operationId))
         {
-            return char.ToLowerInvariant(operationId[0]) + operationId.Substring(1);
+            return IdentifierCasingHelper.ToLower(operationId[0]) + operationId.Substring(1);
         }
 
         // Words split at a separator (-, _, a space, a dot): each keeps its own casing (gridOperatorID stays as it is,
@@ -261,9 +261,9 @@ public static class CasingHelper
         foreach (var word in words)
         {
             var text = word.Any(char.IsLetter) && word.Where(char.IsLetter).All(char.IsUpper)
-                ? word.ToLowerInvariant()
+                ? IdentifierCasingHelper.ToLower(word)
                 : word;
-            result.Append(result.Length == 0 ? char.ToLowerInvariant(text[0]) : char.ToUpperInvariant(text[0]));
+            result.Append(result.Length == 0 ? IdentifierCasingHelper.ToLower(text[0]) : IdentifierCasingHelper.ToUpper(text[0]));
             result.Append(text, 1, text.Length - 1);
         }
 
@@ -285,7 +285,7 @@ public static class CasingHelper
         // If it's camelCase, just uppercase the first character
         if (IsCamelCase(value))
         {
-            return char.ToUpperInvariant(value[0]) + value.Substring(1);
+            return IdentifierCasingHelper.ToUpper(value[0]) + value.Substring(1);
         }
 
         // If it contains separators, convert to PascalCase
@@ -305,12 +305,12 @@ public static class CasingHelper
 
             if (capitalizeNext)
             {
-                result.Append(char.ToUpperInvariant(c));
+                result.Append(IdentifierCasingHelper.ToUpper(c));
                 capitalizeNext = false;
             }
             else
             {
-                result.Append(char.ToLowerInvariant(c));
+                result.Append(IdentifierCasingHelper.ToLower(c));
             }
         }
 
@@ -388,7 +388,7 @@ public static class CasingHelper
                 }
             }
 
-            result.Append(char.ToLowerInvariant(c));
+            result.Append(IdentifierCasingHelper.ToLower(c));
         }
 
         return result.ToString();

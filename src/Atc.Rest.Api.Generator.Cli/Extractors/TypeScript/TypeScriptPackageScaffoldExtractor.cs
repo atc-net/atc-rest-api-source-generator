@@ -320,7 +320,7 @@ public static class TypeScriptPackageScaffoldExtractor
             if (segmentNames.Count > 0)
             {
                 var firstSegment = segmentNames[0];
-                var camel = char.ToLowerInvariant(firstSegment[0]) + firstSegment[1..];
+                var camel = TypeScriptCasingHelper.ToLower(firstSegment[0]) + firstSegment[1..];
                 sb.Append("const ").Append(camel).Append(" = new ").Append(firstSegment).AppendLine("(api);");
             }
 

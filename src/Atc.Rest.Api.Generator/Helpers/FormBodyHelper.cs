@@ -48,7 +48,7 @@ public static class FormBodyHelper
             }
 
             var propertyName = property.Key.ToPascalCaseForDotNet();
-            var variable = char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+            var variable = IdentifierCasingHelper.ToLower(propertyName[0]) + propertyName.Substring(1);
             var csharpType = property.Value.ToCSharpType(isRequired: true, registry: null).TrimEnd('?');
             var isEnum = WireValueHelper.IsStringEnum(property.Value);
 
@@ -161,7 +161,7 @@ public static class FormBodyHelper
             }
             else
             {
-                var variable = char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+                var variable = IdentifierCasingHelper.ToLower(propertyName[0]) + propertyName.Substring(1);
                 var valueType = property.Value.ToCSharpType(isRequired: true, registry: null).TrimEnd('?');
                 builder.AppendLine($"if ({requestAccess}?.{propertyName} is {{ }} {variable})");
                 builder.AppendLine("{");
@@ -487,7 +487,7 @@ public static class FormBodyHelper
         }
         else
         {
-            var variable = char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+            var variable = IdentifierCasingHelper.ToLower(propertyName[0]) + propertyName.Substring(1);
             builder.AppendLine($"if ({requestAccess}?.{propertyName} is {{ }} {variable})");
             builder.AppendLine("{");
             AppendObjectPart(builder, 4, fieldName, field, variable, part, writer);

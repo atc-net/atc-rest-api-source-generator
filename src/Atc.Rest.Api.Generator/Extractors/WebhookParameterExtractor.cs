@@ -92,8 +92,8 @@ public static class WebhookParameterExtractor
         }
 
         // Get operation ID or generate from webhook name
-        var operationId = operation.OperationId ?? $"On{webhookName.EnsureFirstCharacterToUpper()}";
-        var className = $"{operationId.EnsureFirstCharacterToUpper()}WebhookParameters";
+        var operationId = operation.OperationId ?? $"On{IdentifierCasingHelper.ToUpperFirst(webhookName)}";
+        var className = $"{IdentifierCasingHelper.ToUpperFirst(operationId)}WebhookParameters";
 
         // The payload's schema: a stream's record (JSON Lines, JSON Text Sequences - an itemSchema or a schema), else the
         // first media type's schema

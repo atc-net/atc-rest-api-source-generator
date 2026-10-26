@@ -83,7 +83,7 @@ public static class TypeScriptMswHandlerExtractor
         sb.AppendLine();
 
         var segmentLower = segment.Length > 0
-            ? char.ToLowerInvariant(segment[0]) + segment.Substring(1)
+            ? TypeScriptCasingHelper.ToLower(segment[0]) + segment.Substring(1)
             : segment;
 
         sb.Append("export const ").Append(segmentLower).AppendLine("Handlers = [");
@@ -172,9 +172,9 @@ public static class TypeScriptMswHandlerExtractor
         foreach (var (segmentName, _) in segments)
         {
             var segmentLower = segmentName.Length > 0
-                ? char.ToLowerInvariant(segmentName[0]) + segmentName.Substring(1)
+                ? TypeScriptCasingHelper.ToLower(segmentName[0]) + segmentName.Substring(1)
                 : segmentName;
-            var segmentKebab = segmentName.EnsureFirstCharacterToLower();
+            var segmentKebab = TypeScriptCasingHelper.ToLowerFirst(segmentName);
             sb.Append("import { ").Append(segmentLower).Append("Handlers } from './").Append(segmentKebab).AppendLine("';");
         }
 
@@ -184,7 +184,7 @@ public static class TypeScriptMswHandlerExtractor
         for (var i = 0; i < segments.Count; i++)
         {
             var segmentLower = segments[i].SegmentName.Length > 0
-                ? char.ToLowerInvariant(segments[i].SegmentName[0]) + segments[i].SegmentName.Substring(1)
+                ? TypeScriptCasingHelper.ToLower(segments[i].SegmentName[0]) + segments[i].SegmentName.Substring(1)
                 : segments[i].SegmentName;
             sb.Append("  ...").Append(segmentLower).Append("Handlers");
             sb.AppendLine(i < segments.Count - 1 ? "," : string.Empty);

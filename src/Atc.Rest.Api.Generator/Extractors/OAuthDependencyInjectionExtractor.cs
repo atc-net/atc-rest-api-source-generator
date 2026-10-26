@@ -99,7 +99,7 @@ public static class OAuthDependencyInjectionExtractor
             : ["TokenUrl", "ClientId", "ClientSecret", "Scopes"];
         foreach (var option in textOptions)
         {
-            var variable = char.ToLowerInvariant(option[0]) + option.Substring(1);
+            var variable = IdentifierCasingHelper.ToLower(option[0]) + option.Substring(1);
             builder.AppendLine(16, $"if (section[\"{option}\"] is {{ }} {variable})");
             builder.AppendLine(16, "{");
             builder.AppendLine(20, $"options.{option} = {variable};");

@@ -78,16 +78,20 @@ public sealed class EscaperPropertyTests
     public void TypeScriptEnumMemberName_KeepsAReservedWord(string name)
         => Assert.Equal(name, TypeScriptLiteralHelper.ToEnumMemberName(name));
 
-    // U+A7D5 (small double thorn): the ICU of a newer Linux upper-cases it to a letter this runtime does not know yet,
-    // which the property tests drew on CI. The member name keeps a letter it can read
+    // U+A7D5 and U+A7D3 (small double thorn, small double wynn): the ICU of a newer Linux upper-cases them to letters
+    // this runtime does not know yet, which the property tests drew on CI. Every name keeps a letter it can read
     [Theory]
     [InlineData("ꟕ")]
     [InlineData("x-ꟕ")]
     [InlineData("ꟕ︞-䋄")]
-    public void EnumMemberName_OfALetterWhoseUpperCaseIsNoLetterHere_IsAValidIdentifier(
+    [InlineData("ꟓ횤")]
+    [InlineData("a-ꟓ")]
+    public void Name_OfALetterWhoseUpperCaseIsNoLetterHere_IsAValidIdentifier(
         string name)
     {
         AssertCSharpIdentifier(CSharpLiteralHelper.ToEnumMemberName(name), name);
+        AssertCSharpIdentifier(OpenApiSchemaExtensions.SanitizeSchemaName(name), name);
+        AssertCSharpIdentifier(PolicyNamingHelper.ToConstantName(name), name);
         var member = TypeScriptLiteralHelper.ToEnumMemberName(name);
         Assert.True(IsTypeScriptIdentifier(member), $"{Show(name)} became {Show(member)}");
     }

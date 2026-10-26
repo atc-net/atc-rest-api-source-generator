@@ -160,11 +160,11 @@ public static class TypeScriptRetryConfigExtractor
 
             if (i == 0)
             {
-                sb.Append(char.ToLowerInvariant(parts[i][0]));
+                sb.Append(TypeScriptCasingHelper.ToLower(parts[i][0]));
             }
             else
             {
-                sb.Append(char.ToUpperInvariant(parts[i][0]));
+                sb.Append(TypeScriptCasingHelper.ToUpper(parts[i][0]));
             }
 
             if (parts[i].Length > 1)
