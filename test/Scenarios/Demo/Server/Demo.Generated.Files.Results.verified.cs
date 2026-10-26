@@ -50,6 +50,18 @@ public sealed class GetFileByIdResult : IResult, INestedHttpResult, IStatusCodeH
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - OK.
     /// </summary>
     public static GetFileByIdResult Ok(
@@ -119,6 +131,18 @@ public sealed class UploadFormDataFileResult : IResult, INestedHttpResult, IStat
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - OK.
     /// </summary>
     public static UploadFormDataFileResult Ok()
@@ -181,6 +205,18 @@ public sealed class UploadFormDataFilesResult : IResult, INestedHttpResult, ISta
     /// </summary>
     public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
 
     /// <summary>
     /// 200 OK - OK.
@@ -247,6 +283,18 @@ public sealed class UploadSingleFileAsFormDataResult : IResult, INestedHttpResul
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - OK.
     /// </summary>
     public static UploadSingleFileAsFormDataResult Ok()
@@ -298,6 +346,18 @@ public sealed class UploadMultiFilesAsFormDataResult : IResult, INestedHttpResul
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - OK.
     /// </summary>
     public static UploadMultiFilesAsFormDataResult Ok()
@@ -311,6 +371,53 @@ public sealed class UploadMultiFilesAsFormDataResult : IResult, INestedHttpResul
     /// </summary>
     public static IResult ToIResult(UploadMultiFilesAsFormDataResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A result that writes response headers before the result it wraps.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal interface IHeaderWritingHttpResult
+{
+    IEnumerable<KeyValuePair<string, string>> Headers { get; }
+}
+
+/// <summary>
+/// The headers a result writes: its wrappers' (a location, the declared headers, Retry-After) and the Location
+/// of a framework Created or Accepted result.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ResultHeaders
+{
+    public static IReadOnlyDictionary<string, string> Of(IResult result)
+    {
+        var headers = new Dictionary<string, string>(global::System.StringComparer.OrdinalIgnoreCase);
+        for (var current = result; current is not null; current = (current as INestedHttpResult)?.Result)
+        {
+            // The wrapped result writes after its wrapper: the inner value wins
+            switch (current)
+            {
+                case IHeaderWritingHttpResult writer:
+                    foreach (var header in writer.Headers)
+                    {
+                        headers[header.Key] = header.Value;
+                    }
+
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Created { Location: { } created }:
+                    headers["Location"] = created;
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Accepted { Location: { } accepted }:
+                    headers["Location"] = accepted;
+                    break;
+            }
+        }
+
+        return headers;
+    }
+
+    public static string? Location(IResult result)
+        => Of(result).TryGetValue("Location", out var location) ? location : null;
 }
 
 /// <summary>

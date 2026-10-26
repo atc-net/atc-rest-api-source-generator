@@ -197,7 +197,7 @@ public static class ResponseHeaderFactoryHelper
             /// wrapped result itself.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
+            internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
             {
                 private readonly (string Name, string? Value)[] headers;
 
@@ -216,6 +216,20 @@ public static class ResponseHeaderFactoryHelper
 
                 public object? Value
                     => (Result as IValueHttpResult)?.Value;
+
+                public IEnumerable<KeyValuePair<string, string>> Headers
+                {
+                    get
+                    {
+                        foreach (var header in headers)
+                        {
+                            if (header.Value is not null)
+                            {
+                                yield return new KeyValuePair<string, string>(header.Name, header.Value);
+                            }
+                        }
+                    }
+                }
 
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
                 {

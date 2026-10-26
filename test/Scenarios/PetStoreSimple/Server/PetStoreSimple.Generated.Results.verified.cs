@@ -50,6 +50,18 @@ public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttp
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - A paged array of pets.
     /// </summary>
     public static ListPetsResult Ok(
@@ -117,6 +129,18 @@ public sealed class CreatePetsResult : IResult, INestedHttpResult, IStatusCodeHt
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 201 Created - Null response.
     /// </summary>
     public static CreatePetsResult Created(string? uri = null)
@@ -176,6 +200,18 @@ public sealed class ShowPetByIdResult : IResult, INestedHttpResult, IStatusCodeH
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - Expected response to a valid request.
     /// </summary>
     public static ShowPetByIdResult Ok(Pet response)
@@ -200,6 +236,53 @@ public sealed class ShowPetByIdResult : IResult, INestedHttpResult, IStatusCodeH
     /// </summary>
     public static IResult ToIResult(ShowPetByIdResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A result that writes response headers before the result it wraps.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal interface IHeaderWritingHttpResult
+{
+    IEnumerable<KeyValuePair<string, string>> Headers { get; }
+}
+
+/// <summary>
+/// The headers a result writes: its wrappers' (a location, the declared headers, Retry-After) and the Location
+/// of a framework Created or Accepted result.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ResultHeaders
+{
+    public static IReadOnlyDictionary<string, string> Of(IResult result)
+    {
+        var headers = new Dictionary<string, string>(global::System.StringComparer.OrdinalIgnoreCase);
+        for (var current = result; current is not null; current = (current as INestedHttpResult)?.Result)
+        {
+            // The wrapped result writes after its wrapper: the inner value wins
+            switch (current)
+            {
+                case IHeaderWritingHttpResult writer:
+                    foreach (var header in writer.Headers)
+                    {
+                        headers[header.Key] = header.Value;
+                    }
+
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Created { Location: { } created }:
+                    headers["Location"] = created;
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Accepted { Location: { } accepted }:
+                    headers["Location"] = accepted;
+                    break;
+            }
+        }
+
+        return headers;
+    }
+
+    public static string? Location(IResult result)
+        => Of(result).TryGetValue("Location", out var location) ? location : null;
 }
 
 /// <summary>
@@ -326,7 +409,7 @@ internal static class ResponseHeaders
 /// wrapped result itself.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
+internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
 {
     private readonly (string Name, string? Value)[] headers;
 
@@ -345,6 +428,20 @@ internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult
 
     public object? Value
         => (Result as IValueHttpResult)?.Value;
+
+    public IEnumerable<KeyValuePair<string, string>> Headers
+    {
+        get
+        {
+            foreach (var header in headers)
+            {
+                if (header.Value is not null)
+                {
+                    yield return new KeyValuePair<string, string>(header.Name, header.Value);
+                }
+            }
+        }
+    }
 
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
     {

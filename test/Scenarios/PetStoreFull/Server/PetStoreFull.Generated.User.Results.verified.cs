@@ -50,10 +50,22 @@ public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHt
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
     public static CreateUserResult Ok(PetStoreFull.Generated.User.Models.User response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response)), "application/xml"));
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response), response), "application/xml"));
 
     public static implicit operator CreateUserResult(PetStoreFull.Generated.User.Models.User response)
         => Ok(response);
@@ -112,10 +124,22 @@ public sealed class CreateUsersWithListInputResult : IResult, INestedHttpResult,
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - Successful operation.
     /// </summary>
     public static CreateUsersWithListInputResult Ok(PetStoreFull.Generated.User.Models.User response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response)), "application/xml"));
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response), response), "application/xml"));
 
     public static implicit operator CreateUsersWithListInputResult(PetStoreFull.Generated.User.Models.User response)
         => Ok(response);
@@ -172,6 +196,18 @@ public sealed class LoginUserResult : IResult, INestedHttpResult, IStatusCodeHtt
     /// </summary>
     public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
 
     /// <summary>
     /// 200 OK - successful operation.
@@ -252,6 +288,18 @@ public sealed class LogoutUserResult : IResult, INestedHttpResult, IStatusCodeHt
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
     public static LogoutUserResult Ok()
@@ -311,10 +359,22 @@ public sealed class GetUserByNameResult : IResult, INestedHttpResult, IStatusCod
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
     public static GetUserByNameResult Ok(PetStoreFull.Generated.User.Models.User response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response)), "application/xml"));
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response), response), "application/xml"));
 
     public static implicit operator GetUserByNameResult(PetStoreFull.Generated.User.Models.User response)
         => Ok(response);
@@ -390,6 +450,18 @@ public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHt
     /// </summary>
     public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
 
     /// <summary>
     /// 200 OK - successful operation.
@@ -470,6 +542,18 @@ public sealed class DeleteUserResult : IResult, INestedHttpResult, IStatusCodeHt
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - User deleted.
     /// </summary>
     public static DeleteUserResult Ok()
@@ -510,6 +594,53 @@ public sealed class DeleteUserResult : IResult, INestedHttpResult, IStatusCodeHt
     /// </summary>
     public static IResult ToIResult(DeleteUserResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A result that writes response headers before the result it wraps.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal interface IHeaderWritingHttpResult
+{
+    IEnumerable<KeyValuePair<string, string>> Headers { get; }
+}
+
+/// <summary>
+/// The headers a result writes: its wrappers' (a location, the declared headers, Retry-After) and the Location
+/// of a framework Created or Accepted result.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ResultHeaders
+{
+    public static IReadOnlyDictionary<string, string> Of(IResult result)
+    {
+        var headers = new Dictionary<string, string>(global::System.StringComparer.OrdinalIgnoreCase);
+        for (var current = result; current is not null; current = (current as INestedHttpResult)?.Result)
+        {
+            // The wrapped result writes after its wrapper: the inner value wins
+            switch (current)
+            {
+                case IHeaderWritingHttpResult writer:
+                    foreach (var header in writer.Headers)
+                    {
+                        headers[header.Key] = header.Value;
+                    }
+
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Created { Location: { } created }:
+                    headers["Location"] = created;
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Accepted { Location: { } accepted }:
+                    headers["Location"] = accepted;
+                    break;
+            }
+        }
+
+        return headers;
+    }
+
+    public static string? Location(IResult result)
+        => Of(result).TryGetValue("Location", out var location) ? location : null;
 }
 
 /// <summary>
@@ -652,7 +783,7 @@ internal static class ResponseHeaders
 /// wrapped result itself.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
+internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
 {
     private readonly (string Name, string? Value)[] headers;
 
@@ -672,6 +803,20 @@ internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult
     public object? Value
         => (Result as IValueHttpResult)?.Value;
 
+    public IEnumerable<KeyValuePair<string, string>> Headers
+    {
+        get
+        {
+            foreach (var header in headers)
+            {
+                if (header.Value is not null)
+                {
+                    yield return new KeyValuePair<string, string>(header.Name, header.Value);
+                }
+            }
+        }
+    }
+
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
     {
         foreach (var header in headers)
@@ -687,26 +832,31 @@ internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult
 }
 
 /// <summary>
-/// Writes an XML body (the model's generated XML mapping) with its status and media type.
+/// Writes an XML body (the model's generated XML mapping) with its status and media type; <see cref="Value"/> is
+/// the model it was written from.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult
+internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, IContentTypeHttpResult
 {
     private readonly byte[] body;
 
     public XmlHttpResult(
         int statusCode,
         string mediaType,
-        byte[] body)
+        byte[] body,
+        object? value)
     {
         StatusCode = statusCode;
         ContentType = mediaType + "; charset=utf-8";
         this.body = body;
+        Value = value;
     }
 
     public int StatusCode { get; }
 
     int? IStatusCodeHttpResult.StatusCode => StatusCode;
+
+    public object? Value { get; }
 
     public string ContentType { get; }
 
@@ -720,10 +870,11 @@ internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTy
 }
 
 /// <summary>
-/// Writes the JSON result, or the XML one when the request's Accept prefers XML.
+/// Writes the JSON result, or the XML one when the request's Accept prefers XML. Its status code and its value
+/// are the JSON result's (<see cref="Result"/>) - the XML one writes the same model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
+internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
 {
     private readonly IResult json;
     private readonly global::System.Func<string, IResult> xml;
@@ -739,8 +890,13 @@ internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
         this.xmlMediaTypes = xmlMediaTypes;
     }
 
+    public IResult Result => json;
+
     public int? StatusCode
         => (json as IStatusCodeHttpResult)?.StatusCode;
+
+    public object? Value
+        => (json as IValueHttpResult)?.Value;
 
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
     {

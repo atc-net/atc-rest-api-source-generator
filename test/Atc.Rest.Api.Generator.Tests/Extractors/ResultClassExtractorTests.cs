@@ -1246,7 +1246,7 @@ public class ResultClassExtractorTests
     {
         var source = ResultClassExtractor.XmlHttpResultSource();
 
-        Assert.Contains("internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult", source, StringComparison.Ordinal);
+        Assert.Contains("internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, IContentTypeHttpResult", source, StringComparison.Ordinal);
         Assert.Contains("ContentType = mediaType + \"; charset=utf-8\";", source, StringComparison.Ordinal);
         Assert.Contains("httpContext.Response.StatusCode = StatusCode;", source, StringComparison.Ordinal);
         Assert.Contains("httpContext.Response.ContentLength = body.Length;", source, StringComparison.Ordinal);
@@ -1275,11 +1275,11 @@ public class ResultClassExtractorTests
     {
         var source = ResultClassExtractor.RetryAfterHttpResultSource();
 
-        Assert.Contains("internal sealed class RetryAfterHttpResult : IResult", source, StringComparison.Ordinal);
+        Assert.Contains("internal sealed class RetryAfterHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult", source, StringComparison.Ordinal);
         Assert.Contains("private readonly int? retryAfterSeconds;", source, StringComparison.Ordinal);
         Assert.Contains("if (retryAfterSeconds is not null)", source, StringComparison.Ordinal);
         Assert.Contains("httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);", source, StringComparison.Ordinal);
-        Assert.Contains("return inner.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+        Assert.Contains("return Result.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
     }
 
     /// <summary>

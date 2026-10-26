@@ -51,6 +51,18 @@ public sealed class ListModelsResult : IResult, INestedHttpResult, IStatusCodeHt
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - Array of comprehensive models.
     /// </summary>
     public static ListModelsResult Ok(List<ComprehensiveModel> response)
@@ -106,6 +118,18 @@ public sealed class CreateModelResult : IResult, INestedHttpResult, IStatusCodeH
     /// </summary>
     public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
 
     /// <summary>
     /// 201 Created - Model created successfully.
@@ -177,6 +201,18 @@ public sealed class GetModelByIdResult : IResult, INestedHttpResult, IStatusCode
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - Model details.
     /// </summary>
     public static GetModelByIdResult Ok(ComprehensiveModel response)
@@ -202,6 +238,53 @@ public sealed class GetModelByIdResult : IResult, INestedHttpResult, IStatusCode
 }
 
 /// <summary>
+/// A result that writes response headers before the result it wraps.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal interface IHeaderWritingHttpResult
+{
+    IEnumerable<KeyValuePair<string, string>> Headers { get; }
+}
+
+/// <summary>
+/// The headers a result writes: its wrappers' (a location, the declared headers, Retry-After) and the Location
+/// of a framework Created or Accepted result.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ResultHeaders
+{
+    public static IReadOnlyDictionary<string, string> Of(IResult result)
+    {
+        var headers = new Dictionary<string, string>(global::System.StringComparer.OrdinalIgnoreCase);
+        for (var current = result; current is not null; current = (current as INestedHttpResult)?.Result)
+        {
+            // The wrapped result writes after its wrapper: the inner value wins
+            switch (current)
+            {
+                case IHeaderWritingHttpResult writer:
+                    foreach (var header in writer.Headers)
+                    {
+                        headers[header.Key] = header.Value;
+                    }
+
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Created { Location: { } created }:
+                    headers["Location"] = created;
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Accepted { Location: { } accepted }:
+                    headers["Location"] = accepted;
+                    break;
+            }
+        }
+
+        return headers;
+    }
+
+    public static string? Location(IResult result)
+        => Of(result).TryGetValue("Location", out var location) ? location : null;
+}
+
+/// <summary>
 /// A handler's problem as it is, with the status of the response it is written to.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
@@ -223,7 +306,7 @@ internal static class ProblemWithStatus
 /// wrapped result itself.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
+internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
 {
     public LocationHttpResult(
         IResult inner,
@@ -242,6 +325,9 @@ internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValu
 
     public object? Value
         => (Result as IValueHttpResult)?.Value;
+
+    public IEnumerable<KeyValuePair<string, string>> Headers
+        => new[] { new KeyValuePair<string, string>("Location", Location) };
 
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
     {

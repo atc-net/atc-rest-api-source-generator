@@ -1591,6 +1591,15 @@ public class ApiServerGenerator : IIncrementalGenerator
         // The helper types the result classes use, each emitted once per Results namespace - decided on the classes' text
         var classesCode = allGeneratedCode.ToString();
 
+        // A result's Headers and Location, read through the header wrappers
+        if (classesCode.Contains("ResultHeaders.") ||
+            classesCode.Contains("new RetryAfterHttpResult(") ||
+            classesCode.Contains("new LocationHttpResult(") ||
+            classesCode.Contains(ResponseHeaderFactoryHelper.WriterCall))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.ResultHeadersSource());
+        }
+
         // 429 factories wrap their result to add Retry-After
         if (classesCode.Contains("new RetryAfterHttpResult("))
         {

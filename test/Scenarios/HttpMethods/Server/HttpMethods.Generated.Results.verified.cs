@@ -51,6 +51,18 @@ public sealed class ListResourcesResult : IResult, INestedHttpResult, IStatusCod
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - A list of resources.
     /// </summary>
     public static ListResourcesResult Ok(List<Resource> response)
@@ -106,6 +118,18 @@ public sealed class QueryResourcesResult : IResult, INestedHttpResult, IStatusCo
     /// </summary>
     public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
 
     /// <summary>
     /// 200 OK - Matching resources.
@@ -165,6 +189,18 @@ public sealed class ProbeResourcesResult : IResult, INestedHttpResult, IStatusCo
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 200 OK - The headers the list would have.
     /// </summary>
     public static ProbeResourcesResult Ok(string? eTag = null)
@@ -216,6 +252,18 @@ public sealed class DescribeResourcesResult : IResult, INestedHttpResult, IStatu
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 204 No Content - The methods the collection allows.
     /// </summary>
     public static DescribeResourcesResult NoContent(string? allow = null)
@@ -265,6 +313,18 @@ public sealed class TraceResourcesResult : IResult, INestedHttpResult, IStatusCo
     /// </summary>
     public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
 
     /// <summary>
     /// 200 OK - The request, echoed.
@@ -330,6 +390,18 @@ public sealed class LinkResourceResult : IResult, INestedHttpResult, IStatusCode
         => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
 
     /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
     /// 204 No Content - Linked.
     /// </summary>
     public static LinkResourceResult NoContent()
@@ -343,6 +415,53 @@ public sealed class LinkResourceResult : IResult, INestedHttpResult, IStatusCode
     /// </summary>
     public static IResult ToIResult(LinkResourceResult result)
         => result.Result;
+}
+
+/// <summary>
+/// A result that writes response headers before the result it wraps.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal interface IHeaderWritingHttpResult
+{
+    IEnumerable<KeyValuePair<string, string>> Headers { get; }
+}
+
+/// <summary>
+/// The headers a result writes: its wrappers' (a location, the declared headers, Retry-After) and the Location
+/// of a framework Created or Accepted result.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal static class ResultHeaders
+{
+    public static IReadOnlyDictionary<string, string> Of(IResult result)
+    {
+        var headers = new Dictionary<string, string>(global::System.StringComparer.OrdinalIgnoreCase);
+        for (var current = result; current is not null; current = (current as INestedHttpResult)?.Result)
+        {
+            // The wrapped result writes after its wrapper: the inner value wins
+            switch (current)
+            {
+                case IHeaderWritingHttpResult writer:
+                    foreach (var header in writer.Headers)
+                    {
+                        headers[header.Key] = header.Value;
+                    }
+
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Created { Location: { } created }:
+                    headers["Location"] = created;
+                    break;
+                case global::Microsoft.AspNetCore.Http.HttpResults.Accepted { Location: { } accepted }:
+                    headers["Location"] = accepted;
+                    break;
+            }
+        }
+
+        return headers;
+    }
+
+    public static string? Location(IResult result)
+        => Of(result).TryGetValue("Location", out var location) ? location : null;
 }
 
 /// <summary>
@@ -469,7 +588,7 @@ internal static class ResponseHeaders
 /// wrapped result itself.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
+internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
 {
     private readonly (string Name, string? Value)[] headers;
 
@@ -488,6 +607,20 @@ internal sealed class ResponseHeadersHttpResult : IResult, IStatusCodeHttpResult
 
     public object? Value
         => (Result as IValueHttpResult)?.Value;
+
+    public IEnumerable<KeyValuePair<string, string>> Headers
+    {
+        get
+        {
+            foreach (var header in headers)
+            {
+                if (header.Value is not null)
+                {
+                    yield return new KeyValuePair<string, string>(header.Name, header.Value);
+                }
+            }
+        }
+    }
 
     public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
     {

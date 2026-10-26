@@ -195,7 +195,7 @@ public static class ResultClassExtractor
             /// wrapped result itself.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
+            internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
             {
                 public LocationHttpResult(
                     IResult inner,
@@ -215,6 +215,9 @@ public static class ResultClassExtractor
                 public object? Value
                     => (Result as IValueHttpResult)?.Value;
 
+                public IEnumerable<KeyValuePair<string, string>> Headers
+                    => new[] { new KeyValuePair<string, string>("Location", Location) };
+
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
                 {
                     httpContext.Response.Headers.Location = Location;
@@ -231,26 +234,31 @@ public static class ResultClassExtractor
         => $$"""
 
             /// <summary>
-            /// Writes an XML body (the model's generated XML mapping) with its status and media type.
+            /// Writes an XML body (the model's generated XML mapping) with its status and media type; <see cref="Value"/> is
+            /// the model it was written from.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult
+            internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, IContentTypeHttpResult
             {
                 private readonly byte[] body;
 
                 public XmlHttpResult(
                     int statusCode,
                     string mediaType,
-                    byte[] body)
+                    byte[] body,
+                    object? value)
                 {
                     StatusCode = statusCode;
                     ContentType = mediaType + "; charset=utf-8";
                     this.body = body;
+                    Value = value;
                 }
 
                 public int StatusCode { get; }
 
                 int? IStatusCodeHttpResult.StatusCode => StatusCode;
+
+                public object? Value { get; }
 
                 public string ContentType { get; }
 
@@ -273,10 +281,11 @@ public static class ResultClassExtractor
         => $$"""
 
             /// <summary>
-            /// Writes the JSON result, or the XML one when the request's Accept prefers XML.
+            /// Writes the JSON result, or the XML one when the request's Accept prefers XML. Its status code and its value
+            /// are the JSON result's (<see cref="Result"/>) - the XML one writes the same model.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
+            internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
             {
                 private readonly IResult json;
                 private readonly global::System.Func<string, IResult> xml;
@@ -292,8 +301,13 @@ public static class ResultClassExtractor
                     this.xmlMediaTypes = xmlMediaTypes;
                 }
 
+                public IResult Result => json;
+
                 public int? StatusCode
                     => (json as IStatusCodeHttpResult)?.StatusCode;
+
+                public object? Value
+                    => (json as IValueHttpResult)?.Value;
 
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
                 {
@@ -376,21 +390,34 @@ public static class ResultClassExtractor
         => $$"""
 
             /// <summary>
-            /// Writes the wrapped result with a <c>Retry-After</c> header (in seconds), when one is given.
+            /// Writes the wrapped result with a <c>Retry-After</c> header (in seconds), when one is given. Its status code
+            /// and its value are the wrapped result's; <see cref="Result"/> is the wrapped result itself.
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class RetryAfterHttpResult : IResult
+            internal sealed class RetryAfterHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
             {
-                private readonly IResult inner;
                 private readonly int? retryAfterSeconds;
 
                 public RetryAfterHttpResult(
                     IResult inner,
                     int? retryAfterSeconds)
                 {
-                    this.inner = inner;
+                    Result = inner;
                     this.retryAfterSeconds = retryAfterSeconds;
                 }
+
+                public IResult Result { get; }
+
+                public int? StatusCode
+                    => (Result as IStatusCodeHttpResult)?.StatusCode;
+
+                public object? Value
+                    => (Result as IValueHttpResult)?.Value;
+
+                public IEnumerable<KeyValuePair<string, string>> Headers
+                    => retryAfterSeconds is null
+                        ? global::System.Array.Empty<KeyValuePair<string, string>>()
+                        : new[] { new KeyValuePair<string, string>("Retry-After", retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture)) };
 
                 public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
                 {
@@ -399,8 +426,64 @@ public static class ResultClassExtractor
                         httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
                     }
 
-                    return inner.ExecuteAsync(httpContext);
+                    return Result.ExecuteAsync(httpContext);
                 }
+            }
+            """;
+
+    /// <summary>
+    /// The <c>ResultHeaders</c> helper behind an <c>{Operation}Result</c>'s <c>Headers</c> and <c>Location</c>, and the
+    /// <c>IHeaderWritingHttpResult</c> the header wrappers implement, emitted once per Results namespace.
+    /// </summary>
+    /// <returns>The source.</returns>
+    public static string ResultHeadersSource()
+        => $$"""
+
+            /// <summary>
+            /// A result that writes response headers before the result it wraps.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal interface IHeaderWritingHttpResult
+            {
+                IEnumerable<KeyValuePair<string, string>> Headers { get; }
+            }
+
+            /// <summary>
+            /// The headers a result writes: its wrappers' (a location, the declared headers, Retry-After) and the Location
+            /// of a framework Created or Accepted result.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal static class ResultHeaders
+            {
+                public static IReadOnlyDictionary<string, string> Of(IResult result)
+                {
+                    var headers = new Dictionary<string, string>(global::System.StringComparer.OrdinalIgnoreCase);
+                    for (var current = result; current is not null; current = (current as INestedHttpResult)?.Result)
+                    {
+                        // The wrapped result writes after its wrapper: the inner value wins
+                        switch (current)
+                        {
+                            case IHeaderWritingHttpResult writer:
+                                foreach (var header in writer.Headers)
+                                {
+                                    headers[header.Key] = header.Value;
+                                }
+
+                                break;
+                            case global::Microsoft.AspNetCore.Http.HttpResults.Created { Location: { } created }:
+                                headers["Location"] = created;
+                                break;
+                            case global::Microsoft.AspNetCore.Http.HttpResults.Accepted { Location: { } accepted }:
+                                headers["Location"] = accepted;
+                                break;
+                        }
+                    }
+
+                    return headers;
+                }
+
+                public static string? Location(IResult result)
+                    => Of(result).TryGetValue("Location", out var location) ? location : null;
             }
             """;
 
@@ -675,6 +758,42 @@ public static class ResultClassExtractor
                 UseExpressionBody: true,
                 UseRequired: false,
                 Content: "Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails"),
+            new(
+                DocumentationTags: new CodeDocumentationTags("The Location header the result writes (a created resource, an accepted job, a redirect), else null."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "string",
+                IsNullableType: true,
+                Name: "Location",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: true,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "ResultHeaders.Location(innerResult)"),
+            new(
+                DocumentationTags: new CodeDocumentationTags("The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "IReadOnlyDictionary<string, string>",
+                IsNullableType: false,
+                Name: "Headers",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: true,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "ResultHeaders.Of(innerResult)"),
         };
 
         // INestedHttpResult: one test helper unwraps any operation's result through Result, without reflection; its
@@ -1056,7 +1175,7 @@ public static class ResultClassExtractor
     {
         var valueName = code == 400 ? "errors" : "error";
         var body = new XmlBody(shape.MediaType ?? "application/xml", IsList: false, ListRootName: null);
-        return (modelTypeName, valueName, $"new XmlHttpResult({status}, \"{shape.MediaTypeLiteral}\", {XmlBodyHelper.ToUtf8BytesExpression(modelTypeName, body, valueName)})");
+        return (modelTypeName, valueName, $"new XmlHttpResult({status}, \"{shape.MediaTypeLiteral}\", {XmlBodyHelper.ToUtf8BytesExpression(modelTypeName, body, valueName)}, {valueName})");
     }
 
     /// <summary>
@@ -1587,7 +1706,8 @@ public static class ResultClassExtractor
     /// The factory of a 2xx other than 200/201/202/204, or a 3xx (RFC 9110):
     /// <list type="bullet">
     ///   <item>301, 302, 303, 307, 308 take the <c>location</c> (a <c>Uri</c>, so a 2.x <c>X(message)</c> call does not
-    ///   compile into a redirect to the message) and write it as the <c>Location</c> header, no body.</item>
+    ///   compile into a redirect to the message) and write it as the <c>Location</c> header, no body - through
+    ///   <c>LocationHttpResult</c>, so the result reads back its status and its location.</item>
     ///   <item>205 and 304 never carry a body (§15.3.6, §15.4.5).</item>
     ///   <item>Any other status writes its declared body (JSON or text) with that status, or no body.</item>
     /// </list>
@@ -1637,11 +1757,11 @@ public static class ResultClassExtractor
 
         return statusCode switch
         {
-            301 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: true, preserveMethod: false))"),
-            302 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: false, preserveMethod: false))"),
+            301 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(301), location.OriginalString))"),
+            302 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(302), location.OriginalString))"),
             303 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(303), location.OriginalString))"),
-            307 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: false, preserveMethod: true))"),
-            308 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: true, preserveMethod: true))"),
+            307 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(307), location.OriginalString))"),
+            308 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(308), location.OriginalString))"),
             205 or 304 => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
             _ when isTextResponse && textResponseMediaType is not null =>
                 Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),
@@ -1700,10 +1820,10 @@ public static class ResultClassExtractor
         {
             // Offered as JSON and XML: JSON unless the request's Accept prefers one of the XML media types
             var xmlTypes = string.Join(", ", mediaTypes.Select(m => $"\"{m}\""));
-            return $"new(new NegotiatedHttpResult({jsonResultExpression}, mediaType => new XmlHttpResult({status}, mediaType, {bytes}), {xmlTypes}))";
+            return $"new(new NegotiatedHttpResult({jsonResultExpression}, mediaType => new XmlHttpResult({status}, mediaType, {bytes}, {valueExpression}), {xmlTypes}))";
         }
 
-        return $"new(new XmlHttpResult({status}, \"{xmlBody.MediaType}\", {bytes}))";
+        return $"new(new XmlHttpResult({status}, \"{xmlBody.MediaType}\", {bytes}, {valueExpression}))";
     }
 
     private static string GetSchemaTypeName(
