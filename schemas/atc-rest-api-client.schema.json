@@ -188,7 +188,7 @@
         "Throw",
         "throw"
       ],
-      "description": "How an EndpointPerOperation operation answers a request that got no answer from the server (the connection failed, a timeout the caller did not ask for, a resilience pipeline that rejected it). Default: Throw - the exception is thrown. Result: the operation's result is returned instead, with IsTransportFailure, a 503 with a problem that says the server could not be reached, and the exception in TransportException; the caller's own cancellation still throws. Only applies to EndpointPerOperation generation mode.",
+      "description": "How an EndpointPerOperation operation answers a request that got no answer from the server (the connection failed, a timeout the caller did not ask for, a resilience pipeline that rejected it). Default: Throw - the exception is thrown. Result: the operation's result is returned instead, with IsTransportFailure, a 503 whose problem has no text of its own (for the caller to word), and the exception in TransportException; the caller's own cancellation still throws. Only applies to EndpointPerOperation generation mode.",
       "default": "Throw"
     },
     "httpClientName": {

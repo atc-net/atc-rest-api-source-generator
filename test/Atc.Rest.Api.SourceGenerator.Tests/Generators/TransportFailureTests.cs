@@ -3,7 +3,8 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <summary>
 /// <c>"transportFailure": "result"</c> in an EndpointPerOperation client marker: a request that never got an answer - the
 /// connection failed, it timed out without the caller cancelling it, a resilience pipeline rejected it - is answered
-/// with a result (<c>IsTransportFailure</c>, a 503 with a problem that says so) instead of an exception; the caller's own
+/// with a result (<c>IsTransportFailure</c>, a 503 whose problem has no text, for the caller to word in its own language)
+/// instead of an exception; the caller's own
 /// cancellation still throws. Without the key it throws, as before.
 /// </summary>
 public sealed class TransportFailureTests
@@ -115,7 +116,7 @@ public sealed class TransportFailureTests
                     Atc.Rest.Client.IStreamingEndpointResponse<string> streamed => (int)streamed.StatusCode,
                     _ => 0,
                 };
-                return $"{result.IsTransportFailure}|{status}|{result.Problem?.Detail}|{result.TransportException?.GetType().Name}";
+                return $"{result.IsTransportFailure}|{status}|{result.Problem?.Detail ?? "-"}|{result.Problem?.ToDisplayText() ?? "-"}|{result.TransportException?.GetType().Name}";
             }
 
             private sealed class FailingHandler : HttpMessageHandler
@@ -138,9 +139,9 @@ public sealed class TransportFailureTests
         // Assert
         Assert.Equal(
             [
-                "True|503|The server could not be reached: No such host is known.|HttpRequestException",
-                "True|503|The server could not be reached: No such host is known.|HttpRequestException",
-                "True|503|The server could not be reached: The request was canceled due to the configured HttpClient.Timeout.|TaskCanceledException",
+                "True|503|-|-|HttpRequestException",
+                "True|503|-|-|HttpRequestException",
+                "True|503|-|-|TaskCanceledException",
                 "cancelled",
             ],
             log);
@@ -163,7 +164,7 @@ public sealed class TransportFailureTests
         var built = (string)Probe("""{ "generationMode": "EndpointPerOperation" }""").GetMethod("Built")!.Invoke(null, null)!;
 
         // Assert
-        Assert.Equal("True|503|The server could not be reached: Connection refused|HttpRequestException", built);
+        Assert.Equal("True|503|-|-|HttpRequestException", built);
     }
 
     private static Type Probe(string marker)

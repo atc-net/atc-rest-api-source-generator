@@ -1947,8 +1947,8 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine(4, "public Exception? TransportException => transportException;");
         sb.AppendLine();
         sb.AppendLine(4, "/// <summary>");
-        sb.AppendLine(4, "/// Creates the result of a request that got no answer from the server: a 503 whose problem says the server could");
-        sb.AppendLine(4, "/// not be reached, with the exception.");
+        sb.AppendLine(4, "/// Creates the result of a request that got no answer from the server: a 503 whose problem has no text of its own");
+        sb.AppendLine(4, "/// (ToDisplayText() is null, for the caller to word), with the exception.");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, $"public static {operationName}EndpointResult TransportFailure(Exception exception)");
         sb.AppendLine(4, "{");
@@ -1957,7 +1957,7 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine(12, "throw new ArgumentNullException(nameof(exception));");
         sb.AppendLine(8, "}");
         sb.AppendLine();
-        sb.AppendLine(8, "var result = Create(HttpStatusCode.ServiceUnavailable, ProblemDetailsFactory.Create(HttpStatusCode.ServiceUnavailable, \"The server could not be reached: \" + exception.Message));");
+        sb.AppendLine(8, "var result = Create(HttpStatusCode.ServiceUnavailable, ProblemDetailsFactory.Create(HttpStatusCode.ServiceUnavailable));");
         sb.AppendLine(8, "result.transportException = exception;");
         sb.AppendLine(8, "return result;");
         sb.AppendLine(4, "}");

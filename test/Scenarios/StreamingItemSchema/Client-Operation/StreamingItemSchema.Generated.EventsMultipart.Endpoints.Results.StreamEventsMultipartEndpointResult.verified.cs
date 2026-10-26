@@ -41,8 +41,8 @@ public partial class StreamEventsMultipartEndpointResult : StreamingEndpointResp
     public Exception? TransportException => transportException;
 
     /// <summary>
-    /// Creates the result of a request that got no answer from the server: a 503 whose problem says the server could
-    /// not be reached, with the exception.
+    /// Creates the result of a request that got no answer from the server: a 503 whose problem has no text of its own
+    /// (ToDisplayText() is null, for the caller to word), with the exception.
     /// </summary>
     public static StreamEventsMultipartEndpointResult TransportFailure(Exception exception)
     {
@@ -51,7 +51,7 @@ public partial class StreamEventsMultipartEndpointResult : StreamingEndpointResp
             throw new ArgumentNullException(nameof(exception));
         }
 
-        var result = Create(HttpStatusCode.ServiceUnavailable, ProblemDetailsFactory.Create(HttpStatusCode.ServiceUnavailable, "The server could not be reached: " + exception.Message));
+        var result = Create(HttpStatusCode.ServiceUnavailable, ProblemDetailsFactory.Create(HttpStatusCode.ServiceUnavailable));
         result.transportException = exception;
         return result;
     }
