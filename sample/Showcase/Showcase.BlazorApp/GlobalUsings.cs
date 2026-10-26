@@ -36,6 +36,7 @@ global using Showcase.Generated.Notifications.Client;
 global using Showcase.Generated.Notifications.Models;
 global using Showcase.Generated.Resilience;
 global using Showcase.Generated.Streams.Client;
+global using Showcase.Generated.Streams.Endpoints.Interfaces;
 global using Showcase.Generated.Streams.Endpoints.Results;
 global using Showcase.Generated.Streams.Models;
 global using Showcase.Generated.Tasks.Client;

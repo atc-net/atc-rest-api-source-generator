@@ -362,7 +362,11 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         // caller writes; the result of another framing has no such member
         var ids = await (Task<List<string>>)probe.GetMethod("LastEventIdsAsync")!.Invoke(null, [])!;
         Assert.Equal(["start=(null)", "t1=(null)", "t2=41", "end=42"], ids);
-        Assert.NotNull(assembly.GetTypes().Single(t => t.Name == "IListSseEndpointResult").GetProperty("LastEventId"));
+
+        // The event stream's result interface is an IServerSentEventResult: LastEventId, EventName, Retry
+        var eventResult = Assert.Single(assembly.GetTypes().Single(t => t.Name == "IListSseEndpointResult").GetInterfaces(), i => i.Name == "IServerSentEventResult");
+        Assert.NotNull(eventResult.GetProperty("LastEventId"));
+        Assert.NotNull(eventResult.GetProperty("Retry"));
         Assert.Null(assembly.GetTypes().Single(t => t.Name == "IListLinesEndpointResult").GetProperty("LastEventId"));
 
         // The options a caller hands ExecuteAsync reach the reader: each item's event is told before the item, and a

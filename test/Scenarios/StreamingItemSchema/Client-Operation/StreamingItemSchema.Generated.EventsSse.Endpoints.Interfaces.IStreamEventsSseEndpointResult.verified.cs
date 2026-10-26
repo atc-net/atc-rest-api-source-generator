@@ -17,7 +17,7 @@ namespace StreamingItemSchema.Generated.EventsSse.Endpoints.Interfaces;
 /// Operation: StreamEventsSse.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public interface IStreamEventsSseEndpointResult : IStreamingEndpointResponse<Event>, IEndpointResult
+public interface IStreamEventsSseEndpointResult : IStreamingEndpointResponse<Event>, IEndpointResult, IServerSentEventResult
 {
     bool IsOk { get; }
 
@@ -28,10 +28,4 @@ public interface IStreamEventsSseEndpointResult : IStreamingEndpointResponse<Eve
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
-
-    /// <summary>
-    /// The id of the last server-sent event read so far - what to send as Last-Event-ID to continue the stream
-    /// after it. Null when no event has had an id; empty when the server has reset it.
-    /// </summary>
-    string? LastEventId { get; }
 }

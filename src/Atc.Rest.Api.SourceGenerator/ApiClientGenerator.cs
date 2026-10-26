@@ -478,6 +478,15 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientConfig config)
     {
         GenerateProblemDetails(generatedContext, projectName);
+
+        // A Server-Sent Events stream: what its last event said, and reading it across reconnects
+        if (ServerSentEventResumeExtractor.IsNeeded(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.ServerSentEvents.g.cs",
+                ServerSentEventResumeExtractor.Generate(projectName));
+        }
+
         GenerateProblemDetailsFactory(generatedContext, projectName, hasXml: XmlBodyReachability.Collect(openApiDoc).Count > 0);
         GenerateEndpointResultInterface(generatedContext, projectName);
         GenerateConstants(generatedContext, projectName, config.HttpClientName);

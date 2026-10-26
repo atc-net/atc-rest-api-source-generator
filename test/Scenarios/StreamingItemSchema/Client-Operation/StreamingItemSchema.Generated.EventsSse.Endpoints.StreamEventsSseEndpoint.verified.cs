@@ -55,6 +55,13 @@ public sealed class StreamEventsSseEndpoint : IStreamEventsSseEndpoint
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseEndpointResult>(x => new StreamEventsSseEndpointResult(x), StreamFraming.ServerSentEvents, streamReadOptions, cancellationToken).ConfigureAwait(false);
+        var events = new ServerSentEventTracker(streamReadOptions?.OnEvent);
+        var readOptions = new StreamReadOptions
+        {
+            MaxRecordLength = streamReadOptions?.MaxRecordLength,
+            ItemEventNames = streamReadOptions?.ItemEventNames,
+            OnEvent = events.Record,
+        };
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseEndpointResult>(x => new StreamEventsSseEndpointResult(x, events), StreamFraming.ServerSentEvents, readOptions, cancellationToken).ConfigureAwait(false);
     }
 }

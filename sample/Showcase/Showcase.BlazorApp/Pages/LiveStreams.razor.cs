@@ -28,6 +28,8 @@ public partial class LiveStreams : IDisposable
 
     private string resumeStatus = "Idle";
 
+    private long? resumedAfter;
+
     private string importStatus = "Idle";
 
     private bool isImporting;
@@ -186,49 +188,51 @@ public partial class LiveStreams : IDisposable
         isStreaming = true;
         resumeStatus = "Streaming…";
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        string? lastEventId = null;
-        string? resumedAfter = null;
+        long? lastSequence = null;
+        resumedAfter = null;
+
+        // Reconnects: a dropped connection is opened again at once (each event's id is its price's sequence); three
+        // failures in a row end the reading
+        var policy = new ServerSentEventReconnectPolicy
+        {
+            Delays = [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(500)],
+            MaxConsecutiveFailures = 3,
+            OnDisconnected = (error, statusCode) =>
+            {
+                if (error is not null && lastSequence is { } sequence)
+                {
+                    resumedAfter = sequence;
+                    resumeStatus = $"Dropped after event {sequence} - resuming…";
+                    _ = InvokeAsync(StateHasChanged);
+                }
+            },
+        };
 
         try
         {
-            for (var attempt = 1; attempt <= 3; attempt++)
+            await foreach (var tick in Gateway.ReadPriceEventsResumingAsync(total, dropAfter, policy, CancellationToken.None))
             {
-                using var result = await Gateway.OpenPriceEventsAsync(total, dropAfter, lastEventId, CancellationToken.None);
-                if (!result.IsOk || result.Content is null)
+                if (tick is null)
                 {
-                    resumeStatus = $"Failed: {(int)result.StatusCode}";
-                    return;
+                    continue;
                 }
 
-                try
-                {
-                    await foreach (var tick in result.Content)
-                    {
-                        if (tick is null)
-                        {
-                            continue;
-                        }
+                lastSequence = tick.Sequence;
+                Show(tick, stopwatch.ElapsedMilliseconds);
+                StateHasChanged();
 
-                        Show(tick, stopwatch.ElapsedMilliseconds);
-                        StateHasChanged();
-                    }
-
-                    resumeStatus = resumedAfter is null
-                        ? $"Completed: {itemCount} prices"
-                        : $"Completed: {itemCount} prices, resumed after event {resumedAfter}";
-                    return;
-                }
-                catch (Exception) when (result.LastEventId is { Length: > 0 } id && id != lastEventId)
+                // The stream is opened again after it ends: the page stops when it has the prices it asked for
+                if (itemCount == total)
                 {
-                    // The connection dropped: go on after the last event that was read
-                    lastEventId = id;
-                    resumedAfter = id;
-                    resumeStatus = $"Dropped after event {id} - resuming…";
-                    StateHasChanged();
+                    break;
                 }
             }
 
-            resumeStatus = "Failed: the stream kept dropping";
+            resumeStatus = itemCount == total
+                ? resumedAfter is null
+                    ? $"Completed: {itemCount} prices"
+                    : $"Completed: {itemCount} prices, resumed after event {resumedAfter}"
+                : "Failed: the stream kept dropping";
         }
         catch (Exception ex)
         {

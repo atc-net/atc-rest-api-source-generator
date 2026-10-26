@@ -329,6 +329,16 @@ public static class EndpointPerOperationExtractor
             hasSharedModels,
             operation.Deprecated);
 
+        if (isAsyncEnumerable &&
+            !string.IsNullOrEmpty(streamingItemType) &&
+            hasParameters &&
+            operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents &&
+            LastEventIdPropertyOf(operation, pathLevelParameters) is { } lastEventIdProperty)
+        {
+            endpointInterfaceContent = endpointInterfaceContent.TrimEnd() + Environment.NewLine + Environment.NewLine +
+                                       ResumeExtensions(projectName, pathSegment, operationName, streamingItemType!, lastEventIdProperty);
+        }
+
         // Generate endpoint class
         var endpointClassContent = GenerateEndpointClass(
             projectName,
@@ -413,7 +423,8 @@ public static class EndpointPerOperationExtractor
                 customErrorTypeName,
                 declaredHeaders,
                 streamedItemType,
-                extensibleEnums);
+                extensibleEnums,
+                isEventStream: streamedItemType is not null && operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents);
             resultClassFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointResults(projectName, pathSegment),
                 $"{operationName}EndpointResult");
@@ -599,6 +610,84 @@ public static class EndpointPerOperationExtractor
 
             _ => "ProblemDetails",
         };
+
+    // The property of the Last-Event-ID header parameter (a string), or null when the operation declares none
+    private static string? LastEventIdPropertyOf(
+        OpenApiOperation operation,
+        IList<IOpenApiParameter>? pathLevelParameters)
+    {
+        var names = ParameterPropertyNames.For(operation, pathLevelParameters);
+        foreach (var parameterOrReference in operation.EffectiveParameters(pathLevelParameters))
+        {
+            var resolved = parameterOrReference.Resolve();
+            if (resolved.Parameter is { In: ParameterLocation.Header, Name: { } name } parameter &&
+                string.Equals(name, "Last-Event-ID", StringComparison.OrdinalIgnoreCase) &&
+                parameter.Schema?.Type is null or JsonSchemaType.String)
+            {
+                return names.Get(parameter, resolved.ReferenceId);
+            }
+        }
+
+        return null;
+    }
+
+    // ReadResumingAsync: the operation's items across reconnects, each call sending the last event id read
+    private static string ResumeExtensions(
+        string projectName,
+        string pathSegment,
+        string operationName,
+        string itemType,
+        string lastEventIdProperty)
+    {
+        var root = $"global::{NamespaceBuilder.BuildBase(projectName)}";
+        var parametersType = $"global::{NamespaceBuilder.ForClient(projectName, pathSegment)}.{operationName}Parameters";
+        var resultType = $"global::{NamespaceBuilder.ForEndpointResults(projectName, pathSegment)}.{operationName}EndpointResult";
+        return $$"""
+                 /// <summary>
+                 /// Reads {{operationName}}'s events across reconnects.
+                 /// </summary>
+                 [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+                 public static class {{operationName}}EndpointResumeExtensions
+                 {
+                     /// <summary>
+                     /// Yields the items of every connection to the stream: each call sends the id of the last event read as
+                     /// Last-Event-ID, so the server goes on after it. After the stream ends the server's retry is waited, after a
+                     /// failure the policy's waits; a 204 or a 4xx ends the reading. Cancel the token to stop.
+                     /// </summary>
+                     /// <param name="endpoint">The endpoint.</param>
+                     /// <param name="parameters">The parameters; their {{lastEventIdProperty}} is where the first call starts.</param>
+                     /// <param name="policy">How to reconnect; the defaults when null.</param>
+                     /// <param name="httpClientName">The HttpClient name.</param>
+                     /// <param name="streamReadOptions">How each stream is read.</param>
+                     /// <param name="cancellationToken">Ends the reading.</param>
+                     /// <returns>The items.</returns>
+                     public static global::System.Collections.Generic.IAsyncEnumerable<{{itemType}}?> ReadResumingAsync(
+                         this I{{operationName}}Endpoint endpoint,
+                         {{parametersType}} parameters,
+                         {{root}}.ServerSentEventReconnectPolicy? policy = null,
+                         string httpClientName = Constants.HttpClientName,
+                         StreamReadOptions? streamReadOptions = null,
+                         CancellationToken cancellationToken = default)
+                     {
+                         if (endpoint is null)
+                         {
+                             throw new global::System.ArgumentNullException(nameof(endpoint));
+                         }
+
+                         if (parameters is null)
+                         {
+                             throw new global::System.ArgumentNullException(nameof(parameters));
+                         }
+
+                         return {{root}}.ServerSentEventResume.ReadAsync<{{itemType}}, {{resultType}}>(
+                             (lastEventId, token) => endpoint.ExecuteAsync(parameters with { {{lastEventIdProperty}} = lastEventId }, httpClientName: httpClientName, cancellationToken: token, streamReadOptions: streamReadOptions),
+                             parameters.{{lastEventIdProperty}},
+                             policy,
+                             cancellationToken);
+                     }
+                 }
+                 """;
+    }
 
     private static string GenerateEndpointInterface(
         string projectName,
@@ -1364,18 +1453,31 @@ public static class EndpointPerOperationExtractor
             // The caller's options for reading the stream; the item events of the specification apply unless the
             // caller names its own
             var readOptions = "streamReadOptions";
-            if (itemEvents.Count > 0)
+            var isEventStream = operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents;
+            if (isEventStream)
+            {
+                // The result says what the last event said: the tracker records each event, then hands it on to the
+                // caller's own OnEvent
+                sb.AppendLine("var events = new ServerSentEventTracker(streamReadOptions?.OnEvent);");
+            }
+
+            if (itemEvents.Count > 0 || isEventStream)
             {
                 sb.AppendLine("var readOptions = new StreamReadOptions");
                 sb.AppendLine("{");
                 sb.AppendLine(4, "MaxRecordLength = streamReadOptions?.MaxRecordLength,");
-                sb.AppendLine(4, $"ItemEventNames = streamReadOptions?.ItemEventNames ?? new[] {{ {string.Join(", ", itemEvents.Select(CSharpLiteralHelper.ToStringLiteral))} }},");
-                sb.AppendLine(4, "OnEvent = streamReadOptions?.OnEvent,");
+                sb.AppendLine(4, itemEvents.Count > 0
+                    ? $"ItemEventNames = streamReadOptions?.ItemEventNames ?? new[] {{ {string.Join(", ", itemEvents.Select(CSharpLiteralHelper.ToStringLiteral))} }},"
+                    : "ItemEventNames = streamReadOptions?.ItemEventNames,");
+                sb.AppendLine(4, isEventStream ? "OnEvent = events.Record," : "OnEvent = streamReadOptions?.OnEvent,");
                 sb.AppendLine("};");
                 readOptions = "readOptions";
             }
 
-            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}, {operationName}EndpointResult>(x => new {operationName}EndpointResult(x), StreamFraming.{operation.GetStreamingFraming()}, {readOptions}, cancellationToken).ConfigureAwait(false);");
+            var create = isEventStream
+                ? $"x => new {operationName}EndpointResult(x, events)"
+                : $"x => new {operationName}EndpointResult(x)";
+            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}, {operationName}EndpointResult>({create}, StreamFraming.{operation.GetStreamingFraming()}, {readOptions}, cancellationToken).ConfigureAwait(false);");
         }
         else
         {
@@ -1600,7 +1702,9 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine(streamedItemType is null
             ? $"public interface I{operationName}EndpointResult : IEndpointResponse, IEndpointResult"
-            : $"public interface I{operationName}EndpointResult : IStreamingEndpointResponse<{streamedItemType}>, IEndpointResult");
+            : isEventStream
+                ? $"public interface I{operationName}EndpointResult : IStreamingEndpointResponse<{streamedItemType}>, IEndpointResult, IServerSentEventResult"
+                : $"public interface I{operationName}EndpointResult : IStreamingEndpointResponse<{streamedItemType}>, IEndpointResult");
         sb.AppendLine("{");
 
         foreach (var response in responses)
@@ -1646,17 +1750,8 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
-        // An event stream: the id of the last event read so far (StreamingEndpointResponse<T> has it), what a caller
-        // sends as Last-Event-ID to continue the stream after it
-        if (isEventStream)
-        {
-            sb.AppendLine(4, "/// <summary>");
-            sb.AppendLine(4, "/// The id of the last server-sent event read so far - what to send as Last-Event-ID to continue the stream");
-            sb.AppendLine(4, "/// after it. Null when no event has had an id; empty when the server has reset it.");
-            sb.AppendLine(4, "/// </summary>");
-            sb.AppendLine(4, "string? LastEventId { get; }");
-            sb.AppendLine();
-        }
+        // An event stream: the id of the last event read so far (what a caller sends as Last-Event-ID to continue after
+        // it), the last event's name and the server's retry - from IServerSentEventResult
 
         // Remove last empty line
         var content = sb.ToString();
@@ -1684,11 +1779,12 @@ public static class EndpointPerOperationExtractor
         string? customErrorTypeName,
         List<DeclaredResponseHeader> declaredHeaders,
         string? streamedItemType,
-        bool extensibleEnums)
+        bool extensibleEnums,
+        bool isEventStream = false)
     {
         var sb = new StringBuilder();
         var baseType = streamedItemType is null ? "EndpointResponse" : $"StreamingEndpointResponse<{streamedItemType}>";
-        AppendResultClassHeader(sb, projectName, pathSegment, operationName, description, hasSegmentModels, hasSharedModels, baseType);
+        AppendResultClassHeader(sb, projectName, pathSegment, operationName, description, hasSegmentModels, hasSharedModels, baseType, isEventStream);
         AppendResultFactories(sb, operationName, responses, defaultResponse, streamedItemType);
         AppendResultStatusProperties(sb, responses, defaultResponse);
 
@@ -1728,7 +1824,8 @@ public static class EndpointPerOperationExtractor
         string description,
         bool hasSegmentModels,
         bool hasSharedModels,
-        string baseType)
+        string baseType,
+        bool isEventStream)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1769,6 +1866,30 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine($"public partial class {operationName}EndpointResult : {baseType}, I{operationName}EndpointResult");
         sb.AppendLine("{");
+        if (isEventStream)
+        {
+            // What the last event said (the endpoint reads through the tracker); a result made in a test has none
+            sb.AppendLine(4, "private readonly ServerSentEventTracker? events;");
+            sb.AppendLine();
+            sb.AppendLine(4, $"public {operationName}EndpointResult({baseType} response, ServerSentEventTracker? events = null)");
+            sb.AppendLine(8, ": base(response)");
+            sb.AppendLine(4, "{");
+            sb.AppendLine(8, "this.events = events;");
+            sb.AppendLine(4, "}");
+            sb.AppendLine();
+            sb.AppendLine(4, "/// <summary>");
+            sb.AppendLine(4, "/// The name of the last event read (<c>event:</c>), or null for the unnamed event.");
+            sb.AppendLine(4, "/// </summary>");
+            sb.AppendLine(4, "public string? EventName => events?.EventName;");
+            sb.AppendLine();
+            sb.AppendLine(4, "/// <summary>");
+            sb.AppendLine(4, "/// The time the server last asked a client to wait before it reconnects (<c>retry:</c>), or null.");
+            sb.AppendLine(4, "/// </summary>");
+            sb.AppendLine(4, "public TimeSpan? Retry => events?.Retry;");
+            sb.AppendLine();
+            return;
+        }
+
         sb.AppendLine(4, $"public {operationName}EndpointResult({baseType} response)");
         sb.AppendLine(8, ": base(response)");
         sb.AppendLine(4, "{");

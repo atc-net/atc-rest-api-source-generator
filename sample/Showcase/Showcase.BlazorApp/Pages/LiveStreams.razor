@@ -114,9 +114,10 @@
         <CardHeaderContent>
             <MudText Typo="Typo.h6">When the connection drops</MudText>
             <MudText Typo="Typo.body2">
-                Every price event has an id. The server drops this stream after five events; the page reads the id of the
-                last event from the result (<code>LastEventId</code>), opens the stream again with it as
-                <code>Last-Event-ID</code>, and the prices go on after it. Nothing reconnects by itself: the loop is the page's.
+                Every price event has an id. The server drops this stream after five events; the generated
+                <code>ReadResumingAsync</code> opens the stream again with the id of the last event read as
+                <code>Last-Event-ID</code>, and the prices go on after it - after the server's <code>retry:</code>, or
+                backing off while the server is away.
             </MudText>
         </CardHeaderContent>
     </MudCardHeader>

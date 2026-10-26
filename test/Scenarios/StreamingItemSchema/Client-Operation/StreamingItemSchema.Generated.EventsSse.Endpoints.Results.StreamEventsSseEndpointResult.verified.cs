@@ -22,10 +22,23 @@ namespace StreamingItemSchema.Generated.EventsSse.Endpoints.Results;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public partial class StreamEventsSseEndpointResult : StreamingEndpointResponse<Event>, IStreamEventsSseEndpointResult
 {
-    public StreamEventsSseEndpointResult(StreamingEndpointResponse<Event> response)
+    private readonly ServerSentEventTracker? events;
+
+    public StreamEventsSseEndpointResult(StreamingEndpointResponse<Event> response, ServerSentEventTracker? events = null)
         : base(response)
     {
+        this.events = events;
     }
+
+    /// <summary>
+    /// The name of the last event read (<c>event:</c>), or null for the unnamed event.
+    /// </summary>
+    public string? EventName => events?.EventName;
+
+    /// <summary>
+    /// The time the server last asked a client to wait before it reconnects (<c>retry:</c>), or null.
+    /// </summary>
+    public TimeSpan? Retry => events?.Retry;
 
     /// <summary>
     /// Creates a result representing HTTP OK.

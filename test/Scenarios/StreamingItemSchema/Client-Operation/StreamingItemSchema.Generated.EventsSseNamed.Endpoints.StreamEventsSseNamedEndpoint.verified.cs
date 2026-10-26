@@ -59,12 +59,13 @@ public sealed class StreamEventsSseNamedEndpoint : IStreamEventsSseNamedEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError, "application/problem+json");
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout, "application/problem+json");
         responseBuilder.AddDefaultErrorResponse<StreamError>();
+        var events = new ServerSentEventTracker(streamReadOptions?.OnEvent);
         var readOptions = new StreamReadOptions
         {
             MaxRecordLength = streamReadOptions?.MaxRecordLength,
             ItemEventNames = streamReadOptions?.ItemEventNames ?? new[] { "created", "updated" },
-            OnEvent = streamReadOptions?.OnEvent,
+            OnEvent = events.Record,
         };
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseNamedEndpointResult>(x => new StreamEventsSseNamedEndpointResult(x), StreamFraming.ServerSentEvents, readOptions, cancellationToken).ConfigureAwait(false);
+        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event, StreamEventsSseNamedEndpointResult>(x => new StreamEventsSseNamedEndpointResult(x, events), StreamFraming.ServerSentEvents, readOptions, cancellationToken).ConfigureAwait(false);
     }
 }

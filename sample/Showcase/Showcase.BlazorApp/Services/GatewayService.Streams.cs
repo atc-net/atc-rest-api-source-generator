@@ -6,17 +6,17 @@ namespace Showcase.BlazorApp.Services;
 public sealed partial class GatewayService
 {
     /// <summary>
-    /// Opens the price event stream: the result of the Server-Sent Events operation itself, whose
-    /// <c>LastEventId</c> follows the events as they are read. A caller whose stream dropped opens it again with that
-    /// id (it is sent as the Last-Event-ID header) and gets the prices after it.
+    /// Reads the price event stream across dropped connections: the generated <c>ReadResumingAsync</c> opens it again
+    /// with the id of the last event read as Last-Event-ID, and the prices go on after it.
     /// </summary>
-    public Task<ListPriceEventsEndpointResult> OpenPriceEventsAsync(
+    public IAsyncEnumerable<PriceTick?> ReadPriceEventsResumingAsync(
         int count,
         int? dropAfter,
-        string? lastEventId,
+        ServerSentEventReconnectPolicy policy,
         CancellationToken cancellationToken = default)
-        => listPriceEventsEndpoint.ExecuteAsync(
-            new ListPriceEventsParameters(Count: count, Closed: false, DropAfter: dropAfter, LastEventId: lastEventId),
+        => listPriceEventsEndpoint.ReadResumingAsync(
+            new ListPriceEventsParameters(Count: count, Closed: false, DropAfter: dropAfter, LastEventId: null),
+            policy,
             cancellationToken: cancellationToken);
 
     /// <summary>

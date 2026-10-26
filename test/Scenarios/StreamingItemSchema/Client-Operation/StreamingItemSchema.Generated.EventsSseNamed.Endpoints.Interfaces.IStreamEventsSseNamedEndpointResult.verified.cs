@@ -18,7 +18,7 @@ namespace StreamingItemSchema.Generated.EventsSseNamed.Endpoints.Interfaces;
 /// Operation: StreamEventsSseNamed.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public interface IStreamEventsSseNamedEndpointResult : IStreamingEndpointResponse<Event>, IEndpointResult
+public interface IStreamEventsSseNamedEndpointResult : IStreamingEndpointResponse<Event>, IEndpointResult, IServerSentEventResult
 {
     bool IsOk { get; }
 
@@ -45,10 +45,4 @@ public interface IStreamEventsSseNamedEndpointResult : IStreamingEndpointRespons
     global::System.Guid? XStreamIdHeader { get; }
 
     int? RetryAfterHeader { get; }
-
-    /// <summary>
-    /// The id of the last server-sent event read so far - what to send as Last-Event-ID to continue the stream
-    /// after it. Null when no event has had an id; empty when the server has reset it.
-    /// </summary>
-    string? LastEventId { get; }
 }
