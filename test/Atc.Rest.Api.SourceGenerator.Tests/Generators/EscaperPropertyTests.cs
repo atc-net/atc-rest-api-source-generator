@@ -78,6 +78,20 @@ public sealed class EscaperPropertyTests
     public void TypeScriptEnumMemberName_KeepsAReservedWord(string name)
         => Assert.Equal(name, TypeScriptLiteralHelper.ToEnumMemberName(name));
 
+    // U+A7D5 (small double thorn): the ICU of a newer Linux upper-cases it to a letter this runtime does not know yet,
+    // which the property tests drew on CI. The member name keeps a letter it can read
+    [Theory]
+    [InlineData("ꟕ")]
+    [InlineData("x-ꟕ")]
+    [InlineData("ꟕ︞-䋄")]
+    public void EnumMemberName_OfALetterWhoseUpperCaseIsNoLetterHere_IsAValidIdentifier(
+        string name)
+    {
+        AssertCSharpIdentifier(CSharpLiteralHelper.ToEnumMemberName(name), name);
+        var member = TypeScriptLiteralHelper.ToEnumMemberName(name);
+        Assert.True(IsTypeScriptIdentifier(member), $"{Show(name)} became {Show(member)}");
+    }
+
     /// <summary>
     /// The wire text of a date, time or number is the same under every culture, and reads back to the same value.
     /// The expressions are the ones the generated clients and servers use (compiled once per C# type).
