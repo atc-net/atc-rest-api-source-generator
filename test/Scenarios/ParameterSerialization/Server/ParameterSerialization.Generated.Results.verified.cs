@@ -18,7 +18,7 @@ namespace ParameterSerialization.Generated.Results;
 /// List items.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ParameterSerialization.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsByQueryStringResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListItemsByQueryStringResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ParameterSerialization.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -156,7 +156,7 @@ public sealed class ListItemsByQueryStringResult : IResult, INestedHttpResult, I
 /// The path item's path, header and query parameters, one of them redeclared by the operation.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemReportsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListItemReportsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ParameterSerialization.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

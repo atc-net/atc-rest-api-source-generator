@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Pet.Results;
 /// Update an existing pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -117,7 +117,7 @@ public sealed class UpdatePetResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Add a new pet to the store.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class AddPetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class AddPetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -210,7 +210,7 @@ public sealed class AddPetResult : IResult, INestedHttpResult, IStatusCodeHttpRe
 /// Finds Pets by status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class FindPetsByStatusResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class FindPetsByStatusResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -300,7 +300,7 @@ public sealed class FindPetsByStatusResult : IResult, INestedHttpResult, IStatus
 /// Finds Pets by tags.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class FindPetsByTagsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class FindPetsByTagsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -390,7 +390,7 @@ public sealed class FindPetsByTagsResult : IResult, INestedHttpResult, IStatusCo
 /// Find pet by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -483,7 +483,7 @@ public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Updates a pet in the store with form data.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetWithFormResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdatePetWithFormResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -570,7 +570,7 @@ public sealed class UpdatePetWithFormResult : IResult, INestedHttpResult, IStatu
 /// Deletes a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeletePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeletePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -654,7 +654,7 @@ public sealed class DeletePetResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Uploads an image.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadFileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UploadFileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -19,7 +19,7 @@ namespace MediaTypeParameters.Generated.Results;
 /// A JSON response declared with a charset parameter.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::MediaTypeParameters.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -88,7 +88,7 @@ public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttp
 /// A JSON request body declared in another case, and a response declared under a wildcard.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::MediaTypeParameters.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -156,7 +156,7 @@ public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// A response declared under application/* (springdoc's default).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetPetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::MediaTypeParameters.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -235,7 +235,7 @@ public sealed class GetPetResult : IResult, INestedHttpResult, IStatusCodeHttpRe
 /// A wildcard with a binary schema stays a file.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPhotoResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetPhotoResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::MediaTypeParameters.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -310,7 +310,7 @@ public sealed class GetPhotoResult : IResult, INestedHttpResult, IStatusCodeHttp
 /// A response declared only under another JSON media type (HAL).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetProfileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetPetProfileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::MediaTypeParameters.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

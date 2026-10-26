@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Addresses.Results;
 /// List addresses.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAddressesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListAddressesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ModelsAndProperties.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListAddressesResult : IResult, INestedHttpResult, IStatusCod
 /// Create address.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateAddressResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateAddressResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ModelsAndProperties.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

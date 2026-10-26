@@ -18,7 +18,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Results;
 /// List user resources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityOpenIdConnect.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -93,7 +93,7 @@ public sealed class ListResourcesResult : IResult, INestedHttpResult, IStatusCod
 /// Create a new resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateResourceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateResourceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityOpenIdConnect.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -180,7 +180,7 @@ public sealed class CreateResourceResult : IResult, INestedHttpResult, IStatusCo
 /// Get resource by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetResourceByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetResourceByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityOpenIdConnect.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -258,7 +258,7 @@ public sealed class GetResourceByIdResult : IResult, INestedHttpResult, IStatusC
 /// Delete a resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteResourceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteResourceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityOpenIdConnect.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

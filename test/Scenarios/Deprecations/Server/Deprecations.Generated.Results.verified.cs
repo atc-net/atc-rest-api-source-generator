@@ -19,7 +19,7 @@ namespace Deprecations.Generated.Results;
 /// Result for operation: listPets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Deprecations.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -88,7 +88,7 @@ public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttp
 /// Result for operation: createPet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Deprecations.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -151,7 +151,7 @@ public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Result for operation: listLegacyPets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListLegacyPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListLegacyPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Deprecations.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -220,7 +220,7 @@ public sealed class ListLegacyPetsResult : IResult, INestedHttpResult, IStatusCo
 /// Result for operation: updatePetPhoto.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetPhotoResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdatePetPhotoResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Deprecations.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

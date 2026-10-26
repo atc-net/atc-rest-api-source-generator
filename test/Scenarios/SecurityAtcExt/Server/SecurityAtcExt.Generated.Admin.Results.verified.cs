@@ -17,7 +17,7 @@ namespace SecurityAtcExt.Generated.Admin.Results;
 /// Get admin settings (Bearer + admin role).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetAdminSettingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetAdminSettingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -83,7 +83,7 @@ public sealed class GetAdminSettingsResult : IResult, INestedHttpResult, IStatus
 /// Update admin settings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateAdminSettingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateAdminSettingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

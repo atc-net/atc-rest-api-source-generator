@@ -17,7 +17,7 @@ namespace EnumNamingConflicts.Generated.Results;
 /// Get settings with various enum types.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetSettingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetSettingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::EnumNamingConflicts.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

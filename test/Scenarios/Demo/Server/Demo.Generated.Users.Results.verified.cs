@@ -18,7 +18,7 @@ namespace Demo.Generated.Users.Results;
 /// List all users.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListUsersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListUsersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListUsersResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Create user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -174,7 +174,7 @@ public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Get a specific user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -246,7 +246,7 @@ public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeH
 /// Update a specific user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -337,7 +337,7 @@ public sealed class UpdateUserByIdResult : IResult, INestedHttpResult, IStatusCo
 /// Delete a specific user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

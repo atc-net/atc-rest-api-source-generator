@@ -18,7 +18,7 @@ namespace StreamingItemSchema.Generated.EventsSse.Results;
 /// Stream events as server-sent events.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamEventsSseResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class StreamEventsSseResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::StreamingItemSchema.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

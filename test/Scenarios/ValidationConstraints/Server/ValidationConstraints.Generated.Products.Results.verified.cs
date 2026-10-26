@@ -18,7 +18,7 @@ namespace ValidationConstraints.Generated.Products.Results;
 /// Result for operation: getProduct.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetProductResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetProductResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ValidationConstraints.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -84,7 +84,7 @@ public sealed class GetProductResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Result for operation: listProducts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProductsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListProductsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ValidationConstraints.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -153,7 +153,7 @@ public sealed class ListProductsResult : IResult, INestedHttpResult, IStatusCode
 /// Result for operation: getNextProductCode.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetNextProductCodeResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetNextProductCodeResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ValidationConstraints.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -219,7 +219,7 @@ public sealed class GetNextProductCodeResult : IResult, INestedHttpResult, IStat
 /// Result for operation: listProductCodes.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProductCodesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListProductCodesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ValidationConstraints.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

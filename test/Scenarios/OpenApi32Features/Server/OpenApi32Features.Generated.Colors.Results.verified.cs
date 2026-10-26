@@ -18,7 +18,7 @@ namespace OpenApi32Features.Generated.Colors.Results;
 /// Get RGB colors.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetColorsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetColorsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::OpenApi32Features.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

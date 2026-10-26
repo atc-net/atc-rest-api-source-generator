@@ -18,7 +18,7 @@ namespace HostileTypeScript.Generated.Repos.Results;
 /// Lists repositories - the operationId has a slash (as GitHub's does); the text matches **/*.yaml, which closes a JSDoc comment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ReposListResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ReposListResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileTypeScript.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ReposListResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Reads one repository - path parameters named like keywords.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ReposGetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ReposGetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileTypeScript.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

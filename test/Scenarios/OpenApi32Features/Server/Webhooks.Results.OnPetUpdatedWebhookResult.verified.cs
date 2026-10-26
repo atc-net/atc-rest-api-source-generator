@@ -4,6 +4,7 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
@@ -13,7 +14,7 @@ namespace OpenApi32Features.Generated.Webhooks.Results;
 /// Result type for the petUpdated webhook handler.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class OnPetUpdatedWebhookResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class OnPetUpdatedWebhookResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::OpenApi32Features.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -41,6 +42,16 @@ public sealed class OnPetUpdatedWebhookResult : IResult, INestedHttpResult, ISta
     /// The problem the result answers with, else null.
     /// </summary>
     public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes - a webhook result writes none.
+    /// </summary>
+    public string? Location => null;
+
+    /// <summary>
+    /// The response headers the result writes - a webhook result writes none.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers { get; } = new Dictionary<string, string>(0);
 
     /// <summary>
     /// 200 - Webhook acknowledged

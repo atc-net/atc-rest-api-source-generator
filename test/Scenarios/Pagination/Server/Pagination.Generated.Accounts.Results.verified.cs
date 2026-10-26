@@ -17,7 +17,7 @@ namespace Pagination.Generated.Accounts.Results;
 /// Accounts, items through an array alias.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Pagination.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -83,7 +83,7 @@ public sealed class ListAccountsResult : IResult, INestedHttpResult, IStatusCode
 /// Create an account (revalidates the infinite list).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateAccountResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateAccountResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Pagination.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

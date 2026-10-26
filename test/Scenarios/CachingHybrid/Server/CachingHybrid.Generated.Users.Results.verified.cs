@@ -18,7 +18,7 @@ namespace CachingHybrid.Generated.Users.Results;
 /// List users with HybridCache.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListUsersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListUsersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListUsersResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Create user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -155,7 +155,7 @@ public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Get user by ID with HybridCache and sliding expiration.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -227,7 +227,7 @@ public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeH
 /// Update user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -299,7 +299,7 @@ public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Delete user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

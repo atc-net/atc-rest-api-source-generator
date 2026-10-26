@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.User.Results;
 /// Create user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -92,7 +92,7 @@ public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Creates list of users with given input array.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUsersWithListInputResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateUsersWithListInputResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -166,7 +166,7 @@ public sealed class CreateUsersWithListInputResult : IResult, INestedHttpResult,
 /// Logs user into the system.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LoginUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class LoginUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -256,7 +256,7 @@ public sealed class LoginUserResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Logs out current logged in user session.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LogoutUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class LogoutUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -327,7 +327,7 @@ public sealed class LogoutUserResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Get user by user name.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByNameResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetUserByNameResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -420,7 +420,7 @@ public sealed class GetUserByNameResult : IResult, INestedHttpResult, IStatusCod
 /// Update user resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -510,7 +510,7 @@ public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Delete user resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

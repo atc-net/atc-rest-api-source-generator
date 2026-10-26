@@ -17,7 +17,7 @@ namespace SecurityOpenIdConnect.Generated.Me.Results;
 /// Get current user profile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetCurrentUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetCurrentUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityOpenIdConnect.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -89,7 +89,7 @@ public sealed class GetCurrentUserResult : IResult, INestedHttpResult, IStatusCo
 /// Get detailed user profile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetCurrentUserProfileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetCurrentUserProfileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityOpenIdConnect.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

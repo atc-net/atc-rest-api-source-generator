@@ -18,7 +18,7 @@ namespace SecurityAtcExt.Generated.Orders.Results;
 /// List orders (requires auth).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Create order (requires auth).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -155,7 +155,7 @@ public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get order (manager role inherited).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -227,7 +227,7 @@ public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCode
 /// Delete order (override to admin only).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -296,7 +296,7 @@ public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get tracking (public override).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderTrackingResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderTrackingResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -17,7 +17,7 @@ namespace ReadOnlyWriteOnly.Generated.Results;
 /// Create a new user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ReadOnlyWriteOnly.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -85,7 +85,7 @@ public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Get user by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ReadOnlyWriteOnly.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

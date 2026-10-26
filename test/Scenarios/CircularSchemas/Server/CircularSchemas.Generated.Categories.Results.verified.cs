@@ -18,7 +18,7 @@ namespace CircularSchemas.Generated.Categories.Results;
 /// List categories with mutual references.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListCategoriesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListCategoriesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CircularSchemas.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

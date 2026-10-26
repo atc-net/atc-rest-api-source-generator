@@ -18,7 +18,7 @@ namespace AnyOfNoDiscriminator.Generated.Notifications.Results;
 /// List notifications of mixed types.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListNotificationsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListNotificationsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::AnyOfNoDiscriminator.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

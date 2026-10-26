@@ -17,7 +17,7 @@ namespace ValidationConstraints.Generated.Orders.Results;
 /// Result for operation: createOrder.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ValidationConstraints.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -85,7 +85,7 @@ public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeH
 /// Result for operation: createOrderFromForm.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderFromFormResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateOrderFromFormResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ValidationConstraints.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

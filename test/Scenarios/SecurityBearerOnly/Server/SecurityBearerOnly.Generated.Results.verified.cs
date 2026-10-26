@@ -17,7 +17,7 @@ namespace SecurityBearerOnly.Generated.Results;
 /// Get the signed-in user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetCurrentUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetCurrentUserResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityBearerOnly.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

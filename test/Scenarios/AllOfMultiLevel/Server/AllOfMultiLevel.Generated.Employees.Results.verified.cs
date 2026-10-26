@@ -19,7 +19,7 @@ namespace AllOfMultiLevel.Generated.Employees.Results;
 /// List employees.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListEmployeesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListEmployeesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::AllOfMultiLevel.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

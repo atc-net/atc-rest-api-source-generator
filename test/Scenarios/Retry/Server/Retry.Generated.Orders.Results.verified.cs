@@ -18,7 +18,7 @@ namespace Retry.Generated.Orders.Results;
 /// List orders (fast retry policy).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Retry.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Create order (retry disabled for non-idempotent).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Retry.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -155,7 +155,7 @@ public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get order (inherits orders-fast).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Retry.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -227,7 +227,7 @@ public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCode
 /// Delete order (idempotent - can retry).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Retry.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

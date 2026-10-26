@@ -18,7 +18,7 @@ namespace Demo.Generated.Tasks.Results;
 /// List all tasks.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListTasksResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListTasksResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListTasksResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Create task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTaskResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateTaskResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -161,7 +161,7 @@ public sealed class CreateTaskResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Get a specific task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetTaskByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetTaskByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -233,7 +233,7 @@ public sealed class GetTaskByIdResult : IResult, INestedHttpResult, IStatusCodeH
 /// Delete a specific task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteTaskByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteTaskByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -302,7 +302,7 @@ public sealed class DeleteTaskByIdResult : IResult, INestedHttpResult, IStatusCo
 /// Update a specific task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateTaskByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateTaskByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

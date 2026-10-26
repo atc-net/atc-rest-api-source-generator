@@ -17,7 +17,7 @@ namespace Retry.Generated.Notifications.Results;
 /// Send notification (constant backoff).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class SendNotificationResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class SendNotificationResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Retry.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

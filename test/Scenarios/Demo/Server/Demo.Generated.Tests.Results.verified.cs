@@ -17,7 +17,7 @@ namespace Demo.Generated.Tests.Results;
 /// Create and return the created model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreateTestItemWithModelResult : IResult, INestedHttpResult, 
 /// Create and return location header.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -174,7 +174,7 @@ public sealed class CreateTestItemWithLocationHeaderResult : IResult, INestedHtt
 /// Create and return location in body.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -255,7 +255,7 @@ public sealed class CreateTestItemWithLocationInBodyResult : IResult, INestedHtt
 /// Create with empty response.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTestItemEmptyResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateTestItemEmptyResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

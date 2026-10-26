@@ -18,7 +18,7 @@ namespace AllOfMultiLevel.Generated.People.Results;
 /// List people.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPeopleResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListPeopleResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::AllOfMultiLevel.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListPeopleResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Create a person.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePersonResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreatePersonResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::AllOfMultiLevel.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

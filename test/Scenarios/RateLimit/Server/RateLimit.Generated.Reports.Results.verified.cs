@@ -18,7 +18,7 @@ namespace RateLimit.Generated.Reports.Results;
 /// List reports (sliding window).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListReportsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListReportsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::RateLimit.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

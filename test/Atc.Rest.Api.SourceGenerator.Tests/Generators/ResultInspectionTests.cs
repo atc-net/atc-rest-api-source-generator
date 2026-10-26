@@ -148,7 +148,8 @@ public sealed class ResultInspectionTests
                 public static string Run()
                 {
                     var result = OnOrderShippedWebhookResult.BadRequest();
-                    return $"{result.StatusCode}|{result.Problem?.Detail}|{((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value?.GetType().Name}";
+                    var api = (object)result as ErrorBodies.Generated.IApiResult;
+                    return $"{result.StatusCode}|{result.Problem?.Detail}|{((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value?.GetType().Name}|{(api is null ? "not an IApiResult" : $"{api.Location ?? "-"}:{api.Headers.Count}")}";
                 }
             }
             """;
@@ -161,6 +162,7 @@ public sealed class ResultInspectionTests
 
         // Assert
         Assert.StartsWith("400||", described, StringComparison.Ordinal);
+        Assert.EndsWith("|-:0", described, StringComparison.Ordinal);
     }
 
     // The probe sees every generated namespace

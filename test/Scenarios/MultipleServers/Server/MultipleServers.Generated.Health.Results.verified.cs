@@ -17,7 +17,7 @@ namespace MultipleServers.Generated.Health.Results;
 /// Health check.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetHealthResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetHealthResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::MultipleServers.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -17,7 +17,7 @@ namespace HostileNames.Generated.Movies.Results;
 /// Reads one movie under a numeric path segment (as TMDB does), with the same parameter name in three locations.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetMovieResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetMovieResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileNames.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

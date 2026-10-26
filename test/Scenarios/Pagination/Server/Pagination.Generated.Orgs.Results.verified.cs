@@ -18,7 +18,7 @@ namespace Pagination.Generated.Orgs.Results;
 /// Devices of an org, token in a header.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrgDevicesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListOrgDevicesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Pagination.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

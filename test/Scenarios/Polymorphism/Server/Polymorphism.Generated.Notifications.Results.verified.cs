@@ -18,7 +18,7 @@ namespace Polymorphism.Generated.Notifications.Results;
 /// Send a notification.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class SendNotificationResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class SendNotificationResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Polymorphism.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -94,7 +94,7 @@ public sealed class SendNotificationResult : IResult, INestedHttpResult, IStatus
 /// List all notifications.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListNotificationsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListNotificationsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Polymorphism.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

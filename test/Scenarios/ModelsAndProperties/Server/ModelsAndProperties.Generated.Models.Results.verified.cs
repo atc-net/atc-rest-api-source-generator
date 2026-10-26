@@ -19,7 +19,7 @@ namespace ModelsAndProperties.Generated.Models.Results;
 /// List all models.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListModelsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListModelsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ModelsAndProperties.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -88,7 +88,7 @@ public sealed class ListModelsResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Create a new model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateModelResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateModelResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ModelsAndProperties.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -169,7 +169,7 @@ public sealed class CreateModelResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get a specific model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetModelByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetModelByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ModelsAndProperties.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

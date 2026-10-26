@@ -18,7 +18,7 @@ namespace Overlays.Generated.Results;
 /// List devices.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListDevicesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListDevicesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Overlays.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -93,7 +93,7 @@ public sealed class ListDevicesResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get a device.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetDeviceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetDeviceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Overlays.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

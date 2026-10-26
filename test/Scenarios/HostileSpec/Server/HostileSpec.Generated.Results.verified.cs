@@ -18,7 +18,7 @@ namespace HostileSpec.Generated.Results;
 /// List notes from C:\temp\notes "fast" */ export const injected = 1; /*.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListNotesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListNotesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileSpec.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListNotesResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Delete all notes.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteNotesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteNotesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileSpec.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -163,7 +163,7 @@ public sealed class DeleteNotesResult : IResult, INestedHttpResult, IStatusCodeH
 /// on two lines.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateNoteResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateNoteResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileSpec.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

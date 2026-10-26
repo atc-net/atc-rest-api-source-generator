@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.StringFormats.Results;
 /// Get string format types.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetStringFormatsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetStringFormatsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ModelsAndProperties.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

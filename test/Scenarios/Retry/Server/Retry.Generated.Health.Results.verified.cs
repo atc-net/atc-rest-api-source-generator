@@ -17,7 +17,7 @@ namespace Retry.Generated.Health.Results;
 /// Health check (global retry policy).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetHealthResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetHealthResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Retry.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -17,7 +17,7 @@ namespace DiscriminatorImprovements.Generated.Orders.Results;
 /// Create an order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::DiscriminatorImprovements.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -98,7 +98,7 @@ public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get an order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::DiscriminatorImprovements.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

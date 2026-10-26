@@ -18,7 +18,7 @@ namespace VersioningHeader.Generated.Pets.Results;
 /// List all pets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttp
 /// Create a new pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -168,7 +168,7 @@ public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Get a pet by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -240,7 +240,7 @@ public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Update a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdatePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -312,7 +312,7 @@ public sealed class UpdatePetResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Delete a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeletePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeletePetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

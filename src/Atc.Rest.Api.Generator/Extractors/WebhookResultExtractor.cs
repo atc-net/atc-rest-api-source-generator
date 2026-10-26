@@ -44,7 +44,8 @@ public static class WebhookResultExtractor
             var result = GenerateWebhookResultClass(
                 webhookName,
                 operation,
-                namespaceValue);
+                namespaceValue,
+                projectName);
 
             if (result is not null)
             {
@@ -58,7 +59,8 @@ public static class WebhookResultExtractor
     private static (string ClassName, string Content)? GenerateWebhookResultClass(
         string webhookName,
         OpenApiOperation operation,
-        string namespaceValue)
+        string namespaceValue,
+        string projectName)
     {
         // Get operation ID or generate from webhook name
         var operationId = operation.OperationId ?? $"On{webhookName.EnsureFirstCharacterToUpper()}";
@@ -69,6 +71,7 @@ public static class WebhookResultExtractor
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
         sb.AppendLine("using System.CodeDom.Compiler;");
+        sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using System.Threading.Tasks;");
         sb.AppendLine("using Microsoft.AspNetCore.Http;");
         sb.AppendLine();
@@ -78,7 +81,7 @@ public static class WebhookResultExtractor
         sb.AppendLine($"/// Result type for the {webhookName} webhook handler.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        sb.AppendLine($"public sealed class {className} : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult");
+        sb.AppendLine($"public sealed class {className} : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, {ApiResultExtractor.InterfaceReference(projectName)}");
         sb.AppendLine("{");
         sb.AppendLine(4, "private readonly IResult innerResult;");
         sb.AppendLine();
@@ -106,6 +109,16 @@ public static class WebhookResultExtractor
         sb.AppendLine(4, "/// The problem the result answers with, else null.");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, "public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The Location header the result writes - a webhook result writes none.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public string? Location => null;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// The response headers the result writes - a webhook result writes none.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public IReadOnlyDictionary<string, string> Headers { get; } = new Dictionary<string, string>(0);");
 
         // Generate factory methods based on responses defined in the webhook
         if (operation.Responses is not null)

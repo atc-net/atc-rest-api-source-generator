@@ -17,7 +17,7 @@ namespace SecurityAtcExt.Generated.Public.Results;
 /// Health check (public).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetHealthResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetHealthResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

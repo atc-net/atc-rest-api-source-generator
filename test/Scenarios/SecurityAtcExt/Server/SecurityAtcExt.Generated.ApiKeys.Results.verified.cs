@@ -18,7 +18,7 @@ namespace SecurityAtcExt.Generated.ApiKeys.Results;
 /// List API keys (Bearer OR ApiKey scheme).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListApiKeysResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListApiKeysResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityAtcExt.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

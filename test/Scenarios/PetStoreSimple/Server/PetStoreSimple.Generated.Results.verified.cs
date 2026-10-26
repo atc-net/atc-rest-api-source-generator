@@ -18,7 +18,7 @@ namespace PetStoreSimple.Generated.Results;
 /// List all pets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreSimple.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -97,7 +97,7 @@ public sealed class ListPetsResult : IResult, INestedHttpResult, IStatusCodeHttp
 /// Create a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreatePetsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreSimple.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -168,7 +168,7 @@ public sealed class CreatePetsResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Info for a specific pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ShowPetByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ShowPetByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreSimple.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

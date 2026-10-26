@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Store.Results;
 /// Returns pet inventories by status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetInventoryResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetInventoryResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -89,7 +89,7 @@ public sealed class GetInventoryResult : IResult, INestedHttpResult, IStatusCode
 /// Place an order for a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class PlaceOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class PlaceOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -182,7 +182,7 @@ public sealed class PlaceOrderResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Find purchase order by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -275,7 +275,7 @@ public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCode
 /// Delete purchase order by identifier.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::PetStoreFull.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

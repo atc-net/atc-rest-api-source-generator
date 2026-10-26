@@ -807,6 +807,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         if (operationNames is not null)
         {
             generatedContext.AddGeneratedSource($"{projectName}.ApiOperations.g.cs", operationNames);
+
+            // The interface every operation and webhook result implements, for a test helper shared by all of them
+            generatedContext.AddGeneratedSource($"{projectName}.IApiResult.g.cs", ApiResultExtractor.Generate(projectName));
         }
 
         // The type an operation's own x- extensions go on its endpoint with

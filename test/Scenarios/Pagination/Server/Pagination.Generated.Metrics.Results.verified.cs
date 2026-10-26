@@ -18,7 +18,7 @@ namespace Pagination.Generated.Metrics.Results;
 /// Not paginated, the cursor is an integer.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListMetricsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListMetricsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Pagination.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -18,7 +18,7 @@ namespace SecurityHybrid.Generated.Orders.Results;
 /// List all orders.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Create a new order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -155,7 +155,7 @@ public sealed class CreateOrderResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get order by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -227,7 +227,7 @@ public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCode
 /// Delete an order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -296,7 +296,7 @@ public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get order tracking.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderTrackingResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderTrackingResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityHybrid.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

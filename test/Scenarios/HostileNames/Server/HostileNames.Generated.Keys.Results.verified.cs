@@ -18,7 +18,7 @@ namespace HostileNames.Generated.Keys.Results;
 /// Lists API keys - an acronym-cased schema name and a dotted one.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListApiKeysResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListApiKeysResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileNames.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

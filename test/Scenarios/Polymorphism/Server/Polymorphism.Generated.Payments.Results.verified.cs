@@ -18,7 +18,7 @@ namespace Polymorphism.Generated.Payments.Results;
 /// List all payments.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPaymentsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListPaymentsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Polymorphism.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListPaymentsResult : IResult, INestedHttpResult, IStatusCode
 /// Create a payment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreatePaymentResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreatePaymentResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Polymorphism.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -168,7 +168,7 @@ public sealed class CreatePaymentResult : IResult, INestedHttpResult, IStatusCod
 /// Get a specific payment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPaymentByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetPaymentByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Polymorphism.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

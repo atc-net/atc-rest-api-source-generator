@@ -19,7 +19,7 @@ namespace HttpMethods.Generated.Results;
 /// List resources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HttpMethods.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -88,7 +88,7 @@ public sealed class ListResourcesResult : IResult, INestedHttpResult, IStatusCod
 /// Query resources with a body.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class QueryResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class QueryResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HttpMethods.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -157,7 +157,7 @@ public sealed class QueryResourcesResult : IResult, INestedHttpResult, IStatusCo
 /// Probe the resources (a HEAD that declares the content of its GET - an answer to a HEAD has no body).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ProbeResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ProbeResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HttpMethods.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -220,7 +220,7 @@ public sealed class ProbeResourcesResult : IResult, INestedHttpResult, IStatusCo
 /// What the collection allows.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DescribeResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DescribeResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HttpMethods.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -283,7 +283,7 @@ public sealed class DescribeResourcesResult : IResult, INestedHttpResult, IStatu
 /// The request as the server received it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class TraceResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class TraceResourcesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HttpMethods.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -358,7 +358,7 @@ public sealed class TraceResourcesResult : IResult, INestedHttpResult, IStatusCo
 /// Link a resource (custom verb).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LinkResourceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class LinkResourceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HttpMethods.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

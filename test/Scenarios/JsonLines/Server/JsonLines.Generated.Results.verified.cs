@@ -17,7 +17,7 @@ namespace JsonLines.Generated.Results;
 /// Export readings as NDJSON.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -80,7 +80,7 @@ public sealed class ListReadingsResult : IResult, INestedHttpResult, IStatusCode
 /// Export readings as a JSON text sequence.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListReadingSequenceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListReadingSequenceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -143,7 +143,7 @@ public sealed class ListReadingSequenceResult : IResult, INestedHttpResult, ISta
 /// Import readings sent as JSON Lines.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ImportReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ImportReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -221,7 +221,7 @@ public sealed class ImportReadingsResult : IResult, INestedHttpResult, IStatusCo
 /// Import between 1 and 1000 readings sent as a JSON text sequence.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ImportReadingSequenceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ImportReadingSequenceResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -286,7 +286,7 @@ public sealed class ImportReadingSequenceResult : IResult, INestedHttpResult, IS
 /// Import readings sent as JSON Lines or as a JSON array.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ImportReadingsAnyFormatResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ImportReadingsAnyFormatResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -351,7 +351,7 @@ public sealed class ImportReadingsAnyFormatResult : IResult, INestedHttpResult, 
 /// Replace the readings with the ones sent (none clears them).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -414,7 +414,7 @@ public sealed class UpdateReadingsResult : IResult, INestedHttpResult, IStatusCo
 /// The readings of one device - a form in, NDJSON out.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class SearchReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class SearchReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -477,7 +477,7 @@ public sealed class SearchReadingsResult : IResult, INestedHttpResult, IStatusCo
 /// Normalize readings - a stream in, a stream out.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class NormalizeReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class NormalizeReadingsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::JsonLines.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -18,7 +18,7 @@ namespace Demo.Generated.Files.Results;
 /// Get File By Id.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetFileByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetFileByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -99,7 +99,7 @@ public sealed class GetFileByIdResult : IResult, INestedHttpResult, IStatusCodeH
 /// Upload a file as FormData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadFormDataFileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UploadFormDataFileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -175,7 +175,7 @@ public sealed class UploadFormDataFileResult : IResult, INestedHttpResult, IStat
 /// Upload files as FormData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadFormDataFilesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UploadFormDataFilesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -251,7 +251,7 @@ public sealed class UploadFormDataFilesResult : IResult, INestedHttpResult, ISta
 /// Upload a file as OctetStream.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadSingleFileAsFormDataResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UploadSingleFileAsFormDataResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -314,7 +314,7 @@ public sealed class UploadSingleFileAsFormDataResult : IResult, INestedHttpResul
 /// Upload multi files as form data.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadMultiFilesAsFormDataResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UploadMultiFilesAsFormDataResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -604,6 +604,42 @@ public sealed class ResultHeadersTests
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
     }
 
+    [Fact]
+    public void AHelperTypedToIApiResult_ReadsTheResultsOfEveryNamespace()
+    {
+        // Arrange - one helper for the results of two tag namespaces (S201, S404), naming no Results type
+        const string probe = """
+            namespace ErrorBodies.RuntimeTest;
+
+            public static class SharedHelper
+            {
+                public static string[] Run()
+                    =>
+                    [
+                        Describe(S201Result.Created(new Order(Id: "o-1"), location: "/orders/o-1", xContosoTrace: "t-1")),
+                        Describe(S404Result.NotFound()),
+                    ];
+
+                private static string Describe(ErrorBodies.Generated.IApiResult result)
+                    => $"{result.StatusCode}|{result.Location ?? "-"}|{string.Join(",", result.Headers.OrderBy(h => h.Key, StringComparer.Ordinal).Select(h => h.Key + "=" + h.Value))}|{result.Problem?.Status}|{result.Value?.GetType().Name ?? "-"}";
+            }
+            """;
+        var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml);
+        sources.Add(("SharedHelper.cs", WithUsings(sources, probe)));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
+
+        // Act
+        var described = (string[])assembly.GetType("ErrorBodies.RuntimeTest.SharedHelper", throwOnError: true)!.GetMethod("Run")!.Invoke(null, null)!;
+
+        // Assert
+        Assert.Equal(
+            [
+                "201|/orders/o-1|Location=/orders/o-1,X-Contoso-Trace=t-1||Order",
+                "404|-||404|ProblemDetails",
+            ],
+            described);
+    }
+
     private static object? ArgumentFor(
         ParameterInfo parameter,
         Type orderType)
@@ -683,4 +719,18 @@ public sealed class ResultHeadersTests
             failures.Add($"{call}: Retry-After missing from Headers");
         }
     }
+
+    // The probe sees every generated namespace
+    private static string WithUsings(
+        List<(string HintName, string Source)> sources,
+        string probe)
+        => string.Join(
+               Environment.NewLine,
+               sources
+                   .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
+                   .Where(ns => ns.Length > 0)
+                   .Distinct(StringComparer.Ordinal)
+                   .Select(ns => $"global using {ns};")) +
+           Environment.NewLine +
+           probe;
 }

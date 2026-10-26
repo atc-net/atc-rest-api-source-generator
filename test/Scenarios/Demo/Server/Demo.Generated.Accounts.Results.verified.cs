@@ -18,7 +18,7 @@ namespace Demo.Generated.Accounts.Results;
 /// List all accounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListAccountsResult : IResult, INestedHttpResult, IStatusCode
 /// Create account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateAccountResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateAccountResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -161,7 +161,7 @@ public sealed class CreateAccountResult : IResult, INestedHttpResult, IStatusCod
 /// Get a specific account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetAccountByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetAccountByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -233,7 +233,7 @@ public sealed class GetAccountByIdResult : IResult, INestedHttpResult, IStatusCo
 /// Delete a specific account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteAccountByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteAccountByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -302,7 +302,7 @@ public sealed class DeleteAccountByIdResult : IResult, INestedHttpResult, IStatu
 /// Update a specific account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateAccountByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateAccountByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -374,7 +374,7 @@ public sealed class UpdateAccountByIdResult : IResult, INestedHttpResult, IStatu
 /// List all accounts paginated.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPaginatedAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListPaginatedAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -440,7 +440,7 @@ public sealed class ListPaginatedAccountsResult : IResult, INestedHttpResult, IS
 /// List all accounts async-enumerable.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListAsyncEnumerableAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListAsyncEnumerableAccountsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Demo.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

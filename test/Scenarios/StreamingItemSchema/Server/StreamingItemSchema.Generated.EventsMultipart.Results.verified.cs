@@ -18,7 +18,7 @@ namespace StreamingItemSchema.Generated.EventsMultipart.Results;
 /// Stream events as multipart/mixed.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamEventsMultipartResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class StreamEventsMultipartResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::StreamingItemSchema.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -18,7 +18,7 @@ namespace HostileTypeScript.Generated.Trees.Results;
 /// Lists trees - a cycle through an array alias.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListTreesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListTreesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileTypeScript.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

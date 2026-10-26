@@ -19,7 +19,7 @@ namespace OpenApi31Features.Generated.Coordinates.Results;
 /// Get coordinates.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetCoordinatesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetCoordinatesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::OpenApi31Features.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -85,7 +85,7 @@ public sealed class GetCoordinatesResult : IResult, INestedHttpResult, IStatusCo
 /// List all coordinates.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListCoordinatesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListCoordinatesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::OpenApi31Features.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

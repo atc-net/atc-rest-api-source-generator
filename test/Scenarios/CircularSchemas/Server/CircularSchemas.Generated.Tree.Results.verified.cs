@@ -17,7 +17,7 @@ namespace CircularSchemas.Generated.Tree.Results;
 /// Get tree structure.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetTreeResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetTreeResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CircularSchemas.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

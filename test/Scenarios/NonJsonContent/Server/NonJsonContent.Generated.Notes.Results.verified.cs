@@ -16,7 +16,7 @@ namespace NonJsonContent.Generated.Notes.Results;
 /// Create a note from plain text.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateNoteResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateNoteResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NonJsonContent.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

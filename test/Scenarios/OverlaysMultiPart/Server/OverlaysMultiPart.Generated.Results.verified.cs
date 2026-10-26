@@ -18,7 +18,7 @@ namespace OverlaysMultiPart.Generated.Results;
 /// List orders.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::OverlaysMultiPart.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListOrdersResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Get an order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::OverlaysMultiPart.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -18,7 +18,7 @@ namespace Polymorphism.Generated.Shapes.Results;
 /// List all shapes.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListShapesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListShapesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Polymorphism.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

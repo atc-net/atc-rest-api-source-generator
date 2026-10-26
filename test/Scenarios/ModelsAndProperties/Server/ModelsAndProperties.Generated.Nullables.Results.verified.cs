@@ -18,7 +18,7 @@ namespace ModelsAndProperties.Generated.Nullables.Results;
 /// Get nullable types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetNullablesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetNullablesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ModelsAndProperties.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

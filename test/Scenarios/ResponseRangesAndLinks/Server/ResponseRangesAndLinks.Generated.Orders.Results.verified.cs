@@ -18,7 +18,7 @@ namespace ResponseRangesAndLinks.Generated.Orders.Results;
 /// An order, with a link to its customer, and a range for any other client error and for a server error.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ResponseRangesAndLinks.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -17,7 +17,7 @@ namespace Callbacks30.Generated.Results;
 /// Create a webhook subscription.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateSubscriptionResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateSubscriptionResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Callbacks30.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -85,7 +85,7 @@ public sealed class CreateSubscriptionResult : IResult, INestedHttpResult, IStat
 /// Delete a subscription.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteSubscriptionResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteSubscriptionResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::Callbacks30.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

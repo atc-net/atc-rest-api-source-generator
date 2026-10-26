@@ -18,7 +18,7 @@ namespace CachingOutput.Generated.Products.Results;
 /// List products with output caching.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProductsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListProductsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingOutput.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListProductsResult : IResult, INestedHttpResult, IStatusCode
 /// Create product (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateProductResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateProductResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingOutput.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -155,7 +155,7 @@ public sealed class CreateProductResult : IResult, INestedHttpResult, IStatusCod
 /// Get product by ID with output caching.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetProductByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetProductByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingOutput.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -227,7 +227,7 @@ public sealed class GetProductByIdResult : IResult, INestedHttpResult, IStatusCo
 /// Delete product (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteProductResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class DeleteProductResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::CachingOutput.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

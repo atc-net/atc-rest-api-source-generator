@@ -18,7 +18,7 @@ namespace HostileSchemas.Generated.Results;
 /// Lists tickets - every hostile schema in one model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListTicketsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListTicketsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileSchemas.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListTicketsResult : IResult, INestedHttpResult, IStatusCodeH
 /// Result for operation: createTicket.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateTicketResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateTicketResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::HostileSchemas.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

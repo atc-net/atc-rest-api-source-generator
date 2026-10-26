@@ -18,7 +18,7 @@ namespace StreamingItemSchema.Generated.EventsArray.Results;
 /// Stream events as the elements of a JSON array.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamEventsArrayResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class StreamEventsArrayResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::StreamingItemSchema.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

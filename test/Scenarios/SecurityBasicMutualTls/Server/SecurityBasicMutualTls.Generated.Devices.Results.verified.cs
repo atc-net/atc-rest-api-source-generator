@@ -17,7 +17,7 @@ namespace SecurityBasicMutualTls.Generated.Devices.Results;
 /// A device (a client certificate).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetDeviceByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetDeviceByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::SecurityBasicMutualTls.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

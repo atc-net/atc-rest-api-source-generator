@@ -18,7 +18,7 @@ namespace ComponentsReuse.Generated.Results;
 /// List items.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ComponentsReuse.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Get item by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetItemByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetItemByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ComponentsReuse.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

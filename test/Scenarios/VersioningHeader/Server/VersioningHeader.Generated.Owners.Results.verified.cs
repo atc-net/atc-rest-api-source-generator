@@ -18,7 +18,7 @@ namespace VersioningHeader.Generated.Owners.Results;
 /// List all owners.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOwnersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListOwnersResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListOwnersResult : IResult, INestedHttpResult, IStatusCodeHt
 /// Create a new owner.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateOwnerResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateOwnerResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -168,7 +168,7 @@ public sealed class CreateOwnerResult : IResult, INestedHttpResult, IStatusCodeH
 /// Get an owner by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOwnerByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetOwnerByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::VersioningHeader.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

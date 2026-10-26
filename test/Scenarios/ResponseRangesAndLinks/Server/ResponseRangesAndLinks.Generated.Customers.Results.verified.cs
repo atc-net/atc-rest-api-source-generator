@@ -18,7 +18,7 @@ namespace ResponseRangesAndLinks.Generated.Customers.Results;
 /// A customer, answered by any success status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetCustomerByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetCustomerByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ResponseRangesAndLinks.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

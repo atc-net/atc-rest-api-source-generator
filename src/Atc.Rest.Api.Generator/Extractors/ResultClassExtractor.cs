@@ -811,7 +811,7 @@ public static class ResultClassExtractor
             GenericTypeName: null,
             InheritedClassTypeName: null,
             InheritedGenericClassTypeName: null,
-            InheritedInterfaceTypeName: "IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult",
+            InheritedInterfaceTypeName: $"IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, {ApiResultExtractor.InterfaceReference(projectName)}",
             Constructors: new List<ConstructorParameters> { constructor },
             Properties: properties,
             Methods: methods,

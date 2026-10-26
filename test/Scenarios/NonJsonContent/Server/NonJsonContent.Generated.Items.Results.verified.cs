@@ -19,7 +19,7 @@ namespace NonJsonContent.Generated.Items.Results;
 /// List items as JSON.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NonJsonContent.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -88,7 +88,7 @@ public sealed class ListItemsResult : IResult, INestedHttpResult, IStatusCodeHtt
 /// Get an item as JSON, or its PDF sheet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetItemSheetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetItemSheetResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NonJsonContent.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -178,7 +178,7 @@ public sealed class GetItemSheetResult : IResult, INestedHttpResult, IStatusCode
 /// Replace an item's attachment with a raw file.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateItemAttachmentResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateItemAttachmentResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NonJsonContent.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -241,7 +241,7 @@ public sealed class UpdateItemAttachmentResult : IResult, INestedHttpResult, ISt
 /// Update an item's photo and its caption.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateItemPhotoResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class UpdateItemPhotoResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NonJsonContent.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -304,7 +304,7 @@ public sealed class UpdateItemPhotoResult : IResult, INestedHttpResult, IStatusC
 /// Update an item with a JSON merge patch.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class PatchItemResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class PatchItemResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NonJsonContent.Generated.IApiResult
 {
     private readonly IResult innerResult;
 

@@ -18,7 +18,7 @@ namespace NullableTypeArrays.Generated.Results;
 /// List profiles.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListProfilesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class ListProfilesResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NullableTypeArrays.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -87,7 +87,7 @@ public sealed class ListProfilesResult : IResult, INestedHttpResult, IStatusCode
 /// Create a profile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateProfileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class CreateProfileResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NullableTypeArrays.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
@@ -155,7 +155,7 @@ public sealed class CreateProfileResult : IResult, INestedHttpResult, IStatusCod
 /// Get a profile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetProfileByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult
+public sealed class GetProfileByIdResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::NullableTypeArrays.Generated.IApiResult
 {
     private readonly IResult innerResult;
 
