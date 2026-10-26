@@ -28,6 +28,12 @@ public static class Program
 
         args = SetHelpArgumentIfNeeded(args);
 
+        // Redirected output (a pipe, a CI log) is not wrapped at a window's 80 columns
+        if (System.Console.IsOutputRedirected)
+        {
+            AnsiConsole.Profile.Width = ConsoleWidthHelper.ForRedirectedOutput(Environment.GetEnvironmentVariable("COLUMNS"));
+        }
+
         var consoleLoggerConfiguration = new ConsoleLoggerConfiguration();
         ProgramCsHelper.SetMinimumLogLevelIfNeeded(args, consoleLoggerConfiguration);
 

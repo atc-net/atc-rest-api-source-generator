@@ -89,10 +89,13 @@ public static partial class CliTestHelper
     /// </summary>
     /// <param name="arguments">The command line arguments.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="columns">The <c>COLUMNS</c> the CLI runs with (wide, so a long path stays on one line whatever the
+    /// machine's temp directory); null runs it without.</param>
     /// <returns>The exit code and the clean output.</returns>
     public static async Task<(int ExitCode, string Output)> RunCliAsync(
         string arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? columns = "1000")
     {
         var startInfo = new ProcessStartInfo
         {
@@ -103,6 +106,15 @@ public static partial class CliTestHelper
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+
+        if (columns is null)
+        {
+            startInfo.Environment.Remove("COLUMNS");
+        }
+        else
+        {
+            startInfo.Environment["COLUMNS"] = columns;
+        }
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("The CLI process could not be started.");

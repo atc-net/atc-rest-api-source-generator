@@ -8,7 +8,8 @@ internal static class PathHelper
     /// <summary>
     /// Resolves a path argument to an absolute path against the current directory and nothing
     /// else: <c>api.yaml</c>, <c>./api.yaml</c> and <c>.\api.yaml</c> all mean the file in the
-    /// current directory, and an absolute path is returned normalized.
+    /// current directory, and an absolute path is returned normalized. On Linux and macOS a backslash is read as a
+    /// separator too, so a command line written on Windows (<c>.\specs\api.yaml</c>) means the same file there.
     /// </summary>
     /// <remarks>
     /// Earlier versions stripped <c>src/&lt;Project&gt;/</c> and <c>bin/&lt;Config&gt;/&lt;tfm&gt;/</c>
@@ -19,5 +20,7 @@ internal static class PathHelper
     /// <param name="path">The path to resolve.</param>
     /// <returns>The resolved absolute path.</returns>
     public static string ResolveRelativePath(string path)
-        => Path.GetFullPath(path, Directory.GetCurrentDirectory());
+        => Path.GetFullPath(
+            Path.DirectorySeparatorChar == '\\' ? path : path.Replace('\\', Path.DirectorySeparatorChar),
+            Directory.GetCurrentDirectory());
 }

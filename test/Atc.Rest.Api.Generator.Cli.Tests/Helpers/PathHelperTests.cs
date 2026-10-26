@@ -15,7 +15,8 @@ public class PathHelperTests
     {
         var result = PathHelper.ResolveRelativePath(path);
 
-        Assert.Equal(Path.GetFullPath(path), result);
+        // A backslash is a separator on every platform
+        Assert.Equal(Path.GetFullPath(path.Replace('\\', Path.DirectorySeparatorChar)), result);
         Assert.True(Path.IsPathRooted(result));
     }
 
@@ -34,6 +35,7 @@ public class PathHelperTests
     [InlineData("api.yaml")]
     [InlineData("./api.yaml")]
     [InlineData(".\\api.yaml")]
+    [InlineData(".\\specs\\..\\api.yaml")]
     public void ResolveRelativePath_WithAndWithoutLeadingDot_ResolveToTheSameFile(
         string argument)
     {
