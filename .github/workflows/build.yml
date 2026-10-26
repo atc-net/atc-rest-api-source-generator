@@ -97,7 +97,8 @@ jobs:
           if-no-files-found: error
 
   playwright:
-    runs-on: ubuntu-latest
+    # Playwright installs Chromium only on the Ubuntu releases it supports; ubuntu-latest moved past them
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     needs: dotnet-build
     steps:
