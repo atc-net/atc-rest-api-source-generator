@@ -140,11 +140,12 @@ public sealed class ApiCredentials
     public IDictionary<string, Func<CancellationToken, ValueTask<string?>>> ApiKeys { get; } = new Dictionary<string, Func<CancellationToken, ValueTask<string?>>>(StringComparer.Ordinal);
 
     /// <summary>
-    /// Renews the access token after a 401 to a read (GET, HEAD, OPTIONS) sent with one: when it returns
-    /// <see langword="true"/> the read is sent once more with the token <see cref="AccessToken"/> now gives. A write is
-    /// answered with its 401.
+    /// Renews the access token after a 401 to a read (GET, HEAD, OPTIONS) sent with one, given the token that was
+    /// refused: when it returns <see langword="true"/> the read is sent once more with the token <see cref="AccessToken"/>
+    /// now gives. When <see cref="AccessToken"/> already gives another token (a call that was refused before renewed
+    /// it), the read is sent again with that one without renewing. A write is answered with its 401.
     /// </summary>
-    public Func<CancellationToken, ValueTask<bool>>? RenewAccessToken { get; set; }
+    public Func<string, CancellationToken, ValueTask<bool>>? RenewAccessToken { get; set; }
 }
 
 /// <summary>
@@ -175,10 +176,19 @@ public sealed class ApiCredentialsHandler : DelegatingHandler
         var sentToken = await ApplyAsync(request, schemes, cancellationToken).ConfigureAwait(false);
         var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode != HttpStatusCode.Unauthorized ||
-            !sentToken ||
+            sentToken is null ||
             credentials.RenewAccessToken is not { } renew ||
-            !IsRead(request.Method) ||
-            !await renew(cancellationToken).ConfigureAwait(false))
+            !IsRead(request.Method))
+        {
+            return response;
+        }
+
+        // Renewed by another call since this one was sent: send it again with the new token
+        var current = credentials.AccessToken is { } accessToken
+            ? await accessToken(cancellationToken).ConfigureAwait(false)
+            : null;
+        if ((current is not { Length: > 0 } || string.Equals(current, sentToken, StringComparison.Ordinal)) &&
+            !await renew(sentToken, cancellationToken).ConfigureAwait(false))
         {
             return response;
         }
@@ -192,23 +202,23 @@ public sealed class ApiCredentialsHandler : DelegatingHandler
         => method == HttpMethod.Get || method == HttpMethod.Head || method == HttpMethod.Options;
 
     // Sets each credential the request's schemes take and there is a value for - replacing one set before (a request
-    // the resilience handler sends again passes here again). Returns whether an access token was sent.
-    private async ValueTask<bool> ApplyAsync(
+    // the resilience handler sends again passes here again). Returns the access token sent, if any.
+    private async ValueTask<string?> ApplyAsync(
         HttpRequestMessage request,
         IReadOnlyList<ApiSecurityScheme> schemes,
         CancellationToken cancellationToken)
     {
-        var sentToken = false;
+        string? sentToken = null;
         foreach (var scheme in schemes)
         {
             if (scheme.IsBearer)
             {
-                if (!sentToken &&
+                if (sentToken is null &&
                     credentials.AccessToken is { } accessToken &&
                     await accessToken(cancellationToken).ConfigureAwait(false) is { Length: > 0 } token)
                 {
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                    sentToken = true;
+                    sentToken = token;
                 }
 
                 continue;

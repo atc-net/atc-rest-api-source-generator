@@ -123,8 +123,9 @@ public sealed class ApiCredentialsTests
                     credentials.ApiKeys["deviceQueryKey"] = _ => new ValueTask<string?>("query key");
                     if (withRenewal)
                     {
-                        credentials.RenewAccessToken = _ =>
+                        credentials.RenewAccessToken = (refused, _) =>
                         {
+                            Requests.Add($"renew {refused}");
                             token = "token-2";
                             return new ValueTask<bool>(true);
                         };
@@ -174,24 +175,73 @@ public sealed class ApiCredentialsTests
                 return Requests;
             }
 
-            private sealed class StubHandler : HttpMessageHandler
+            // Two reads refused with the same token: the second 401 arrives after the first one renewed it, so it is sent
+            // again with the renewed token, without renewing once more
+            public static async Task<List<string>> RunConcurrentAsync()
             {
-                protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+                Requests.Clear();
+                renew = true;
+                var renewals = 0;
+                var token = "token-1";
+                var renewed = new TaskCompletionSource();
+                var httpClientName = (string)typeof(CredentialsProbe).Assembly.GetTypes().Single(t => t.Name == "Constants").GetField("HttpClientName")!.GetValue(null)!;
+                var services = new ServiceCollection();
+                services
+                    .AddHttpClient(httpClientName, c => c.BaseAddress = new Uri("http://stub/"))
+                    .AddApiCredentials(credentials =>
+                    {
+                        credentials.AccessToken = _ => new ValueTask<string?>(token);
+                        credentials.RenewAccessToken = (refused, _) =>
+                        {
+                            renewals++;
+                            token = "token-2";
+                            renewed.TrySetResult();
+                            return new ValueTask<bool>(true);
+                        };
+                    })
+                    .ConfigurePrimaryHttpMessageHandler(() => new StubHandler(renewed.Task));
+                typeof(CredentialsProbe).Assembly.GetTypes().SelectMany(t => t.GetMethods()).Single(m => m.Name == "AddErrorBodiesEndpoints").Invoke(null, [services, null]);
+                using var provider = services.BuildServiceProvider();
+                var endpointType = typeof(CredentialsProbe).Assembly.GetTypes().Single(t => t.Name == "IListOrdersEndpoint");
+                var execute = endpointType.GetMethod("ExecuteAsync")!;
+                var endpoint = provider.GetRequiredService(endpointType);
+                Task Read() => (Task)execute.Invoke(endpoint, execute.GetParameters().Select(p => p.ParameterType == typeof(CancellationToken) ? (object)CancellationToken.None : httpClientName).ToArray())!;
+
+                await Task.WhenAll(Read(), Read());
+                return [$"renewals {renewals}", .. Requests.Where(r => r.Contains("token-2", StringComparison.Ordinal)).Select(_ => "sent with token-2")];
+            }
+
+            private sealed class StubHandler(Task? renewed = null) : HttpMessageHandler
+            {
+                private int refusals;
+
+                protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
                 {
+                    // The second refusal waits for the first one's renewal
+                    if (renewed is not null &&
+                        request.Headers.Authorization?.Parameter == "token-1" &&
+                        Interlocked.Increment(ref refusals) == 2)
+                    {
+                        await renewed;
+                    }
+
                     var security = ApiRequest.SecurityOf(request);
                     var schemes = security is null ? "unspecified" : security.IsAnonymous ? "anonymous" : string.Join("+", security.Schemes.Select(s => s.Name));
-                    Requests.Add(
-                        $"{request.Method} {request.RequestUri!.PathAndQuery} op={ApiRequest.OperationOf(request)} security={schemes}" +
-                        $" auth={request.Headers.Authorization?.ToString() ?? "-"}" +
-                        $" key={(request.Headers.TryGetValues("X-API-Key", out var keys) ? string.Join(",", keys) : "-")}");
+                    lock (Requests)
+                    {
+                        Requests.Add(
+                            $"{request.Method} {request.RequestUri!.PathAndQuery} op={ApiRequest.OperationOf(request)} security={schemes}" +
+                            $" auth={request.Headers.Authorization?.ToString() ?? "-"}" +
+                            $" key={(request.Headers.TryGetValues("X-API-Key", out var keys) ? string.Join(",", keys) : "-")}");
+                    }
 
                     var status = renew && request.Headers.Authorization?.Parameter == "token-1"
                         ? HttpStatusCode.Unauthorized
                         : request.Method == HttpMethod.Get ? HttpStatusCode.OK : HttpStatusCode.NoContent;
-                    return Task.FromResult(new HttpResponseMessage(status)
+                    return new HttpResponseMessage(status)
                     {
                         Content = status == HttpStatusCode.OK ? new StringContent("[]", System.Text.Encoding.UTF8, "application/json") : null,
-                    });
+                    };
                 }
             }
         }
@@ -231,9 +281,25 @@ public sealed class ApiCredentialsTests
             [
                 "POST /orders op=CreateOrder security=bearerAuth auth=Bearer token-1 key=-",
                 "GET /orders op=ListOrders security=bearerAuth auth=Bearer token-1 key=-",
+                "renew token-1",
                 "GET /orders op=ListOrders security=bearerAuth auth=Bearer token-2 key=-",
             ],
             requests);
+    }
+
+    [Fact]
+    public async Task TwoReadsRefusedWithTheSameToken_RenewItOnce()
+    {
+        // Arrange
+        var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiClientGenerator(), ".atc-rest-api-client", ErrorResponseBodyRuntimeTests.ClientOperationMarker("ProblemDetails"), includeMinimalApi: false, Yaml);
+        sources.Add(("CredentialsProbe.cs", ProbeSource));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+
+        // Act
+        var log = await (Task<List<string>>)assembly.GetType("ErrorBodies.RuntimeTest.CredentialsProbe", throwOnError: true)!.GetMethod("RunConcurrentAsync")!.Invoke(null, null)!;
+
+        // Assert
+        Assert.Equal(["renewals 1", "sent with token-2", "sent with token-2"], log);
     }
 
     [Theory]
