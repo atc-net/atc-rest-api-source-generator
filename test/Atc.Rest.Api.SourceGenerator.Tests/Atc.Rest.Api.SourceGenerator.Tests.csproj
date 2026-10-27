@@ -21,19 +21,19 @@
     <!-- The scenario snapshots moved here from the integration-test project, so that they are
          produced by the real Roslyn generators rather than a parallel orchestration. -->
     <!-- Pinned to 32.x: Verify 33 fails every Release build until the project declares a sponsorship license (SponsorCheck SC021) -->
-    <PackageReference Include="Verify.XunitV3" Version="[32.0.0,33.0.0)" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
+    <PackageReference Include="Verify.XunitV3" Version="[32.0.1, 33.0.0)" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.11.0" />
     <!-- Same purpose: the resilience/retry scenarios emit code against Polly, so those assemblies
          must be present in the test host for the compilation gate to resolve them. -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
     <!-- Likewise for the OpenID Connect security scenario, whose emitted authentication wiring
          lives outside the ASP.NET Core shared framework. -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.14" />
     <!-- The generated scope and role policies against real signed JWTs, as an identity provider issues them -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <!-- The SDK's trim and AOT analyzer, for the AOT gate over the generated code: only its DLL is copied to the
          output, so it does not analyze this project -->
-    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.13" ExcludeAssets="all" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.14" ExcludeAssets="all" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,7 +53,7 @@
     <PackageReference Include="Atc.Rest.Client" Version="2.7.0" />
 
     <!-- The typed hub clients of x-signalr-hubs build on its HubConnection; a runtime test connects one to a hub. -->
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.14" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses
