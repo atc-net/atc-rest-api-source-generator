@@ -16,7 +16,7 @@ namespace PetStoreFull.Generated;
 /// Writing and reading of the generated models' XML (the <c>{Model}Xml</c> classes): UTF-8 without BOM or
 /// declaration, and reading without DTD processing or an external resolver.
 /// </summary>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class XmlModelSupport
 {
     private static readonly global::System.Xml.XmlWriterSettings WriterSettings = new()

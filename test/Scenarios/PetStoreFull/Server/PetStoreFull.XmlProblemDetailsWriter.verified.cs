@@ -13,7 +13,7 @@ namespace PetStoreFull.Generated;
 /// Writes a ProblemDetails as <c>application/problem+xml</c> (RFC 9457 Appendix B) when the request's Accept
 /// prefers it over <c>application/problem+json</c> and <c>application/json</c>.
 /// </summary>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class XmlProblemDetailsWriter : global::Microsoft.AspNetCore.Http.IProblemDetailsWriter
 {
     /// <summary>The RFC 9457 (and RFC 7807) XML namespace.</summary>

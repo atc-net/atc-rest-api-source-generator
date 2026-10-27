@@ -23,7 +23,7 @@ namespace JsonLines.Generated;
 /// the body is read), when the connection is aborted.
 /// </remarks>
 /// <typeparam name="T">The record.</typeparam>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class StreamedRequestBody<T> : global::System.Collections.Generic.IAsyncEnumerable<T>
 {
     /// <summary>

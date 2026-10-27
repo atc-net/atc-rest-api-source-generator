@@ -17,19 +17,20 @@ public static partial class ModuleInitializer
 
         VerifierSettings.ScrubLinesContaining(StringComparison.Ordinal, "Version=");
 
-        // The [GeneratedCode] attribute carries the build version, which changes on every build.
-        // Pin it so the snapshots stay stable.
+        // The [GeneratedCode] attribute carries the build version, which changes on every build and release.
+        // Pin it so the snapshots stay stable - also where it is written fully qualified
+        // ([global::System.CodeDom.Compiler.GeneratedCode(...)]), which a version bump otherwise breaks.
         VerifierSettings.AddScrubber(
             (builder, _) =>
             {
                 var scrubbed = GeneratedCodeVersionRegex()
-                    .Replace(builder.ToString(), "[GeneratedCode(\"${name}\", \"1.0.0\")]");
+                    .Replace(builder.ToString(), "[${attribute}(\"${name}\", \"1.0.0\")]");
 
                 builder.Clear();
                 builder.Append(scrubbed);
             });
     }
 
-    [GeneratedRegex(@"\[GeneratedCode\(""(?<name>[^""]+)"",\s*""[^""]+""\)\]", RegexOptions.ExplicitCapture, 1000)]
+    [GeneratedRegex(@"\[(?<attribute>(global::System\.CodeDom\.Compiler\.)?GeneratedCode)\(""(?<name>[^""]+)"",\s*""[^""]+""\)\]", RegexOptions.ExplicitCapture, 1000)]
     private static partial Regex GeneratedCodeVersionRegex();
 }

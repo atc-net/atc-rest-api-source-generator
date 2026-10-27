@@ -14,7 +14,7 @@ namespace OpenApi31Features.Generated;
 /// Answers a request body the generated reader cannot read as a problem with the reader's status (400, or 415
 /// for another media type), whatever exception handler the host has.
 /// </summary>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class RequestBodyProblems
 {
     // The request item the reader sets before it throws; the key no request can name

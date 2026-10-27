@@ -14,7 +14,7 @@ namespace PetStoreFull.Generated;
 /// type a 415.
 /// </summary>
 /// <typeparam name="T">The item type.</typeparam>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class JsonRequestBodyList<T> : global::System.Collections.Generic.List<T>
 {
     /// <summary>

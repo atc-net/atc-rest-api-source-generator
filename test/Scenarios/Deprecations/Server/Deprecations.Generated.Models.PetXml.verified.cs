@@ -20,7 +20,7 @@ namespace Deprecations.Generated.Models;
 /// The XML representation of <see cref="Pet"/> as the OpenAPI specification describes it (<c>xml</c>:
 /// element and attribute names, namespaces, array wrapping).
 /// </summary>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class PetXml
 {
     /// <summary>The name of the root element.</summary>

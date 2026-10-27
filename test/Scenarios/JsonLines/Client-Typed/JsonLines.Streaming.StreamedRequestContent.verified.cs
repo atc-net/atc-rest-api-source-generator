@@ -14,7 +14,7 @@ namespace JsonLines.Generated.Streaming;
 /// <summary>
 /// Creates the content of a request body sent as a stream of records, its record type inferred.
 /// </summary>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 internal static class StreamedRequestContent
 {
     /// <summary>
@@ -37,7 +37,7 @@ internal static class StreamedRequestContent
 /// refused rather than sending other records.
 /// </remarks>
 /// <typeparam name="T">The record.</typeparam>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 internal sealed class StreamedRequestContent<T> : global::System.Net.Http.HttpContent
 {
     private static readonly byte[] LineFeed = [0x0A];

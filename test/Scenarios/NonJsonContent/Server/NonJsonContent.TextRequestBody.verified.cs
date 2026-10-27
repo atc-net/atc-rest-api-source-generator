@@ -14,7 +14,7 @@ namespace NonJsonContent.Generated;
 /// not know is a 415.
 /// </summary>
 /// <param name="Text">The text that was sent.</param>
-[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "2.1.1")]
+[global::System.CodeDom.Compiler.GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TextRequestBody(string Text)
 {
     /// <summary>
