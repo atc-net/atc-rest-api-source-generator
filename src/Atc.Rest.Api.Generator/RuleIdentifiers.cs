@@ -641,6 +641,15 @@ public static class RuleIdentifiers
     /// </summary>
     public const string PatternNotAnchored = "ATC_API_SCH028";
 
+    /// <summary>
+    /// ATC_API_SCH029: A property listed in 'required' is readOnly (or writeOnly), but the schema is used in requests
+    /// and responses alike, so the property is generated optional (nullable, '= null') - one record serves both
+    /// directions. A readOnly property stays required in a schema only responses carry, a writeOnly one in a schema
+    /// only requests carry: split the request and response schemas to keep it required. Not reported for a schema no
+    /// operation uses. Warning, every strategy.
+    /// </summary>
+    public const string RequiredReadOrWriteOnlyPropertyGeneratedOptional = "ATC_API_SCH029";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>
