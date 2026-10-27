@@ -35,8 +35,12 @@ dotnet test --solution Atc.Rest.Api.SourceGenerator.slnx
 
 Dependencies live in three places - NuGet (`*.csproj`, `Directory.Build.props`), npm (the Showcase React apps, the Playwright tests and the TypeScript gates' `test/NodeWorkspace`) and the GitHub Actions workflows. List what is outdated in all three, majors included:
 
+```powershell
+./scripts/check-outdated.ps1          # or: NuGet, Npm, Actions
+```
+
 ```bash
-scripts/check-outdated.sh            # or: nuget, npm, actions
+scripts/check-outdated.sh             # or: nuget, npm, actions
 ```
 
 `npm outdated` and `npm update` stay inside each `package.json` range (`^6.1.0` never shows 7.x), so they miss the majors. Before a release, take the minor and patch updates, and either take each major or keep it pinned with an `ignore` and its reason in `.github/dependabot.yml`. The majors of `test/NodeWorkspace` are the versions the generated TypeScript is checked against, so each is a PR of its own.
