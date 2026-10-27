@@ -4,7 +4,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// A streamed response answers with its status and headers at once, before its first item: a stream may be quiet for
 /// minutes, and every generated client waits for the headers (<c>HttpCompletionOption.ResponseHeadersRead</c>), with its
 /// timeouts counting until they come. Each of the five stream formats, on a live server whose handler yields nothing
-/// for ten seconds.
+/// for a minute.
 /// </summary>
 public class StreamStartRuntimeTests
 {
@@ -94,10 +94,10 @@ public class StreamStartRuntimeTests
 
         public static class Quiet
         {
-            // Nothing for ten seconds, then one item: what a live feed does between two events
+            // Nothing for a minute, then one item: what a live feed does between two events
             public static async IAsyncEnumerable<Tick> Ticks([EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)
             {
-                await System.Threading.Tasks.Task.Delay(System.TimeSpan.FromSeconds(10), cancellationToken);
+                await System.Threading.Tasks.Task.Delay(System.TimeSpan.FromSeconds(60), cancellationToken);
                 yield return new Tick(1);
             }
         }
@@ -163,9 +163,9 @@ public class StreamStartRuntimeTests
                      ("/array", "application/json", null),
                  })
         {
-            // Headers within three seconds, where the first item takes ten
+            // Headers within twenty seconds (room for a busy runner), where the first item takes a minute
             using var headersTimeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-            headersTimeout.CancelAfter(TimeSpan.FromSeconds(3));
+            headersTimeout.CancelAfter(TimeSpan.FromSeconds(20));
             try
             {
                 using var response = await client.GetAsync(new Uri(path, UriKind.Relative), HttpCompletionOption.ResponseHeadersRead, headersTimeout.Token);
@@ -178,7 +178,7 @@ public class StreamStartRuntimeTests
             }
             catch (OperationCanceledException) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
             {
-                late.Add($"{path}: no headers within three seconds");
+                late.Add($"{path}: no headers within twenty seconds");
             }
         }
 
