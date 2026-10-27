@@ -48,7 +48,7 @@
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" GeneratePathProperty="true" />
     <!-- Exact pin, not a floor — SharpYaml 3.x breaks Microsoft.OpenApi.YamlReader at runtime.
          See Atc.OpenApi.csproj for the full rationale. -->
-    <PackageReference Include="SharpYaml" Version="[2.1.5]" GeneratePathProperty="true" />
+    <PackageReference Include="SharpYaml" Version="[3.16.0]" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
