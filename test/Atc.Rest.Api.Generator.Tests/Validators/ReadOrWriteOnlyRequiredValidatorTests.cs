@@ -100,6 +100,45 @@ public class ReadOrWriteOnlyRequiredValidatorTests
         Assert.Empty(Sch029(ValidateSpecificationStrategy.Strict, document));
     }
 
+    /// <summary>
+    /// What a webhook references counts as used both ways (the API sends the request and reads the response), so a
+    /// schema only a webhook payload carries reports its required readOnly property.
+    /// </summary>
+    [Fact]
+    public void Validate_ReadOnlyRequiredProperty_OfASchemaOnlyAWebhookUses_IsAWarning()
+    {
+        var document = Parse("""
+            openapi: 3.1.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /health:
+                get:
+                  responses:
+                    '204':
+                      description: OK
+            webhooks:
+              thingCreated:
+                post:
+                  requestBody:
+                    content:
+                      application/json:
+                        schema: { $ref: '#/components/schemas/Thing' }
+                  responses:
+                    '200':
+                      description: OK
+            components:
+              schemas:
+                Thing:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: { type: string, readOnly: true }
+            """);
+
+        var warning = Assert.Single(Sch029(ValidateSpecificationStrategy.Standard, document));
+        Assert.Contains("'Thing.id'", warning.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Validate_ReadOnlyProperty_NotListedInRequired_ReportsNothing()
     {
