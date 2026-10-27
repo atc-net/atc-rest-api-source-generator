@@ -23,4 +23,8 @@ public interface IReadOnlyWriteOnlyClient
     Task<User> GetUserByIdAsync(
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
+
+    Task<UserAudit> GetUserAuditAsync(
+        GetUserAuditParameters parameters,
+        CancellationToken cancellationToken = default);
 }

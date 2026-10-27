@@ -44,6 +44,27 @@ paths:
         '404':
           description: User not found
 
+  /users/{userId}/audit:
+    get:
+      operationId: getUserAudit
+      summary: Get the audit record of a user (only ever returned, so its required readOnly properties stay required)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Audit record found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAudit'
+        '404':
+          description: User not found
+
 components:
   schemas:
     User:
@@ -77,3 +98,24 @@ components:
         displayName:
           type: string
           description: Regular read-write property
+
+    UserAudit:
+      title: UserAudit
+      type: object
+      required:
+        - userId
+        - recordedAt
+      properties:
+        note:
+          type: string
+          description: Free-text note
+        userId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: The audited user
+        recordedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the audit was recorded

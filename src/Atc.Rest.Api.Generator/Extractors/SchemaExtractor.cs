@@ -236,6 +236,10 @@ public static class SchemaExtractor
         // Pre-scan: collect schema names that are referenced as allOf bases
         var allOfBaseSchemas = CollectAllOfBaseSchemas(openApiDoc);
 
+        // Which schemas requests and responses carry: a required readOnly/writeOnly property stays required in a schema
+        // used in one direction only
+        var usage = SchemaUsageReachability.For(openApiDoc);
+
         var recordParametersList = new List<RecordParameters>();
 
         foreach (var schema in openApiDoc.Components.Schemas)
@@ -326,7 +330,9 @@ public static class SchemaExtractor
                             inlineEnumsByValuesKey,
                             registry,
                             generatePartialModels,
-                            declarationModifier);
+                            declarationModifier,
+                            originalSchemaName,
+                            usage);
 
                         // A oneOf/anyOf variant derives from the emitted polymorphic base. This wins
                         // over allOf: a variant that is also an allOf composition still has to be
@@ -566,13 +572,17 @@ public static class SchemaExtractor
     /// <param name="baseTypeName">Optional base type name for polymorphic inheritance.</param>
     /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
     /// <param name="declarationModifierOverride">Optional declaration modifier override (e.g., for allOf base schemas).</param>
+    /// <param name="originalSchemaName">The schema's name in <c>components.schemas</c>, which decides a required readOnly/writeOnly property.</param>
+    /// <param name="usage">Which schemas requests and responses carry (see <see cref="SchemaUsageReachability.KeepsRequired"/>).</param>
     private static RecordParameters? ExtractRecordFromSchema(
         string schemaName,
         OpenApiSchema schema,
         TypeConflictRegistry? registry = null,
         string? baseTypeName = null,
         bool generatePartialModels = false,
-        DeclarationModifiers? declarationModifierOverride = null)
+        DeclarationModifiers? declarationModifierOverride = null,
+        string? originalSchemaName = null,
+        SchemaUsageReachability? usage = null)
     {
         var properties = schema.Properties?.ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
@@ -601,20 +611,11 @@ public static class SchemaExtractor
                 propName = propName + "Value";
             }
 
-            var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
-
-            // readOnly/writeOnly properties should be optional in the shared record type.
-            // readOnly = only in responses (server sets, client reads), writeOnly = only in requests (client sends).
-            // Making them optional allows omission in the context where they don't apply.
-            if (isRequired)
-            {
-                var resolvedPropSchema = prop.Value.Dereferenced;
-                if (resolvedPropSchema is OpenApiSchema actualPropSchema &&
-                    (actualPropSchema.ReadOnly || actualPropSchema.WriteOnly))
-                {
-                    isRequired = false;
-                }
-            }
+            // A readOnly/writeOnly property is optional in the record requests and responses share, unless the schema is
+            // used in the one direction the property is always there in (the same decision as the model's)
+            var isReadOrWriteOnly = SchemaUsageReachability.IsReadOrWriteOnly(prop.Value);
+            var isRequired = required.Contains(prop.Key, StringComparer.Ordinal) &&
+                             SchemaUsageReachability.KeepsRequired(usage, originalSchemaName, prop.Value);
 
             // Check for additionalProperties (Dictionary types) first
             // Use extension method for model type mapping
@@ -680,11 +681,8 @@ public static class SchemaExtractor
             // Extract default value from schema (null for an optional property: it may be absent)
             var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
-            // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
-            var resolvedPropForRw = prop.Value.Dereferenced;
-            if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
-                (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
-                string.IsNullOrEmpty(defaultValue))
+            // An optional readOnly/writeOnly property gets a null default so it can be omitted in requests/responses
+            if (isReadOrWriteOnly && !isRequired && string.IsNullOrEmpty(defaultValue))
             {
                 isNullableType = true;
                 defaultValue = "null";
@@ -888,7 +886,9 @@ public static class SchemaExtractor
         Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey,
         TypeConflictRegistry? registry = null,
         bool generatePartialModels = false,
-        DeclarationModifiers? declarationModifierOverride = null)
+        DeclarationModifiers? declarationModifierOverride = null,
+        string? originalSchemaName = null,
+        SchemaUsageReachability? usage = null)
     {
         var properties = schema.Properties?.ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
@@ -916,14 +916,12 @@ public static class SchemaExtractor
                 propName = propName + "Value";
             }
 
-            var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
-
-            // readOnly/writeOnly properties should be optional
-            if (isRequired && prop.Value is OpenApiSchema propSchemaForRw2 &&
-                (propSchemaForRw2.ReadOnly || propSchemaForRw2.WriteOnly))
-            {
-                isRequired = false;
-            }
+            // A readOnly/writeOnly property (itself or the schema its $ref points at) is optional in the record requests
+            // and responses share - it can be left out where it does not apply - unless the schema is used in the one
+            // direction the property is always there in: readOnly in responses only, writeOnly in requests only
+            var isReadOrWriteOnly = SchemaUsageReachability.IsReadOrWriteOnly(prop.Value);
+            var isRequired = required.Contains(prop.Key, StringComparer.Ordinal) &&
+                             SchemaUsageReachability.KeepsRequired(usage, originalSchemaName, prop.Value);
 
             string csharpType;
 
@@ -1020,11 +1018,8 @@ public static class SchemaExtractor
             // Extract default value from schema (null for an optional property: it may be absent)
             var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
-            // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
-            var resolvedPropForRw = prop.Value.Dereferenced;
-            if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
-                (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
-                string.IsNullOrEmpty(defaultValue))
+            // An optional readOnly/writeOnly property gets a null default so it can be omitted in requests/responses
+            if (isReadOrWriteOnly && !isRequired && string.IsNullOrEmpty(defaultValue))
             {
                 isNullableType = true;
                 defaultValue = "null";
@@ -1316,7 +1311,12 @@ public static class SchemaExtractor
             return [];
         }
 
-        var baseRecord = ExtractRecordFromSchema(OpenApiSchemaExtensions.SanitizeSchemaName(baseSchemaName), effective, registry);
+        var baseRecord = ExtractRecordFromSchema(
+            OpenApiSchemaExtensions.SanitizeSchemaName(baseSchemaName),
+            effective,
+            registry,
+            originalSchemaName: baseSchemaName,
+            usage: SchemaUsageReachability.For(doc));
         return baseRecord?.Parameters?.Select(p => p.Name).ToList()
                ?? effective.Properties.Select(p => p.Key.ToPascalCaseForDotNet()).ToList();
     }

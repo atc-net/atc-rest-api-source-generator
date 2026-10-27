@@ -23,4 +23,9 @@ public static class ApiOperations
     /// <c>GET /users/{userId}</c>: Get user by ID
     /// </summary>
     public const string GetUserById = "GetUserById";
+
+    /// <summary>
+    /// <c>GET /users/{userId}/audit</c>: Get the audit record of a user (only ever returned, so its required readOnly properties stay required)
+    /// </summary>
+    public const string GetUserAudit = "GetUserAudit";
 }

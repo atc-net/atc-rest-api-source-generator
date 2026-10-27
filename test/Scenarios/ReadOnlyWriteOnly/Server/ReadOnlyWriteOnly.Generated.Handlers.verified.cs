@@ -34,3 +34,14 @@ public interface IGetUserByIdHandler
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Get the audit record of a user (only ever returned, so its required readOnly properties stay required).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IGetUserAuditHandler
+{
+    Task<GetUserAuditResult> ExecuteAsync(
+        GetUserAuditParameters parameters,
+        CancellationToken cancellationToken = default);
+}

@@ -154,6 +154,78 @@ public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeH
 }
 
 /// <summary>
+/// Get the audit record of a user (only ever returned, so its required readOnly properties stay required).
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class GetUserAuditResult : IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::ReadOnlyWriteOnly.Generated.IApiResult
+{
+    private readonly IResult innerResult;
+
+    private GetUserAuditResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// The status code the result answers with (a test asserts it without casting).
+    /// </summary>
+    public int? StatusCode
+        => (innerResult as IStatusCodeHttpResult)?.StatusCode;
+
+    /// <summary>
+    /// The value the result writes: the model, the items, the problem - null for a result without a body.
+    /// </summary>
+    public object? Value
+        => (innerResult as IValueHttpResult)?.Value;
+
+    /// <summary>
+    /// The problem the result answers with (a ValidationProblemDetails for field errors), else null.
+    /// </summary>
+    public global::Microsoft.AspNetCore.Mvc.ProblemDetails? Problem
+        => Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails;
+
+    /// <summary>
+    /// The Location header the result writes (a created resource, an accepted job, a redirect), else null.
+    /// </summary>
+    public string? Location
+        => ResultHeaders.Location(innerResult);
+
+    /// <summary>
+    /// The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers
+        => ResultHeaders.Of(innerResult);
+
+    /// <summary>
+    /// 200 OK - Audit record found.
+    /// </summary>
+    public static GetUserAuditResult Ok(UserAudit response)
+        => new(TypedResults.Ok(response));
+
+    public static implicit operator GetUserAuditResult(UserAudit response)
+        => Ok(response);
+
+    /// <summary>
+    /// 404 Not Found - User not found.
+    /// </summary>
+    public static GetUserAuditResult NotFound(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts GetUserAuditResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(GetUserAuditResult result)
+        => result.Result;
+}
+
+/// <summary>
 /// A result that writes response headers before the result it wraps.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]

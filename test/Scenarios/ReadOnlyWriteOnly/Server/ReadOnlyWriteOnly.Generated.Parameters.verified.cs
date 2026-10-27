@@ -30,3 +30,12 @@ public sealed record CreateUserParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetUserByIdParameters(
     [property: FromRoute(Name = "userId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "userId")] Guid UserId);
+
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get the audit record of a user (only ever returned, so its required readOnly properties stay required).
+/// Operation: GetUserAudit.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed record GetUserAuditParameters(
+    [property: FromRoute(Name = "userId"), Required, global::System.ComponentModel.DataAnnotations.Display(Name = "userId")] Guid UserId);

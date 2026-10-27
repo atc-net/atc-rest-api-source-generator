@@ -738,8 +738,11 @@ public static class ResponseHeaderFactoryHelper
                 return null;
             }
 
-            // A readOnly or writeOnly property is optional in the model, as it is here
-            var isRequired = required.Contains(property.Key) && !propertySchema.ReadOnly && !propertySchema.WriteOnly;
+            // A readOnly or writeOnly property is required here as it is in the model (SchemaExtractor): only when the
+            // model is used in the one direction the property is always there in
+            var usage = reference.Reference.HostDocument is { } document ? SchemaUsageReachability.For(document) : null;
+            var isRequired = required.Contains(property.Key) &&
+                             SchemaUsageReachability.KeepsRequired(usage, id, property.Value);
             var modelType = property.Value.ToCSharpTypeForModel(isRequired, registry).TrimEnd('?');
             var headerType = value.Kind == ResponseHeaderValueKind.Scalar ? ModelTypeOfScalar(value.Type) : value.Type;
             if (!string.Equals(modelType, headerType, StringComparison.Ordinal))
