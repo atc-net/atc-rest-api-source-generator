@@ -1,12 +1,14 @@
-# Weekly update PRs: minor and patch versions in one PR per ecosystem, major versions in another, so a week behind is a
-# couple of PRs and not one per package and folder. "chore(deps)" keeps release-please's changelog clean.
+# Monthly update PRs, at most two open per ecosystem: minor and patch versions in one PR, major versions in another,
+# so a month behind is a couple of PRs (each runs the full CI), not one per package and folder.
+# "chore(deps)" keeps release-please's changelog clean.
 # scripts/check-outdated.ps1 (or .sh) lists the same updates locally, majors included.
 version: 2
 updates:
   - package-ecosystem: nuget
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 2
     ignore:
       # Pinned to 32.x: Verify 33 fails Release builds until the project declares a sponsorship license
       - dependency-name: "Verify*"
@@ -22,7 +24,8 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 2
     commit-message:
       prefix: chore(deps)
     groups:
@@ -36,7 +39,8 @@ updates:
       - /sample/Showcase/Showcase.ReactApp.Fetch
       - /sample/Showcase/Showcase.ReactApp.Axios
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 2
     commit-message:
       prefix: chore(deps)
     groups:
@@ -47,11 +51,12 @@ updates:
 
   # The TypeScript gates' pinned workspace: its versions are the ones the generated TypeScript is compiled and run
   # against (TypeScript, React, zod, msw, ...). A major there changes what the generated clients support, so it is a
-  # decision taken in a PR of its own, not a weekly update
+  # decision taken in a PR of its own, not a monthly update
   - package-ecosystem: npm
     directory: /test/NodeWorkspace
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 2
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]

@@ -10,7 +10,46 @@ on:
     branches:
       - main
 
+# A new push to a pull request cancels the run it replaces; a run on main always finishes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Whether the change can affect the generator, the CLI or their tests. A pull request that only changes the Showcase
+  # React apps or their Playwright tests (a Dependabot npm update, say) is checked by the build and the Playwright job;
+  # the test and smoke-test jobs still run - they are required checks - but skip their steps
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+    steps:
+      - name: 🛒 Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: 🔎 Find what the change touches
+        id: filter
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "dotnet=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          others=$(git diff --name-only "$BASE...HEAD" \
+            | grep -v -E '^(sample/Showcase/Showcase\.ReactApp\.(Fetch|Axios)|test/Showcase\.E2ETests)/' || true)
+          if [ -n "$others" ]; then
+            echo "dotnet=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Only the Showcase React apps or their Playwright tests changed - the .NET tests are skipped"
+            echo "dotnet=false" >> "$GITHUB_OUTPUT"
+          fi
+
   dotnet-build:
     strategy:
       fail-fast: false
@@ -50,25 +89,30 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    needs: dotnet-build
+    needs: [dotnet-build, changes]
+    env:
+      RUN_DOTNET: ${{ needs.changes.outputs.dotnet }}
     steps:
       - name: 🛒 Checkout repository
+        if: env.RUN_DOTNET == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: ⚙️ Setup .NET
+        if: env.RUN_DOTNET == 'true'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
 
       - name: ⚙️ Setup Node
+        if: env.RUN_DOTNET == 'true'
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24.x'
 
       - name: 📐 Ensure nuget.org added as package source on Windows
-        if: matrix.os == 'windows-latest'
+        if: (matrix.os == 'windows-latest') && env.RUN_DOTNET == 'true'
         run: |
           if (-not (dotnet nuget list source | Select-String -Pattern "nuget.org")) {
             dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
@@ -76,18 +120,21 @@ jobs:
         shell: pwsh
 
       - name: 🔁 Restore packages
+        if: env.RUN_DOTNET == 'true'
         run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
 
       - name: 🛠️ Build solution
+        if: env.RUN_DOTNET == 'true'
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore /p:UseSourceLink=true
 
       # Every test project, the Integration category included (it owns the *.verified.ts snapshots and the scenario
       # validation); a project that runs no test fails the step.
       - name: 🧪 Run tests with coverage
+        if: env.RUN_DOTNET == 'true'
         run: dotnet test --solution Atc.Rest.Api.SourceGenerator.slnx -c Release --no-build --coverage --coverage-output-format cobertura --report-trx
 
       - name: 📤 Upload test results and coverage
-        if: always()
+        if: always() && env.RUN_DOTNET == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-results-${{ matrix.os }}
@@ -148,8 +195,8 @@ jobs:
   test-suite-report:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [dotnet-test, playwright]
-    if: always()
+    needs: [dotnet-test, playwright, changes]
+    if: always() && needs.changes.outputs.dotnet == 'true'
     steps:
       - name: 🛒 Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -205,20 +252,24 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    needs: dotnet-test
+    needs: [dotnet-test, changes]
+    env:
+      RUN_DOTNET: ${{ needs.changes.outputs.dotnet }}
     steps:
       - name: 🛒 Checkout repository
+        if: env.RUN_DOTNET == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: ⚙️ Setup .NET
+        if: env.RUN_DOTNET == 'true'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
 
       - name: 📐 Ensure nuget.org added as package source on Windows
-        if: matrix.os == 'windows-latest'
+        if: (matrix.os == 'windows-latest') && env.RUN_DOTNET == 'true'
         run: |
           if (-not (dotnet nuget list source | Select-String -Pattern "nuget.org")) {
             dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
@@ -226,13 +277,17 @@ jobs:
         shell: pwsh
 
       - name: 🔁 Restore packages
+        if: env.RUN_DOTNET == 'true'
         run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
 
       - name: 🛠️ Build solution
+        if: env.RUN_DOTNET == 'true'
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore
 
       - name: 🛠️ Build PetStoreSimple sample
+        if: env.RUN_DOTNET == 'true'
         run: dotnet build sample/PetStoreSimple/PetStoreSimple.Api/PetStoreSimple.Api.csproj -c Release
 
       - name: 🛠️ Build MultipartDemo sample
+        if: env.RUN_DOTNET == 'true'
         run: dotnet build sample/MultipartDemo/MultipartDemo.Api/MultipartDemo.Api.csproj -c Release
