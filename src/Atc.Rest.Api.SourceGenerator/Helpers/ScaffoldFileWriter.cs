@@ -3,8 +3,9 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 /// <summary>
 /// Writes the files the domain generator keeps in the project (handler scaffolds, their signatures, GlobalUsings.cs).
 /// The generator runs in several hosts at once - the IDE on a save, a build, a build per target framework - so a file is
-/// written to a temporary file next to it and moved into place: a host never reads half a file, and a scaffold another
-/// host has just written is never overwritten.
+/// rewritten through a temporary file next to it that is moved into place: a host never reads half a file, and a
+/// scaffold another host has just written is never overwritten.
+/// A new scaffold is created in place instead, so exactly one host creates it and the others find it there.
 /// </summary>
 [SuppressMessage("", "RS1035:The symbol 'File' is banned for use by analyzers: Do not do file IO in analyzers", Justification = "The scaffolds are the project's own files; see the class remarks.")]
 internal static class ScaffoldFileWriter
@@ -26,21 +27,23 @@ internal static class ScaffoldFileWriter
             return false;
         }
 
-        var temporaryPath = WriteTemporary(filePath, content.NormalizeForSourceOutput(), Utf8NoBom);
-        try
+        var directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory))
         {
-            // Moving onto a file that is there fails: the one written first stays
-            File.Move(temporaryPath, filePath);
-            return true;
+            Directory.CreateDirectory(directory);
         }
-        catch (IOException) when (File.Exists(filePath))
+
+        // Creating a file that must not be there is one atomic step on every OS, so exactly one host wins. A move is
+        // not: on Linux it checks for the file and then renames, so two hosts could both "create" it, the last one winning
+        using var stream = OpenNew(filePath);
+        if (stream is null)
         {
             return false;
         }
-        finally
-        {
-            DeleteIfThere(temporaryPath);
-        }
+
+        var bytes = Utf8NoBom.GetBytes(content.NormalizeForSourceOutput());
+        stream.Write(bytes, 0, bytes.Length);
+        return true;
     }
 
     /// <summary>
@@ -94,6 +97,19 @@ internal static class ScaffoldFileWriter
         finally
         {
             DeleteIfThere(temporaryPath);
+        }
+    }
+
+    // The new file opened for writing, or null when it is there already (created by another host meanwhile)
+    private static FileStream? OpenNew(string filePath)
+    {
+        try
+        {
+            return new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        }
+        catch (IOException) when (File.Exists(filePath))
+        {
+            return null;
         }
     }
 
