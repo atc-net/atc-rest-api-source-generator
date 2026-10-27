@@ -26,7 +26,7 @@ public abstract class BaseConfig
     public List<string>? SuppressRules { get; set; }
 
     /// <summary>
-    /// The severity this project gives a rule about the specification, by its id (e.g. <c>"ATC_API_SCH022": "warning"</c>):
+    /// The severity this project gives a rule about the specification, by its id (e.g. <c>"ATC_API_SCH022": "suggestion"</c>):
     /// default, none, silent, suggestion, warning or error. Default: none. An error, which stands for code the generator
     /// cannot write, keeps its severity. The specification is no C# file, so an <c>.editorconfig</c> severity does not
     /// reach its rules; a global config (<c>is_global = true</c>) does.
