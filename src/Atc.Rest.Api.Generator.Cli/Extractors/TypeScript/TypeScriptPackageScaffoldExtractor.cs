@@ -82,7 +82,8 @@ public static class TypeScriptPackageScaffoldExtractor
 
         if (hasSignalRHubs)
         {
-            dependencies["@microsoft/signalr"] = "^8.0.0";
+            // 8 is the floor; the hubs are compiled against 10 by the TypeScript gates
+            dependencies["@microsoft/signalr"] = "^8.0.0 || ^9.0.0 || ^10.0.0";
         }
 
         if (dependencies.Count > 0)
@@ -107,7 +108,8 @@ public static class TypeScriptPackageScaffoldExtractor
 
         if (needsReact)
         {
-            peerDependencies["react"] = "^18.0.0";
+            // 18 in the TypeScript gates, 19 in the Showcase React apps
+            peerDependencies["react"] = "^18.0.0 || ^19.0.0";
         }
 
         if (peerDependencies.Count > 0)
@@ -118,12 +120,13 @@ public static class TypeScriptPackageScaffoldExtractor
         // Dev dependencies: the compiler, React's types, and MSW for the mock handlers.
         var devDependencies = new JsonObject
         {
-            ["typescript"] = "^5.0.0",
+            // 5.9 in the TypeScript gates, 7 in the Showcase React apps
+            ["typescript"] = "^5.0.0 || ^6.0.0 || ^7.0.0",
         };
 
         if (needsReact)
         {
-            devDependencies["@types/react"] = "^18.0.0";
+            devDependencies["@types/react"] = "^18.0.0 || ^19.0.0";
         }
 
         if (config.GenerateMswHandlers)
