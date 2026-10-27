@@ -1683,6 +1683,7 @@ components:
       title: SystemMetrics
       type: object
       description: Real-time system metrics
+      required: [cpuUsage, memoryUsage, activeConnections, requestsPerSecond, averageResponseTime, uptime]
       properties:
         cpuUsage:
           type: number
@@ -1972,6 +1973,7 @@ components:
       title: TestingProblem
       type: object
       description: The API's own 400 body - a problem without field errors
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         type:
           type: string
@@ -2028,6 +2030,7 @@ components:
       title: FileMetadata
       description: About an uploaded file; the form's encoding sends it as an application/x-www-form-urlencoded part.
       type: object
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         author:
           type: string
@@ -2362,6 +2365,7 @@ components:
     PaginatedResult:
       title: PaginatedResult
       type: object
+      required: [pageSize, pageIndex, count, totalCount, results]
       properties:
         pageSize:
           type: integer

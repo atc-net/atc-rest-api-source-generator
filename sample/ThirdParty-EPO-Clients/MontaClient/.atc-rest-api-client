@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-client.schema.json",
   "generate": true,
   "validateSpecificationStrategy": "Standard",
+  "suppressRules": ["ATC_API_SCH022"],
   "includeDeprecated": false,
   "generationMode": "EndpointPerOperation",
   "namespace": "MontaPartner.ApiClient",

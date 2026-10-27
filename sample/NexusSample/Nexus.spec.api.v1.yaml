@@ -172,6 +172,7 @@ components:
     Device:
       title: Device
       type: object
+      required: [id, deviceType, providerData, properties]
       properties:
         id:
           type: string
@@ -201,6 +202,7 @@ components:
       title: DeviceDetails
       description: Device with hierarchy information
       type: object
+      required: [device, deviceHierarchy]
       properties:
         device:
           $ref: '#/components/schemas/Device'
@@ -210,6 +212,7 @@ components:
       title: DeviceHierarchy
       description: Device hierarchy optimized for breadcrumb navigation.
       type: object
+      required: [self, ancestors, children]
       properties:
         self:
           $ref: '#/components/schemas/DeviceIdentity'
@@ -227,6 +230,7 @@ components:
       title: AncestorIdentity
       description: Device identity with hierarchy level for breadcrumb navigation.
       type: object
+      required: [id, deviceType, displayName, level]
       properties:
         id:
           type: string
@@ -241,6 +245,7 @@ components:
     DeviceIdentity:
       title: DeviceIdentity
       type: object
+      required: [id, deviceType, displayName]
       properties:
         id:
           type: string
@@ -252,6 +257,7 @@ components:
     DeviceManagementDevice:
       title: DeviceManagement Device
       type: object
+      required: [id, deviceType, providerData, properties]
       properties:
         id:
           type: string
@@ -281,6 +287,7 @@ components:
       type: object
       title: DeviceProperty
       description: Contains various properties related to the device
+      required: [key, valueType, value]
       properties:
         key:
           type: string
@@ -310,6 +317,7 @@ components:
     IdValue:
       title: IdValue
       type: object
+      required: [id, name]
       properties:
         id:
           type: string
@@ -319,6 +327,7 @@ components:
     InsightDevice:
       title: InsightDevice
       type: object
+      required: [id, name, deviceType, deviceState]
       properties:
         id:
           type: string
@@ -365,6 +374,7 @@ components:
     KeyValue:
       title: KeyValue
       type: object
+      required: [key, name]
       properties:
         key:
           type: string
@@ -373,6 +383,7 @@ components:
     OpcUaScanRequest:
       title: OpcUaScanRequest
       type: object
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         forceFullScan:
           type: boolean
@@ -381,6 +392,7 @@ components:
       type: object
       title: PaginationResult
       description: An item result subset of a data query.
+      required: [pageSize, items]
       properties:
         pageSize:
           type: integer
@@ -395,6 +407,7 @@ components:
       type: object
       title: ProviderData
       description: Holds specific data to identity the device at the given provider
+      required: [type, name, subIdentifier, deviceType, deviceIdentifier]
       properties:
         type:
           $ref: '#/components/schemas/ProviderType'

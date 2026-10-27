@@ -156,6 +156,7 @@ components:
       title: SystemMetrics
       type: object
       description: Real-time system metrics
+      required: [cpuUsage, memoryUsage, activeConnections, requestsPerSecond, averageResponseTime, uptime]
       properties:
         cpuUsage:
           type: number
@@ -804,6 +805,7 @@ components:
     PaginatedResult:
       title: PaginatedResult
       type: object
+      required: [pageSize, pageIndex, count, totalCount, results]
       properties:
         pageSize:
           type: integer

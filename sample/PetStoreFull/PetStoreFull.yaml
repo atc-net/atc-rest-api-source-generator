@@ -670,6 +670,7 @@ components:
     Order:
       x-swagger-router-model: io.swagger.petstore.model.Order
       type: object
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         id:
           type: integer
@@ -701,6 +702,7 @@ components:
     Category:
       x-swagger-router-model: io.swagger.petstore.model.Category
       type: object
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         id:
           type: integer
@@ -714,6 +716,7 @@ components:
     User:
       x-swagger-router-model: io.swagger.petstore.model.User
       type: object
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         id:
           type: integer
@@ -747,6 +750,7 @@ components:
     Tag:
       x-swagger-router-model: io.swagger.petstore.model.Tag
       type: object
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         id:
           type: integer
@@ -796,6 +800,7 @@ components:
         name: pet
     ApiResponse:
       type: object
+      x-atc-suppress: [ATC_API_SCH022]
       properties:
         code:
           type: integer

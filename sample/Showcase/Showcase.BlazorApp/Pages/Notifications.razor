@@ -101,11 +101,11 @@ else
                         <MudStack Row="true" Spacing="4">
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">CPU</MudText>
-                                <MudText Typo="Typo.body2">@notification.Metrics.CpuUsage?.ToString("F1")%</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.CpuUsage.ToString("F1")%</MudText>
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Memory</MudText>
-                                <MudText Typo="Typo.body2">@notification.Metrics.MemoryUsage?.ToString("F1")%</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.MemoryUsage.ToString("F1")%</MudText>
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Connections</MudText>
@@ -113,7 +113,7 @@ else
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Req/s</MudText>
-                                <MudText Typo="Typo.body2">@notification.Metrics.RequestsPerSecond?.ToString("F1")</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.RequestsPerSecond.ToString("F1")</MudText>
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Uptime</MudText>
