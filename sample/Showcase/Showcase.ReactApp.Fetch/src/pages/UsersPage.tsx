@@ -97,7 +97,7 @@ export default function UsersPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Users</Typography>
         <Button variant="contained" onClick={() => navigate('/users/create')}>
           Create User
@@ -124,7 +124,7 @@ export default function UsersPage() {
         <Typography variant="h6" gutterBottom>
           Filter
         </Typography>
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+        <Stack sx={{ alignItems: 'center', flexWrap: 'wrap' }} direction="row" spacing={2}>
           <TextField
             label="Search"
             size="small"

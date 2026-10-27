@@ -85,7 +85,7 @@ function InfiniteAccounts({ title, testId, pages, loading, hasMore, error, onLoa
         {accounts.length} accounts in {pages.length} pages
       </Typography>
       {error && <Typography color="error">{error}</Typography>}
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ my: 2 }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', my: 2 }}>
         <Button variant="contained" onClick={onLoadMore} disabled={loading || !hasMore}>
           Load more
         </Button>

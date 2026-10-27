@@ -6,7 +6,7 @@ import {
   Card,
   CardContent,
   Chip,
-  Grid2,
+  Grid,
   Paper,
   Stack,
   Table,
@@ -242,7 +242,7 @@ export default function LiveStreamsPage() {
         the same way, one item at a time as it arrives.
       </Alert>
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center" flexWrap="wrap" useFlexGap>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 2 }} useFlexGap>
         <ToggleButtonGroup
           exclusive
           size="small"
@@ -283,16 +283,16 @@ export default function LiveStreamsPage() {
         <Typography data-testid="stream-status">{statusText}</Typography>
       </Stack>
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
         <Typography variant="subtitle1">Items</Typography>
         <Chip label={items.length} color={isStreaming ? 'primary' : 'default'} variant="outlined" data-testid="stream-items" />
         <Typography variant="subtitle1">Content-Type</Typography>
         <Chip label={selected.mediaType} variant="outlined" />
       </Stack>
 
-      <Grid2 container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
         {quotes.map(({ tick, ticks }) => (
-          <Grid2 key={tick.symbol} size={{ xs: 6, md: 3 }}>
+          <Grid key={tick.symbol} size={{ xs: 6, md: 3 }}>
             <Card data-testid="stream-quote">
               <CardContent>
                 <Typography variant="subtitle2">{tick.symbol}</Typography>
@@ -303,12 +303,12 @@ export default function LiveStreamsPage() {
                 <Typography variant="caption">{ticks} ticks</Typography>
               </CardContent>
             </Card>
-          </Grid2>
+          </Grid>
         ))}
-      </Grid2>
+      </Grid>
 
-      <Grid2 container spacing={2} sx={{ mb: 3 }}>
-        <Grid2 size={{ xs: 12, md: 6 }}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Typography variant="h6">Arrivals</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             Time since the stream opened, as the page was handed each batch.
@@ -342,8 +342,8 @@ export default function LiveStreamsPage() {
               </TableBody>
             </Table>
           </TableContainer>
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 6 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Typography variant="h6">The call</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             What this page runs for the selected format - the hook and the client method under it are generated.
@@ -361,8 +361,8 @@ for await (const tick of api.streams.${selected.hook.replace(/^use/, '').replace
 }`}</code>
             </pre>
           </Paper>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
 
       <Card sx={{ mb: 3 }}>
         <CardContent>

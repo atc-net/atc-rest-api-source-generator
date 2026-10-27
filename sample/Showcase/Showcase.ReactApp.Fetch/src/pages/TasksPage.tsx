@@ -112,7 +112,7 @@ export default function TasksPage() {
         <Typography variant="h6" gutterBottom>
           Create Task
         </Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack sx={{ alignItems: 'center' }} direction="row" spacing={2}>
           <TextField
             label="Name"
             size="small"

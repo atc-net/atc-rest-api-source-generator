@@ -75,7 +75,7 @@ export default function AccountsPaginatedPage() {
       )}
 
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack sx={{ alignItems: 'center' }} direction="row" spacing={2}>
           <TextField
             label="Page Size"
             type="number"
