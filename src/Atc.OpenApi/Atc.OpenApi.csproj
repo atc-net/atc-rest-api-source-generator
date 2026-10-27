@@ -17,7 +17,7 @@
       produces zero generated output at runtime. We have no evidence any OTHER 2.x patch is safe
       either, so pin to the one version actually verified rather than floating within 2.x.
     -->
-    <PackageReference Include="SharpYaml" Version="[2.1.5]" GeneratePathProperty="true" />
+    <PackageReference Include="SharpYaml" Version="[3.16.0]" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
