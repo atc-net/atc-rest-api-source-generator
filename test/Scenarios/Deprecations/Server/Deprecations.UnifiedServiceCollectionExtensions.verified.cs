@@ -45,7 +45,7 @@ public static class UnifiedServiceCollectionExtensions
         if (options.UseProblemDetails)
         {
             // application/problem+xml (RFC 9457 Appendix B) when the request's Accept prefers it - ahead of the JSON writer
-            if (!services.Any(d => d.ImplementationType == typeof(global::Deprecations.Generated.XmlProblemDetailsWriter)))
+            if (!services.Any(d => d.ServiceType == typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsWriter) && !d.IsKeyedService && d.ImplementationType == typeof(global::Deprecations.Generated.XmlProblemDetailsWriter)))
             {
                 services.Insert(0, ServiceDescriptor.Singleton<global::Microsoft.AspNetCore.Http.IProblemDetailsWriter, global::Deprecations.Generated.XmlProblemDetailsWriter>());
             }

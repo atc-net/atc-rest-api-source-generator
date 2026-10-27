@@ -188,7 +188,10 @@ public static class UnifiedServiceCollectionExtractor
         {
             // application/problem+xml when the Accept prefers it: ahead of the default JSON writer, which writes too
             builder.AppendLine(12, "// application/problem+xml (RFC 9457 Appendix B) when the request's Accept prefers it - ahead of the JSON writer");
-            builder.AppendLine(12, $"if (!services.Any(d => d.ImplementationType == typeof(global::{projectName}.Generated.XmlProblemDetailsWriter)))");
+
+            // Only an unkeyed IProblemDetailsWriter registration counts, and ImplementationType is read on no keyed
+            // descriptor: Microsoft.Extensions.DependencyInjection.Abstractions 8.0.0/8.0.1 throw there
+            builder.AppendLine(12, $"if (!services.Any(d => d.ServiceType == typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsWriter) && !d.IsKeyedService && d.ImplementationType == typeof(global::{projectName}.Generated.XmlProblemDetailsWriter)))");
             builder.AppendLine(12, "{");
             builder.AppendLine(16, $"services.Insert(0, ServiceDescriptor.Singleton<global::Microsoft.AspNetCore.Http.IProblemDetailsWriter, global::{projectName}.Generated.XmlProblemDetailsWriter>());");
             builder.AppendLine(12, "}");
