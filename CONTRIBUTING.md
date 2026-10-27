@@ -30,3 +30,15 @@ dotnet test --solution Atc.Rest.Api.SourceGenerator.slnx
 3. **Run all the test projects**, `Atc.Rest.Api.Generator.IntegrationTests` included - it holds the TypeScript snapshots and the package-install test.
 4. **Update the documentation**: the [wiki](https://github.com/atc-net/atc-rest-api-source-generator/wiki), the README and the samples when the behavior or the generated code changes.
 5. **Use Conventional Commits** (`fix(client): …`, `feat(server): …`, `docs: …`). The changelog and the release notes are written from them by release-please, so do not edit `CHANGELOG.md` by hand.
+
+## 📦 Updating dependencies
+
+Dependencies live in three places - NuGet (`*.csproj`, `Directory.Build.props`), npm (the Showcase React apps, the Playwright tests and the TypeScript gates' `test/NodeWorkspace`) and the GitHub Actions workflows. List what is outdated in all three, majors included:
+
+```bash
+scripts/check-outdated.sh            # or: nuget, npm, actions
+```
+
+`npm outdated` and `npm update` stay inside each `package.json` range (`^6.1.0` never shows 7.x), so they miss the majors. Before a release, take the minor and patch updates, and either take each major or keep it pinned with an `ignore` and its reason in `.github/dependabot.yml`. The majors of `test/NodeWorkspace` are the versions the generated TypeScript is checked against, so each is a PR of its own.
+
+Repository automation such as `.github/dependabot.yml` only runs from `main`: change it in a small PR of its own, not on a long feature branch.
