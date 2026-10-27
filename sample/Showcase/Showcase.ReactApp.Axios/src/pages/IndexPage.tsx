@@ -1,4 +1,4 @@
-import { Card, CardContent, CardActionArea, Grid2, Typography, Box } from '@mui/material';
+import { Card, CardContent, CardActionArea, Grid, Typography, Box } from '@mui/material';
 import { useNavigate } from 'react-router';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
@@ -45,9 +45,9 @@ export default function IndexPage() {
         capability of the source generator.
       </Typography>
 
-      <Grid2 container spacing={3}>
+      <Grid container spacing={3}>
         {sections.map((section) => (
-          <Grid2 key={section.path} size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid key={section.path} size={{ xs: 12, sm: 6, md: 3 }}>
             <Card sx={{ height: '100%' }}>
               <CardActionArea
                 onClick={() => navigate(section.path)}
@@ -64,9 +64,9 @@ export default function IndexPage() {
                 </CardContent>
               </CardActionArea>
             </Card>
-          </Grid2>
+          </Grid>
         ))}
-      </Grid2>
+      </Grid>
     </Box>
   );
 }

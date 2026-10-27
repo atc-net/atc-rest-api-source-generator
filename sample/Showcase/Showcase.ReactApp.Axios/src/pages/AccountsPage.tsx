@@ -112,7 +112,7 @@ export default function AccountsPage() {
         <Typography variant="h6" gutterBottom>
           Create Account
         </Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack sx={{ alignItems: 'center' }} direction="row" spacing={2}>
           <TextField
             label="Name"
             size="small"

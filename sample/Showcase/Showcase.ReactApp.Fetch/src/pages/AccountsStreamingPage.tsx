@@ -45,7 +45,7 @@ export default function AccountsStreamingPage() {
         server.
       </Typography>
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
         <Button
           variant="contained"
           startIcon={<PlayArrowIcon />}

@@ -141,7 +141,7 @@ export default function WebhookDemoPage() {
       </Typography>
 
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack sx={{ alignItems: 'center' }} direction="row" spacing={2}>
           <Button
             variant="contained"
             startIcon={<WifiIcon />}
@@ -167,7 +167,7 @@ export default function WebhookDemoPage() {
         </Stack>
       </Paper>
 
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">
           Events ({events.length})
         </Typography>
@@ -192,7 +192,7 @@ export default function WebhookDemoPage() {
         {events.map((event, idx) => (
           <Card key={`${event.kind}-${idx}`} variant="outlined" data-testid="webhook-event">
             <CardContent>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
                 <Chip
                   label={event.kind.toUpperCase()}
                   size="small"

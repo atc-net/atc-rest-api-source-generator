@@ -5,7 +5,7 @@ import {
   Card,
   CardContent,
   CardActions,
-  Grid2,
+  Grid,
   Button,
   TextField,
   Dialog,
@@ -126,9 +126,9 @@ export default function FilesPage() {
         </Alert>
       )}
 
-      <Grid2 container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         {sampleFiles.map((file) => (
-          <Grid2 key={file.id} size={{ xs: 12, sm: 6, md: 4 }}>
+          <Grid key={file.id} size={{ xs: 12, sm: 6, md: 4 }}>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 {fileIcon(file.type)}
@@ -158,15 +158,15 @@ export default function FilesPage() {
                 </Button>
               </CardActions>
             </Card>
-          </Grid2>
+          </Grid>
         ))}
-      </Grid2>
+      </Grid>
 
       <Paper sx={{ p: 2 }}>
         <Typography variant="h6" gutterBottom>
           Custom File Lookup
         </Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack sx={{ alignItems: 'center' }} direction="row" spacing={2}>
           <TextField
             label="File ID"
             size="small"

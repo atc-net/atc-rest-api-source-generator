@@ -3,7 +3,7 @@ import {
   Box,
   Typography,
   Paper,
-  Grid2,
+  Grid,
   Avatar,
   Chip,
   CircularProgress,
@@ -115,8 +115,8 @@ export default function UserDetailsPage() {
         </Button>
       </Stack>
 
-      <Grid2 container spacing={3}>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>
             <Avatar
               src={user.avatarUrl ?? undefined}
@@ -131,7 +131,7 @@ export default function UserDetailsPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               {user.email}
             </Typography>
-            <Stack direction="row" spacing={1} justifyContent="center">
+            <Stack sx={{ justifyContent: 'center' }} direction="row" spacing={1}>
               <Chip label={user.role} color={roleColor(user.role)} size="small" />
               <Chip
                 label={user.isActive ? 'Active' : 'Inactive'}
@@ -146,33 +146,33 @@ export default function UserDetailsPage() {
               </Typography>
             )}
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, md: 8 }}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
               Contact Information
             </Typography>
-            <Grid2 container spacing={2}>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Email
                 </Typography>
                 <Typography>{user.email}</Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Phone
                 </Typography>
                 <Typography>{user.phone ?? 'Not provided'}</Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Date of Birth
                 </Typography>
                 <Typography>{user.dateOfBirth}</Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="body2" color="text.secondary">
                   Website
                 </Typography>
@@ -183,8 +183,8 @@ export default function UserDetailsPage() {
                 ) : (
                   <Typography>Not provided</Typography>
                 )}
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
           </Paper>
 
           {user.bio && (
@@ -240,8 +240,8 @@ export default function UserDetailsPage() {
               )}
             </Paper>
           )}
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
 
       <UserXmlView userId={user.id} />
 

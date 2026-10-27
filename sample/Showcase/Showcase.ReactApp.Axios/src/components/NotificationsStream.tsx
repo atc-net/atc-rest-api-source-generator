@@ -18,7 +18,7 @@ export default function NotificationsStream() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         <code>GET /notifications/stream</code> - one response, read event by event while the server writes it.
       </Typography>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
         <Button variant="contained" onClick={() => setStreaming(true)} disabled={streaming}>
           Start Stream
         </Button>

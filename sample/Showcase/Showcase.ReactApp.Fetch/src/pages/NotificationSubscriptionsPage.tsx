@@ -120,7 +120,7 @@ export default function NotificationSubscriptionsPage() {
         <Typography variant="h6" gutterBottom>
           Create Subscription
         </Typography>
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+        <Stack sx={{ alignItems: 'center', flexWrap: 'wrap' }} direction="row" spacing={2}>
           <TextField
             label="Name (optional)"
             size="small"
@@ -136,7 +136,7 @@ export default function NotificationSubscriptionsPage() {
               onChange={handleTopicsChange}
               input={<OutlinedInput label="Topics" />}
               renderValue={(selected) => (
-                <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                <Stack sx={{ flexWrap: 'wrap' }} direction="row" spacing={0.5}>
                   {selected.map((t) => (
                     <Chip key={t} label={t} size="small" />
                   ))}
@@ -192,7 +192,7 @@ export default function NotificationSubscriptionsPage() {
                 </TableCell>
                 <TableCell>{sub.name ?? '(unnamed)'}</TableCell>
                 <TableCell>
-                  <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                  <Stack sx={{ flexWrap: 'wrap' }} direction="row" spacing={0.5}>
                     {sub.topics.map((t) => (
                       <Chip key={t} label={t} size="small" variant="outlined" />
                     ))}

@@ -5,7 +5,7 @@ import {
   TextField,
   Button,
   Paper,
-  Grid2,
+  Grid,
   FormControl,
   InputLabel,
   Select,
@@ -178,15 +178,15 @@ export default function UserFormPage() {
         </Alert>
       )}
 
-      <Grid2 container spacing={3}>
-        <Grid2 size={{ xs: 12, md: 8 }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 3 }}>
             <form onSubmit={handleSubmit(onSubmit)}>
               <Typography variant="h6" gutterBottom>
                 Personal Information
               </Typography>
-              <Grid2 container spacing={2}>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="firstName"
                     control={control}
@@ -201,8 +201,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="lastName"
                     control={control}
@@ -217,8 +217,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="email"
                     control={control}
@@ -234,8 +234,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="phone"
                     control={control}
@@ -249,8 +249,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="dateOfBirth"
                     control={control}
@@ -267,8 +267,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="role"
                     control={control}
@@ -285,8 +285,8 @@ export default function UserFormPage() {
                       </FormControl>
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12 }}>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
                   <Controller
                     name="isActive"
                     control={control}
@@ -297,8 +297,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12 }}>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
                   <Controller
                     name="bio"
                     control={control}
@@ -306,15 +306,15 @@ export default function UserFormPage() {
                       <TextField {...field} label="Bio" multiline rows={3} fullWidth />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="avatarUrl"
                     control={control}
                     render={({ field }) => <TextField {...field} label="Avatar URL" fullWidth />}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="website"
                     control={control}
@@ -328,16 +328,16 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
 
               <Divider sx={{ my: 3 }} />
 
               <Typography variant="h6" gutterBottom>
                 Address
               </Typography>
-              <Grid2 container spacing={2}>
-                <Grid2 size={{ xs: 12 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
                   <Controller
                     name="street"
                     control={control}
@@ -352,8 +352,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="city"
                     control={control}
@@ -368,15 +368,15 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="state"
                     control={control}
                     render={({ field }) => <TextField {...field} label="State" fullWidth />}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="postalCode"
                     control={control}
@@ -391,8 +391,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
                     name="country"
                     control={control}
@@ -407,8 +407,8 @@ export default function UserFormPage() {
                       />
                     )}
                   />
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
 
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
                 <Button type="submit" variant="contained" disabled={isPending}>
@@ -420,9 +420,9 @@ export default function UserFormPage() {
               </Box>
             </form>
           </Paper>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h6" gutterBottom>
@@ -456,8 +456,8 @@ export default function UserFormPage() {
               )}
             </CardContent>
           </Card>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

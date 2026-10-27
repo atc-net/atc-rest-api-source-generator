@@ -8,7 +8,7 @@ import {
   Stack,
   Card,
   CardContent,
-  Grid2,
+  Grid,
   Divider,
   List,
   ListItem,
@@ -76,7 +76,7 @@ export default function NotificationsPage() {
       </Typography>
 
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+        <Stack sx={{ alignItems: 'center', flexWrap: 'wrap' }} direction="row" spacing={2}>
           <Button
             variant="contained"
             startIcon={<WifiIcon />}
@@ -105,7 +105,7 @@ export default function NotificationsPage() {
         <Typography variant="h6" gutterBottom>
           Topics
         </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mb: 2 }}>
           {topics.map((topic) => (
             <Chip
               key={topic}
@@ -137,7 +137,7 @@ export default function NotificationsPage() {
 
       <NotificationsStream />
 
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">
           Feed ({notifications.length} notifications)
         </Typography>
@@ -162,7 +162,7 @@ export default function NotificationsPage() {
         {notifications.map((n, idx) => (
           <Card key={`${n.id}-${idx}`} variant="outlined" data-testid="notification-item">
             <CardContent>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
                 <Chip label={n.type} size="small" color="primary" variant="outlined" />
                 {n.severity && (
                   <Chip label={n.severity} size="small" color={severityColor(n.severity)} />
@@ -176,8 +176,8 @@ export default function NotificationsPage() {
               {n.metrics && (
                 <>
                   <Divider sx={{ my: 1 }} />
-                  <Grid2 container spacing={2}>
-                    <Grid2 size={{ xs: 6, sm: 3 }}>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 6, sm: 3 }}>
                       <List dense disablePadding>
                         <ListItem disableGutters>
                           <ListItemText
@@ -186,8 +186,8 @@ export default function NotificationsPage() {
                           />
                         </ListItem>
                       </List>
-                    </Grid2>
-                    <Grid2 size={{ xs: 6, sm: 3 }}>
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 3 }}>
                       <List dense disablePadding>
                         <ListItem disableGutters>
                           <ListItemText
@@ -196,8 +196,8 @@ export default function NotificationsPage() {
                           />
                         </ListItem>
                       </List>
-                    </Grid2>
-                    <Grid2 size={{ xs: 6, sm: 3 }}>
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 3 }}>
                       <List dense disablePadding>
                         <ListItem disableGutters>
                           <ListItemText
@@ -206,8 +206,8 @@ export default function NotificationsPage() {
                           />
                         </ListItem>
                       </List>
-                    </Grid2>
-                    <Grid2 size={{ xs: 6, sm: 3 }}>
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 3 }}>
                       <List dense disablePadding>
                         <ListItem disableGutters>
                           <ListItemText
@@ -216,8 +216,8 @@ export default function NotificationsPage() {
                           />
                         </ListItem>
                       </List>
-                    </Grid2>
-                  </Grid2>
+                    </Grid>
+                  </Grid>
                   {n.metrics.uptime && (
                     <Typography variant="caption" color="text.secondary">
                       Uptime: {n.metrics.uptime}
