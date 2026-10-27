@@ -84,8 +84,8 @@ public class TypeScriptPackageScaffoldExtractorTests
         var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.ReactQuery });
 
         Assert.Contains("\"@tanstack/react-query\": \"^5.81.0\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"react\": \"^18.0.0\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"@types/react\": \"^18.0.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"react\": \"^18.0.0 || ^19.0.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"@types/react\": \"^18.0.0 || ^19.0.0\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("\"swr\"", json, StringComparison.Ordinal);
     }
 
@@ -97,8 +97,8 @@ public class TypeScriptPackageScaffoldExtractorTests
         var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.Swr });
 
         Assert.Contains("\"swr\": \"^2.2.0\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"react\": \"^18.0.0\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"@types/react\": \"^18.0.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"react\": \"^18.0.0 || ^19.0.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"@types/react\": \"^18.0.0 || ^19.0.0\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("@tanstack/react-query", json, StringComparison.Ordinal);
     }
 
@@ -121,11 +121,11 @@ public class TypeScriptPackageScaffoldExtractorTests
         var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig(), hasSignalRHubs: true);
         var withHooks = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.ReactQuery }, hasSignalRHubs: true);
 
-        Assert.Contains("\"@microsoft/signalr\": \"^8.0.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"@microsoft/signalr\": \"^8.0.0 || ^9.0.0 || ^10.0.0\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("\"react\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"@microsoft/signalr\": \"^8.0.0\"", withHooks, StringComparison.Ordinal);
-        Assert.Contains("\"react\": \"^18.0.0\"", withHooks, StringComparison.Ordinal);
-        Assert.Contains("\"@types/react\": \"^18.0.0\"", withHooks, StringComparison.Ordinal);
+        Assert.Contains("\"@microsoft/signalr\": \"^8.0.0 || ^9.0.0 || ^10.0.0\"", withHooks, StringComparison.Ordinal);
+        Assert.Contains("\"react\": \"^18.0.0 || ^19.0.0\"", withHooks, StringComparison.Ordinal);
+        Assert.Contains("\"@types/react\": \"^18.0.0 || ^19.0.0\"", withHooks, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -318,5 +318,68 @@ public class TypeScriptPackageScaffoldExtractorTests
         string expected)
     {
         Assert.Equal(expected, TypeScriptPackageScaffoldExtractor.DerivePackageName(title));
+    }
+
+    /// <summary>
+    /// Every range the scaffold writes takes the versions the generated TypeScript is proven with here: the TypeScript
+    /// gates' workspace (compiled and run by the test suites) and the Showcase React apps (built and run by the
+    /// Playwright suite). A dependency update in the repository that the ranges shut out - React 19, SignalR 10 - fails
+    /// this test instead of a consumer's npm install.
+    /// </summary>
+    [Theory]
+    [InlineData(TypeScriptHooksStyle.ReactQuery)]
+    [InlineData(TypeScriptHooksStyle.Swr)]
+    public void GeneratePackageJson_EveryRange_TakesTheVersionsTheGeneratedCodeIsTestedWith(
+        TypeScriptHooksStyle hooksStyle)
+    {
+        var config = new TypeScriptClientConfig
+        {
+            HttpClient = TypeScriptHttpClient.Axios,
+            GenerateZodSchemas = true,
+            GenerateMswHandlers = true,
+            HooksStyle = hooksStyle,
+        };
+        var scaffold = JsonNode.Parse(TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, config, hasSignalRHubs: true))!;
+        var ranges = new[] { "dependencies", "peerDependencies", "devDependencies" }
+            .SelectMany(section => scaffold[section]?.AsObject() ?? [])
+            .ToDictionary(p => p.Key, p => p.Value!.GetValue<string>(), StringComparer.Ordinal);
+
+        var root = Path.GetFullPath(Path.Combine(CliTestHelper.GetCliSourceDirectory(), "..", ".."));
+        var tested = new[]
+            {
+                "test/NodeWorkspace",
+                "sample/Showcase/Showcase.ReactApp.Fetch",
+                "sample/Showcase/Showcase.ReactApp.Axios",
+            }
+            .SelectMany(folder =>
+            {
+                var package = JsonNode.Parse(File.ReadAllText(Path.Combine(root, folder, "package.json")))!;
+                return new[] { "dependencies", "devDependencies" }
+                    .SelectMany(section => package[section]?.AsObject() ?? [])
+                    .Select(p => (Folder: folder, Package: p.Key, Version: p.Value!.GetValue<string>().TrimStart('^', '~')));
+            })
+            .Where(t => ranges.ContainsKey(t.Package))
+            .ToList();
+
+        Assert.NotEmpty(tested);
+        var shutOut = tested
+            .Where(t => !Satisfies(ranges[t.Package], t.Version))
+            .Select(t => $"{t.Package} {t.Version} ({t.Folder}) is not in \"{ranges[t.Package]}\"")
+            .ToList();
+        Assert.True(shutOut.Count == 0, string.Join(Environment.NewLine, shutOut));
+    }
+
+    // The ranges the scaffold writes: caret ranges, alternatives joined by ||
+    private static bool Satisfies(
+        string range,
+        string version)
+    {
+        var v = Version.Parse(version);
+        return range.Split("||", StringSplitOptions.TrimEntries).Any(part =>
+        {
+            Assert.StartsWith("^", part, StringComparison.Ordinal);
+            var floor = Version.Parse(part.AsSpan(1));
+            return v.Major == floor.Major && v >= floor;
+        });
     }
 }
