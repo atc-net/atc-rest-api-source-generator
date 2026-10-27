@@ -566,6 +566,286 @@ public class SchemaExtractorTests
         Assert.False(emailParam.IsNullableType, "Non-writeOnly required property should remain required");
     }
 
+    // ========readOnly/writeOnly by the direction a schema is used in ==========
+
+    /// <summary>
+    /// A readOnly property listed in 'required' of a schema only responses carry is always there: it stays required
+    /// (non-nullable, no '= null', [Required] on a reference type).
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_ReadOnlyRequiredProperty_OfAResponseOnlySchema_StaysRequired()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: Test, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Pet'
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required: [id, code, name]
+                                  properties:
+                                    id: { type: integer, format: int64, readOnly: true }
+                                    code: { type: string, readOnly: true }
+                                    name: { type: string }
+                            """;
+
+        var parameters = ExtractRecord(yaml, "Pet").Parameters!;
+
+        var id = parameters.First(p => p.Name == "Id");
+        Assert.False(id.IsNullableType);
+        Assert.Null(id.DefaultValue);
+
+        var code = parameters.First(p => p.Name == "Code");
+        Assert.False(code.IsNullableType);
+        Assert.Null(code.DefaultValue);
+        Assert.Contains(code.Attributes!, a => a.Name == "Required");
+    }
+
+    /// <summary>
+    /// A writeOnly property listed in 'required' of a schema only requests carry is always sent: it stays required.
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_WriteOnlyRequiredProperty_OfARequestOnlySchema_StaysRequired()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: Test, version: 1.0.0 }
+                            paths:
+                              /users:
+                                post:
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/User'
+                                  responses:
+                                    '204':
+                                      description: Created
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  required: [email, password]
+                                  properties:
+                                    email: { type: string }
+                                    password: { type: string, writeOnly: true }
+                            """;
+
+        var password = ExtractRecord(yaml, "User").Parameters!.First(p => p.Name == "Password");
+
+        Assert.False(password.IsNullableType);
+        Assert.Null(password.DefaultValue);
+        Assert.Contains(password.Attributes!, a => a.Name == "Required");
+    }
+
+    /// <summary>
+    /// A schema used both in requests and responses is one record for both: a required readOnly property must be
+    /// omittable in the request, so it is generated optional (nullable, '= null').
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_ReadOnlyRequiredProperty_OfASchemaUsedBothWays_IsOptional()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: Test, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                post:
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Pet'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Pet'
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required: [id, name]
+                                  properties:
+                                    id: { type: string, readOnly: true }
+                                    name: { type: string }
+                            """;
+
+        var id = ExtractRecord(yaml, "Pet").Parameters!.First(p => p.Name == "Id");
+
+        Assert.True(id.IsNullableType);
+        Assert.Equal("null", id.DefaultValue);
+        Assert.DoesNotContain(id.Attributes ?? [], a => a.Name == "Required");
+    }
+
+    /// <summary>
+    /// A required property that is a $ref to a readOnly schema is decided like an inline readOnly one: optional,
+    /// without [Required] - not [Required] on a nullable parameter with '= null'.
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_RequiredReferenceToAReadOnlySchema_IsOptionalWithoutRequiredAttribute()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: Test, version: 1.0.0 }
+                            paths:
+                              /things:
+                                post:
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Thing'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Thing'
+                            components:
+                              schemas:
+                                Audit:
+                                  type: object
+                                  readOnly: true
+                                  properties:
+                                    stamp: { type: string }
+                                Thing:
+                                  type: object
+                                  required: [audit, name]
+                                  properties:
+                                    audit:
+                                      $ref: '#/components/schemas/Audit'
+                                    name: { type: string }
+                            """;
+
+        var audit = ExtractRecord(yaml, "Thing").Parameters!.First(p => p.Name == "Audit");
+
+        Assert.True(audit.IsNullableType);
+        Assert.Equal("null", audit.DefaultValue);
+        Assert.DoesNotContain(audit.Attributes ?? [], a => a.Name == "Required");
+    }
+
+    /// <summary>
+    /// A base reached only through a response-only schema is response-only: its required readOnly property stays
+    /// required in the base and in the derived record, and the derived record forwards the base's parameters in the
+    /// base's order.
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_ReadOnlyRequiredProperty_OfAnAllOfBaseOnlyResponsesReach_StaysRequiredInBoth()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: Test, version: 1.0.0 }
+                            paths:
+                              /dogs:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Dog'
+                            components:
+                              schemas:
+                                Animal:
+                                  type: object
+                                  required: [id, name]
+                                  properties:
+                                    nickname: { type: string }
+                                    id: { type: integer, format: int64, readOnly: true }
+                                    name: { type: string }
+                                Dog:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Animal'
+                                    - type: object
+                                      required: [breed]
+                                      properties:
+                                        breed: { type: string }
+                            """;
+
+        var records = ExtractRecords(yaml, "Animal", "Dog");
+        var animal = records.First(r => r.Name == "Animal");
+        var dog = records.First(r => r.Name == "Dog");
+
+        Assert.False(animal.Parameters!.First(p => p.Name == "Id").IsNullableType);
+        Assert.False(dog.Parameters!.First(p => p.Name == "Id").IsNullableType);
+        Assert.Null(dog.Parameters!.First(p => p.Name == "Id").DefaultValue);
+        Assert.Equal(animal.Parameters!.Select(p => p.Name), dog.BaseConstructorArguments!, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A base used both ways keeps its readOnly property optional, so a derived record only responses carry has it
+    /// optional too - the derived record forwards it to the base's constructor, and the two must agree.
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_ReadOnlyRequiredProperty_OfABaseUsedBothWays_IsOptionalInAResponseOnlyDerivedRecord()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: Test, version: 1.0.0 }
+                            paths:
+                              /animals:
+                                post:
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Animal'
+                                  responses:
+                                    '204':
+                                      description: Created
+                              /dogs:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Dog'
+                            components:
+                              schemas:
+                                Animal:
+                                  type: object
+                                  required: [id, name]
+                                  properties:
+                                    id: { type: integer, format: int64, readOnly: true }
+                                    name: { type: string }
+                                Dog:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Animal'
+                                    - type: object
+                                      required: [breed, tagged]
+                                      properties:
+                                        breed: { type: string }
+                                        tagged: { type: boolean, readOnly: true }
+                            """;
+
+        var records = ExtractRecords(yaml, "Animal", "Dog");
+        var animal = records.First(r => r.Name == "Animal");
+        var dog = records.First(r => r.Name == "Dog");
+
+        Assert.True(animal.Parameters!.First(p => p.Name == "Id").IsNullableType);
+        Assert.True(dog.Parameters!.First(p => p.Name == "Id").IsNullableType);
+        Assert.Equal("null", dog.Parameters!.First(p => p.Name == "Id").DefaultValue);
+        Assert.True(dog.Parameters!.First(p => p.Name == "Tagged").IsNullableType);
+        Assert.Equal(animal.Parameters!.Select(p => p.Name), dog.BaseConstructorArguments!, StringComparer.Ordinal);
+    }
+
     // ========is nullable Property Tests ==========
     [Fact]
     public void ExtractForSchemas_WithNullableProperty_SetsNullableFlag()
@@ -1447,5 +1727,25 @@ public class SchemaExtractorTests
         Assert.NotNull(suggestedCustomerParam);
         Assert.Equal("KeyValue", suggestedCustomerParam.TypeName);
         Assert.True(suggestedCustomerParam.IsNullableType);
+    }
+
+    private static RecordParameters ExtractRecord(
+        string yaml,
+        string schemaName)
+        => ExtractRecords(yaml, schemaName).Single(r => r.Name == schemaName);
+
+    private static List<RecordParameters> ExtractRecords(
+        string yaml,
+        params string[] schemaNames)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            new HashSet<string>(schemaNames, StringComparer.Ordinal),
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        return result.Parameters.ToList();
     }
 }

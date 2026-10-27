@@ -222,6 +222,8 @@ public sealed class OptionalPropertyRuntimeTests
     /// Specifications that list optional properties (and properties with a default, or readOnly) before required
     /// ones, in components, allOf inheritance and an inline response. C# requires every parameter with a default to
     /// come after those without (CS1737), so the generated records must reorder them, whatever the spec order.
+    /// (Item's required readOnly 'revision' is optional - only requests carry Item; Account's required readOnly
+    /// 'createdAt' stays required - only responses carry Account.)
     /// </summary>
     private const string OrderingYaml = """
         openapi: 3.0.3
@@ -283,8 +285,12 @@ public sealed class OptionalPropertyRuntimeTests
             Item:
               type: object
               required:
+                - revision
                 - name
               properties:
+                revision:
+                  type: integer
+                  readOnly: true
                 id:
                   type: string
                 tag:
@@ -347,6 +353,108 @@ public sealed class OptionalPropertyRuntimeTests
         // And the order is the required ones first, the spec order kept within each group. (A server model names a
         // validated property by its JSON name, for the validation messages.)
         var item = sources.Single(s => s.HintName.EndsWith(".Item.g.cs", StringComparison.Ordinal)).Source;
-        Assert.Matches(new Regex(@"record Item\(\s*\[property: Required(?:, global::System\.ComponentModel\.DataAnnotations\.Display\(Name = ""name""\))?\] string Name,\s*string\? Id = null,\s*string Tag = ""none""\);", RegexOptions.None, TimeSpan.FromSeconds(1)), item);
+        Assert.Matches(new Regex(@"record Item\(\s*\[property: Required(?:, global::System\.ComponentModel\.DataAnnotations\.Display\(Name = ""name""\))?\] string Name,\s*int\? Revision = null,\s*string\? Id = null,\s*string Tag = ""none""\);", RegexOptions.None, TimeSpan.FromSeconds(1)), item);
+
+        // A readOnly property listed in 'required' of a schema only responses carry stays required, in the spec order
+        var account = sources.Single(s => s.HintName.EndsWith(".Account.g.cs", StringComparison.Ordinal)).Source;
+        Assert.Matches(new Regex(@"record Account\(\s*(?:\[property: [^\]]*\] )?DateTimeOffset CreatedAt,\s*\[property: Required[^\]]*\] string Name,\s*string\? Id = null\);", RegexOptions.None, TimeSpan.FromSeconds(1)), account);
+    }
+
+    private const string DirectionYaml = """
+        openapi: 3.0.3
+        info:
+          title: ErrorBodies
+          version: 1.0.0
+        paths:
+          /receipts:
+            post:
+              operationId: createReceipt
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Order'
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Receipt'
+        components:
+          schemas:
+            Order:
+              type: object
+              required:
+                - secret
+                - item
+              properties:
+                secret:
+                  type: string
+                  writeOnly: true
+                item:
+                  type: string
+            Receipt:
+              type: object
+              required:
+                - serialNumber
+                - id
+                - total
+              properties:
+                note:
+                  type: string
+                serialNumber:
+                  type: integer
+                  readOnly: true
+                id:
+                  type: string
+                  readOnly: true
+                total:
+                  type: integer
+        """;
+
+    /// <summary>
+    /// A readOnly property listed in 'required' of a schema only responses carry (Receipt), and a writeOnly one of a
+    /// schema only requests carry (Order), are generated required - non-nullable, no default - by the server and the
+    /// clients alike: they compile, and read and write JSON under the strictest options, which refuse the JSON
+    /// without them.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Generators))]
+    public void RequiredReadOnlyAndWriteOnlyProperties_OfASchemaUsedOneWay_AreRequired(
+        string generator)
+    {
+        var isServer = generator == "Server";
+        var sources = isServer
+            ? ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, DirectionYaml)
+            : ErrorResponseBodyRuntimeTests.Generate(new ApiClientGenerator(), ".atc-rest-api-client", $$"""{ "generationMode": "{{generator}}" }""", includeMinimalApi: false, DirectionYaml);
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: isServer);
+
+        var receipt = assembly.GetTypes().Single(t => t.Name == "Receipt");
+        var order = assembly.GetTypes().Single(t => t.Name == "Order");
+        var nullability = new NullabilityInfoContext();
+        foreach (var (type, name) in new[] { (receipt, "serialNumber"), (receipt, "id"), (order, "secret") })
+        {
+            var parameter = type.GetConstructors().Single().GetParameters().Single(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            Assert.False(parameter.HasDefaultValue, $"{type.Name}.{name} has a default");
+            Assert.Equal(NullabilityState.NotNull, nullability.Create(parameter).WriteState);
+        }
+
+        var strict = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            RespectRequiredConstructorParameters = true,
+            RespectNullableAnnotations = true,
+        };
+
+        var read = JsonSerializer.Deserialize("""{"serialNumber":7,"id":"r1","total":3}""", receipt, strict)!;
+        var written = JsonNode.Parse(JsonSerializer.Serialize(read, receipt, strict))!;
+        Assert.Equal(7, written["serialNumber"]!.GetValue<int>());
+        Assert.Equal("r1", written["id"]!.GetValue<string>());
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize("""{"id":"r1","total":3}""", receipt, strict));
+
+        var sent = JsonSerializer.Deserialize("""{"secret":"s3","item":"cup"}""", order, strict)!;
+        Assert.Equal("s3", JsonNode.Parse(JsonSerializer.Serialize(sent, order, strict))!["secret"]!.GetValue<string>());
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize("""{"item":"cup"}""", order, strict));
     }
 }

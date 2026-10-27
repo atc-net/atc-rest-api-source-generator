@@ -78,6 +78,24 @@ public sealed class ReadOnlyWriteOnlyClient : IReadOnlyWriteOnlyClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<User>())!;
     }
 
+    public async Task<UserAudit> GetUserAuditAsync(
+        GetUserAuditParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"users/{parameters.UserId}/audit";
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        global::ReadOnlyWriteOnly.Generated.ApiRequest.Stamp(requestMessage, global::ReadOnlyWriteOnly.Generated.ApiOperations.GetUserAudit);
+        using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        if (json.Length == 0)
+        {
+            throw new JsonException($"The {(int)response.StatusCode} answer has no body, but the operation declares a UserAudit for it.");
+        }
+
+        return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<UserAudit>())!;
+    }
+
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

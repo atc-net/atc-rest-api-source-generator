@@ -52,6 +52,17 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .WithWireBinding(GetUserByIdParametersWire.Parameters, requireParameters: true);
+
+        users
+            .MapGet("{userId}/audit", GetUserAudit)
+            .WithName(global::ReadOnlyWriteOnly.Generated.ApiOperations.GetUserAudit)
+            .WithSummary("Get the audit record of a user (only ever returned, so its required readOnly properties stay required)")
+            .Produces<UserAudit>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding(GetUserAuditParametersWire.Parameters, requireParameters: true);
     }
 
     internal async Task<IResult> CreateUser(
@@ -66,6 +77,15 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
     internal async Task<IResult> GetUserById(
         [FromServices] IGetUserByIdHandler handler,
         [AsParameters] GetUserByIdParameters parameters,
+        CancellationToken cancellationToken)
+        => (await handler.ExecuteAsync(
+                parameters,
+                cancellationToken))
+            .Result;
+
+    internal async Task<IResult> GetUserAudit(
+        [FromServices] IGetUserAuditHandler handler,
+        [AsParameters] GetUserAuditParameters parameters,
         CancellationToken cancellationToken)
         => (await handler.ExecuteAsync(
                 parameters,
