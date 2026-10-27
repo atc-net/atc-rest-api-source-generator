@@ -321,6 +321,14 @@ public static class StreamedRequestBodyExtractor
                         yield break;
                     }
 
+                    // The records arrive as the client produces them, with pauses between them: Kestrel's minimum data
+                    // rate (240 bytes a second after 5 seconds) would end such a body. Off for this body, as for a gRPC
+                    // stream; the request's abort, the server's other timeouts and the body size limit still apply
+                    if (context.Features.Get<global::Microsoft.AspNetCore.Server.Kestrel.Core.Features.IHttpMinRequestBodyDataRateFeature>() is { } dataRate)
+                    {
+                        dataRate.MinDataRate = null;
+                    }
+
                     using var linked = global::System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
                     var options = {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.SerializerOptionsOf(context);
                     var typeInfo = (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));

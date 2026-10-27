@@ -2580,7 +2580,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 var expected = Enumerable.Range(1, expectedCount).Select(i => "t" + i).ToList();
                 if (!items.SequenceEqual(expected, StringComparer.Ordinal))
                 {
-                    return Cell(VerdictFail, $"items [{string.Join(",", items)}], expected [{string.Join(",", expected)}]", summary);
+                    return Cell(VerdictFail, $"items [{string.Join(",", items)}]{(error is null ? string.Empty : ", then " + error)}, expected [{string.Join(",", expected)}]", summary);
                 }
 
                 if (arguments["failAfter"] is not null)

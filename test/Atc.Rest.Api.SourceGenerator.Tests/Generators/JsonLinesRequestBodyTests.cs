@@ -553,6 +553,40 @@ public sealed class JsonLinesRequestBodyTests
         Assert.StartsWith("413 application/problem+json", await Post(host, "/readings", "application/jsonl", huge), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public async Task LiveHost_ASenderThatPausesBetweenRecords_IsReadToTheEnd(
+        bool rdg)
+    {
+        // Kestrel ends a body that arrives slower than its minimum data rate (240 bytes a second after a grace period
+        // of 5 seconds); the host tightens the grace period to two seconds, and the client pauses longer than that
+        await using var host = await XmlTestHost.StartAsync(
+            Yaml,
+            HandlerSource,
+            "ErrorBodies.RuntimeTest.ReadingRegistration",
+            configure: app => app.Use((context, next) =>
+            {
+                if (context.Features.Get<Microsoft.AspNetCore.Server.Kestrel.Core.Features.IHttpMinRequestBodyDataRateFeature>() is { } rate)
+                {
+                    rate.MinDataRate = new Microsoft.AspNetCore.Server.Kestrel.Core.MinDataRate(240, TimeSpan.FromSeconds(2));
+                }
+
+                return next(context);
+            }),
+            useRequestDelegateGenerator: rdg);
+        using var client = new HttpClient { BaseAddress = host.BaseAddress };
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/readings")
+        {
+            Content = new PausingContent(Lines("a"), TimeSpan.FromSeconds(4), Lines("b")),
+        };
+        request.Content.Headers.TryAddWithoutValidation("Content-Type", "application/jsonl");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("200 2 a,b", $"{(int)response.StatusCode} {text}");
+    }
+
     private static string Lines(params string[] deviceIds)
         => string.Concat(deviceIds.Select(id => $"{{\"deviceId\":\"{id}\",\"value\":1}}\n"));
 
@@ -587,4 +621,27 @@ public sealed class JsonLinesRequestBodyTests
             ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml)
                 .Where(s => s.HintName.Contains(hintPart, StringComparison.Ordinal))
                 .Select(s => s.Source));
+
+    // A body sent in two parts with a pause between them, as a client that streams records as it produces them
+    private sealed class PausingContent(
+        string first,
+        TimeSpan pause,
+        string second) : HttpContent
+    {
+        protected override async Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context)
+        {
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(first));
+            await stream.FlushAsync();
+            await Task.Delay(pause);
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(second));
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
 }
