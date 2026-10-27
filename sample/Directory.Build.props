@@ -30,7 +30,7 @@
     to match its new minimum rather than removing the bound.
   -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.OpenApi" Version="[2.12.2,3.0.0)" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.11.0" />
   </ItemGroup>
 
 </Project>
