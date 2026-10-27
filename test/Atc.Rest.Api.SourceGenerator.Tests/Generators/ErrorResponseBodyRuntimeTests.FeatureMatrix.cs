@@ -198,7 +198,7 @@ public partial class ErrorResponseBodyRuntimeTests
             get:
               operationId: featureSlow
               responses:
-                '200': { description: A thing after three seconds, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
+                '200': { description: A thing after thirty seconds, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
           /feature/net/reset:
             get:
               operationId: featureReset
@@ -533,7 +533,8 @@ public partial class ErrorResponseBodyRuntimeTests
             }
         }
 
-        // A read the server holds for three seconds: a client that cancels it shows up as a cancelled probe
+        // A read the server holds for thirty seconds: a client that cancels it shows up as a cancelled probe (a long hold,
+        // so a cancellation that reaches a busy server late still finds the read running; a cancelled read ends at once)
         public sealed class FeatureSlowHandlerImpl(IHttpContextAccessor accessor) : IFeatureSlowHandler
         {
             public async System.Threading.Tasks.Task<FeatureSlowResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
@@ -542,7 +543,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 FeatureLog.Started[probe] = true;
                 try
                 {
-                    await System.Threading.Tasks.Task.Delay(3_000, cancellationToken);
+                    await System.Threading.Tasks.Task.Delay(30_000, cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
