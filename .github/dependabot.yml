@@ -1,6 +1,6 @@
 # Weekly update PRs: minor and patch versions in one PR per ecosystem, major versions in another, so a week behind is a
 # couple of PRs and not one per package and folder. "chore(deps)" keeps release-please's changelog clean.
-# scripts/check-outdated.sh lists the same updates locally, majors included.
+# scripts/check-outdated.ps1 (or .sh) lists the same updates locally, majors included.
 version: 2
 updates:
   - package-ecosystem: nuget
